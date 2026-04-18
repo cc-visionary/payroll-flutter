@@ -8,5 +8,8 @@
 	<true/>
 	<key>com.apple.security.network.server</key>
 	<true/>
+	<!-- Match Release entitlements so dev + prod behave the same. -->
+	<key>com.apple.security.network.client</key>
+	<true/>
 </dict>
 </plist>

@@ -1,0 +1,26 @@
+{
+  "version": "1.0.1",
+  "buildNumber": 2,
+  "releaseNotes": "- First auto-update test release\n- No functional changes",
+  "releasedAt": "2026-05-01T00:00:00Z",
+
+  "platforms": {
+    "windows": {
+      "url": "https://updates.luxium.ph/payroll-flutter/windows/PayrollFlutter-Setup-v1.0.1.exe",
+      "sha256": ""
+    },
+    "macos": {
+      "url": "https://updates.luxium.ph/payroll-flutter/macos/PayrollFlutter-v1.0.1.dmg",
+      "sha256": ""
+    },
+    "linux": {
+      "url": "https://updates.luxium.ph/payroll-flutter/linux/PayrollFlutter-v1.0.1.AppImage",
+      "sha256": ""
+    }
+  },
+
+  "stores": {
+    "ios": "https://apps.apple.com/ph/app/idXXXXXXXXX",
+    "android": "https://play.google.com/store/apps/details?id=ph.luxium.payroll"
+  }
+}

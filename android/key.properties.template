@@ -1,0 +1,19 @@
+# Android release signing config — copy to `android/key.properties` and fill.
+#
+# DO NOT COMMIT the real key.properties or the .jks/.keystore file.
+# Both are covered by android/.gitignore.
+#
+# To generate the keystore (one-time, keep it safe — losing it means you can
+# never ship a real Play Store update for this app again):
+#
+#   keytool -genkey -v \
+#     -keystore android/luxium-payroll.keystore \
+#     -keyalg RSA -keysize 2048 -validity 10000 \
+#     -alias luxium-payroll
+#
+# Then populate this file (copy to key.properties first):
+
+storePassword=CHANGEME
+keyPassword=CHANGEME
+keyAlias=luxium-payroll
+storeFile=luxium-payroll.keystore

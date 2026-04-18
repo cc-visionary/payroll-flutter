@@ -1,0 +1,453 @@
+[
+  {
+    "id": "33333333-3333-3333-3333-000000000001",
+    "company_id": "11111111-1111-1111-1111-000000000001",
+    "job_title": "Operations Manager",
+    "department_id": "99999999-9999-9999-9999-000000000001",
+    "mission_statement": "Build a repeatable, auditable operations system that keeps fulfillment, inventory, returns, kiosk support, and forecasting running with low mistakes, so the business can scale without burnout.",
+    "key_responsibilities": [
+      {
+        "area": "Inventory system & discrepancy handling (highest leverage)",
+        "tasks": [
+          "Design and enforce stock control rules (receiving, put-away, transfers, access control)",
+          "Run discrepancy workflow: detect \u2192 investigate \u2192 correct \u2192 prevent",
+          "Oversee cycle counts (execution delegated; accountability stays)"
+        ]
+      },
+      {
+        "area": "Forecasting & restocking (monthly cadence)",
+        "tasks": [
+          "Consolidate sales data signals (all channels/brands)",
+          "Produce restock proposal pack (Top SKUs, lead times, cash constraints)",
+          "Coordinate approval with leadership; execute supplier ordering via assigned buyer if applicable"
+        ]
+      },
+      {
+        "area": "Operational control & reporting",
+        "tasks": [
+          "Maintain weekly ops scorecard (few key metrics)",
+          "Maintain issue log + root-cause analysis + corrective actions",
+          "Capacity planning for peaks (Dec): staffing, cutoff rules, batching, buffer stock "
+        ]
+      },
+      {
+        "area": "Returns/fixes oversight + specialist work",
+        "tasks": [
+          "Own the returns/fixes policy, reason codes, and exception approvals",
+          "Handle complex technical fixes only (LCD/rare repairs), and set \u201cspecialist windows\u201d to avoid disrupting throughput",
+          "Ensure feedback loop from returns/reviews becomes process fixes"
+        ]
+      },
+      {
+        "area": "Training & standardization",
+        "tasks": [
+          "Publish SOPs/checklists for recurring processes",
+          "Train and certify Ops Assistant / kiosk leads on critical workflows"
+        ]
+      }
+    ],
+    "kpis": [
+      {
+        "metric": "Inventory discrepancy rate",
+        "frequency": "Monthly"
+      },
+      {
+        "metric": "Stockout incidents",
+        "frequency": "Monthly"
+      }
+    ],
+    "salary_range_min": 1000.0,
+    "salary_range_max": 1250.0,
+    "base_salary": 1076.92307692308,
+    "wage_type": "DAILY",
+    "shift_template_id": null,
+    "work_hours_per_day": 8,
+    "work_days_per_week": "Monday to Saturday",
+    "effective_date": "2025-01-01",
+    "is_active": true
+  },
+  {
+    "id": "33333333-3333-3333-3333-000000000002",
+    "company_id": "11111111-1111-1111-1111-000000000001",
+    "job_title": "Operations Assistant",
+    "department_id": "99999999-9999-9999-9999-000000000001",
+    "mission_statement": "Execute daily order fulfillment and customer operations accurately and consistently across 3 brands (temporary), maintaining packing quality, dispatch speed, and clean documentation, while supporting inventory execution tasks (counts/logs) as assigned.",
+    "key_responsibilities": [
+      {
+        "area": "Fulfillment execution (primary)",
+        "tasks": [
+          "Pick/pack/label orders for all brands under assigned workflows",
+          "Video record packing and upload per standard",
+          "Prepare dispatch batches; coordinate drop-off / handoff",
+          "Handle packing station setup/cleanup, supplies readiness",
+          "Bubble wrap cutting/prep and other packing admin (labels, pouches, tape, inserts)"
+        ]
+      },
+      {
+        "area": "Customer service (temporary coverage for 3 brands)",
+        "tasks": [
+          "Respond to Duoke/platform customer inquiries (status, basic questions)",
+          "Handle standard cases using templates",
+          "Route exceptions to Ops Manager (policy/complex cases)",
+          "Log cases properly (reason tags)"
+        ]
+      },
+      {
+        "area": "Returns intake + basic processing",
+        "tasks": [
+          "Receive returned parcels; log into returns tracker with reason code",
+          "Take photos/evidence; route to refund/replacement/repair workflow",
+          "Update customer on standard status (templated)"
+        ]
+      },
+      {
+        "area": "Inventory execution support",
+        "tasks": [
+          "Assist in receiving POs: count on receipt, basic labeling/put-away",
+          "Perform assigned cycle counts (Top SKUs), report variances (no \u201csilent corrections\u201d)"
+        ]
+      }
+    ],
+    "kpis": [
+      {
+        "metric": "On-time dispatch %",
+        "frequency": "Monthly"
+      },
+      {
+        "metric": "Order accuracy %",
+        "frequency": "Monthly"
+      }
+    ],
+    "salary_range_min": 695.0,
+    "salary_range_max": 750.0,
+    "base_salary": 711.538461538462,
+    "wage_type": "DAILY",
+    "shift_template_id": null,
+    "work_hours_per_day": 8,
+    "work_days_per_week": "Monday to Saturday",
+    "effective_date": "2025-01-01",
+    "is_active": true
+  },
+  {
+    "id": "33333333-3333-3333-3333-000000000003",
+    "company_id": "11111111-1111-1111-1111-000000000001",
+    "job_title": "Sales & Ops Assistant",
+    "department_id": "99999999-9999-9999-9999-000000000001",
+    "mission_statement": "Provide flexible coverage to keep the business stable during spikes by supporting fulfillment, CS, and kiosk ops as needed, while maintaining accuracy and clean logs.",
+    "key_responsibilities": [
+      {
+        "area": "Ops relief (as needed)",
+        "tasks": [
+          "Assist in packing/labeling/dispatch during volume spikes",
+          "Help with returns intake/logging and basic customer updates (templated)",
+          "Support receiving and put-away when POs arrive"
+        ]
+      },
+      {
+        "area": "Kiosk ops support (scheduled or as needed)",
+        "tasks": [
+          "Cover shifts, breaks, or absences",
+          "Support stock replenishment and stock movement logging",
+          "Follow kiosk SOPs (open/close, cash, cleanliness)"
+        ]
+      },
+      {
+        "area": "Customer support (as needed)",
+        "tasks": [
+          "Handle basic order status inquiries and platform messages using templates",
+          "Escalate exceptions to Ops Manager/COO per rules"
+        ]
+      }
+    ],
+    "kpis": [
+      {
+        "metric": "Coverage reliability: % of assigned relief shifts/tasks completed on time",
+        "frequency": "Monthly"
+      },
+      {
+        "metric": "Ops quality: packing/dispatch error incidents while they\u2019re on duty ",
+        "frequency": "Monthly"
+      },
+      {
+        "metric": "Kiosk compliance: checklist completion rate on shifts they cover",
+        "frequency": "Monthly"
+      }
+    ],
+    "salary_range_min": 695.0,
+    "salary_range_max": 750.0,
+    "base_salary": 695.0,
+    "wage_type": "DAILY",
+    "shift_template_id": null,
+    "work_hours_per_day": 8,
+    "work_days_per_week": "Monday to Saturday",
+    "effective_date": "2025-01-01",
+    "is_active": true
+  },
+  {
+    "id": "33333333-3333-3333-3333-000000000004",
+    "company_id": "11111111-1111-1111-1111-000000000001",
+    "job_title": "Kiosk Sales Representative",
+    "department_id": "99999999-9999-9999-9999-000000000001",
+    "mission_statement": "Run the kiosk daily with consistent SOP compliance and strong customer service, ensuring accurate cash handling, clean merchandising, and stock discipline while driving sales.",
+    "key_responsibilities": [
+      {
+        "area": "Opening / closing operations (daily)",
+        "tasks": [
+          "Opening checklist completion (setup, POS readiness)",
+          "Closing checklist completion (cash count, POS tally, lock-up)"
+        ]
+      },
+      {
+        "area": "Cash box handling & tracking (daily)",
+        "tasks": [
+          "Cash count at open + close",
+          "Record cash variance and escalate immediately",
+          "Maintain receipts/evidence per SOP"
+        ]
+      },
+      {
+        "area": "Sales execution (daily)",
+        "tasks": [
+          "Greet, assist, recommend, close",
+          "Upsell/cross-sell where appropriate",
+          "Maintain basic product knowledge"
+        ]
+      },
+      {
+        "area": "Stock counts & movement logging (daily/weekly)",
+        "tasks": [
+          "Track stock movement (sales, replenishment, transfers)",
+          "Report low stock for Top SKUs",
+          "Participate in scheduled cycle counts (Top 20/Top 50 approach)"
+        ]
+      },
+      {
+        "area": "Cleanliness & presentation (daily)",
+        "tasks": [
+          "Maintain kiosk cleanliness",
+          "Ensure display is replenished and presentable"
+        ]
+      }
+    ],
+    "kpis": [
+      {
+        "metric": "Checklist compliance: % days opening + closing checklist completed with evidence",
+        "frequency": "Weekly"
+      },
+      {
+        "metric": "Cash variance rate: # variance incidents per week",
+        "frequency": "Weekly"
+      },
+      {
+        "metric": "Sales performance: daily sales vs target",
+        "frequency": "Monthly"
+      },
+      {
+        "metric": "Stock accuracy discipline: cycle count completion rate / stock log completeness",
+        "frequency": "Weekly"
+      }
+    ],
+    "salary_range_min": 695.0,
+    "salary_range_max": 750.0,
+    "base_salary": 695.0,
+    "wage_type": "DAILY",
+    "shift_template_id": null,
+    "work_hours_per_day": 8,
+    "work_days_per_week": "Tuesday to Sunday",
+    "effective_date": "2025-01-01",
+    "is_active": true
+  },
+  {
+    "id": "33333333-3333-3333-3333-000000000005",
+    "company_id": "11111111-1111-1111-1111-000000000001",
+    "job_title": "Commercial Channel Owner (Research + Targets + Channel Performance)",
+    "department_id": "99999999-9999-9999-9999-000000000003",
+    "mission_statement": "Drive growth by turning research into clear channel targets and ensuring execution hits targets through cadence, scorecards, and corrective actions (not by doing everything herself).",
+    "key_responsibilities": [
+      {
+        "area": "E-commerce execution",
+        "tasks": [
+          "Own monthly campaign calendar per platform (Payday/Mega Sales/Flash Deals, etc.)",
+          "Own listing quality standards (images, copy, bundles, keywords, reviews response process)",
+          "Enforce promo rules (no margin-killing blanket discounts)"
+        ]
+      },
+      {
+        "area": "Research & opportunity mapping",
+        "tasks": [
+          "Competitive research per brand/channel (pricing, offers, positioning, demand)",
+          "Identify 1\u20133 high-confidence growth bets monthly (campaigns, bundles, offers, channels)",
+          "Validate channel roles (marketplace vs TikTok vs DTC vs bazaar) based on numbers"
+        ]
+      },
+      {
+        "area": "Target setting & planning",
+        "tasks": [
+          "Set monthly targets per channel/brand (revenue + basic efficiency metric)",
+          "Produce channel plan: top SKU focus, promo plan, budget guardrails",
+          "Define \u201cmust-win\u201d moments (Payday/Mega/seasonal) with expected output"
+        ]
+      },
+      {
+        "area": "Performance management (ensuring targets are met)",
+        "tasks": [
+          "Run weekly commercial review: what moved numbers + what\u2019s broken + next actions",
+          "Trigger corrective actions (listing fixes, promo changes, offer changes, budget shift)",
+          "Escalate blockers to Ops/Finance/CEO with clear asks"
+        ]
+      }
+    ],
+    "kpis": [
+      {
+        "metric": "Channel contribution: Revenue + gross margin % by platform",
+        "frequency": "Monthly"
+      },
+      {
+        "metric": "ROAS / MER (whichever you use consistently) with trend",
+        "frequency": "Monthly"
+      },
+      {
+        "metric": "Conversion rate",
+        "frequency": "Monthly"
+      },
+      {
+        "metric": "Bazaar ROI: profit per event + \u201cgo/no-go\u201d decision documented",
+        "frequency": "Monthly"
+      }
+    ],
+    "salary_range_min": 1000.0,
+    "salary_range_max": 1250.0,
+    "base_salary": 1076.92307692308,
+    "wage_type": "DAILY",
+    "shift_template_id": null,
+    "work_hours_per_day": 8,
+    "work_days_per_week": "Monday to Saturday",
+    "effective_date": "2025-01-01",
+    "is_active": true
+  },
+  {
+    "id": "33333333-3333-3333-3333-000000000006",
+    "company_id": "11111111-1111-1111-1111-000000000001",
+    "job_title": "Offline Channel Owner (Wholesale + Partnerships)",
+    "department_id": "99999999-9999-9999-9999-000000000003",
+    "mission_statement": "Build a predictable wholesale revenue engine: pipeline \u2192 close \u2192 reorder/expansion, with disciplined pricing, account strategy, and retention.",
+    "key_responsibilities": [
+      {
+        "area": "Wholesale pipeline & acquisition",
+        "tasks": [
+          "Build target account list (retailers, corporate, gift resellers)",
+          "Outreach + meetings + proposals + follow-ups (disciplined deal flow)",
+          "Own partner onboarding and first successful order"
+        ]
+      },
+      {
+        "area": "Account strategy & retention/expansion",
+        "tasks": [
+          "Tier A/B/C accounts and engagement playbooks",
+          "Drive reorder cadence + upsell/cross-sell offers",
+          "Track churn risks and run reactivation plays"
+        ]
+      },
+      {
+        "area": "Deal governance",
+        "tasks": [
+          "Follow pricing/discount guardrails; request approvals when needed",
+          "Ensure MOQ/margin thresholds are respected (no \u201cbad deals\u201d)"
+        ]
+      }
+    ],
+    "kpis": [
+      {
+        "metric": "Wholesale revenue vs target",
+        "frequency": "Monthly"
+      },
+      {
+        "metric": "Active accounts / reorder rate",
+        "frequency": "Monthly"
+      },
+      {
+        "metric": "Pipeline health: # qualified opportunities + expected value",
+        "frequency": "Monthly"
+      },
+      {
+        "metric": "Gross margin quality on wholesale",
+        "frequency": "Monthly"
+      }
+    ],
+    "salary_range_min": 1000.0,
+    "salary_range_max": 1250.0,
+    "base_salary": 1076.92307692308,
+    "wage_type": "DAILY",
+    "shift_template_id": null,
+    "work_hours_per_day": 8,
+    "work_days_per_week": "Monday to Saturday",
+    "effective_date": "2025-01-01",
+    "is_active": true
+  },
+  {
+    "id": "33333333-3333-3333-3333-000000000007",
+    "company_id": "11111111-1111-1111-1111-000000000001",
+    "job_title": "HR Manager",
+    "department_id": "99999999-9999-9999-9999-000000000002",
+    "mission_statement": "Build a stable, accountable team by owning hiring/admin, onboarding/training discipline, performance management, and team wellness, so operations and sales don\u2019t collapse from people issues.",
+    "key_responsibilities": [
+      {
+        "area": "HR operations & compliance",
+        "tasks": [
+          "Contracts, attendance, disciplinary process, DOLE/requirements (as applicable)",
+          "HR templates + employee file management (organized, auditable)"
+        ]
+      },
+      {
+        "area": "Onboarding + training system (transferable skills)",
+        "tasks": [
+          "Own onboarding checklist per role (kiosk, ops, sales)",
+          "Maintain training materials + certification checklist (who is trained on what)",
+          "Coordinate with Chris/Ops leads for process updates"
+        ]
+      },
+      {
+        "area": "Performance management (KPIs + reviews)",
+        "tasks": [
+          "Implement performance review cadence (monthly check-in + quarterly review)",
+          "Ensure each role has 3\u20134 KPIs/standards and that reviews happen",
+          "Run improvement plans (PIP) when needed, documented and fair"
+        ]
+      },
+      {
+        "area": "Culture & wellness",
+        "tasks": [
+          "Own wellness initiatives and conflict resolution pathways",
+          "Run feedback loops (pulse checks) and escalate risks early (burnout, misalignment)"
+        ]
+      }
+    ],
+    "kpis": [
+      {
+        "metric": "Onboarding completion rate: % new hires fully onboarded by day 7/14 ",
+        "frequency": "Monthly"
+      },
+      {
+        "metric": "Performance cadence compliance: % reviews/check-ins completed on schedule",
+        "frequency": "Monthly"
+      },
+      {
+        "metric": "Retention/attendance health: absenteeism incidents trend or attrition",
+        "frequency": "Monthly"
+      },
+      {
+        "metric": "Training coverage: % staff certified for required role skills",
+        "frequency": "Monthly"
+      }
+    ],
+    "salary_range_min": 1000.0,
+    "salary_range_max": 1250.0,
+    "base_salary": 1076.92307692308,
+    "wage_type": "DAILY",
+    "shift_template_id": null,
+    "work_hours_per_day": 8,
+    "work_days_per_week": "Monday to Saturday",
+    "effective_date": "2025-01-01",
+    "is_active": true
+  }
+]

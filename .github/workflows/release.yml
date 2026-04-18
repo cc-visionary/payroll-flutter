@@ -1,0 +1,203 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version override (e.g. 0.1.0). Defaults to tag.'
+        required: false
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # -----------------------------------------------------------------------
+  # 1. Engine parity tests must pass before we build any artifacts
+  # -----------------------------------------------------------------------
+  test:
+    name: engine parity + unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos
+      - run: flutter test
+
+  # -----------------------------------------------------------------------
+  # 2. Matrix build across Windows / macOS / Linux
+  # -----------------------------------------------------------------------
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: windows
+          - os: macos-latest
+            target: macos
+          - os: ubuntu-latest
+            target: linux
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.x'
+          channel: stable
+          cache: true
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          V="${{ github.event.inputs.version }}"
+          if [ -z "$V" ]; then
+            V="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      # ----- Linux prerequisites -----
+      - name: Linux apt deps
+        if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build pkg-config \
+            libgtk-3-dev liblzma-dev libstdc++-12-dev file fuse libfuse2
+
+      - name: Enable ${{ matrix.target }} desktop
+        shell: bash
+        run: flutter config --enable-${{ matrix.target }}-desktop
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Build ${{ matrix.target }}
+        shell: bash
+        run: |
+          flutter build ${{ matrix.target }} --release \
+            --dart-define=SUPABASE_URL=$SUPABASE_URL \
+            --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+
+      # ----- Windows: Inno Setup installer -----
+      - name: Install Inno Setup
+        if: matrix.target == 'windows'
+        run: choco install innosetup -y
+
+      - name: Build Windows installer (.exe)
+        if: matrix.target == 'windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          & "C:\Program Files (x86)\Inno Setup 6\iscc.exe" `
+            /DVersion=${{ steps.ver.outputs.version }} `
+            installer\windows\payroll_flutter.iss
+
+      - name: Upload Windows installer
+        if: matrix.target == 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: PayrollFlutter-Windows-${{ steps.ver.outputs.version }}
+          path: dist/PayrollFlutter-Setup-v${{ steps.ver.outputs.version }}.exe
+          if-no-files-found: error
+
+      # ----- macOS: create .dmg -----
+      - name: Build macOS .dmg
+        if: matrix.target == 'macos'
+        run: |
+          npm install -g create-dmg
+          mkdir -p dist
+          create-dmg --overwrite \
+            --dmg-title="Payroll Flutter" \
+            build/macos/Build/Products/Release/payroll_flutter.app \
+            dist/ || true
+          # create-dmg outputs a timestamped filename; normalize it.
+          DMG=$(ls dist/*.dmg | head -1)
+          mv "$DMG" "dist/PayrollFlutter-${{ steps.ver.outputs.version }}.dmg"
+
+      - name: Upload macOS dmg
+        if: matrix.target == 'macos'
+        uses: actions/upload-artifact@v4
+        with:
+          name: PayrollFlutter-macOS-${{ steps.ver.outputs.version }}
+          path: dist/PayrollFlutter-${{ steps.ver.outputs.version }}.dmg
+          if-no-files-found: error
+
+      # ----- Linux: AppImage -----
+      - name: Package Linux AppImage
+        if: matrix.target == 'linux'
+        run: |
+          mkdir -p dist AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
+          cp -r build/linux/x64/release/bundle/* AppDir/usr/bin/
+          cat > AppDir/payroll_flutter.desktop <<EOF
+          [Desktop Entry]
+          Name=Payroll Flutter
+          Exec=payroll_flutter
+          Icon=payroll_flutter
+          Type=Application
+          Categories=Office;Finance;
+          EOF
+          cp AppDir/payroll_flutter.desktop AppDir/usr/share/applications/
+          # Fallback icon: a 1x1 PNG placeholder if no real icon yet
+          if [ ! -f assets/icon/linux.png ]; then
+            printf '\x89PNG\r\n\x1a\n' > AppDir/usr/share/icons/hicolor/256x256/apps/payroll_flutter.png
+          else
+            cp assets/icon/linux.png AppDir/usr/share/icons/hicolor/256x256/apps/payroll_flutter.png
+          fi
+          cp AppDir/usr/share/icons/hicolor/256x256/apps/payroll_flutter.png AppDir/payroll_flutter.png
+          cat > AppDir/AppRun <<'EOF'
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "${0}")")"
+          export LD_LIBRARY_PATH="$HERE/usr/bin/lib:$LD_LIBRARY_PATH"
+          exec "$HERE/usr/bin/payroll_flutter" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+          wget -qO appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          ./appimagetool AppDir "dist/PayrollFlutter-${{ steps.ver.outputs.version }}-x86_64.AppImage"
+
+      - name: Upload Linux AppImage
+        if: matrix.target == 'linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: PayrollFlutter-Linux-${{ steps.ver.outputs.version }}
+          path: dist/PayrollFlutter-${{ steps.ver.outputs.version }}-x86_64.AppImage
+          if-no-files-found: error
+
+  # -----------------------------------------------------------------------
+  # 3. Attach artifacts to the GitHub Release
+  # -----------------------------------------------------------------------
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/**/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false

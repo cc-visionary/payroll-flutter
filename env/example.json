@@ -1,0 +1,13 @@
+{
+  "_comment": "Copy this to env/prod.json and fill in. Gitignored. Used by `flutter run --dart-define-from-file` and `dart run tool/seed.dart --env ...`.",
+
+  "SUPABASE_URL": "https://<project-ref>.supabase.co",
+  "SUPABASE_ANON_KEY": "<anon-public-key>",
+
+  "_seed_only_comment": "Fields below are READ ONLY by tool/seed.dart — they are never compiled into the Flutter app (lib/core/env.dart only references SUPABASE_URL + SUPABASE_ANON_KEY).",
+  "SUPABASE_SERVICE_ROLE_KEY": "<service-role-key-from-project-settings-api>",
+  "ADMIN_PASSWORD": "<strong-password-12-chars-or-more>",
+  "HR_PASSWORD": "<strong-password-12-chars-or-more>",
+  "PAYROLL_PASSWORD": "<strong-password-12-chars-or-more>",
+  "FINANCE_PASSWORD": "<strong-password-12-chars-or-more>"
+}
