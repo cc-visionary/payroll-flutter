@@ -27,9 +27,19 @@ class BreakdownTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final lines = (payslip['__lines'] as List<dynamic>? ?? const [])
         .cast<Map<String, dynamic>>();
-    final earnings = lines.where((l) => _isEarning(l['category'] as String)).toList();
+    // Engine calculation order: Basic Pay 100 → OT 200 → Night Diff 300 →
+    // Holiday Pay 400-500 → Allowances / Commissions / Adjustments 500-900.
+    // Sort both columns so what's on screen matches the way payroll is
+    // actually computed, top to bottom.
+    int sortKey(Map<String, dynamic> l) =>
+        (l['sort_order'] as int?) ?? 0;
+    final earnings = lines
+        .where((l) => _isEarning(l['category'] as String))
+        .toList()
+      ..sort((a, b) => sortKey(a).compareTo(sortKey(b)));
     final deductions =
-        lines.where((l) => _isDeduction(l['category'] as String)).toList();
+        lines.where((l) => _isDeduction(l['category'] as String)).toList()
+          ..sort((a, b) => sortKey(a).compareTo(sortKey(b)));
 
     // MediaQuery avoids the LayoutBuilder-vs-IntrinsicHeight conflict
     // (the sibling _StatutoryCard / _YtdCard rows below use their own
@@ -44,7 +54,11 @@ class BreakdownTab extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _EarningsCard(
-                  lines: earnings, total: _dec(payslip['total_earnings'])),
+                lines: earnings,
+                total: _dec(payslip['total_earnings']),
+                runId: runId,
+                runStatus: runStatus,
+              ),
               const SizedBox(height: 16),
               _DeductionsCard(
                 lines: deductions,
@@ -63,6 +77,8 @@ class BreakdownTab extends StatelessWidget {
                   child: _EarningsCard(
                     lines: earnings,
                     total: _dec(payslip['total_earnings']),
+                    runId: runId,
+                    runStatus: runStatus,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -212,13 +228,22 @@ class _LineRow extends StatelessWidget {
   }
 }
 
-class _EarningsCard extends StatelessWidget {
+class _EarningsCard extends ConsumerWidget {
   final List<Map<String, dynamic>> lines;
   final Decimal total;
-  const _EarningsCard({required this.lines, required this.total});
+  final String? runId;
+  final String? runStatus;
+  const _EarningsCard({
+    required this.lines,
+    required this.total,
+    this.runId,
+    this.runStatus,
+  });
+
+  bool get _canSkip => runId != null && runStatus == 'REVIEW';
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return _Card(
       title: 'Earnings',
       child: Column(
@@ -240,6 +265,9 @@ class _EarningsCard extends StatelessWidget {
                 description: lines[i]['description'] as String? ?? '—',
                 subtitle: _subtitleFor(lines[i]),
                 amountText: Money.fmtPhp(BreakdownTab._dec(lines[i]['amount'])),
+                trailing: _canSkip
+                    ? _reimbursementSkipAction(context, ref, lines[i])
+                    : null,
               ),
               if (i < lines.length - 1)
                 Divider(height: 1, color: Theme.of(context).dividerColor),
@@ -272,6 +300,69 @@ class _EarningsCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Skip link — only shown on lines backed by a `reimbursement_id`. Other
+  /// earning categories (basic pay, OT, allowances, etc.) stay as-is.
+  Widget? _reimbursementSkipAction(
+      BuildContext context, WidgetRef ref, Map<String, dynamic> line) {
+    final reimbursementId = line['reimbursement_id'] as String?;
+    if (reimbursementId == null) return null;
+    return TextButton.icon(
+      onPressed: () => _confirmAndSkipReimbursement(context, ref, reimbursementId),
+      style: TextButton.styleFrom(
+        foregroundColor: const Color(0xFF2563EB),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        minimumSize: const Size(40, 28),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      icon: const Icon(Icons.skip_next, size: 14),
+      label: const Text('Skip'),
+    );
+  }
+
+  Future<void> _confirmAndSkipReimbursement(
+      BuildContext context, WidgetRef ref, String reimbursementId) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Skip this reimbursement?'),
+        content: const Text(
+          'This defers the reimbursement payout to the next pay period. '
+          'The payslip needs to be recomputed for the change to take '
+          'effect.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Skip'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(payrollRepositoryProvider).setReimbursementSkip(
+            reimbursementId: reimbursementId,
+            runId: runId!,
+            skip: true,
+          );
+      ref.invalidate(payslipDetailProvider);
+      if (!context.mounted) return;
+      messenger.showSnackBar(const SnackBar(
+        content: Text(
+          'Reimbursement skipped. Hit Recompute on the run to rebuild '
+          'payslips.',
+        ),
+      ));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Skip failed: $e')));
+    }
   }
 }
 
