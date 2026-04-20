@@ -443,14 +443,22 @@ class _DeductionsCard extends ConsumerWidget {
     );
   }
 
-  /// Skip link — only shown on lines backed by a `penalty_installment_id`.
-  /// Other deduction categories (statutory, late, cash advance) stay as-is.
+  /// Skip link — shown on lines backed by a `penalty_installment_id` or a
+  /// `cash_advance_id`. Statutory / late / other deduction categories stay
+  /// as-is.
   Widget? _skipAction(
       BuildContext context, WidgetRef ref, Map<String, dynamic> line) {
     final installmentId = line['penalty_installment_id'] as String?;
-    if (installmentId == null) return null;
+    final advanceId = line['cash_advance_id'] as String?;
+    if (installmentId == null && advanceId == null) return null;
     return TextButton.icon(
-      onPressed: () => _confirmAndSkip(context, ref, installmentId),
+      onPressed: () {
+        if (installmentId != null) {
+          _confirmAndSkipInstallment(context, ref, installmentId);
+        } else {
+          _confirmAndSkipCashAdvance(context, ref, advanceId!);
+        }
+      },
       style: TextButton.styleFrom(
         foregroundColor: const Color(0xFF2563EB),
         padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -462,7 +470,7 @@ class _DeductionsCard extends ConsumerWidget {
     );
   }
 
-  Future<void> _confirmAndSkip(
+  Future<void> _confirmAndSkipInstallment(
       BuildContext context, WidgetRef ref, String installmentId) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -480,7 +488,7 @@ class _DeductionsCard extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(c, true),
-            child: const Text('Skip for this run'),
+            child: const Text('Skip'),
           ),
         ],
       ),
@@ -493,14 +501,55 @@ class _DeductionsCard extends ConsumerWidget {
             runId: runId!,
             skip: true,
           );
-      // Invalidate this payslip + any list viewing it. The user still
-      // needs to hit Recompute on the run to rebuild payslip_lines; the
-      // snackbar surfaces that next step.
       ref.invalidate(payslipDetailProvider);
       if (!context.mounted) return;
       messenger.showSnackBar(const SnackBar(
         content: Text(
           'Installment skipped. Hit Recompute on the run to rebuild '
+          'payslips.',
+        ),
+      ));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Skip failed: $e')));
+    }
+  }
+
+  Future<void> _confirmAndSkipCashAdvance(
+      BuildContext context, WidgetRef ref, String advanceId) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Skip this cash advance?'),
+        content: const Text(
+          'This defers the cash advance deduction to the next pay period. '
+          'The payslip needs to be recomputed for the change to take '
+          'effect.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Skip'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(payrollRepositoryProvider).setCashAdvanceSkip(
+            advanceId: advanceId,
+            runId: runId!,
+            skip: true,
+          );
+      ref.invalidate(payslipDetailProvider);
+      if (!context.mounted) return;
+      messenger.showSnackBar(const SnackBar(
+        content: Text(
+          'Cash advance skipped. Hit Recompute on the run to rebuild '
           'payslips.',
         ),
       ));
