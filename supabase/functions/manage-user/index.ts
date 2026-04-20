@@ -347,8 +347,36 @@ async function handleUpdateRole(ctx: HandlerContext, body: Record<string, unknow
 
   return json({ ok: true, user_id: userId, role_code: roleCode });
 }
-async function handleLinkEmployee(_c: HandlerContext, _b: Record<string, unknown>): Promise<Response> {
-  return json({ ok: false, error: 'link_employee not implemented', code: 'NOT_IMPLEMENTED' }, 501);
+async function handleLinkEmployee(ctx: HandlerContext, body: Record<string, unknown>): Promise<Response> {
+  const userId = body.user_id as string;
+  const employeeId = body.employee_id as string | null;
+
+  const guard = await assertUserInCompany(ctx, userId);
+  if (guard) return guard;
+
+  // Clear any existing link from THIS user — only one employee per user.
+  const { error: clearErr } = await ctx.admin
+    .from('employees')
+    .update({ user_id: null })
+    .eq('user_id', userId)
+    .eq('company_id', ctx.callerCompanyId);
+  if (clearErr) return json({ ok: false, error: clearErr.message, code: 'INTERNAL' }, 500);
+
+  if (employeeId === null) {
+    return json({ ok: true, user_id: userId, employee_id: null });
+  }
+
+  const empGuard = await assertEmployeeAvailable(ctx, employeeId, userId);
+  if (empGuard) return empGuard;
+
+  const { error: linkErr } = await ctx.admin
+    .from('employees')
+    .update({ user_id: userId })
+    .eq('id', employeeId)
+    .eq('company_id', ctx.callerCompanyId);
+  if (linkErr) return json({ ok: false, error: linkErr.message, code: 'INTERNAL' }, 500);
+
+  return json({ ok: true, user_id: userId, employee_id: employeeId });
 }
 async function handleDeactivate(_c: HandlerContext, _b: Record<string, unknown>): Promise<Response> {
   return json({ ok: false, error: 'deactivate not implemented', code: 'NOT_IMPLEMENTED' }, 501);
