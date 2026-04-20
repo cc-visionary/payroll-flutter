@@ -54,7 +54,7 @@ Delete the HOURS card (values identical to WORK SCHEDULE: `${card.workHoursPerDa
 
 ## Piece 3 — Database migration
 
-**File:** `supabase/migrations/20260420000002_ca_reimbursement_skip.sql`
+**File:** `supabase/migrations/20260420000003_ca_reimbursement_skip.sql`
 
 Mirrors `20260418000009_penalty_installment_skip.sql`:
 

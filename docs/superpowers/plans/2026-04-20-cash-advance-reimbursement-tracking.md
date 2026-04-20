@@ -228,11 +228,11 @@ git commit -m "refactor(employee): drop redundant HOURS card on Role tab"
 ## Task 3: DB migration — skip arrays on CA + reimbursements (Piece 3)
 
 **Files:**
-- Create: `supabase/migrations/20260420000002_ca_reimbursement_skip.sql`
+- Create: `supabase/migrations/20260420000003_ca_reimbursement_skip.sql`
 
 - [ ] **Step 1: Write the migration**
 
-Create `supabase/migrations/20260420000002_ca_reimbursement_skip.sql` with exactly this content:
+Create `supabase/migrations/20260420000003_ca_reimbursement_skip.sql` with exactly this content (note: bumped from `000002` to `000003` to avoid a timestamp collision with the pre-existing `20260420000002_user_management.sql` migration):
 
 ```sql
 -- Per-run skip lists on cash_advances and reimbursements. Mirrors the penalty
@@ -282,7 +282,7 @@ Expected: both tables show `skipped_payroll_run_ids uuid[] NOT NULL DEFAULT '{}'
 - [ ] **Step 3: Commit**
 
 ```bash
-git add supabase/migrations/20260420000002_ca_reimbursement_skip.sql
+git add supabase/migrations/20260420000003_ca_reimbursement_skip.sql
 git commit -m "feat(db): add skipped_payroll_run_ids to cash_advances and reimbursements"
 ```
 
