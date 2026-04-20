@@ -53,6 +53,14 @@ Why one edge function: shared auth + company-scope checks; deploy once; matches 
 File: `supabase/migrations/20260420000001_user_management.sql`
 
 ```sql
+-- Extend the app_role enum so the codes from the roles table can be stamped
+-- as JWT app_metadata.app_role and survive the cast in auth_app_role().
+-- Existing values (ADMIN, HR, MANAGER, EMPLOYEE) are kept for back-compat
+-- with already-issued JWTs and any legacy seed data.
+alter type app_role add value if not exists 'PAYROLL_ADMIN';
+alter type app_role add value if not exists 'HR_ADMIN';
+alter type app_role add value if not exists 'FINANCE_MANAGER';
+
 -- Track admin-set temp passwords. Cleared when user changes password.
 alter table users add column must_change_password boolean not null default false;
 
@@ -191,8 +199,11 @@ File: `lib/data/repositories/user_management_repository.dart`. Wraps:
 ### Profile extension
 
 Edit `lib/features/auth/profile_provider.dart`:
+- Extend the `AppRole` enum with `PAYROLL_ADMIN, HR_ADMIN, FINANCE_MANAGER`.
+- Update `_parseRole` to recognize the new codes.
+- Update access getters: `isAdmin = SUPER_ADMIN || ADMIN || PAYROLL_ADMIN || HR_ADMIN`. `isHrOrAdmin = isAdmin || HR || HR_ADMIN`. `canRunPayroll = isHrOrAdmin || PAYROLL_ADMIN`. `canEditTaxTables = SUPER_ADMIN`.
 - Add `bool mustChangePassword` to `UserProfile`.
-- Read it from `user_emails` view alongside `company_id` (single query — currently reads `users` for `company_id`; switch to `user_emails`).
+- Read both fields from `user_emails` view alongside `company_id` (single query — currently reads `users` for `company_id`; switch to `user_emails` to fetch `must_change_password` in the same round-trip).
 
 ### Router redirect
 
