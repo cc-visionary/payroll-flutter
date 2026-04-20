@@ -75,17 +75,52 @@ final financialsByEmployeeProvider =
         (ref, q) async {
   // Penalty rows embed their installments so the UI can show "X paid of N"
   // + progress bar without a second round trip. CA/Reimbursement kinds
-  // don't have installment tables so we fetch plain rows.
+  // don't have installment tables so we fetch plain rows, then enrich with
+  // the consuming payslip id (resolved via payslip_lines) so the Financials
+  // tab can render a "View payslip →" link for already-deducted records.
+  final client = Supabase.instance.client;
   final fields = q.kind == FinancialKind.penalties
       ? '*, penalty_installments(id, installment_number, amount, is_deducted)'
       : '*';
-  final rows = await Supabase.instance.client
+  final rawRows = await client
       .from(q.kind.table)
       .select(fields)
       .eq('employee_id', q.employeeId)
       .order('created_at', ascending: false)
       .limit(200);
-  return (rows as List<dynamic>).cast<Map<String, dynamic>>();
+  final rows = (rawRows as List<dynamic>).cast<Map<String, dynamic>>();
+
+  if (q.kind == FinancialKind.penalties) return rows;
+
+  // Enrichment: for deducted CA or paid reimbursement rows, fetch the
+  // payslip_lines whose FK points at them and attach the payslip id. One
+  // extra roundtrip, only when there are settled rows to resolve.
+  final fkColumn = q.kind == FinancialKind.cashAdvances
+      ? 'cash_advance_id'
+      : 'reimbursement_id';
+  final settledFlag = q.kind == FinancialKind.cashAdvances
+      ? 'is_deducted'
+      : 'is_paid';
+  final settledIds = rows
+      .where((r) => r[settledFlag] == true)
+      .map((r) => r['id'] as String)
+      .toList();
+  if (settledIds.isEmpty) return rows;
+
+  final lineRows = await client
+      .from('payslip_lines')
+      .select('$fkColumn, payslip_id')
+      .inFilter(fkColumn, settledIds);
+  final payslipByFk = <String, String>{};
+  for (final lr in (lineRows as List<dynamic>).cast<Map<String, dynamic>>()) {
+    final fk = lr[fkColumn] as String?;
+    final payslipId = lr['payslip_id'] as String?;
+    if (fk != null && payslipId != null) payslipByFk[fk] = payslipId;
+  }
+  return rows.map((r) {
+    final pid = payslipByFk[r['id'] as String];
+    return pid == null ? r : {...r, '_payslip_id': pid};
+  }).toList();
 });
 
 // --- Leave balances -------------------------------------------------------
