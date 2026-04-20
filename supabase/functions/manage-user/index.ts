@@ -280,8 +280,23 @@ async function handleCreate(ctx: HandlerContext, body: Record<string, unknown>):
 
   return json({ ok: true, user_id: newUserId });
 }
-async function handleSetPassword(_c: HandlerContext, _b: Record<string, unknown>): Promise<Response> {
-  return json({ ok: false, error: 'set_password not implemented', code: 'NOT_IMPLEMENTED' }, 501);
+async function handleSetPassword(ctx: HandlerContext, body: Record<string, unknown>): Promise<Response> {
+  const userId = body.user_id as string;
+  const password = body.password as string;
+
+  const guard = await assertUserInCompany(ctx, userId);
+  if (guard) return guard;
+
+  const { error: pwErr } = await ctx.admin.auth.admin.updateUserById(userId, { password });
+  if (pwErr) return json({ ok: false, error: pwErr.message, code: 'INTERNAL' }, 500);
+
+  const { error: flagErr } = await ctx.admin
+    .from('users')
+    .update({ must_change_password: true })
+    .eq('id', userId);
+  if (flagErr) return json({ ok: false, error: flagErr.message, code: 'INTERNAL' }, 500);
+
+  return json({ ok: true, user_id: userId });
 }
 async function handleUpdateRole(_c: HandlerContext, _b: Record<string, unknown>): Promise<Response> {
   return json({ ok: false, error: 'update_role not implemented', code: 'NOT_IMPLEMENTED' }, 501);
