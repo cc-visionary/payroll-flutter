@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/breakpoints.dart';
 import '../../../app/status_colors.dart';
 import '../../../data/models/hiring_entity.dart';
 import '../../../data/repositories/hiring_entity_repository.dart';
@@ -16,18 +17,22 @@ class HiringEntitiesSettingsScreen extends ConsumerWidget {
     final countsAsync = ref.watch(hiringEntityEmployeeCountsProvider);
 
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Text('Hiring Entities / Companies',
-              style: Theme.of(context).textTheme.headlineSmall),
-          const Spacer(),
-          FilledButton.icon(
-            onPressed: () => _openForm(context, ref),
-            icon: const Icon(Icons.add),
-            label: const Text('Add Hiring Entity'),
-          ),
-        ]),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text('Hiring Entities / Companies',
+                style: Theme.of(context).textTheme.headlineSmall),
+            FilledButton.icon(
+              onPressed: () => _openForm(context, ref),
+              icon: const Icon(Icons.add),
+              label: const Text('Add Hiring Entity'),
+            ),
+          ],
+        ),
         const SizedBox(height: 4),
         const Text(
           'Legal entities that can hire employees. Each hiring entity has its '
@@ -108,17 +113,26 @@ class _EntityCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Text(entity.name,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(width: 8),
-            StatusChip(
-              label: entity.isActive ? 'Active' : 'Inactive',
-              tone: entity.isActive ? StatusTone.success : StatusTone.neutral,
+            Expanded(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(entity.name,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600)),
+                  StatusChip(
+                    label: entity.isActive ? 'Active' : 'Inactive',
+                    tone: entity.isActive
+                        ? StatusTone.success
+                        : StatusTone.neutral,
+                  ),
+                ],
+              ),
             ),
-            const Spacer(),
             TextButton(onPressed: onEdit, child: const Text('Edit')),
           ]),
           if (entity.tradeName != null && entity.tradeName!.isNotEmpty)
@@ -272,12 +286,15 @@ class _FormState extends ConsumerState<_EntityForm> {
 
   @override
   Widget build(BuildContext context) {
+    final dialogMax = isMobile(context)
+        ? MediaQuery.sizeOf(context).width - 48
+        : 560.0;
     return AlertDialog(
       title: Text(widget.existing == null
           ? 'Add Hiring Entity'
           : 'Edit Hiring Entity'),
       content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
+        constraints: BoxConstraints(maxWidth: dialogMax),
         child: SingleChildScrollView(
           child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -369,17 +386,33 @@ class _FormState extends ConsumerState<_EntityForm> {
                 ?.copyWith(fontWeight: FontWeight.w600)),
       );
 
-  Widget _row(List<Widget> children) => Padding(
+  Widget _row(List<Widget> children) {
+    if (isMobile(context)) {
+      return Padding(
         padding: const EdgeInsets.only(bottom: 8),
-        child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (int i = 0; i < children.length; i++) ...[
-                Expanded(child: children[i]),
-                if (i < children.length - 1) const SizedBox(width: 12),
-              ],
-            ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (int i = 0; i < children.length; i++) ...[
+              if (i > 0) const SizedBox(height: 8),
+              children[i],
+            ],
+          ],
+        ),
       );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (int i = 0; i < children.length; i++) ...[
+              Expanded(child: children[i]),
+              if (i < children.length - 1) const SizedBox(width: 12),
+            ],
+          ]),
+    );
+  }
 
   Widget _text(
     TextEditingController c,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/breakpoints.dart';
 import '../../../../core/money.dart';
 import '../../../../data/repositories/employee_repository.dart';
 import '../../../employees/profile/tabs/attendance_tab.dart' as emp;
@@ -60,12 +61,13 @@ class PayslipDetailScreen extends ConsumerWidget {
               // can surface the count after it loads via a separate watch in
               // the tab label below.
               0;
+          final hPad = isMobile(context) ? 16.0 : 24.0;
           return DefaultTabController(
             length: 3,
             child: NestedScrollView(
               headerSliverBuilder: (context, _) => [
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+                  padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
                   sliver: SliverToBoxAdapter(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -91,7 +93,7 @@ class PayslipDetailScreen extends ConsumerWidget {
                   delegate: _TabBarHeaderDelegate(
                     child: Container(
                       color: Theme.of(context).scaffoldBackgroundColor,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      padding: EdgeInsets.symmetric(horizontal: hPad),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
@@ -109,7 +111,7 @@ class PayslipDetailScreen extends ConsumerWidget {
                 ),
               ],
               body: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: EdgeInsets.symmetric(horizontal: hPad),
                 child: TabBarView(
                   children: [
                     BreakdownTab(
@@ -174,62 +176,74 @@ class _Header extends StatelessWidget {
         (employee?['departments'] as Map?)?['name'] as String? ?? '—';
     final code = period?['code'] as String? ?? '';
 
+    final mobile = isMobile(context);
+    final titleBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            InkWell(
+              onTap: () => context.go('/payroll'),
+              child: Text(
+                'Payroll Runs',
+                style: TextStyle(fontSize: 13, color: muted),
+              ),
+            ),
+            Text('  /  ', style: TextStyle(color: muted)),
+            InkWell(
+              onTap: () => context.go('/payroll/$runId'),
+              child: Text(
+                code.isEmpty ? 'Run' : code,
+                style: TextStyle(fontSize: 13, color: muted),
+              ),
+            ),
+            Text('  /  ', style: TextStyle(color: muted)),
+            Text(
+              lastFirst.isEmpty ? 'Payslip' : lastFirst,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          lastFirst,
+          style: TextStyle(
+            fontSize: mobile ? 18 : 22,
+            fontWeight: FontWeight.w700,
+            height: 1.2,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '$number · $role · $dept',
+          style: TextStyle(fontSize: 13, color: muted),
+        ),
+      ],
+    );
+    final pdfBtn = OutlinedButton.icon(
+      onPressed: () => context.push('/payslips/$payslipId'),
+      icon: const Icon(Icons.picture_as_pdf, size: 16),
+      label: const Text('PDF'),
+    );
+    if (mobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          titleBlock,
+          const SizedBox(height: 12),
+          Align(alignment: Alignment.centerLeft, child: pdfBtn),
+        ],
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  InkWell(
-                    onTap: () => context.go('/payroll'),
-                    child: Text(
-                      'Payroll Runs',
-                      style: TextStyle(fontSize: 13, color: muted),
-                    ),
-                  ),
-                  Text('  /  ', style: TextStyle(color: muted)),
-                  InkWell(
-                    onTap: () => context.go('/payroll/$runId'),
-                    child: Text(
-                      code.isEmpty ? 'Run' : code,
-                      style: TextStyle(fontSize: 13, color: muted),
-                    ),
-                  ),
-                  Text('  /  ', style: TextStyle(color: muted)),
-                  Text(
-                    lastFirst.isEmpty ? 'Payslip' : lastFirst,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                lastFirst,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  height: 1.2,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '$number · $role · $dept',
-                style: TextStyle(fontSize: 13, color: muted),
-              ),
-            ],
-          ),
-        ),
-        OutlinedButton.icon(
-          onPressed: () => context.push('/payslips/$payslipId'),
-          icon: const Icon(Icons.picture_as_pdf, size: 16),
-          label: const Text('PDF'),
-        ),
+        Expanded(child: titleBlock),
+        pdfBtn,
       ],
     );
   }

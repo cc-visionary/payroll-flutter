@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../app/breakpoints.dart';
 import '../../../data/models/calendar_event.dart';
 import '../../../data/repositories/holiday_repository.dart';
 import '../../auth/profile_provider.dart';
@@ -85,8 +86,9 @@ class _State extends ConsumerState<HolidaysSettingsScreen> {
     final cal = ref.watch(holidayCalendarProvider).asData?.value;
     final eventsAsync = ref.watch(holidayEventsProvider);
 
+    final mobile = isMobile(context);
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(mobile ? 16 : 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Text('Holiday Calendar', style: Theme.of(context).textTheme.headlineSmall),
@@ -95,31 +97,41 @@ class _State extends ConsumerState<HolidaysSettingsScreen> {
         const Text('Manage holidays for payroll day-type resolution. Sync from Lark to import holidays from the HR Calendar, or add them manually.',
             style: TextStyle(color: Colors.grey)),
         const SizedBox(height: 16),
-        Row(children: [
-          IconButton(onPressed: () => ref.read(selectedHolidayYearProvider.notifier).state = year - 1, icon: const Icon(Icons.chevron_left)),
-          Text('$year', style: Theme.of(context).textTheme.titleLarge),
-          IconButton(onPressed: () => ref.read(selectedHolidayYearProvider.notifier).state = year + 1, icon: const Icon(Icons.chevron_right)),
-          const Spacer(),
-          if (cal?.lastSyncedAt != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Text('Last synced: ${DateFormat('MMM d, h:mm a').format(cal!.lastSyncedAt!.toLocal())}',
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              IconButton(onPressed: () => ref.read(selectedHolidayYearProvider.notifier).state = year - 1, icon: const Icon(Icons.chevron_left)),
+              Text('$year', style: Theme.of(context).textTheme.titleLarge),
+              IconButton(onPressed: () => ref.read(selectedHolidayYearProvider.notifier).state = year + 1, icon: const Icon(Icons.chevron_right)),
+            ]),
+            if (cal?.lastSyncedAt != null && !mobile)
+              Text(
+                  'Last synced: ${DateFormat('MMM d, h:mm a').format(cal!.lastSyncedAt!.toLocal())}',
                   style: const TextStyle(color: Colors.grey, fontSize: 12)),
+            OutlinedButton.icon(
+              onPressed: _syncing ? null : _sync,
+              icon: _syncing
+                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.sync),
+              label: const Text('Sync from Lark'),
             ),
-          OutlinedButton.icon(
-            onPressed: _syncing ? null : _sync,
-            icon: _syncing
-                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.sync),
-            label: const Text('Sync from Lark'),
+            FilledButton.icon(
+              onPressed: () => _addOrEdit(),
+              icon: const Icon(Icons.add),
+              label: const Text('Add Holiday'),
+            ),
+          ],
+        ),
+        if (mobile && cal?.lastSyncedAt != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+                'Last synced: ${DateFormat('MMM d, h:mm a').format(cal!.lastSyncedAt!.toLocal())}',
+                style: const TextStyle(color: Colors.grey, fontSize: 12)),
           ),
-          const SizedBox(width: 8),
-          FilledButton.icon(
-            onPressed: () => _addOrEdit(),
-            icon: const Icon(Icons.add),
-            label: const Text('Add Holiday'),
-          ),
-        ]),
         if (_msg != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_msg!)),
         const SizedBox(height: 16),
         Expanded(child: eventsAsync.when(

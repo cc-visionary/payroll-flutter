@@ -231,7 +231,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           : Form(
               key: _formKey,
               child: ListView(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
                 children: [
                   Card(
                     child: Padding(
@@ -692,35 +692,30 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
               style: TextStyle(fontSize: 12, color: Colors.black54),
             ),
             const SizedBox(height: 8),
-            Row(children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _declaredWage,
-                  enabled: canEditWage,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Override amount (PHP)',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
+            _responsiveRow([
+              TextFormField(
+                controller: _declaredWage,
+                enabled: canEditWage,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Override amount (PHP)',
+                  border: OutlineInputBorder(),
+                  isDense: true,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  initialValue: _declaredWageType,
-                  decoration: const InputDecoration(
-                    labelText: 'Wage type',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  items: const ['MONTHLY', 'DAILY', 'HOURLY']
-                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                      .toList(),
-                  onChanged: canEditWage
-                      ? (v) => setState(() => _declaredWageType = v!)
-                      : null,
+              DropdownButtonFormField<String>(
+                initialValue: _declaredWageType,
+                decoration: const InputDecoration(
+                  labelText: 'Wage type',
+                  border: OutlineInputBorder(),
+                  isDense: true,
                 ),
+                items: const ['MONTHLY', 'DAILY', 'HOURLY']
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                    .toList(),
+                onChanged: canEditWage
+                    ? (v) => setState(() => _declaredWageType = v!)
+                    : null,
               ),
             ]),
             const SizedBox(height: 12),
@@ -954,10 +949,13 @@ class _BankAccountDialogState extends ConsumerState<_BankAccountDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final dialogWidth = isMobile(context)
+        ? MediaQuery.sizeOf(context).width - 48
+        : 400.0;
     return AlertDialog(
       title: Text(widget.existing == null ? 'Add payment account' : 'Edit payment account'),
       content: SizedBox(
-        width: 400,
+        width: dialogWidth,
         child: Form(
           key: _formKey,
           child: Column(

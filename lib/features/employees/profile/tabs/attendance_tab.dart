@@ -333,12 +333,16 @@ class _AttendanceTabState extends ConsumerState<AttendanceTab> {
     final datesByRecordId = <String, DateTime>{
       for (final r in records) r.id: r.attendanceDate,
     };
+    final shiftIdByRecordId = <String, String?>{
+      for (final r in records) r.id: r.shiftTemplateId,
+    };
     final messenger = ScaffoldMessenger.of(context);
     final changed = await showAttendanceBatchEditDialog(
       context: context,
       ref: ref,
       recordIds: _selected.toList(),
       datesByRecordId: datesByRecordId,
+      shiftIdByRecordId: shiftIdByRecordId,
       shifts: shifts,
     );
     if (changed == true && mounted) {
@@ -1222,11 +1226,15 @@ class _MonthTable extends StatelessWidget {
         ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
         : null;
 
-    // Shift display
+    // Shift display: only show the schedule when this specific record has
+    // a shift assigned. Otherwise show "—" — using the scorecard fallback
+    // here is misleading because rest day rows would falsely appear to be
+    // scheduled.
     String shiftText = '—';
-    if (row.shift != null) {
+    final recordShift = row.record?.shiftTemplateId != null ? row.shift : null;
+    if (recordShift != null) {
       shiftText =
-          '${_fmtShiftTime(row.shift!.startTime)} - ${_fmtShiftTime(row.shift!.endTime)}';
+          '${_fmtShiftTime(recordShift.startTime)} - ${_fmtShiftTime(recordShift.endTime)}';
     }
 
     // Late clock-in check
@@ -1261,7 +1269,7 @@ class _MonthTable extends StatelessWidget {
         DataCell(Text(_weekdayShort(row.date.weekday),
             style: TextStyle(color: onMuted))),
         DataCell(Text(shiftText,
-            style: TextStyle(color: row.shift == null ? onMuted : null))),
+            style: TextStyle(color: recordShift == null ? onMuted : null))),
         DataCell(Text(
           hasRecord ? _fmtClock(row.record!.actualTimeIn) : '—',
           style: TextStyle(

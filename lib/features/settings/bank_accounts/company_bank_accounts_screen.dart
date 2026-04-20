@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/breakpoints.dart';
 import '../../../data/models/hiring_entity.dart';
 import '../../../data/models/hiring_entity_bank_account.dart';
 import '../../../data/repositories/hiring_entity_bank_account_repository.dart';
@@ -18,7 +19,7 @@ class CompanyBankAccountsScreen extends ConsumerWidget {
     final accountsAsync = ref.watch(companyBankAccountsProvider);
 
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -94,30 +95,37 @@ class _EntitySection extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Text(entity.name,
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w700)),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(4),
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(entity.name,
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w700)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(entity.code,
+                            style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: 'monospace')),
+                      ),
+                    ],
                   ),
-                  child: Text(entity.code,
-                      style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: 'monospace')),
                 ),
-                const Spacer(),
                 TextButton.icon(
                   onPressed: () => _openAccountDialog(context, ref, null),
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add account'),
+                  label: Text(isMobile(context) ? 'Add' : 'Add account'),
                 ),
               ],
             ),
@@ -349,12 +357,15 @@ class _CompanyBankAccountDialogState
 
   @override
   Widget build(BuildContext context) {
+    final dialogWidth = isMobile(context)
+        ? MediaQuery.sizeOf(context).width - 48
+        : 420.0;
     return AlertDialog(
       title: Text(widget.existing == null
           ? 'Add company bank account'
           : 'Edit company bank account'),
       content: SizedBox(
-        width: 420,
+        width: dialogWidth,
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(

@@ -26,6 +26,10 @@ class PayrollRun {
   final String? createdByEmail;
   final String? approvedById;
   final String? approvedByEmail;
+  /// Flipped to `true` when HR hits "Distribute 13th Month" on this run.
+  /// Lets reports filter 13th-month distributions separately from regular
+  /// payroll runs.
+  final bool isThirteenthMonthDistribution;
 
   const PayrollRun({
     required this.id,
@@ -49,6 +53,7 @@ class PayrollRun {
     this.createdByEmail,
     this.approvedById,
     this.approvedByEmail,
+    this.isThirteenthMonthDistribution = false,
   });
 
   factory PayrollRun.fromRow(Map<String, dynamic> r) {
@@ -85,6 +90,8 @@ class PayrollRun {
       createdByEmail: createdByEmbed?['email'] as String?,
       approvedById: r['approved_by_id'] as String?,
       approvedByEmail: approvedByEmbed?['email'] as String?,
+      isThirteenthMonthDistribution:
+          r['is_thirteenth_month_distribution'] as bool? ?? false,
     );
   }
 }

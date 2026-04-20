@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/breakpoints.dart';
 import '../../../data/models/shift_template.dart';
 import '../../../data/repositories/shift_template_repository.dart';
 import '../../auth/profile_provider.dart';
@@ -46,19 +47,27 @@ class _State extends ConsumerState<ShiftTemplatesScreen> {
   Widget build(BuildContext context) {
     final async = ref.watch(shiftTemplateListProvider);
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Text('Shift Templates', style: Theme.of(context).textTheme.headlineSmall),
-          const Spacer(),
-          FilledButton.icon(
-            onPressed: _syncing ? null : _sync,
-            icon: _syncing
-                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.sync),
-            label: const Text('Sync from Lark'),
-          ),
-        ]),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text('Shift Templates',
+                style: Theme.of(context).textTheme.headlineSmall),
+            FilledButton.icon(
+              onPressed: _syncing ? null : _sync,
+              icon: _syncing
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.sync),
+              label: const Text('Sync from Lark'),
+            ),
+          ],
+        ),
         const SizedBox(height: 4),
         const Text('Shift templates are synced from Lark. Click "Sync from Lark" to fetch the latest shifts.',
             style: TextStyle(color: Colors.grey)),

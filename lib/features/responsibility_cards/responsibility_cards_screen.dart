@@ -20,19 +20,28 @@ class ResponsibilityCardsScreen extends ConsumerWidget {
     final canManage = profile?.isHrOrAdmin ?? false;
     final canDelete = profile?.appRole == AppRole.SUPER_ADMIN;
 
+    final mobile = isMobile(context);
     return Scaffold(
-      drawer: isMobile(context) ? const AppDrawer() : null,
+      drawer: mobile ? const AppDrawer() : null,
       appBar: AppBar(
         title: const Text('Responsibility Cards'),
         actions: [
           if (canManage)
             Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: FilledButton.icon(
-                onPressed: () => context.push('/responsibility-cards/new'),
-                icon: const Icon(Icons.add),
-                label: const Text('New card'),
-              ),
+              padding: const EdgeInsets.only(right: 8),
+              child: mobile
+                  ? IconButton(
+                      tooltip: 'New card',
+                      onPressed: () =>
+                          context.push('/responsibility-cards/new'),
+                      icon: const Icon(Icons.add),
+                    )
+                  : FilledButton.icon(
+                      onPressed: () =>
+                          context.push('/responsibility-cards/new'),
+                      icon: const Icon(Icons.add),
+                      label: const Text('New card'),
+                    ),
             ),
         ],
       ),
@@ -115,6 +124,42 @@ class _CardTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
+    final countChip = Tooltip(
+      message:
+          '$employeeCount employee${employeeCount == 1 ? '' : 's'} assigned',
+      child: Chip(
+        avatar: const Icon(Icons.people, size: 16),
+        label: Text('$employeeCount'),
+        visualDensity: VisualDensity.compact,
+      ),
+    );
+    final wageChip =
+        Chip(label: Text(card.wageType), visualDensity: VisualDensity.compact);
+    final moreMenu = canManage
+        ? PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, size: 20),
+            onSelected: (v) {
+              if (v == 'edit') onEdit();
+              if (v == 'delete') onDelete();
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'edit',
+                child: ListTile(
+                    leading: Icon(Icons.edit), title: Text('Edit')),
+              ),
+              if (canDelete)
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: ListTile(
+                    leading: Icon(Icons.delete, color: Colors.red),
+                    title: Text('Delete',
+                        style: TextStyle(color: Colors.red)),
+                  ),
+                ),
+            ],
+          )
+        : null;
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -125,48 +170,29 @@ class _CardTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Text(
                       card.jobTitle,
-                      style: t.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                      style: t.textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
                     ),
                   ),
-                  Tooltip(
-                    message: '$employeeCount employee${employeeCount == 1 ? '' : 's'} assigned',
-                    child: Chip(
-                      avatar: const Icon(Icons.people, size: 16),
-                      label: Text('$employeeCount'),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
+                  if (moreMenu != null) moreMenu,
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  countChip,
                   if (card.baseSalary != null)
-                    Text('Base: ${Money.fmtPhp(card.baseSalary!)}', style: t.textTheme.bodyMedium),
-                  const SizedBox(width: 8),
-                  Chip(label: Text(card.wageType), visualDensity: VisualDensity.compact),
-                  if (canManage)
-                    PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert, size: 20),
-                      onSelected: (v) {
-                        if (v == 'edit') onEdit();
-                        if (v == 'delete') onDelete();
-                      },
-                      itemBuilder: (_) => [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: ListTile(leading: Icon(Icons.edit), title: Text('Edit')),
-                        ),
-                        if (canDelete)
-                          const PopupMenuItem(
-                            value: 'delete',
-                            child: ListTile(
-                              leading: Icon(Icons.delete, color: Colors.red),
-                              title: Text('Delete', style: TextStyle(color: Colors.red)),
-                            ),
-                          ),
-                      ],
-                    ),
+                    Text('Base: ${Money.fmtPhp(card.baseSalary!)}',
+                        style: t.textTheme.bodyMedium),
+                  wageChip,
                 ],
               ),
               const SizedBox(height: 4),

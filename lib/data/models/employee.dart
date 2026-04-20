@@ -34,9 +34,13 @@ class Employee {
   final String? paymentMethod;
   final String? paymentSourceAccount;
   final String? larkUserId;
+  /// Running sum of BASIC_PAY earned since this employee's last 13th-month
+  /// distribution. Ticks up on every payroll release; resets to 0 when a
+  /// distribution pays them out.
+  final Decimal accruedThirteenthMonthBasis;
   final DateTime? deletedAt;
 
-  const Employee({
+  Employee({
     required this.id,
     required this.companyId,
     required this.employeeNumber,
@@ -68,8 +72,9 @@ class Employee {
     this.paymentMethod,
     this.paymentSourceAccount,
     this.larkUserId,
+    Decimal? accruedThirteenthMonthBasis,
     this.deletedAt,
-  });
+  }) : accruedThirteenthMonthBasis = accruedThirteenthMonthBasis ?? Decimal.zero;
 
   String get fullName => [firstName, middleName, lastName]
       .where((s) => s != null && s.isNotEmpty)
@@ -115,6 +120,11 @@ class Employee {
         paymentMethod: r['payment_method'] as String?,
         paymentSourceAccount: r['payment_source_account'] as String?,
         larkUserId: r['lark_user_id'] as String?,
+        accruedThirteenthMonthBasis:
+            r['accrued_thirteenth_month_basis'] == null
+                ? Decimal.zero
+                : Decimal.parse(
+                    r['accrued_thirteenth_month_basis'].toString()),
         deletedAt: r['deleted_at'] == null
             ? null
             : DateTime.parse(r['deleted_at'] as String),

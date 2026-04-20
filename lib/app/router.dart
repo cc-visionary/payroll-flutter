@@ -22,9 +22,20 @@ import '../features/payroll/runs/detail/payroll_run_detail_screen.dart';
 import '../features/payroll/runs/payroll_runs_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/adjuncts/adjuncts_screen.dart';
+import '../features/assets/assets_screen.dart';
 import '../features/audit/audit_log_screen.dart';
 import '../features/auth/profile_provider.dart';
+import '../features/compensation/compensation_screen.dart';
+import '../features/compliance/compliance_screen.dart';
+import '../features/documents/documents_screen.dart';
+import '../features/hiring/hiring_screen.dart';
 import '../features/leave/leave_requests_screen.dart';
+import '../features/offboarding/offboarding_screen.dart';
+import '../features/onboarding/onboarding_screen.dart';
+import '../features/org_chart/org_chart_screen.dart';
+import '../features/performance/performance_screen.dart';
+import '../features/workflows/workflows_screen.dart';
+import '../features/workforce_planning/workforce_planning_screen.dart';
 import '../features/auth/session_provider.dart';
 import 'shell.dart';
 
@@ -33,10 +44,14 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/dashboard',
     refreshListenable: GoRouterRefreshStream(Supabase.instance.client.auth.onAuthStateChange),
+    errorBuilder: (c, s) => const _NotFoundRedirect(),
     redirect: (context, state) {
       final loggedIn = auth.asData?.value != null;
       final loggingIn = state.matchedLocation == '/login';
       final changingPassword = state.matchedLocation == '/change-password';
+      if (state.matchedLocation == '/') {
+        return loggedIn ? '/dashboard' : '/login';
+      }
       if (!loggedIn && !loggingIn) return '/login';
       if (loggedIn && loggingIn) return '/dashboard';
 
@@ -51,6 +66,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         final loc = state.matchedLocation;
         if (loc.startsWith('/settings') && !profile.isAdmin) return '/dashboard';
         if (loc.startsWith('/responsibility-cards') && !profile.isHrOrAdmin) return '/dashboard';
+        if (loc.startsWith('/workforce-planning') && !profile.isHrOrAdmin) return '/dashboard';
+        if (loc.startsWith('/compensation') && !profile.isHrOrAdmin) return '/dashboard';
+        if (loc.startsWith('/compliance') && !profile.isHrOrAdmin) return '/dashboard';
+        if (loc.startsWith('/audit') && !profile.isAdmin) return '/dashboard';
       }
       return null;
     },
@@ -111,6 +130,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(path: '/leave', builder: (c, s) => const LeaveRequestsScreen()),
           GoRoute(path: '/adjuncts', builder: (c, s) => const AdjunctsScreen()),
+          GoRoute(path: '/hiring', builder: (c, s) => const HiringScreen()),
+          GoRoute(path: '/onboarding', builder: (c, s) => const OnboardingScreen()),
+          GoRoute(path: '/offboarding', builder: (c, s) => const OffboardingScreen()),
+          GoRoute(path: '/org-chart', builder: (c, s) => const OrgChartScreen()),
+          GoRoute(path: '/workforce-planning', builder: (c, s) => const WorkforcePlanningScreen()),
+          GoRoute(path: '/performance', builder: (c, s) => const PerformanceScreen()),
+          GoRoute(path: '/compensation', builder: (c, s) => const CompensationScreen()),
+          GoRoute(path: '/assets', builder: (c, s) => const AssetsScreen()),
+          GoRoute(path: '/compliance', builder: (c, s) => const ComplianceScreen()),
+          GoRoute(path: '/workflows', builder: (c, s) => const WorkflowsScreen()),
+          GoRoute(path: '/documents', builder: (c, s) => const DocumentsScreen()),
           GoRoute(path: '/audit', builder: (c, s) => const AuditLogScreen()),
           GoRoute(path: '/settings', builder: (c, s) => const SettingsScreen()),
           GoRoute(
@@ -122,6 +152,20 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+class _NotFoundRedirect extends StatelessWidget {
+  const _NotFoundRedirect();
+
+  @override
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.mounted) context.go('/dashboard');
+    });
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
 
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {

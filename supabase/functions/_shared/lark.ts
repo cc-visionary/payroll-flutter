@@ -451,6 +451,127 @@ export async function getApprovalInstance(
   );
 }
 
+// -----------------------------------------------------------------------------
+// Approval definitions + file upload
+//
+// The send-payslip-approvals flow mirrors payrollos (the Next.js app at
+// `/home/ccvisionary/Documents/Work/[07] Projects/payrollos`). Widget IDs in
+// a Lark template are auto-generated (e.g. `widget1753...`) — you can't
+// hard-code them. So we fetch the template definition once and match widgets
+// by display name ("Department", "Pay Period", "PDF" etc.). The PDF widget
+// is `attachmentV2`, which requires a prior upload via Lark's file API.
+// -----------------------------------------------------------------------------
+
+export interface LarkApprovalFormWidget {
+  id: string;
+  name: string;
+  type: string;
+  required?: boolean;
+}
+
+export interface LarkApprovalDefinition {
+  approvalName: string;
+  status: string;
+  form: LarkApprovalFormWidget[];
+  nodeList: Array<{ id: string; name: string; type: string }>;
+}
+
+/** Fetch an approval template definition and parse the form widget list so
+ *  callers can look up widget IDs by name. Mirrors the payrollos helper in
+ *  `lib/lark/approval.ts` — `client.approval.approval.get` maps to this URL. */
+export async function getApprovalDefinition(
+  auth: LarkAuth,
+  approvalCode: string,
+): Promise<LarkApprovalDefinition> {
+  const qs = new URLSearchParams({ locale: 'en-US' });
+  const data = await larkRequest<{
+    approval_name: string;
+    status: string;
+    form: string;
+    node_list?: Array<{ node_id: string; name: string; node_type: string }>;
+  }>(auth, `/approval/v4/approvals/${approvalCode}?${qs}`);
+
+  let widgets: LarkApprovalFormWidget[] = [];
+  try {
+    // The `form` field comes back as a JSON-encoded string; the payload is
+    // either a flat widget array or an object wrapping `widget_list`.
+    const parsed = JSON.parse(data.form) as
+      | Array<Record<string, unknown>>
+      | { widget_list?: Array<Record<string, unknown>> };
+    const arr = Array.isArray(parsed) ? parsed : parsed.widget_list ?? [];
+    widgets = arr.map((w) => ({
+      id: String(w.id ?? ''),
+      name: String(w.name ?? ''),
+      type: String(w.type ?? ''),
+      required: w.required as boolean | undefined,
+    }));
+  } catch {
+    // Leave widgets empty — caller surfaces the error when required widgets
+    // turn out to be missing.
+  }
+
+  return {
+    approvalName: data.approval_name,
+    status: data.status,
+    form: widgets,
+    nodeList: (data.node_list ?? []).map((n) => ({
+      id: n.node_id,
+      name: n.name,
+      type: n.node_type,
+    })),
+  };
+}
+
+/** Upload a file for referencing in an approval `attachmentV2` widget.
+ *  Returns the Lark-assigned file `code` that goes into the widget `value`.
+ *
+ *  Note the URL is *not* on the standard `open-apis` base — Lark puts the
+ *  approval file upload endpoint on www.larksuite.com (same shape on both
+ *  the international and CN domains). We call it directly with `fetch`
+ *  rather than through `larkRequest` so it uses the right host. */
+export async function uploadApprovalFile(
+  auth: LarkAuth,
+  bytes: Uint8Array,
+  fileName: string,
+  mimeType = 'application/pdf',
+): Promise<{ code: string; url: string }> {
+  const token = await tenantAccessToken(auth);
+
+  // LARK_BASE_URL ends in `/open-apis`; strip to recover the host.
+  // Default: https://www.larksuite.com/approval/openapi/v2/file/upload
+  const baseHost = (Deno.env.get('LARK_BASE_URL') ?? 'https://open.larksuite.com/open-apis')
+    .replace(/\/open-apis\/?$/, '')
+    .replace('https://open.', 'https://www.');
+  const url = `${baseHost}/approval/openapi/v2/file/upload`;
+
+  // `Uint8Array` satisfies BlobPart at runtime but Deno's stricter DOM lib
+  // typings only declare `BufferSource` for specific buffer kinds — cast
+  // through unknown to keep the runtime behaviour while passing the
+  // compile-time check.
+  const blob = new Blob([bytes as unknown as BlobPart], { type: mimeType });
+  const form = new FormData();
+  form.append('name', fileName);
+  form.append('type', 'attachment');
+  form.append('content', blob, fileName);
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  const body = await res.json() as {
+    code: number;
+    msg?: string;
+    data?: { code: string; url: string };
+  };
+  if (!res.ok || body.code !== 0 || !body.data) {
+    throw new Error(
+      `Lark /approval/openapi/v2/file/upload failed: ${body.code ?? res.status} ${body.msg ?? res.statusText}`,
+    );
+  }
+  return { code: body.data.code, url: body.data.url };
+}
+
 /** Parse Lark approval form JSON (array of widgets). Returns flat {id→value} map. */
 export function parseApprovalForm(formJson: string): Record<string, unknown> {
   try {

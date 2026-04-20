@@ -61,4 +61,5 @@ Edge Function secrets (set in the Supabase dashboard, not GitHub):
 | `LARK_BASE_URL` | `https://open.larksuite.com/open-apis` (international) or `https://open.feishu.cn/open-apis` (CN) |
 | `LARK_WEBHOOK_TOKEN` | Shared secret for approval webhook |
 | `LARK_PAYSLIP_APPROVAL_CODE` | Lark approval-template code |
+| `LARK_ADMIN_USER_ID` | Lark `user_id` of the admin who initiates payslip approvals (the employee is mapped in as the approver) |
 | `LARK_SYSTEM_USER_ID` | UUID used for `lark_sync_logs.synced_by_id` |

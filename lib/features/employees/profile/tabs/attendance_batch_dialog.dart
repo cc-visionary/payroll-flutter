@@ -15,11 +15,16 @@ Future<bool?> showAttendanceBatchEditDialog({
   required List<String> recordIds,
   required Map<String, DateTime> datesByRecordId,
   required List<ShiftTemplate> shifts,
+  Map<String, String?>? shiftIdByRecordId,
 }) {
   return showDialog<bool>(
     context: context,
-    builder: (ctx) =>
-        _BatchDialog(recordIds: recordIds, datesByRecordId: datesByRecordId, shifts: shifts),
+    builder: (ctx) => _BatchDialog(
+      recordIds: recordIds,
+      datesByRecordId: datesByRecordId,
+      shifts: shifts,
+      shiftIdByRecordId: shiftIdByRecordId ?? const {},
+    ),
   );
 }
 
@@ -43,11 +48,13 @@ const _reasonCodes = <String, String>{
 class _BatchDialog extends ConsumerStatefulWidget {
   final List<String> recordIds;
   final Map<String, DateTime> datesByRecordId;
+  final Map<String, String?> shiftIdByRecordId;
   final List<ShiftTemplate> shifts;
   const _BatchDialog({
     required this.recordIds,
     required this.datesByRecordId,
     required this.shifts,
+    required this.shiftIdByRecordId,
   });
 
   @override
@@ -90,17 +97,35 @@ class _BatchDialogState extends ConsumerState<_BatchDialog> {
     super.dispose();
   }
 
-  /// Shift whose start/end times seed the time-picker defaults. Prefers the
-  /// shift the user just picked in the "Apply this shift" section (if any),
-  /// otherwise falls back to the first shift in the list. Returning null
-  /// just means the picker will use the 9 AM / 6 PM literals.
+  /// Shift whose start/end times seed the time-picker defaults. Priority:
+  ///   1. The shift the user just picked in "Apply this shift" (if any).
+  ///   2. The selected rows' OWN shift — when all selected records share a
+  ///      shift, use it. For a 1-record batch this is just that row's shift.
+  ///   3. null → picker uses the 9 AM / 6 PM literal fallback. We deliberately
+  ///      do NOT use `widget.shifts.first` here because picking some random
+  ///      template's start time when the records have no shift assigned is
+  ///      misleading.
   ShiftTemplate? get _defaultShift {
     if (_applyShift && _shiftId != null) {
       for (final s in widget.shifts) {
         if (s.id == _shiftId) return s;
       }
     }
-    return widget.shifts.isEmpty ? null : widget.shifts.first;
+    String? commonShiftId;
+    for (final id in widget.recordIds) {
+      final sid = widget.shiftIdByRecordId[id];
+      if (sid == null) return null; // a record without a shift breaks the consensus
+      if (commonShiftId == null) {
+        commonShiftId = sid;
+      } else if (commonShiftId != sid) {
+        return null; // mixed shifts → no single default
+      }
+    }
+    if (commonShiftId == null) return null;
+    for (final s in widget.shifts) {
+      if (s.id == commonShiftId) return s;
+    }
+    return null;
   }
 
   /// Parse a shift `HH:MM[:SS]` string to TimeOfDay with a fallback.

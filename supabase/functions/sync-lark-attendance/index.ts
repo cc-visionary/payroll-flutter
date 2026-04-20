@@ -173,11 +173,16 @@ interface OtApproval {
   approvedOtMinutes: number | null;
 }
 
-/** Squeeze the OT approval (if any) from a user_approvals row into the
- *  flag/duration triple we persist. We can't precisely diff against the
- *  shift's scheduled times here without a shift fetch, so we mark either
- *  early-in or late-out true depending on which side the OT period sits on
- *  relative to the calendar day midpoint, and store the minute total. */
+/** Squeeze every OT approval for the day into the flag/duration triple we
+ *  persist. Lark can return multiple `overtime_works` entries per day (e.g.
+ *  an early-in OT AND a late-out OT filed separately); the old code only
+ *  consumed the first, which silently dropped one half. We now sum
+ *  durations and set whichever side(s) of noon the entries fall on.
+ *
+ *  The time strings are local (Lark ships "yyyy-MM-dd HH:mm:ss" without a
+ *  timezone) — we parse them as UTC for consistency. The offset doesn't
+ *  affect `end - start` duration math; for the noon heuristic it's close
+ *  enough since Lark users are usually in a single fixed timezone. */
 function resolveOt(approval: LarkUserApproval | undefined): OtApproval {
   const empty: OtApproval = {
     earlyInApproved: false,
@@ -185,19 +190,30 @@ function resolveOt(approval: LarkUserApproval | undefined): OtApproval {
     approvedOtMinutes: null,
   };
   if (!approval || !approval.overtime_works?.length) return empty;
-  const ot = approval.overtime_works[0];
-  // Lark format: "yyyy-MM-dd HH:mm:ss" — naive parse.
-  const start = new Date(ot.start_time.replace(' ', 'T') + 'Z');
-  const end = new Date(ot.end_time.replace(' ', 'T') + 'Z');
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) return empty;
-  const minutes = Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000));
-  // Heuristic: OT before noon = pre-shift, OT in the afternoon/evening = post-shift.
-  // This is the same compromise payrollos accepts when shift times are absent.
-  const beforeNoon = start.getUTCHours() < 12;
+  let earlyInApproved = false;
+  let lateOutApproved = false;
+  let total = 0;
+  for (const ot of approval.overtime_works) {
+    const start = new Date(ot.start_time.replace(' ', 'T') + 'Z');
+    const end = new Date(ot.end_time.replace(' ', 'T') + 'Z');
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) continue;
+    const minutes = Math.max(
+      0,
+      Math.round((end.getTime() - start.getTime()) / 60000),
+    );
+    if (minutes === 0) continue;
+    total += minutes;
+    if (start.getUTCHours() < 12) {
+      earlyInApproved = true;
+    } else {
+      lateOutApproved = true;
+    }
+  }
+  if (total === 0) return empty;
   return {
-    earlyInApproved: beforeNoon,
-    lateOutApproved: !beforeNoon,
-    approvedOtMinutes: minutes,
+    earlyInApproved,
+    lateOutApproved,
+    approvedOtMinutes: total,
   };
 }
 
@@ -319,30 +335,76 @@ Deno.serve(async (req) => {
         }),
       ]);
 
-      // Approval lookup: "larkUserId|YYYYMMDD"
-      const approvalKey = (uid: string, day: string) => `${uid}|${day}`;
-      const approvalByKey = new Map<string, LarkUserApproval>();
-      for (const a of approvals) {
-        const uid = a.user_id ?? a.employee_id ?? '';
-        const dayStr = String(a.date);
-        if (uid && dayStr) approvalByKey.set(approvalKey(uid, dayStr), a);
+      // Lookup keys: "larkUserId|YYYYMMDD".
+      //
+      // We query user_tasks / user_approvals / user_daily_shifts with
+      // `employee_type=employee_id`. Lark's responses populate `employee_id`
+      // for some records and only `user_id` for others — and the field
+      // populated for the SAME employee can differ between endpoints. Naively
+      // keying by `employee_id ?? user_id` makes lookups silently miss
+      // whenever one endpoint returns user_id and another returns
+      // employee_id, which silently drops shift assignments for whole
+      // employees (Gyllian, Jayr, Evan, Noemi all hit this).
+      //
+      // Fix: index the auxiliary maps under BOTH ids when present, then look
+      // up by either when consuming a task row.
+      const keyOf = (uid: string, day: string) => `${uid}|${day}`;
+
+      function indexBoth<T>(
+        map: Map<string, T>,
+        rec: { employee_id?: string; user_id?: string },
+        day: string,
+        value: T,
+      ) {
+        if (rec.employee_id) map.set(keyOf(rec.employee_id, day), value);
+        if (rec.user_id && rec.user_id !== rec.employee_id) {
+          map.set(keyOf(rec.user_id, day), value);
+        }
       }
 
-      // Per-day scheduled-shift lookup: "larkUserId|YYYYMMDD" → lark_shift_id.
-      // `is_clear_schedule: true` means Lark explicitly cleared the roster
-      // for that day (rest day / day off) — treat as no shift.
+      function lookupBoth<T>(
+        map: Map<string, T>,
+        employee_id: string | undefined,
+        user_id: string | undefined,
+        day: string,
+      ): T | undefined {
+        if (employee_id) {
+          const v = map.get(keyOf(employee_id, day));
+          if (v !== undefined) return v;
+        }
+        if (user_id) {
+          const v = map.get(keyOf(user_id, day));
+          if (v !== undefined) return v;
+        }
+        return undefined;
+      }
+
+      const approvalByKey = new Map<string, LarkUserApproval>();
+      for (const a of approvals) {
+        const dayStr = String(a.date);
+        if (!dayStr) continue;
+        indexBoth(approvalByKey, a, dayStr, a);
+      }
+
+      // Per-day scheduled-shift lookup. `is_clear_schedule: true` means Lark
+      // explicitly cleared the roster for that day (rest day / day off) —
+      // treat as no shift.
       const dailyShiftByKey = new Map<string, string>();
+      // Track whether Lark returned ANY daily-shifts row per user, so we can
+      // surface a clear warning when an employee gets attendance rows but
+      // zero shift entries (typically a Lark group-config issue: "Fixed
+      // Schedule" group whose shift only lives on the user_task fallback).
+      const dailyShiftSeenByUser = new Set<string>();
       for (const ds of dailyShifts) {
+        if (ds.employee_id) dailyShiftSeenByUser.add(ds.employee_id);
+        if (ds.user_id) dailyShiftSeenByUser.add(ds.user_id);
         if (ds.is_clear_schedule) continue;
-        const uid = ds.user_id ?? ds.employee_id ?? '';
         const dayStr = String(ds.day);
         const sid = ds.shift_id;
-        if (uid && dayStr && sid !== undefined && sid !== null) {
-          const sidStr = String(sid);
-          if (sidStr && sidStr !== '0' && sidStr !== '-1') {
-            dailyShiftByKey.set(approvalKey(uid, dayStr), sidStr);
-          }
-        }
+        if (!dayStr || sid === undefined || sid === null) continue;
+        const sidStr = String(sid);
+        if (!sidStr || sidStr === '0' || sidStr === '-1') continue;
+        indexBoth(dailyShiftByKey, ds, dayStr, sidStr);
       }
 
       total += tasks.length;
@@ -363,14 +425,21 @@ Deno.serve(async (req) => {
         );
       }
 
+      // Track which lark user IDs we saw in tasks but never in daily_shifts,
+      // so we can warn the operator once per user (not per day).
+      const warnedNoDailyShift = new Set<string>();
+
       for (const task of tasks) {
         // Skip OT records — only regular daily tasks should drive attendance.
         if (typeof task.task_shift_type === 'number' && task.task_shift_type !== 0) {
           skipped++;
           continue;
         }
-        const larkId = task.employee_id ?? task.user_id ?? '';
-        const employeeId = empByLarkId.get(larkId);
+        const larkEmpId = task.employee_id;
+        const larkUserId = task.user_id;
+        const larkId = larkEmpId ?? larkUserId ?? '';
+        const employeeId = empByLarkId.get(larkId)
+          ?? (larkUserId ? empByLarkId.get(larkUserId) : undefined);
         if (!employeeId) { skipped++; continue; }
 
         const date = dayToDate(task.day);
@@ -384,7 +453,9 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const ot = resolveOt(approvalByKey.get(approvalKey(larkId, String(task.day))));
+        const ot = resolveOt(
+          lookupBoth(approvalByKey, larkEmpId, larkUserId, String(task.day)),
+        );
 
         // Resolve the day's Lark shift id. Priority:
         //   1. user_daily_shifts entry for (user, day) — authoritative
@@ -393,8 +464,10 @@ Deno.serve(async (req) => {
         //      return a row for this day (e.g. no schedule configured).
         // Either path produces a Lark shift id string, which we then map to
         // our local `shift_templates.id`. Null = rest day / no match.
-        const dayKey = approvalKey(larkId, String(task.day));
-        const larkShiftId = dailyShiftByKey.get(dayKey) ?? (() => {
+        const dailyHit = lookupBoth(
+          dailyShiftByKey, larkEmpId, larkUserId, String(task.day),
+        );
+        const larkShiftId = dailyHit ?? (() => {
           const sid = task.shift_id;
           if (!sid || sid === '0' || sid === '-1') return null;
           return String(sid);
@@ -409,6 +482,24 @@ Deno.serve(async (req) => {
         if (larkShiftId && shiftTemplateId === null) {
           errors.push(
             `${employeeId}|${date}: unmapped lark_shift_id=${larkShiftId} — run Sync Shifts`,
+          );
+        }
+
+        // Diagnostic: this employee has tasks but Lark never returned them
+        // in user_daily_shifts AND task.shift_id is also empty. Almost
+        // always means their attendance group in Lark isn't roster-driven
+        // (or the user is missing from any group). Warn once per user so
+        // the operator can fix the Lark setup.
+        if (
+          larkShiftId === null &&
+          !warnedNoDailyShift.has(larkId) &&
+          larkId &&
+          !dailyShiftSeenByUser.has(larkId) &&
+          (!larkUserId || !dailyShiftSeenByUser.has(larkUserId))
+        ) {
+          warnedNoDailyShift.add(larkId);
+          errors.push(
+            `${employeeId}: no shift returned by Lark (user_daily_shifts empty AND task.shift_id empty) — check the employee's Lark attendance group / roster`,
           );
         }
 

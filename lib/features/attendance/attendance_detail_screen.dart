@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/breakpoints.dart';
 import '../../data/models/attendance_day.dart';
 import '../../data/models/employee.dart';
 import '../../data/models/shift_template.dart';
@@ -102,23 +103,39 @@ class _Body extends StatelessWidget {
     final empNo = employee?.employeeNumber ?? record?.employeeNumber ?? '—';
     final initials = _initials(name.isEmpty ? empNo : name);
     final status = _statusFor(record);
+    final mobile = isMobile(context);
+
+    final statusChip = Container(
+      padding:
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: status.color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        status.label,
+        style: TextStyle(
+            color: status.color, fontWeight: FontWeight.w700),
+      ),
+    );
 
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(mobile ? 16 : 24),
       children: [
         // Header card
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(mobile ? 16 : 20),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 CircleAvatar(
-                  radius: 32,
+                  radius: mobile ? 24 : 32,
                   backgroundColor: status.color.withValues(alpha: 0.25),
                   child: Text(initials,
                       style: TextStyle(
                           color: status.color,
-                          fontSize: 18,
+                          fontSize: mobile ? 14 : 18,
                           fontWeight: FontWeight.w700)),
                 ),
                 const SizedBox(width: 16),
@@ -127,8 +144,9 @@ class _Body extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(name.isEmpty ? empNo : name,
-                          style: const TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.w700)),
+                          style: TextStyle(
+                              fontSize: mobile ? 17 : 20,
+                              fontWeight: FontWeight.w700)),
                       const SizedBox(height: 2),
                       Text(
                         [empNo, roleTitle ?? employee?.jobTitle]
@@ -142,22 +160,14 @@ class _Body extends StatelessWidget {
                         _longDate(date),
                         style: const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
+                      if (mobile) ...[
+                        const SizedBox(height: 8),
+                        statusChip,
+                      ],
                     ],
                   ),
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: status.color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    status.label,
-                    style: TextStyle(
-                        color: status.color, fontWeight: FontWeight.w700),
-                  ),
-                ),
+                if (!mobile) statusChip,
               ],
             ),
           ),
@@ -166,35 +176,57 @@ class _Body extends StatelessWidget {
         // Clock card
         Card(
           child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _BigField(
-                    label: 'CLOCK IN',
-                    value: formatClock(record?.actualTimeIn),
-                    color: status.color,
+            padding: EdgeInsets.all(mobile ? 16 : 20),
+            child: mobile
+                ? Column(
+                    children: [
+                      _BigField(
+                        label: 'CLOCK IN',
+                        value: formatClock(record?.actualTimeIn),
+                        color: status.color,
+                      ),
+                      const SizedBox(height: 16),
+                      _BigField(
+                        label: 'CLOCK OUT',
+                        value: formatClock(record?.actualTimeOut),
+                        color: status.color,
+                      ),
+                      const SizedBox(height: 16),
+                      _BigField(
+                        label: 'WORKED',
+                        value: _workedDuration(record, shift),
+                        color: status.color,
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: _BigField(
+                          label: 'CLOCK IN',
+                          value: formatClock(record?.actualTimeIn),
+                          color: status.color,
+                        ),
+                      ),
+                      const Icon(Icons.arrow_right_alt,
+                          color: Colors.grey, size: 32),
+                      Expanded(
+                        child: _BigField(
+                          label: 'CLOCK OUT',
+                          value: formatClock(record?.actualTimeOut),
+                          color: status.color,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _BigField(
+                          label: 'WORKED',
+                          value: _workedDuration(record, shift),
+                          color: status.color,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const Icon(Icons.arrow_right_alt,
-                    color: Colors.grey, size: 32),
-                Expanded(
-                  child: _BigField(
-                    label: 'CLOCK OUT',
-                    value: formatClock(record?.actualTimeOut),
-                    color: status.color,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _BigField(
-                    label: 'WORKED',
-                    value: _workedDuration(record, shift),
-                    color: status.color,
-                  ),
-                ),
-              ],
-            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -275,7 +307,7 @@ class _DetailRow extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 160,
+            width: isMobile(context) ? 120 : 160,
             child: Text(label,
                 style: const TextStyle(color: Colors.grey, fontSize: 13)),
           ),

@@ -9,6 +9,7 @@ import '../../../core/money.dart';
 import '../../../data/models/payroll_run.dart';
 import '../../../data/repositories/payroll_repository.dart';
 import '../../auth/profile_provider.dart';
+import '../payslips/payslip_pdf_context.dart';
 import 'new/new_run_dialog.dart';
 
 class PayrollRunsScreen extends ConsumerWidget {
@@ -20,19 +21,26 @@ class PayrollRunsScreen extends ConsumerWidget {
     final profile = ref.watch(userProfileProvider).asData?.value;
     final canRun = profile?.canRunPayroll ?? false;
 
+    final mobile = isMobile(context);
     return Scaffold(
-      drawer: isMobile(context) ? const AppDrawer() : null,
+      drawer: mobile ? const AppDrawer() : null,
       appBar: AppBar(
         title: const Text('Payroll Runs'),
         actions: [
           if (canRun)
             Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: FilledButton.icon(
-                onPressed: () => showNewPayrollRunDialog(context, ref),
-                icon: const Icon(Icons.add),
-                label: const Text('New run'),
-              ),
+              padding: const EdgeInsets.only(right: 8),
+              child: mobile
+                  ? IconButton(
+                      tooltip: 'New run',
+                      onPressed: () => showNewPayrollRunDialog(context, ref),
+                      icon: const Icon(Icons.add),
+                    )
+                  : FilledButton.icon(
+                      onPressed: () => showNewPayrollRunDialog(context, ref),
+                      icon: const Icon(Icons.add),
+                      label: const Text('New run'),
+                    ),
             ),
         ],
       ),
@@ -209,10 +217,15 @@ class _RunActions extends ConsumerWidget {
       loading: () => const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2)),
       error: (e, _) => Text('Err: $e', style: const TextStyle(color: Colors.red, fontSize: 11)),
       data: (counts) {
-        final draft = counts['DRAFT_IN_REVIEW'] ?? 0;
+        // RECALLED rows are dispatch-eligible too (see
+        // send-payslip-approvals/index.ts — it filters IN
+        // ['DRAFT_IN_REVIEW', 'RECALLED']), so include them in the
+        // "sendable" bucket driving the inline Send button.
+        final recalled = counts['RECALLED'] ?? 0;
+        final draft = (counts['DRAFT_IN_REVIEW'] ?? 0) + recalled;
         final pending = counts['PENDING_APPROVAL'] ?? 0;
         final approved = counts['APPROVED'] ?? 0;
-        final total = draft + pending + approved + (counts['REJECTED'] ?? 0) + (counts['RECALLED'] ?? 0);
+        final total = draft + pending + approved + (counts['REJECTED'] ?? 0);
         final allApproved = total > 0 && approved == total;
 
         return Wrap(
@@ -225,8 +238,42 @@ class _RunActions extends ConsumerWidget {
             if (draft > 0)
               OutlinedButton(
                 onPressed: () async {
-                  await repo.sendPayslipApprovals(run.id);
-                  ref.invalidate(payslipApprovalCountsProvider(run.id));
+                  final messenger = ScaffoldMessenger.of(context);
+                  try {
+                    // Lark's approval template has a required PDF widget,
+                    // so we build PDFs for every DRAFT_IN_REVIEW payslip
+                    // up-front and pass them to the edge function. See
+                    // send-payslip-approvals/index.ts for the upload step.
+                    final rows = await repo.payslipListForRun(run.id);
+                    final ids = <String>[
+                      for (final r in rows)
+                        if (r['approval_status'] == 'DRAFT_IN_REVIEW' ||
+                            r['approval_status'] == 'RECALLED')
+                          r['id'] as String,
+                    ];
+                    final pdfs =
+                        await buildPayslipPdfsBase64ForIds(ref, ids);
+                    final res = await repo.sendPayslipApprovals(
+                      run.id,
+                      payslipIds: ids,
+                      pdfsByPayslipId: pdfs,
+                    );
+                    ref.invalidate(payslipApprovalCountsProvider(run.id));
+                    final sent = (res['sent'] as num?)?.toInt() ?? 0;
+                    final failed = (res['failed'] as num?)?.toInt() ?? 0;
+                    if (!context.mounted) return;
+                    messenger.showSnackBar(SnackBar(
+                      content: Text(failed == 0
+                          ? 'Sent $sent Lark approval${sent == 1 ? '' : 's'}.'
+                          : 'Sent $sent, $failed failed.'),
+                    ));
+                  } catch (e) {
+                    if (!context.mounted) return;
+                    messenger.showSnackBar(SnackBar(
+                      backgroundColor: Colors.red.shade600,
+                      content: Text('Send failed: $e'),
+                    ));
+                  }
                 },
                 child: Text('Send ($draft)'),
               ),

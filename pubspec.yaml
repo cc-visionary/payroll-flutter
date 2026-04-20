@@ -78,6 +78,40 @@ dev_dependencies:
   riverpod_generator: ^4.0.3
   args: ^2.7.0
   supabase: ^2.9.0
+  # Generates platform icons from a single source PNG. One-off per icon
+  # change — run `dart run flutter_launcher_icons` to regenerate the
+  # platform-specific assets under android/, ios/, macos/, windows/, web/.
+  flutter_launcher_icons: ^0.14.3
+
+# Cross-platform app-icon configuration. Source PNG must be square and
+# at least 1024×1024 for iOS store submission. `assets/people.png` is
+# the single-source image — everything else is generated.
+#
+#  - `remove_alpha_ios`: true  -> iOS rejects icons with transparency,
+#    so the generator flattens the PNG onto `background_color_ios`.
+#  - `adaptive_icon_*`: Android 8+ renders the foreground PNG on top of
+#    the solid background. We reuse the same source for simplicity.
+flutter_launcher_icons:
+  image_path: "assets/people.png"
+  android: "launcher_icon"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/people.png"
+  min_sdk_android: 21
+  ios: true
+  remove_alpha_ios: true
+  background_color_ios: "#FFFFFF"
+  macos:
+    generate: true
+    image_path: "assets/people.png"
+  windows:
+    generate: true
+    image_path: "assets/people.png"
+    icon_size: 256
+  web:
+    generate: true
+    image_path: "assets/people.png"
+    background_color: "#FFFFFF"
+    theme_color: "#635BFF"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -89,6 +123,9 @@ flutter:
 
   assets:
     - assets/brand/
+    - assets/GameCove Logo.png
+    - assets/Luxium Logo.png
+    - assets/people.png
 
   fonts:
     - family: Satoshi

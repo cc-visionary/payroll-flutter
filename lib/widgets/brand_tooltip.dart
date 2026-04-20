@@ -49,15 +49,27 @@ class _BrandTooltipState extends State<BrandTooltip>
 
   final _portalController = OverlayPortalController();
   final _link = LayerLink();
-  late final AnimationController _fadeCtrl = AnimationController(
-    vsync: this,
-    duration: _fadeIn,
-    reverseDuration: _fadeOut,
-  );
-  late final Animation<double> _fade =
-      CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
+  // Eager init — `late final` with an `AnimationController(vsync: this)`
+  // body is a footgun: if the widget is unmounted before any hover /
+  // interaction, dispose() would be the FIRST access to `_fadeCtrl`, which
+  // triggers lazy construction → `createTicker` → `TickerMode.getValuesNotifier`
+  // → ancestor lookup on a deactivated element → framework assertion.
+  // Initializing both in initState() sidesteps the whole lazy-init path.
+  late final AnimationController _fadeCtrl;
+  late final Animation<double> _fade;
   Timer? _showTimer;
   bool _openAbove = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fadeCtrl = AnimationController(
+      vsync: this,
+      duration: _fadeIn,
+      reverseDuration: _fadeOut,
+    );
+    _fade = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
+  }
 
   @override
   void dispose() {

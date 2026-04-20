@@ -32,27 +32,46 @@ class AttendanceRowVm {
   });
 
   String get dayType {
-    // Authoritative order:
-    //  1. calendar_events (holiday) always wins — worked holidays still
-    //     render as REGULAR_HOLIDAY / SPECIAL_*.
-    //  2. If the employee actually clocked in, treat the record's stored
-    //     day_type as authoritative (Lark syncs WORKDAY in that case).
-    //     The scorecard schedule is a planning hint, not a contract — if
-    //     the admin assigned a shift and the employee fulfilled (or fell
-    //     short of) it, it's a real workday for deduction/OT purposes.
-    //     Without this rule, an employee whose scorecard says "Mon-Sat"
-    //     who works on a Sunday would have their Sunday undertime
-    //     silently hidden in the UI even though the engine still deducts.
-    //  3. Otherwise use the scorecard's weekly schedule to mark unworked
-    //     days as REST_DAY (Lark sends WORKDAY for everyone, so this
-    //     override is needed to render a Sunday-off row as Rest Day).
-    //  4. Fall back to the record's stored day_type, then WORKDAY.
+    // The presence/absence of a per-record `shift_template_id` is the single
+    // authoritative signal for "scheduled work day vs rest day":
+    //
+    //   - Shift assigned → scheduled work day (regardless of clock-in).
+    //     If the employee was scheduled but didn't show up, that's an
+    //     absence on a workday — NOT a rest day eligible for premium pay.
+    //   - No shift assigned → rest day. If the employee clocked in
+    //     anyway, the engine pays rest-day premium.
+    //
+    // Why not use the scorecard's weekly schedule? Because employees
+    // routinely deviate (overtime weekend coverage, swapped rest days,
+    // single-day shift changes), and the per-day shift assignment from
+    // Lark is the actual roster Lark uses to compute pay. Lark sync sets
+    // shift_template_id=null for rest days; admin can clear it manually
+    // too. Either way, the column tells the truth about that specific day.
+    //
+    // Holidays always override — a worked holiday is REGULAR_HOLIDAY /
+    // SPECIAL_HOLIDAY regardless of the shift assignment.
     if (holiday != null) return holiday!.dayType;
-    if (record != null && record!.actualTimeIn != null) {
-      return record!.dayType;
+    final r = record;
+    if (r != null) {
+      if (r.shiftTemplateId != null) {
+        // Has a shift: it's a workday (force WORKDAY even if the stored
+        // day_type still says REST_DAY — could happen with old records
+        // imported before this rule, or after a manual shift edit that
+        // didn't update day_type). Holiday day_types stay (handled above
+        // via the calendar_events check).
+        final dt = r.dayType.toUpperCase();
+        if (dt == 'REGULAR_HOLIDAY' ||
+            dt == 'SPECIAL_HOLIDAY' ||
+            dt == 'SPECIAL_WORKING') {
+          return r.dayType;
+        }
+        return 'WORKDAY';
+      }
+      // No shift assigned — rest day, regardless of clock-in.
+      return 'REST_DAY';
     }
+    // No record at all — fall back to scorecard weekly schedule.
     if (isRestDay(date, workDaysPerWeek)) return 'REST_DAY';
-    if (record != null) return record!.dayType;
     return 'WORKDAY';
   }
 
@@ -149,22 +168,42 @@ class AttendanceRowVm {
     return deficit < 0 ? 0 : deficit;
   }
 
-  /// OT minutes. Combines three sources (all clamped ≥ 0):
-  ///   1. Early-in approved  → actual clock-in before shift start.
-  ///   2. Late-out approved  → actual clock-out after shift end.
-  ///   3. Implicit break OT  → when `break_minutes_applied` is less than the
-  ///      shift's default break, the employee worked through (part of) their
-  ///      break. The resulting excess over `expectedWork` inside the
-  ///      scheduled window becomes OT. Lets a no-break 9am-6pm day register
-  ///      as 60 OT instead of 60 min of "free" extra work, and plays nicely
-  ///      with the late/OT netting rule so 30-min undertime + 60-min
-  ///      implicit OT nets to 30 min OT instead of charging both sides.
+  /// OT minutes. Priority order:
   ///
-  /// Falls back to `approved_ot_minutes` (from Lark sync) only when none of
-  /// the above produces any OT.
+  /// 1. **Lark-approved duration** (`approved_ot_minutes > 0`) — the cap is
+  ///    the approved amount, *not* the clock-out overage. If the employee
+  ///    stayed 37 minutes late but the approval was only for 36 minutes,
+  ///    we credit 36. The sync populates both `approved_ot_minutes` and
+  ///    the side flags when OT comes from a Lark approval, so we detect
+  ///    this case via the positive duration.
+  ///
+  /// 2. **Manually-approved flags** (`earlyInApproved` / `lateOutApproved`)
+  ///    with no stored duration — admin toggled the flag in the edit
+  ///    dialog, we trust the raw clock-time diff since no ceiling was
+  ///    entered. Works even without Lark involvement.
+  ///
+  /// 3. **Implicit break OT** — when the applied break is shorter than the
+  ///    shift's default, the employee worked through (part of) their
+  ///    break; the excess over `expectedWork` inside the scheduled window
+  ///    becomes OT. Only surfaces in scenario (2) — Lark approvals
+  ///    already cover this case in their approved duration.
+  ///
+  /// Zero when the employee didn't clock in — protects against stale
+  /// Lark-sync OT on unworked days.
   double get overtimeMinutes {
     final r = record;
     if (r == null) return 0;
+    if (r.actualTimeIn == null) return 0;
+
+    final approvedFromLark = (r.approvedOtMinutes ?? 0).toDouble();
+    if (approvedFromLark > 0) {
+      // Lark-capped OT — hard ceiling, ignores any over-time overage at
+      // the clock.
+      return approvedFromLark;
+    }
+
+    // No Lark approval — compute from admin-toggled flags + implicit
+    // break-through OT.
     double derived = 0;
     if (shift != null) {
       final tIn = r.actualTimeIn?.toLocal();
@@ -185,14 +224,7 @@ class AttendanceRowVm {
       final excess = w.schedWorked - w.expectedWork;
       if (excess > 0) derived += excess;
     }
-    if (derived > 0) return derived;
-    // Fallback to the Lark-synced `approved_ot_minutes` only when the
-    // employee actually clocked in for the day. A stored OT minute on a
-    // rest day / holiday / absent row (often stale from a prior Lark sync)
-    // must not surface as real OT, or the totals bar lies and the engine
-    // pays OT that never happened.
-    if (r.actualTimeIn == null) return 0;
-    return (r.approvedOtMinutes ?? 0).toDouble();
+    return derived;
   }
 
   /// Net OT after late minutes are absorbed (per the company netting rule:

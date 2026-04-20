@@ -631,15 +631,91 @@ class _DateBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final weekday = _weekdayName(date.weekday);
     final long = '$weekday, ${_monthName(date.month)} ${date.day}, ${date.year}';
+    // Switch to the stacked layout below tablet width — the single-row
+    // variant squeezes the long date + segmented button together even on
+    // iPad-class screens, so the threshold is higher than the app's global
+    // mobile breakpoint.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 1000;
+        return _buildLayout(context, compact: compact, long: long);
+      },
+    );
+  }
+
+  Widget _buildLayout(
+    BuildContext context, {
+    required bool compact,
+    required String long,
+  }) {
+    final prevBtn =
+        IconButton(onPressed: onPrev, icon: const Icon(Icons.chevron_left));
+    final pickBtn = OutlinedButton.icon(
+      onPressed: onPick,
+      icon: const Icon(Icons.calendar_today, size: 16),
+      label: Text(date.toIso8601String().substring(0, 10)),
+    );
+    final nextBtn =
+        IconButton(onPressed: onNext, icon: const Icon(Icons.chevron_right));
+    final todayBtn =
+        OutlinedButton(onPressed: onToday, child: const Text('Today'));
+    final refreshBtn = IconButton(
+      tooltip: 'Refresh',
+      onPressed: onRefresh,
+      icon: const Icon(Icons.refresh),
+    );
+    final segmented = SegmentedButton<_ViewMode>(
+      segments: const [
+        ButtonSegment(value: _ViewMode.cards, label: Text('Cards')),
+        ButtonSegment(value: _ViewMode.table, label: Text('Table')),
+        ButtonSegment(value: _ViewMode.timeline, label: Text('Timeline')),
+      ],
+      selected: {mode},
+      onSelectionChanged: (s) => onModeChanged(s.first),
+    );
+
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              prevBtn,
+              Expanded(child: pickBtn),
+              nextBtn,
+              refreshBtn,
+            ],
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    long,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                todayBtn,
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: segmented,
+          ),
+        ],
+      );
+    }
+
     return Row(
       children: [
-        IconButton(onPressed: onPrev, icon: const Icon(Icons.chevron_left)),
-        OutlinedButton.icon(
-          onPressed: onPick,
-          icon: const Icon(Icons.calendar_today, size: 16),
-          label: Text(date.toIso8601String().substring(0, 10)),
-        ),
-        IconButton(onPressed: onNext, icon: const Icon(Icons.chevron_right)),
+        prevBtn,
+        pickBtn,
+        nextBtn,
         const SizedBox(width: 8),
         Flexible(
           child: Text(
@@ -650,23 +726,11 @@ class _DateBar extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        OutlinedButton(onPressed: onToday, child: const Text('Today')),
+        todayBtn,
         const Spacer(),
-        SegmentedButton<_ViewMode>(
-          segments: const [
-            ButtonSegment(value: _ViewMode.cards, label: Text('Cards')),
-            ButtonSegment(value: _ViewMode.table, label: Text('Table')),
-            ButtonSegment(value: _ViewMode.timeline, label: Text('Timeline')),
-          ],
-          selected: {mode},
-          onSelectionChanged: (s) => onModeChanged(s.first),
-        ),
+        segmented,
         const SizedBox(width: 8),
-        IconButton(
-          tooltip: 'Refresh',
-          onPressed: onRefresh,
-          icon: const Icon(Icons.refresh),
-        ),
+        refreshBtn,
       ],
     );
   }

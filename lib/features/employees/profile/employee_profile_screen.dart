@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/breakpoints.dart';
 import '../../../data/repositories/employee_repository.dart';
 import 'tabs/attendance_tab.dart';
 import 'tabs/documents_tab.dart';
@@ -50,12 +51,13 @@ class EmployeeProfileScreen extends ConsumerWidget {
           if (employee == null) {
             return const Center(child: Text('Employee not found.'));
           }
+          final hPad = isMobile(context) ? 16.0 : 24.0;
           return DefaultTabController(
             length: 7,
             child: NestedScrollView(
               headerSliverBuilder: (context, _) => [
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+                  padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
                   sliver: SliverToBoxAdapter(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -71,7 +73,7 @@ class EmployeeProfileScreen extends ConsumerWidget {
                   delegate: _ProfileTabBarDelegate(
                     child: Container(
                       color: Theme.of(context).scaffoldBackgroundColor,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      padding: EdgeInsets.symmetric(horizontal: hPad),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
@@ -103,7 +105,7 @@ class EmployeeProfileScreen extends ConsumerWidget {
                 ),
               ],
               body: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: EdgeInsets.symmetric(horizontal: hPad),
                 child: TabBarView(
                   children: [
                     ProfileTab(employee: employee),

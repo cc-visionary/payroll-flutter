@@ -21,8 +21,9 @@ class RoleScorecardDetailScreen extends ConsumerWidget {
     final canManage = profile?.isHrOrAdmin ?? false;
     final canDelete = profile?.appRole == AppRole.SUPER_ADMIN;
 
+    final mobile = isMobile(context);
     return Scaffold(
-      drawer: isMobile(context) ? const AppDrawer() : null,
+      drawer: mobile ? const AppDrawer() : null,
       appBar: AppBar(
         title: const Text('Responsibility Card'),
         leading: IconButton(
@@ -33,11 +34,19 @@ class RoleScorecardDetailScreen extends ConsumerWidget {
           if (canManage)
             Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: FilledButton.icon(
-                onPressed: () => context.push('/responsibility-cards/$cardId/edit'),
-                icon: const Icon(Icons.edit),
-                label: const Text('Edit'),
-              ),
+              child: mobile
+                  ? IconButton(
+                      tooltip: 'Edit',
+                      onPressed: () => context
+                          .push('/responsibility-cards/$cardId/edit'),
+                      icon: const Icon(Icons.edit),
+                    )
+                  : FilledButton.icon(
+                      onPressed: () => context
+                          .push('/responsibility-cards/$cardId/edit'),
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Edit'),
+                    ),
             ),
           if (canDelete)
             PopupMenuButton<String>(
@@ -133,33 +142,39 @@ class _DetailBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
+    final mobile = isMobile(context);
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(mobile ? 16 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            Text(
+              card.jobTitle,
+              style: t.textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Expanded(
-                  child: Text(
-                    card.jobTitle,
-                    style: t.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                ),
                 Tooltip(
-                  message: '$employeeCount employee${employeeCount == 1 ? '' : 's'} assigned',
+                  message:
+                      '$employeeCount employee${employeeCount == 1 ? '' : 's'} assigned',
                   child: Chip(
                     avatar: const Icon(Icons.people, size: 16),
                     label: Text('$employeeCount'),
                     visualDensity: VisualDensity.compact,
                   ),
                 ),
-                const SizedBox(width: 8),
                 if (card.baseSalary != null)
-                  Text('Base: ${Money.fmtPhp(card.baseSalary!)}', style: t.textTheme.bodyMedium),
-                const SizedBox(width: 8),
-                Chip(label: Text(card.wageType), visualDensity: VisualDensity.compact),
+                  Text('Base: ${Money.fmtPhp(card.baseSalary!)}',
+                      style: t.textTheme.bodyMedium),
+                Chip(
+                    label: Text(card.wageType),
+                    visualDensity: VisualDensity.compact),
               ],
             ),
             const SizedBox(height: 8),

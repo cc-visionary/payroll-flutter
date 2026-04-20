@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/breakpoints.dart';
 import '../../../app/status_colors.dart';
 import '../../../data/models/managed_user.dart';
 import '../../../data/models/role.dart';
@@ -19,17 +20,21 @@ class UsersSettingsScreen extends ConsumerWidget {
     final rolesAsync = ref.watch(roleListProvider);
 
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Text('Users', style: Theme.of(context).textTheme.headlineSmall),
-          const Spacer(),
-          FilledButton.icon(
-            onPressed: () => _openAddDialog(context, ref),
-            icon: const Icon(Icons.add),
-            label: const Text('Add User'),
-          ),
-        ]),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text('Users', style: Theme.of(context).textTheme.headlineSmall),
+            FilledButton.icon(
+              onPressed: () => _openAddDialog(context, ref),
+              icon: const Icon(Icons.add),
+              label: const Text('Add User'),
+            ),
+          ],
+        ),
         const SizedBox(height: 4),
         const Text(
           'Manage who can log in to the payroll app. Email is used as the login identifier — passwords are set here, not via email.',
