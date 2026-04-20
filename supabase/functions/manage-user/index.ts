@@ -200,8 +200,82 @@ interface HandlerContext {
   callerCompanyId: string;
 }
 
-async function handleCreate(_c: HandlerContext, _b: Record<string, unknown>): Promise<Response> {
-  return json({ ok: false, error: 'create not implemented', code: 'NOT_IMPLEMENTED' }, 501);
+async function handleCreate(ctx: HandlerContext, body: Record<string, unknown>): Promise<Response> {
+  const email = (body.email as string).trim().toLowerCase();
+  const password = body.password as string;
+  const roleCode = (body.role_code as string).trim().toUpperCase();
+  const employeeId = (body.employee_id as string | undefined) ?? null;
+
+  // role_code must exist
+  const { data: role, error: roleErr } = await ctx.admin
+    .from('roles')
+    .select('id, code')
+    .eq('code', roleCode)
+    .maybeSingle();
+  if (roleErr) return json({ ok: false, error: roleErr.message, code: 'INTERNAL' }, 500);
+  if (!role)  return json({ ok: false, error: `Unknown role code: ${roleCode}`, code: 'INVALID_ROLE' }, 400);
+
+  // employee_id (optional): must be in caller's company AND unlinked
+  if (employeeId) {
+    const empCheck = await assertEmployeeAvailable(ctx, employeeId, null);
+    if (empCheck) return empCheck;
+  }
+
+  // Create the auth user (email_confirm so they can sign in immediately, no email sent).
+  const { data: created, error: createErr } = await ctx.admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    app_metadata: {
+      app_role: roleCode,
+      company_id: ctx.callerCompanyId,
+    },
+  });
+  if (createErr || !created?.user) {
+    const msg = createErr?.message ?? 'createUser failed';
+    const code = /already.*registered|exists/i.test(msg) ? 'DUPLICATE_EMAIL' : 'INTERNAL';
+    return json({ ok: false, error: msg, code }, 400);
+  }
+  const newUserId = created.user.id;
+
+  // Insert public.users row.
+  const { error: userErr } = await ctx.admin.from('users').insert({
+    id: newUserId,
+    company_id: ctx.callerCompanyId,
+    status: 'ACTIVE',
+    must_change_password: true,
+    invited_by: ctx.callerId,
+    invited_at: new Date().toISOString(),
+  });
+  if (userErr) {
+    // Roll back the auth user so the operation is atomic from the caller's POV.
+    await ctx.admin.auth.admin.deleteUser(newUserId);
+    return json({ ok: false, error: userErr.message, code: 'INTERNAL' }, 500);
+  }
+
+  // Insert user_roles row.
+  const { error: roleAssignErr } = await ctx.admin
+    .from('user_roles')
+    .insert({ user_id: newUserId, role_id: role.id });
+  if (roleAssignErr) {
+    // Best-effort cleanup; the auth user + users row remain reachable but a
+    // retry with the same email will hit DUPLICATE_EMAIL — surface the error.
+    return json({ ok: false, error: roleAssignErr.message, code: 'INTERNAL' }, 500);
+  }
+
+  // Optional employee link.
+  if (employeeId) {
+    const { error: linkErr } = await ctx.admin
+      .from('employees')
+      .update({ user_id: newUserId })
+      .eq('id', employeeId)
+      .eq('company_id', ctx.callerCompanyId);
+    if (linkErr) {
+      return json({ ok: false, error: linkErr.message, code: 'INTERNAL' }, 500);
+    }
+  }
+
+  return json({ ok: true, user_id: newUserId });
 }
 async function handleSetPassword(_c: HandlerContext, _b: Record<string, unknown>): Promise<Response> {
   return json({ ok: false, error: 'set_password not implemented', code: 'NOT_IMPLEMENTED' }, 501);
@@ -217,4 +291,62 @@ async function handleDeactivate(_c: HandlerContext, _b: Record<string, unknown>)
 }
 async function handleReactivate(_c: HandlerContext, _b: Record<string, unknown>): Promise<Response> {
   return json({ ok: false, error: 'reactivate not implemented', code: 'NOT_IMPLEMENTED' }, 501);
+}
+
+// ---------------------------------------------------------------------------
+// Shared helpers used by multiple handlers.
+// ---------------------------------------------------------------------------
+
+async function assertEmployeeAvailable(
+  ctx: HandlerContext,
+  employeeId: string,
+  expectCurrentUserId: string | null,
+): Promise<Response | null> {
+  const { data: emp, error } = await ctx.admin
+    .from('employees')
+    .select('id, company_id, user_id')
+    .eq('id', employeeId)
+    .maybeSingle();
+  if (error) return json({ ok: false, error: error.message, code: 'INTERNAL' }, 500);
+  if (!emp) return json({ ok: false, error: 'Employee not found', code: 'EMPLOYEE_WRONG_COMPANY' }, 400);
+  if (emp.company_id !== ctx.callerCompanyId) {
+    return json({ ok: false, error: 'Employee not in your company', code: 'EMPLOYEE_WRONG_COMPANY' }, 400);
+  }
+  if (emp.user_id && emp.user_id !== expectCurrentUserId) {
+    return json({ ok: false, error: 'Employee already linked to another user', code: 'EMPLOYEE_TAKEN' }, 400);
+  }
+  return null;
+}
+
+async function assertUserInCompany(
+  ctx: HandlerContext,
+  userId: string,
+): Promise<Response | null> {
+  const { data: row, error } = await ctx.admin
+    .from('users')
+    .select('id, company_id')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) return json({ ok: false, error: error.message, code: 'INTERNAL' }, 500);
+  if (!row || row.company_id !== ctx.callerCompanyId) {
+    return json({ ok: false, error: 'User not in your company', code: 'USER_NOT_IN_COMPANY' }, 400);
+  }
+  return null;
+}
+
+async function countSuperAdmins(ctx: HandlerContext): Promise<number> {
+  // Walk the public.users in this company and ask auth.admin for each one's
+  // app_metadata. Cheap because a company has at most a handful of admins.
+  const { data: rows, error } = await ctx.admin
+    .from('users')
+    .select('id, status')
+    .eq('company_id', ctx.callerCompanyId)
+    .eq('status', 'ACTIVE');
+  if (error || !rows) return 0;
+  let count = 0;
+  for (const r of rows) {
+    const { data } = await ctx.admin.auth.admin.getUserById(r.id as string);
+    if ((data?.user?.app_metadata?.app_role as string | undefined) === 'SUPER_ADMIN') count++;
+  }
+  return count;
 }
