@@ -381,6 +381,35 @@ class PayrollRepository {
         .eq('id', advanceId);
   }
 
+  /// Defer a specific reimbursement out of the given payroll run. The
+  /// reimbursement is added to `skipped_payroll_run_ids` so the next
+  /// compute for that run excludes it; subsequent runs still pick it up
+  /// because `is_paid` is untouched. Caller is expected to trigger a
+  /// Recompute afterwards so the payslip_lines are rebuilt without the
+  /// skipped row.
+  ///
+  /// [skip] = true to add the run id; false to remove it (undo).
+  Future<void> setReimbursementSkip({
+    required String reimbursementId,
+    required String runId,
+    required bool skip,
+  }) async {
+    final row = await _client
+        .from('reimbursements')
+        .select('skipped_payroll_run_ids')
+        .eq('id', reimbursementId)
+        .single();
+    final current =
+        (row['skipped_payroll_run_ids'] as List?)?.cast<String>() ?? const [];
+    final next = skip
+        ? {...current, runId}.toList()
+        : current.where((id) => id != runId).toList();
+    await _client
+        .from('reimbursements')
+        .update({'skipped_payroll_run_ids': next})
+        .eq('id', reimbursementId);
+  }
+
   /// Release a run: move status → RELEASED, stamp released_at, and lock
   /// attendance rows that fall within the pay period (server-side RLS/
   /// triggers handle the cascade where configured).
