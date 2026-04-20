@@ -91,7 +91,7 @@ class _RoleDetail extends StatelessWidget {
             children: [
               LayoutBuilder(builder: (ctx, c) {
                 final cardWidth = c.maxWidth >= 920
-                    ? (c.maxWidth - 3 * 12) / 4
+                    ? (c.maxWidth - 2 * 12) / 3
                     : c.maxWidth >= 600
                         ? (c.maxWidth - 12) / 2
                         : c.maxWidth;
@@ -129,16 +129,6 @@ class _RoleDetail extends StatelessWidget {
                         subtitle: card.workDaysPerWeek,
                         bg: const Color(0xFFF5F3FF),
                         fg: const Color(0xFF6D28D9),
-                      ),
-                    ),
-                    SizedBox(
-                      width: cardWidth,
-                      child: _TintedCard(
-                        label: 'HOURS',
-                        value: '${card.workHoursPerDay}h / day',
-                        subtitle: card.workDaysPerWeek,
-                        bg: null,
-                        fg: null,
                       ),
                     ),
                   ],
