@@ -216,7 +216,7 @@ async function handleCreate(ctx: HandlerContext, body: Record<string, unknown>):
   if (!role)  return json({ ok: false, error: `Unknown role code: ${roleCode}`, code: 'INVALID_ROLE' }, 400);
 
   // employee_id (optional): must be in caller's company AND unlinked
-  if (employeeId) {
+  if (employeeId !== null) {
     const empCheck = await assertEmployeeAvailable(ctx, employeeId, null);
     if (empCheck) return empCheck;
   }
@@ -233,7 +233,10 @@ async function handleCreate(ctx: HandlerContext, body: Record<string, unknown>):
   });
   if (createErr || !created?.user) {
     const msg = createErr?.message ?? 'createUser failed';
-    const code = /already.*registered|exists/i.test(msg) ? 'DUPLICATE_EMAIL' : 'INTERNAL';
+    // Match Supabase Auth's actual duplicate-email message. Avoid the bare
+    // 'exists' branch — too broad (would catch "Connection already exists",
+    // "Index exists", etc., misclassifying infra errors as user errors).
+    const code = /already registered/i.test(msg) ? 'DUPLICATE_EMAIL' : 'INTERNAL';
     return json({ ok: false, error: msg, code }, 400);
   }
   const newUserId = created.user.id;
@@ -264,7 +267,7 @@ async function handleCreate(ctx: HandlerContext, body: Record<string, unknown>):
   }
 
   // Optional employee link.
-  if (employeeId) {
+  if (employeeId !== null) {
     const { error: linkErr } = await ctx.admin
       .from('employees')
       .update({ user_id: newUserId })
@@ -308,7 +311,9 @@ async function assertEmployeeAvailable(
     .eq('id', employeeId)
     .maybeSingle();
   if (error) return json({ ok: false, error: error.message, code: 'INTERNAL' }, 500);
-  if (!emp) return json({ ok: false, error: 'Employee not found', code: 'EMPLOYEE_WRONG_COMPANY' }, 400);
+  // Same response for "not found" and "wrong company" — don't leak existence
+  // across company boundaries.
+  if (!emp) return json({ ok: false, error: 'Employee not in your company', code: 'EMPLOYEE_WRONG_COMPANY' }, 400);
   if (emp.company_id !== ctx.callerCompanyId) {
     return json({ ok: false, error: 'Employee not in your company', code: 'EMPLOYEE_WRONG_COMPANY' }, 400);
   }
