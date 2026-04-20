@@ -12,6 +12,7 @@ import 'bank_accounts/company_bank_accounts_screen.dart';
 import 'departments/departments_settings_screen.dart';
 import 'hiring_entities/hiring_entities_settings_screen.dart';
 import 'roles/roles_settings_screen.dart';
+import 'users/users_settings_screen.dart';
 import '../lark/lark_settings_screen.dart';
 
 enum _Tab {
@@ -23,6 +24,8 @@ enum _Tab {
       Icons.account_balance_outlined),
   roles('roles', 'Roles', 'Manage roles and permissions',
       Icons.shield_outlined),
+  users('users', 'Users', 'Manage who can log in',
+      Icons.people_alt_outlined),
   shifts('shifts', 'Shift Templates', 'Define work schedules', Icons.schedule),
   holidays('holidays', 'Holidays', 'Holiday calendar for payroll',
       Icons.event_outlined),
@@ -54,6 +57,11 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _State extends ConsumerState<SettingsScreen> {
   late _Tab _tab = _parseSlug(widget.initialTab) ?? _Tab.departments;
 
+  bool get _isSuperAdmin {
+    final profile = ref.read(userProfileProvider).asData?.value;
+    return profile?.appRole == AppRole.SUPER_ADMIN;
+  }
+
   @override
   void didUpdateWidget(SettingsScreen old) {
     super.didUpdateWidget(old);
@@ -83,6 +91,7 @@ class _State extends ConsumerState<SettingsScreen> {
           _tile(_Tab.hiringEntities),
           _tile(_Tab.bankAccounts),
           _tile(_Tab.roles),
+          if (_isSuperAdmin) _tile(_Tab.users),
           const Divider(height: 24, indent: 16, endIndent: 16),
           _tile(_Tab.shifts),
           _tile(_Tab.holidays),
@@ -111,14 +120,15 @@ class _State extends ConsumerState<SettingsScreen> {
             ),
             items: [
               for (final t in _Tab.values)
-                DropdownMenuItem(
-                  value: t,
-                  child: Row(children: [
-                    Icon(t.icon, size: 18),
-                    const SizedBox(width: 8),
-                    Text(t.label),
-                  ]),
-                ),
+                if (t != _Tab.users || _isSuperAdmin)
+                  DropdownMenuItem(
+                    value: t,
+                    child: Row(children: [
+                      Icon(t.icon, size: 18),
+                      const SizedBox(width: 8),
+                      Text(t.label),
+                    ]),
+                  ),
             ],
             onChanged: (next) {
               if (next == null) return;
@@ -162,6 +172,11 @@ class _State extends ConsumerState<SettingsScreen> {
         return const CompanyBankAccountsScreen();
       case _Tab.roles:
         return const RolesSettingsScreen();
+      case _Tab.users:
+        if (!_isSuperAdmin) {
+          return const Center(child: Text('Super Admins only.'));
+        }
+        return const UsersSettingsScreen();
       case _Tab.shifts:
         return const ShiftTemplatesScreen();
       case _Tab.holidays:
