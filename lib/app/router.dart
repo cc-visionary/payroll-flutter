@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../features/auth/change_password_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/employees/employee_form_screen.dart';
 import '../features/employees/employees_screen.dart';
@@ -35,12 +36,18 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final loggedIn = auth.asData?.value != null;
       final loggingIn = state.matchedLocation == '/login';
+      final changingPassword = state.matchedLocation == '/change-password';
       if (!loggedIn && !loggingIn) return '/login';
       if (loggedIn && loggingIn) return '/dashboard';
 
-      // Role-based route gating
       final profile = ref.read(userProfileProvider).asData?.value;
       if (profile != null) {
+        if (profile.mustChangePassword && !changingPassword) {
+          return '/change-password';
+        }
+        if (!profile.mustChangePassword && changingPassword) {
+          return '/dashboard';
+        }
         final loc = state.matchedLocation;
         if (loc.startsWith('/settings') && !profile.isAdmin) return '/dashboard';
         if (loc.startsWith('/responsibility-cards') && !profile.isHrOrAdmin) return '/dashboard';
@@ -49,6 +56,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: '/login', builder: (c, s) => const LoginScreen()),
+      GoRoute(path: '/change-password', builder: (c, s) => const ChangePasswordScreen()),
       ShellRoute(
         builder: (c, s, child) => AppShell(child: child),
         routes: [
