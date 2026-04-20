@@ -16,7 +16,7 @@
 
 | Path | Type | Responsibility |
 |---|---|---|
-| `supabase/migrations/20260420000001_user_management.sql` | NEW | Extend `app_role` enum, add `must_change_password / invited_by / invited_at` columns, recreate `user_emails` view, add column-level self-update RLS. |
+| `supabase/migrations/20260420000002_user_management.sql` | NEW | Extend `app_role` enum, add `must_change_password / invited_by / invited_at` columns, recreate `user_emails` view, add column-level self-update RLS. (Slot bumped from 000001 to avoid collision with the pre-existing `20260420000001_thirteenth_month_accrual.sql`.) |
 | `supabase/functions/manage-user/index.ts` | NEW | Single edge function. Action discriminator routes to `create / set_password / update_role / link_employee / deactivate / reactivate`. Validates caller is SUPER_ADMIN of caller's company. |
 | `supabase/tests/manage_user_test.ts` | NEW | Pure-function tests for the validation/dispatch helpers extracted from the edge function (action enum parser + payload validators). |
 | `lib/features/auth/profile_provider.dart` | EDIT | Extend `AppRole` enum; add `mustChangePassword`; switch profile read to `user_emails` view. |
@@ -34,7 +34,7 @@ Each task below produces self-contained changes.
 ## Task 1: Database migration
 
 **Files:**
-- Create: `supabase/migrations/20260420000001_user_management.sql`
+- Create: `supabase/migrations/20260420000002_user_management.sql` (000001 is taken by the unrelated `thirteenth_month_accrual` migration).
 
 - [ ] **Step 1: Write the migration**
 
