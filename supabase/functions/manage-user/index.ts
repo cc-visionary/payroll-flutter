@@ -298,8 +298,54 @@ async function handleSetPassword(ctx: HandlerContext, body: Record<string, unkno
 
   return json({ ok: true, user_id: userId });
 }
-async function handleUpdateRole(_c: HandlerContext, _b: Record<string, unknown>): Promise<Response> {
-  return json({ ok: false, error: 'update_role not implemented', code: 'NOT_IMPLEMENTED' }, 501);
+async function handleUpdateRole(ctx: HandlerContext, body: Record<string, unknown>): Promise<Response> {
+  const userId = body.user_id as string;
+  const roleCode = (body.role_code as string).trim().toUpperCase();
+
+  const guard = await assertUserInCompany(ctx, userId);
+  if (guard) return guard;
+
+  const { data: role, error: roleErr } = await ctx.admin
+    .from('roles')
+    .select('id, code')
+    .eq('code', roleCode)
+    .maybeSingle();
+  if (roleErr) return json({ ok: false, error: roleErr.message, code: 'INTERNAL' }, 500);
+  if (!role)  return json({ ok: false, error: `Unknown role code: ${roleCode}`, code: 'INVALID_ROLE' }, 400);
+
+  // Last-super-admin guard: if the caller is downgrading themselves and they
+  // are the only SUPER_ADMIN left, block.
+  if (userId === ctx.callerId && roleCode !== 'SUPER_ADMIN') {
+    const supers = await countSuperAdmins(ctx);
+    if (supers <= 1) {
+      return json({
+        ok: false,
+        error: 'Cannot demote the last SUPER_ADMIN in this company',
+        code: 'LAST_SUPER_ADMIN',
+      }, 400);
+    }
+  }
+
+  // Replace user_roles row.
+  await ctx.admin.from('user_roles').delete().eq('user_id', userId);
+  const { error: insertErr } = await ctx.admin
+    .from('user_roles')
+    .insert({ user_id: userId, role_id: role.id });
+  if (insertErr) return json({ ok: false, error: insertErr.message, code: 'INTERNAL' }, 500);
+
+  // Rewrite the JWT app_role claim.
+  const { data: existing } = await ctx.admin.auth.admin.getUserById(userId);
+  const merged = {
+    ...(existing?.user?.app_metadata ?? {}),
+    app_role: roleCode,
+    company_id: ctx.callerCompanyId,
+  };
+  const { error: metaErr } = await ctx.admin.auth.admin.updateUserById(userId, {
+    app_metadata: merged,
+  });
+  if (metaErr) return json({ ok: false, error: metaErr.message, code: 'INTERNAL' }, 500);
+
+  return json({ ok: true, user_id: userId, role_code: roleCode });
 }
 async function handleLinkEmployee(_c: HandlerContext, _b: Record<string, unknown>): Promise<Response> {
   return json({ ok: false, error: 'link_employee not implemented', code: 'NOT_IMPLEMENTED' }, 501);
