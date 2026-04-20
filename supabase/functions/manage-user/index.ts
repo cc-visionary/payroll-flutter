@@ -17,7 +17,7 @@
 // Error codes:
 //   DUPLICATE_EMAIL · WEAK_PASSWORD · INVALID_ROLE · EMPLOYEE_TAKEN ·
 //   EMPLOYEE_WRONG_COMPANY · LAST_SUPER_ADMIN · NOT_AUTHORIZED ·
-//   USER_NOT_IN_COMPANY · BAD_REQUEST · INTERNAL
+//   USER_NOT_IN_COMPANY · BAD_REQUEST · NOT_IMPLEMENTED · INTERNAL
 
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
@@ -50,11 +50,9 @@ export function parseAction(value: unknown): Action | null {
   return (ACTIONS as readonly string[]).includes(value) ? (value as Action) : null;
 }
 
-export type ValidationResult = {
-  ok: boolean;
-  error?: string;
-  code?: string;
-};
+export type ValidationResult =
+  | { ok: true }
+  | { ok: false; error: string; code: string };
 
 const MIN_PASSWORD = 8;
 
@@ -203,20 +201,20 @@ interface HandlerContext {
 }
 
 async function handleCreate(_c: HandlerContext, _b: Record<string, unknown>): Promise<Response> {
-  return json({ ok: false, error: 'create not implemented', code: 'INTERNAL' }, 501);
+  return json({ ok: false, error: 'create not implemented', code: 'NOT_IMPLEMENTED' }, 501);
 }
 async function handleSetPassword(_c: HandlerContext, _b: Record<string, unknown>): Promise<Response> {
-  return json({ ok: false, error: 'set_password not implemented', code: 'INTERNAL' }, 501);
+  return json({ ok: false, error: 'set_password not implemented', code: 'NOT_IMPLEMENTED' }, 501);
 }
 async function handleUpdateRole(_c: HandlerContext, _b: Record<string, unknown>): Promise<Response> {
-  return json({ ok: false, error: 'update_role not implemented', code: 'INTERNAL' }, 501);
+  return json({ ok: false, error: 'update_role not implemented', code: 'NOT_IMPLEMENTED' }, 501);
 }
 async function handleLinkEmployee(_c: HandlerContext, _b: Record<string, unknown>): Promise<Response> {
-  return json({ ok: false, error: 'link_employee not implemented', code: 'INTERNAL' }, 501);
+  return json({ ok: false, error: 'link_employee not implemented', code: 'NOT_IMPLEMENTED' }, 501);
 }
 async function handleDeactivate(_c: HandlerContext, _b: Record<string, unknown>): Promise<Response> {
-  return json({ ok: false, error: 'deactivate not implemented', code: 'INTERNAL' }, 501);
+  return json({ ok: false, error: 'deactivate not implemented', code: 'NOT_IMPLEMENTED' }, 501);
 }
 async function handleReactivate(_c: HandlerContext, _b: Record<string, unknown>): Promise<Response> {
-  return json({ ok: false, error: 'reactivate not implemented', code: 'INTERNAL' }, 501);
+  return json({ ok: false, error: 'reactivate not implemented', code: 'NOT_IMPLEMENTED' }, 501);
 }
