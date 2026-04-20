@@ -378,11 +378,64 @@ async function handleLinkEmployee(ctx: HandlerContext, body: Record<string, unkn
 
   return json({ ok: true, user_id: userId, employee_id: employeeId });
 }
-async function handleDeactivate(_c: HandlerContext, _b: Record<string, unknown>): Promise<Response> {
-  return json({ ok: false, error: 'deactivate not implemented', code: 'NOT_IMPLEMENTED' }, 501);
+async function handleDeactivate(ctx: HandlerContext, body: Record<string, unknown>): Promise<Response> {
+  const userId = body.user_id as string;
+
+  const guard = await assertUserInCompany(ctx, userId);
+  if (guard) return guard;
+
+  if (userId === ctx.callerId) {
+    return json({ ok: false, error: 'Cannot deactivate yourself', code: 'LAST_SUPER_ADMIN' }, 400);
+  }
+
+  // If the target is a SUPER_ADMIN and the only one left, refuse.
+  const { data: target } = await ctx.admin.auth.admin.getUserById(userId);
+  const targetRole = target?.user?.app_metadata?.app_role as string | undefined;
+  if (targetRole === 'SUPER_ADMIN') {
+    const supers = await countSuperAdmins(ctx);
+    if (supers <= 1) {
+      return json({
+        ok: false,
+        error: 'Cannot deactivate the last SUPER_ADMIN',
+        code: 'LAST_SUPER_ADMIN',
+      }, 400);
+    }
+  }
+
+  const { error: statusErr } = await ctx.admin
+    .from('users')
+    .update({ status: 'INACTIVE' })
+    .eq('id', userId);
+  if (statusErr) return json({ ok: false, error: statusErr.message, code: 'INTERNAL' }, 500);
+
+  // Effectively a permanent ban (~100 years). Reactivate clears it.
+  // GoTrue's admin updateUserById accepts ban_duration as a duration string.
+  const { error: banErr } = await ctx.admin.auth.admin.updateUserById(userId, {
+    ban_duration: '876000h',
+  } as any);
+  if (banErr) return json({ ok: false, error: banErr.message, code: 'INTERNAL' }, 500);
+
+  return json({ ok: true, user_id: userId });
 }
-async function handleReactivate(_c: HandlerContext, _b: Record<string, unknown>): Promise<Response> {
-  return json({ ok: false, error: 'reactivate not implemented', code: 'NOT_IMPLEMENTED' }, 501);
+
+async function handleReactivate(ctx: HandlerContext, body: Record<string, unknown>): Promise<Response> {
+  const userId = body.user_id as string;
+
+  const guard = await assertUserInCompany(ctx, userId);
+  if (guard) return guard;
+
+  const { error: statusErr } = await ctx.admin
+    .from('users')
+    .update({ status: 'ACTIVE' })
+    .eq('id', userId);
+  if (statusErr) return json({ ok: false, error: statusErr.message, code: 'INTERNAL' }, 500);
+
+  const { error: banErr } = await ctx.admin.auth.admin.updateUserById(userId, {
+    ban_duration: 'none',
+  } as any);
+  if (banErr) return json({ ok: false, error: banErr.message, code: 'INTERNAL' }, 500);
+
+  return json({ ok: true, user_id: userId });
 }
 
 // ---------------------------------------------------------------------------
