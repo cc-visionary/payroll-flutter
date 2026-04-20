@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:decimal/decimal.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import '../../../core/money.dart';
 import '../../../data/models/employee.dart';
@@ -18,6 +19,18 @@ class PayslipPdfInput {
   final DateTime periodStart;
   final DateTime periodEnd;
   final DateTime payDate;
+  /// Optional company logo bytes (PNG or JPG). When supplied, the header
+  /// renders the logo to the left of the company name — otherwise the name
+  /// stands alone. Caller is responsible for decoding from wherever the
+  /// company row stores it (e.g. a `companies.logo_url` Supabase Storage
+  /// path, base64 blob, local asset, etc.).
+  final Uint8List? companyLogoBytes;
+  /// Height (in PDF points) to render the logo at. Per-brand because
+  /// different source PNGs bake in different amounts of transparent
+  /// padding — the Luxium asset has significant whitespace, so its
+  /// rendered visual would look ~40% smaller than GameCove's at the
+  /// same container height. Defaults to 48.
+  final double companyLogoHeight;
   /// Daily attendance rows for the pay period. When non-empty, the PDF grows
   /// a landscape page 2 with one row per calendar day. When null/empty, the
   /// PDF stays single-page — keeps the test fixture and legacy callers
@@ -33,6 +46,8 @@ class PayslipPdfInput {
     required this.periodStart,
     required this.periodEnd,
     required this.payDate,
+    this.companyLogoBytes,
+    this.companyLogoHeight = 48,
     this.attendanceRows,
   });
 }
@@ -45,7 +60,27 @@ Future<Uint8List> buildPayslipPdf(PayslipPdfInput input) async {
     author: input.companyName,
   );
 
-  final theme = pw.ThemeData.base();
+  // Load Inter from Google Fonts as the PDF typeface.
+  //
+  //   - Light (300) is the default body weight — matches the "lean" look
+  //     the user asked for instead of the heavy Satoshi-Variable default.
+  //   - SemiBold (600) is used wherever pw.FontWeight.bold is set (title,
+  //     table headers, totals, labels).
+  //   - Italic + BoldItalic round out the theme so no text falls back to
+  //     Helvetica (which doesn't support ₱ and triggers a Unicode warning).
+  //
+  // PdfGoogleFonts caches font bytes after first fetch; cold-start requires
+  // network once per host but subsequent renders are offline.
+  final base = await PdfGoogleFonts.interLight();
+  final bold = await PdfGoogleFonts.interSemiBold();
+  final italic = await PdfGoogleFonts.interLightItalic();
+  final boldItalic = await PdfGoogleFonts.interSemiBoldItalic();
+  final theme = pw.ThemeData.withFont(
+    base: base,
+    bold: bold,
+    italic: italic,
+    boldItalic: boldItalic,
+  );
   final primary = PdfColor.fromHex('#0EA5E9');
   final rule = pw.Divider(color: PdfColors.grey400, height: 1);
 
@@ -69,8 +104,6 @@ Future<Uint8List> buildPayslipPdf(PayslipPdfInput input) async {
             _deductionsTable(input.payslip),
             pw.SizedBox(height: 12),
             _totalsBlock(input.payslip, primary),
-            pw.SizedBox(height: 16),
-            _ytdBlock(input.payslip),
             pw.Spacer(),
             _signatureBlock(input),
             pw.SizedBox(height: 8),
@@ -117,24 +150,54 @@ Future<Uint8List> buildPayslipPdf(PayslipPdfInput input) async {
 }
 
 pw.Widget _header(PayslipPdfInput i, PdfColor primary) {
+  final logoBytes = i.companyLogoBytes;
   return pw.Row(
     crossAxisAlignment: pw.CrossAxisAlignment.start,
     children: [
-      pw.Expanded(
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text(
-              i.companyTradeName ?? i.companyName,
-              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: primary),
+      // Logo-first branding: when a logo is supplied it REPLACES the
+      // company-name text block entirely. Rendering both would be
+      // redundant — the mark already identifies the entity. When no
+      // logo is present we fall back to the stacked name / trade name /
+      // address text block so the document is still self-identifying.
+      if (logoBytes != null)
+        pw.Expanded(
+          child: pw.Align(
+            alignment: pw.Alignment.centerLeft,
+            child: pw.Container(
+              height: i.companyLogoHeight,
+              child: pw.Image(
+                pw.MemoryImage(logoBytes),
+                fit: pw.BoxFit.contain,
+                alignment: pw.Alignment.centerLeft,
+              ),
             ),
-            if (i.companyTradeName != null && i.companyTradeName != i.companyName)
-              pw.Text(i.companyName, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
-            if (i.companyAddress != null)
-              pw.Text(i.companyAddress!, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
-          ],
+          ),
+        )
+      else
+        pw.Expanded(
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                i.companyTradeName ?? i.companyName,
+                style: pw.TextStyle(
+                  fontSize: 16,
+                  fontWeight: pw.FontWeight.bold,
+                  color: primary,
+                ),
+              ),
+              if (i.companyTradeName != null &&
+                  i.companyTradeName != i.companyName)
+                pw.Text(i.companyName,
+                    style: const pw.TextStyle(
+                        fontSize: 9, color: PdfColors.grey700)),
+              if (i.companyAddress != null)
+                pw.Text(i.companyAddress!,
+                    style: const pw.TextStyle(
+                        fontSize: 9, color: PdfColors.grey700)),
+            ],
+          ),
         ),
-      ),
       pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.end,
         children: [
@@ -214,50 +277,179 @@ const _deductionCats = {
 };
 
 pw.Widget _earningsTable(Payslip p) {
-  final rows = p.lines.where((l) => _earningCats.contains(l.category)).toList();
+  // Sort by the engine's calculation order (Basic Pay 100 → OT 200 →
+  // Night Diff 300 → Holiday Pay 400-500 → Allowances / Commissions /
+  // Reimbursements / Adjustments 500-900) so the payslip reads the way
+  // payroll is actually computed. Ties fall back to the DB insertion order.
+  final rows = p.lines
+      .where((l) => _earningCats.contains(l.category))
+      .toList()
+    ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
   return _sectionTable('EARNINGS', rows, p.totalEarnings);
 }
 
 pw.Widget _deductionsTable(Payslip p) {
-  final rows = p.lines.where((l) => _deductionCats.contains(l.category)).toList();
+  final rows = p.lines
+      .where((l) => _deductionCats.contains(l.category))
+      .toList()
+    ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
   return _sectionTable('DEDUCTIONS', rows, p.totalDeductions);
 }
 
+/// Render a tabular earnings/deductions block with Qty · Rate · Mult ·
+/// Amount columns (mirrors the compute engine's internal breakdown). Cells
+/// collapse to `-` when the line doesn't carry that dimension (e.g. a flat
+/// reimbursement has no rate or multiplier). Hyphen, not em-dash — the
+/// bundled Helvetica has no glyph for U+2014 and renders it as tofu.
 pw.Widget _sectionTable(String title, List<PayslipLine> rows, Decimal total) {
+  final headerStyle =
+      pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold);
+  const cellStyle = pw.TextStyle(fontSize: 9);
+  const qtyFlex = 12;
+  const rateFlex = 16;
+  const multFlex = 10;
+  const amountFlex = 18;
+  const descFlex = 44;
+
+  String fmtQty(Decimal? q) =>
+      q == null ? '-' : q.toDouble().toStringAsFixed(3);
+
+  /// Infer the rate's unit from the line description — the engine already
+  /// embeds "5.000 days" / "480.000 mins" / "8 hours" in the description
+  /// text, so no DB schema change is needed. Returns a trailing suffix
+  /// like "/day" or empty string if nothing matches (flat amounts like
+  /// commissions / bonuses have no unit).
+  String unitSuffix(PayslipLine l) {
+    final d = l.description.toLowerCase();
+    if (RegExp(r'\bdays?\b').hasMatch(d)) return '/day';
+    if (RegExp(r'\bmins?\b|\bminutes?\b').hasMatch(d)) return '/min';
+    if (RegExp(r'\bhours?\b|\bhrs?\b').hasMatch(d)) return '/hr';
+    return '';
+  }
+
+  String fmtRate(PayslipLine l) {
+    final r = l.rate;
+    if (r == null) return '-';
+    return '${r.toDouble().toStringAsFixed(3)}${unitSuffix(l)}';
+  }
+
+  String fmtMult(Decimal? m) {
+    if (m == null) return '-';
+    // `1.25x` reads cleaner than `1.250` for multipliers.
+    final s = m.toDouble();
+    return '${s.toStringAsFixed(s == s.roundToDouble() ? 0 : 2)}x';
+  }
+
+  // Wrap each cell in a padded container with fixed alignment. Using
+  // `pw.Table` (vs Row+Padding) gives us horizontal dividers between
+  // rows for free — multi-line descriptions ("photocopy for sec cert sa
+  // pagibig...") now cleanly own their row with no ambiguity about
+  // which values belong to which line.
+  pw.Widget cell(pw.Widget child, {pw.Alignment? align}) => pw.Container(
+        alignment: align,
+        padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+        child: child,
+      );
+  pw.Widget headerText(String label,
+          {pw.TextAlign align = pw.TextAlign.right}) =>
+      pw.Text(label, style: headerStyle, textAlign: align);
+  pw.Widget bodyText(String text,
+          {pw.TextAlign align = pw.TextAlign.right,
+          bool bold = false,
+          PdfColor? color}) =>
+      pw.Text(
+        text,
+        style: bold
+            ? pw.TextStyle(
+                fontSize: 9, fontWeight: pw.FontWeight.bold, color: color)
+            : cellStyle.copyWith(color: color),
+        textAlign: align,
+      );
+
+  final columnWidths = <int, pw.TableColumnWidth>{
+    0: pw.FlexColumnWidth(descFlex.toDouble()),
+    1: pw.FlexColumnWidth(qtyFlex.toDouble()),
+    2: pw.FlexColumnWidth(rateFlex.toDouble()),
+    3: pw.FlexColumnWidth(multFlex.toDouble()),
+    4: pw.FlexColumnWidth(amountFlex.toDouble()),
+  };
+
   return pw.Column(
     crossAxisAlignment: pw.CrossAxisAlignment.stretch,
     children: [
+      // Section title bar — lives outside the table so it spans full width
+      // as a solid block header.
       pw.Container(
         padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         color: PdfColors.grey200,
-        child: pw.Row(children: [
-          pw.Expanded(
-            child: pw.Text(title,
-                style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-          ),
-          pw.Text('Amount',
-              style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-        ]),
+        child: pw.Text(title,
+            style: pw.TextStyle(
+                fontSize: 10, fontWeight: pw.FontWeight.bold)),
       ),
-      ...rows.map(
-        (l) => pw.Padding(
-          padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-          child: pw.Row(children: [
-            pw.Expanded(child: pw.Text(l.description, style: const pw.TextStyle(fontSize: 9))),
-            pw.Text(Money.fmtPhpAscii(l.amount), style: const pw.TextStyle(fontSize: 9)),
-          ]),
+      pw.Table(
+        columnWidths: columnWidths,
+        // Thin border around the whole table + hairline dividers between
+        // every row. `horizontalInside` is the key piece — it puts a
+        // visible line between consecutive body rows so a wrapping
+        // description can't bleed into the next line's values.
+        border: pw.TableBorder(
+          top: pw.BorderSide.none,
+          bottom: pw.BorderSide.none,
+          left: pw.BorderSide.none,
+          right: pw.BorderSide.none,
+          horizontalInside: pw.BorderSide(
+            color: PdfColors.grey300,
+            width: 0.5,
+          ),
         ),
-      ),
-      pw.Padding(
-        padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: pw.Row(children: [
-          pw.Expanded(
-            child: pw.Text('Total ${title.toLowerCase()}',
-                style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+        children: [
+          // Column headers
+          pw.TableRow(
+            children: [
+              cell(headerText('Description', align: pw.TextAlign.left),
+                  align: pw.Alignment.centerLeft),
+              cell(headerText('Qty'), align: pw.Alignment.centerRight),
+              cell(headerText('Rate'), align: pw.Alignment.centerRight),
+              cell(headerText('Mult'), align: pw.Alignment.centerRight),
+              cell(headerText('Amount'), align: pw.Alignment.centerRight),
+            ],
           ),
-          pw.Text(Money.fmtPhpAscii(total),
-              style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-        ]),
+          // Body rows — one per payslip line. Table guarantees each row's
+          // cells share the same baseline/height, so a 2-line description
+          // pushes all five cells of THAT row down together, not just the
+          // description column.
+          for (final l in rows)
+            pw.TableRow(
+              children: [
+                cell(bodyText(l.description, align: pw.TextAlign.left),
+                    align: pw.Alignment.centerLeft),
+                cell(bodyText(fmtQty(l.quantity)),
+                    align: pw.Alignment.centerRight),
+                cell(bodyText(fmtRate(l)),
+                    align: pw.Alignment.centerRight),
+                cell(bodyText(fmtMult(l.multiplier)),
+                    align: pw.Alignment.centerRight),
+                cell(bodyText(Money.fmtPhpAscii(l.amount)),
+                    align: pw.Alignment.centerRight),
+              ],
+            ),
+          // Total row
+          pw.TableRow(
+            decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+            children: [
+              cell(
+                bodyText('Total ${title.toLowerCase()}',
+                    align: pw.TextAlign.left, bold: true),
+                align: pw.Alignment.centerLeft,
+              ),
+              cell(pw.SizedBox(), align: pw.Alignment.centerRight),
+              cell(pw.SizedBox(), align: pw.Alignment.centerRight),
+              cell(pw.SizedBox(), align: pw.Alignment.centerRight),
+              cell(bodyText(Money.fmtPhpAscii(total), bold: true),
+                  align: pw.Alignment.centerRight),
+            ],
+          ),
+        ],
       ),
     ],
   );
@@ -281,41 +473,10 @@ pw.Widget _totalsBlock(Payslip p, PdfColor primary) {
   );
 }
 
-pw.Widget _ytdBlock(Payslip p) {
-  return pw.Container(
-    padding: const pw.EdgeInsets.all(8),
-    decoration: pw.BoxDecoration(
-      border: pw.Border.all(color: PdfColors.grey400),
-      borderRadius: pw.BorderRadius.circular(4),
-    ),
-    child: pw.Column(children: [
-      pw.Text('YEAR TO DATE',
-          style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.grey700)),
-      pw.SizedBox(height: 4),
-      pw.Row(children: [
-        pw.Expanded(child: _ytdCell('Gross Pay', p.ytdGrossPay)),
-        pw.Expanded(child: _ytdCell('Taxable Income', p.ytdTaxableIncome)),
-        pw.Expanded(child: _ytdCell('Tax Withheld', p.ytdTaxWithheld)),
-      ]),
-    ]),
-  );
-}
-
-pw.Widget _ytdCell(String label, Decimal value) {
-  return pw.Column(
-    crossAxisAlignment: pw.CrossAxisAlignment.center,
-    children: [
-      pw.Text(label, style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
-      pw.Text(Money.fmtPhpAscii(value),
-          style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-    ],
-  );
-}
-
 pw.Widget _signatureBlock(PayslipPdfInput i) {
   // Employee signature removed — receipt is captured via Lark approval
-  // (see send-payslip-approvals edge function). Only the HR authorized-
-  // representative line remains.
+  // (see send-payslip-approvals edge function). Only the HR
+  // authorized-representative name + title remains under the sign line.
   return pw.Row(
     mainAxisAlignment: pw.MainAxisAlignment.center,
     children: [
@@ -331,8 +492,18 @@ pw.Widget _signatureBlock(PayslipPdfInput i) {
             ),
             pw.SizedBox(height: 2),
             pw.Text(
-              'Authorized Representative',
-              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+              'Brixter Del Mundo',
+              style: pw.TextStyle(
+                fontSize: 10,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+            pw.Text(
+              'HR Manager',
+              style: const pw.TextStyle(
+                fontSize: 9,
+                color: PdfColors.grey700,
+              ),
             ),
           ],
         ),
@@ -444,9 +615,15 @@ pw.Widget _attendanceSummary(AttendanceStats s) {
   );
 }
 
+// Fixed height for every summary tile so the row stays symmetrical — the
+// WORK DAYS tile needs a progress bar underneath, which makes it naturally
+// taller than the other four; we pin them all to this value so they line up.
+const double _kSummaryTileHeight = 58;
+
 pw.Widget _summaryTile(String label, String value, String? unit,
     {PdfColor? color}) {
   return pw.Container(
+    height: _kSummaryTileHeight,
     padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 8),
     decoration: pw.BoxDecoration(
       color: PdfColor.fromHex('#F5F9FC'),
@@ -454,6 +631,7 @@ pw.Widget _summaryTile(String label, String value, String? unit,
     ),
     child: pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
         pw.Text(
           label,
@@ -464,7 +642,6 @@ pw.Widget _summaryTile(String label, String value, String? unit,
             letterSpacing: 0.4,
           ),
         ),
-        pw.SizedBox(height: 2),
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.end,
           children: [
@@ -592,81 +769,151 @@ pw.Widget _summaryWorkDays({
 
 pw.Widget _attendanceTable(List<AttendanceRowVm> rows) {
   const headers = <String>[
-    'Date', 'Day', 'Shift', 'Clock In', 'Clock Out',
-    'Mins', 'Status', 'Deduction', 'Overtime',
+    'DATE', 'DAY', 'SHIFT', 'CLOCK IN', 'CLOCK OUT',
+    'MINS', 'STATUS', 'DEDUCTION', 'OVERTIME',
   ];
+  // Small-caps, letter-spaced header — reads as a proper table header
+  // instead of just another body row. Right-aligned columns match the
+  // numeric content below them.
   final headerStyle = pw.TextStyle(
-    fontSize: 8,
+    fontSize: 7.5,
     fontWeight: pw.FontWeight.bold,
-    color: PdfColors.grey800,
+    color: PdfColors.grey700,
+    letterSpacing: 0.5,
   );
   final cellStyle = const pw.TextStyle(fontSize: 8);
+  const rightAlignedCols = {5, 7, 8}; // Mins, Deduction, Overtime
+
   return pw.Table(
-    border: pw.TableBorder.symmetric(
-      inside: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
+    // Only horizontal dividers — vertical lines make a dense 9-column
+    // table read like a spreadsheet. Horizontal hairlines alone give
+    // enough row separation when combined with zebra striping below.
+    border: pw.TableBorder(
+      horizontalInside: pw.BorderSide(color: PdfColors.grey200, width: 0.5),
     ),
+    // Rebalanced widths — Status was previously 2.2 flex, which left a lot
+    // of whitespace after the pill (the longest label "Regular Holiday"
+    // only needs ~70pt). Narrowed to 1.5 and gave the reclaimed space
+    // back to Shift / Clock In / Clock Out so the full time ranges
+    // don't feel cramped.
     columnWidths: const {
-      0: pw.FlexColumnWidth(1.2), // Date
-      1: pw.FlexColumnWidth(0.8), // Day
-      2: pw.FlexColumnWidth(1.6), // Shift
-      3: pw.FlexColumnWidth(1.2), // Clock In
-      4: pw.FlexColumnWidth(1.2), // Clock Out
-      5: pw.FlexColumnWidth(1.0), // Mins
-      6: pw.FlexColumnWidth(2.0), // Status (may include holiday name)
-      7: pw.FlexColumnWidth(1.1), // Deduction
-      8: pw.FlexColumnWidth(1.1), // Overtime
+      0: pw.FlexColumnWidth(0.9), // Date
+      1: pw.FlexColumnWidth(0.6), // Day
+      2: pw.FlexColumnWidth(1.4), // Shift
+      3: pw.FlexColumnWidth(1.1), // Clock In
+      4: pw.FlexColumnWidth(1.1), // Clock Out
+      5: pw.FlexColumnWidth(0.9), // Mins
+      6: pw.FlexColumnWidth(1.5), // Status (pill + optional holiday name)
+      7: pw.FlexColumnWidth(0.9), // Deduction
+      8: pw.FlexColumnWidth(0.9), // Overtime
     },
     children: [
       pw.TableRow(
-        decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+        decoration: const pw.BoxDecoration(color: PdfColors.grey100),
         children: [
-          for (final h in headers)
+          for (var i = 0; i < headers.length; i++)
             pw.Padding(
-              padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              child: pw.Text(h, style: headerStyle),
+              padding: const pw.EdgeInsets.symmetric(
+                horizontal: 6,
+                vertical: 6,
+              ),
+              child: pw.Text(
+                headers[i],
+                style: headerStyle,
+                textAlign: rightAlignedCols.contains(i)
+                    ? pw.TextAlign.right
+                    : pw.TextAlign.left,
+              ),
             ),
         ],
       ),
-      for (final row in rows) _attendanceRow(row, cellStyle),
+      for (var i = 0; i < rows.length; i++)
+        _attendanceRow(
+          rows[i],
+          cellStyle,
+          // Zebra stripes on odd rows — subtle (#FAFBFC) so the colored
+          // status pills still carry the visual weight.
+          striped: i.isOdd,
+        ),
     ],
   );
 }
 
-pw.TableRow _attendanceRow(AttendanceRowVm row, pw.TextStyle cellStyle) {
+pw.TableRow _attendanceRow(
+  AttendanceRowVm row,
+  pw.TextStyle cellStyle, {
+  required bool striped,
+}) {
   final r = row.record;
   final shift = row.shift;
   final shiftText = shift == null
       ? '-'
       : '${_fmtShiftTime(shift.startTime)} - ${_fmtShiftTime(shift.endTime)}';
-  final clockIn = _fmtClock(r?.actualTimeIn);
-  final clockOut = _fmtClock(r?.actualTimeOut);
+  final clockInText = _fmtClock(r?.actualTimeIn);
+  final clockOutText = _fmtClock(r?.actualTimeOut);
   final mins = row.workedMinutes;
-  final minsText = mins == null ? '-' : '${mins.toStringAsFixed(3)} mins';
+  // Drop the "mins" suffix — the column header already implies the unit
+  // and the repetition steals horizontal space on every row.
+  final minsText = mins == null ? '-' : mins.toStringAsFixed(3);
   final deduction = row.netDeductionMinutes;
   final overtime = row.netOvertimeMinutes;
-  final statusLabel = _statusLabel(row.status);
-  final holidayName = row.holidayName;
+
+  // Late clock-in / early clock-out detection. Tinting the time red
+  // surfaces exceptions without the reader needing to compare against
+  // the shift column manually. Skips when no shift is assigned.
+  PdfColor? clockInColor;
+  PdfColor? clockOutColor;
+  if (shift != null && r?.actualTimeIn != null && r?.actualTimeOut != null) {
+    final schedStart = applyTime(row.date, shift.startTime);
+    final schedEnd = applyTime(row.date, shift.endTime);
+    if (r!.actualTimeIn!.toLocal().isAfter(schedStart)) {
+      clockInColor = PdfColors.red700;
+    }
+    if (r.actualTimeOut!.toLocal().isBefore(schedEnd)) {
+      clockOutColor = PdfColors.red700;
+    }
+  }
+
+  // Weekend rows get a faint warm tint so rest days pop even without
+  // reading the Status column. Zebra striping applies underneath.
+  final weekday = row.date.weekday;
+  final isWeekend =
+      weekday == DateTime.saturday || weekday == DateTime.sunday;
+  final PdfColor? bg = isWeekend
+      ? PdfColor.fromHex('#F9FAFB')
+      : (striped ? PdfColor.fromHex('#FAFBFC') : null);
 
   return pw.TableRow(
+    decoration: bg == null ? null : pw.BoxDecoration(color: bg),
     children: [
       _cell(_fmtShortDate(row.date), cellStyle),
-      _cell(_weekdayShort(row.date.weekday), cellStyle),
-      _cell(shiftText, cellStyle),
-      _cell(clockIn, cellStyle),
-      _cell(clockOut, cellStyle),
-      _cell(minsText, cellStyle, align: pw.TextAlign.right),
-      _statusCell(statusLabel, holidayName, cellStyle),
       _cell(
-        deduction > 0 ? '${deduction.toStringAsFixed(3)} mins' : '-',
+        _weekdayShort(weekday),
+        cellStyle,
+        color: isWeekend ? PdfColors.grey600 : null,
+      ),
+      _cell(shiftText, cellStyle, color: PdfColors.grey700),
+      _cell(clockInText, cellStyle,
+          color: clockInColor,
+          bold: clockInColor != null),
+      _cell(clockOutText, cellStyle,
+          color: clockOutColor,
+          bold: clockOutColor != null),
+      _cell(minsText, cellStyle, align: pw.TextAlign.right),
+      _statusCell(row.status, row.holidayName, cellStyle),
+      _cell(
+        deduction > 0 ? deduction.toStringAsFixed(3) : '-',
         cellStyle,
         align: pw.TextAlign.right,
-        color: deduction > 0 ? PdfColors.red700 : null,
+        color: deduction > 0 ? PdfColors.red700 : PdfColors.grey400,
+        bold: deduction > 0,
       ),
       _cell(
-        overtime > 0 ? '${overtime.toStringAsFixed(3)} mins' : '-',
+        overtime > 0 ? overtime.toStringAsFixed(3) : '-',
         cellStyle,
         align: pw.TextAlign.right,
-        color: overtime > 0 ? PdfColors.green700 : null,
+        color: overtime > 0 ? PdfColors.green700 : PdfColors.grey400,
+        bold: overtime > 0,
       ),
     ],
   );
@@ -677,57 +924,133 @@ pw.Widget _cell(
   pw.TextStyle style, {
   pw.TextAlign? align,
   PdfColor? color,
+  bool bold = false,
 }) {
   return pw.Padding(
-    padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+    padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
     child: pw.Text(
       text,
-      style: color == null ? style : style.copyWith(color: color),
+      style: style.copyWith(
+        color: color,
+        fontWeight: bold ? pw.FontWeight.bold : null,
+      ),
       textAlign: align,
     ),
   );
 }
 
-pw.Widget _statusCell(String label, String? holidayName, pw.TextStyle style) {
+/// Status cell renders the label as a colored pill. Each status carries
+/// its own bg/fg tint so "Absent", "Present", "Rest Day", etc. pop at a
+/// glance without the reader having to parse the word on every row.
+/// Holiday rows stack the holiday name underneath in 7pt grey.
+pw.Widget _statusCell(
+    String status, String? holidayName, pw.TextStyle style) {
+  final (label, bg, fg) = _statusPillPalette(status);
   return pw.Padding(
-    padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+    padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
     child: pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       mainAxisSize: pw.MainAxisSize.min,
       children: [
-        pw.Text(label, style: style),
+        pw.Container(
+          padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: pw.BoxDecoration(
+            color: bg,
+            borderRadius: pw.BorderRadius.circular(8),
+          ),
+          child: pw.Text(
+            label,
+            style: pw.TextStyle(
+              fontSize: 7.5,
+              fontWeight: pw.FontWeight.bold,
+              color: fg,
+            ),
+          ),
+        ),
         if (holidayName != null)
-          pw.Text(
-            holidayName,
-            style: style.copyWith(color: PdfColors.grey700, fontSize: 7),
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(top: 1),
+            child: pw.Text(
+              holidayName,
+              style: style.copyWith(color: PdfColors.grey600, fontSize: 7),
+            ),
           ),
       ],
     ),
   );
 }
 
-String _statusLabel(String status) {
+/// (human label, background tint, foreground text) per status. Colors are
+/// Tailwind-100/700 pairs — high contrast for print, muted enough that a
+/// single page of all-Present doesn't look like a Christmas tree.
+(String, PdfColor, PdfColor) _statusPillPalette(String status) {
   switch (status) {
     case 'PRESENT':
-      return 'Present';
+      return (
+        'Present',
+        PdfColor.fromHex('#DCFCE7'),
+        PdfColor.fromHex('#166534'),
+      );
+    case 'HALF_DAY':
+      return (
+        'Half Day',
+        PdfColor.fromHex('#FEF3C7'),
+        PdfColor.fromHex('#92400E'),
+      );
     case 'ABSENT':
-      return 'Absent';
-    case 'REST_DAY':
-      return 'Rest Day';
-    case 'REGULAR_HOLIDAY':
-      return 'Regular Holiday';
-    case 'SPECIAL_HOLIDAY':
-      return 'Special Holiday';
-    case 'SPECIAL_WORKING':
-      return 'Special Working';
+      return (
+        'Absent',
+        PdfColor.fromHex('#FEE2E2'),
+        PdfColor.fromHex('#991B1B'),
+      );
     case 'ON_LEAVE':
-      return 'On Leave';
+      return (
+        'On Leave',
+        PdfColor.fromHex('#EDE9FE'),
+        PdfColor.fromHex('#5B21B6'),
+      );
+    case 'REST_DAY':
+      return (
+        'Rest Day',
+        PdfColor.fromHex('#F3F4F6'),
+        PdfColor.fromHex('#4B5563'),
+      );
+    case 'REGULAR_HOLIDAY':
+      return (
+        'Regular Holiday',
+        PdfColor.fromHex('#FED7AA'),
+        PdfColor.fromHex('#9A3412'),
+      );
+    case 'SPECIAL_HOLIDAY':
+      return (
+        'Special Holiday',
+        PdfColor.fromHex('#FEF3C7'),
+        PdfColor.fromHex('#92400E'),
+      );
+    case 'SPECIAL_WORKING':
+      return (
+        'Special Working',
+        PdfColor.fromHex('#DBEAFE'),
+        PdfColor.fromHex('#1E40AF'),
+      );
     case 'HOLIDAY':
-      return 'Holiday';
+      return (
+        'Holiday',
+        PdfColor.fromHex('#FEF3C7'),
+        PdfColor.fromHex('#92400E'),
+      );
     case 'NO_DATA':
-      return '-';
+      return (
+        '-',
+        PdfColor.fromHex('#F3F4F6'),
+        PdfColor.fromHex('#9CA3AF'),
+      );
     default:
-      return status;
+      return (
+        status,
+        PdfColor.fromHex('#F3F4F6'),
+        PdfColor.fromHex('#4B5563'),
+      );
   }
 }
 

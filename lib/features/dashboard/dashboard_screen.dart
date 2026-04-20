@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../widgets/brand_tooltip.dart';
+import '../../app/breakpoints.dart';
+import '../../app/shell.dart';
+import '../../app/tokens.dart';
 import 'dashboard_providers.dart';
 
 /// HR analytics dashboard. Mirrors the PeopleOS reference layout:
@@ -16,7 +18,12 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(dashboardDataProvider);
+    final mobile = isMobile(context);
     return Scaffold(
+      drawer: mobile ? const AppDrawer() : null,
+      appBar: mobile
+          ? AppBar(title: const Text('Dashboard'))
+          : null,
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(dashboardDataProvider),
         child: async.when(
@@ -28,7 +35,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ),
           data: (d) => SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(mobile ? 16 : 24),
             child: _DashboardBody(data: d),
           ),
         ),
@@ -37,77 +44,124 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
-class _DashboardBody extends StatelessWidget {
+class _DashboardBody extends ConsumerWidget {
   final DashboardData data;
   const _DashboardBody({required this.data});
 
   @override
-  Widget build(BuildContext context) {
-    final periodLabel = DateFormat('MMMM yyyy').format(data.periodStart);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedYear = ref.watch(dashboardYearProvider);
+    final thisYear = DateTime.now().year;
+    // Year options: current year + 4 back. Dropdown lets HR audit prior
+    // years without touching query params.
+    final yearOptions = [
+      for (var y = thisYear; y >= thisYear - 4; y--) y,
+    ];
     final updatedLabel =
         DateFormat('MMM d, yyyy, h:mm a').format(data.generatedAt);
+    final mobile = isMobile(context);
+    final headerTitle = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Dashboard',
+            style: TextStyle(
+                fontSize: mobile ? 22 : 28, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 4),
+        Text('HR Analytics for $selectedYear',
+            style: const TextStyle(color: Colors.grey)),
+      ],
+    );
+    final headerMeta = Column(
+      crossAxisAlignment:
+          mobile ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+      children: [
+        // Year picker — drives every yearly aggregation on the page.
+        DropdownButton<int>(
+          value: selectedYear,
+          isDense: true,
+          underline: const SizedBox.shrink(),
+          items: [
+            for (final y in yearOptions)
+              DropdownMenuItem(value: y, child: Text('$y')),
+          ],
+          onChanged: (y) {
+            if (y == null) return;
+            ref.read(dashboardYearProvider.notifier).state = y;
+          },
+        ),
+        const SizedBox(height: 4),
+        Text('Last updated: $updatedLabel',
+            style: const TextStyle(fontSize: 12, color: Colors.grey)),
+      ],
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Header
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Dashboard',
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  Text('HR Analytics for $periodLabel',
-                      style: const TextStyle(color: Colors.grey)),
-                ],
-              ),
-            ),
-            Text('Last updated: $updatedLabel',
-                style: const TextStyle(fontSize: 12, color: Colors.grey)),
-          ],
-        ),
+        if (mobile)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              headerTitle,
+              const SizedBox(height: 12),
+              headerMeta,
+            ],
+          )
+        else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: headerTitle),
+              headerMeta,
+            ],
+          ),
         const SizedBox(height: 24),
         // Row 1: KPIs
-        _ResponsiveRow(
-          minColWidth: 240,
-          children: [
-            _KpiCard(
-              icon: Icons.groups_outlined,
-              iconBg: const Color(0xFFDDE7FF),
-              iconColor: const Color(0xFF3B82F6),
-              label: 'Active Employees',
-              value: data.activeEmployees.toString(),
-              subtitle: '${data.totalEmployees} total',
-            ),
-            _KpiCard(
-              icon: Icons.trending_up,
-              iconBg: const Color(0xFFD1FADF),
-              iconColor: const Color(0xFF12B76A),
-              label: 'Avg Tenure',
-              value: '${data.avgTenureMonths.toStringAsFixed(1)} mo',
-              subtitle: 'across active staff',
-            ),
-            _KpiCard(
-              icon: Icons.work_outline,
-              iconBg: const Color(0xFFEDE0FF),
-              iconColor: const Color(0xFF7C3AED),
-              label: 'Open Positions',
-              value: data.openPositions.toString(),
-              subtitle: '${data.newApplicantsThisMonth} applicants this month',
-            ),
-            _KpiCard(
-              icon: Icons.access_time,
-              iconBg: const Color(0xFFFFF1CE),
-              iconColor: const Color(0xFFF59E0B),
-              label: 'Attendance Rate',
-              value: '${data.attendanceRatePct.toStringAsFixed(1)}%',
-              subtitle: '${data.overtimeHours.toStringAsFixed(1)} OT hours',
-            ),
-          ],
-        ),
+        Builder(builder: (context) {
+          final p = LuxiumColors.of(context);
+          final amber = Theme.of(context).brightness == Brightness.light
+              ? const Color(0xFFF59E0B)
+              : const Color(0xFFFBBF24);
+          final tertiary = Theme.of(context).colorScheme.tertiary;
+          return _ResponsiveRow(
+            minColWidth: 240,
+            children: [
+              _KpiCard(
+                icon: Icons.groups_outlined,
+                iconBg: p.ctaTint,
+                iconColor: p.cta,
+                label: 'Active Employees',
+                value: data.activeEmployees.toString(),
+                subtitle: '${data.totalEmployees} total',
+              ),
+              _KpiCard(
+                icon: Icons.trending_up,
+                iconBg: p.accentGreen.withValues(alpha: 0.14),
+                iconColor: p.accentGreen,
+                label: 'Avg Tenure',
+                value: '${data.avgTenureMonths.toStringAsFixed(1)} mo',
+                subtitle: 'across active staff',
+              ),
+              _KpiCard(
+                icon: Icons.work_outline,
+                iconBg: tertiary.withValues(alpha: 0.14),
+                iconColor: tertiary,
+                label: 'Open Positions',
+                value: data.openPositions.toString(),
+                subtitle:
+                    '${data.newApplicantsThisMonth} applicants this month',
+              ),
+              _KpiCard(
+                icon: Icons.access_time,
+                iconBg: amber.withValues(alpha: 0.14),
+                iconColor: amber,
+                label: 'Attendance Rate',
+                value: '${data.attendanceRatePct.toStringAsFixed(1)}%',
+                subtitle: '${data.overtimeHours.toStringAsFixed(1)} OT hours',
+              ),
+            ],
+          );
+        }),
         const SizedBox(height: 16),
         // Row 2: Headcount + Employment Type
         _ResponsiveRow(
@@ -171,15 +225,14 @@ class _DashboardBody extends StatelessWidget {
             ),
             _SectionCard(
               title: 'Payroll Summary',
-              trailing: const _PayrollTimeframeToggle(),
               child: _PayrollBlock(data: data),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        // Row 5: Employee Movement
+        // Row 5: Employee Movement (yearly — year picker in header)
         _SectionCard(
-          title: 'Employee Movement (This Month)',
+          title: 'Employee Movement ($selectedYear)',
           child: _MovementBlock(data: data),
         ),
         const SizedBox(height: 24),
@@ -198,30 +251,69 @@ class _DashboardBody extends StatelessWidget {
 // Layout helpers
 // ---------------------------------------------------------------------------
 
+/// Responsive grid row. When [equalSize] is true (default), cards in the same
+/// row get equal width (Expanded) and equal height (IntrinsicHeight); children
+/// MUST NOT use nested LayoutBuilder-based layouts, or intrinsic sizing will
+/// throw. When [equalSize] is false, falls back to a Wrap — use this for
+/// internal tile grids inside a card.
 class _ResponsiveRow extends StatelessWidget {
   final List<Widget> children;
   final double minColWidth;
   final double spacing;
+  final bool equalSize;
   const _ResponsiveRow({
     required this.children,
     required this.minColWidth,
     this.spacing = 16,
+    this.equalSize = true,
   });
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (ctx, c) {
-      final cols = (c.maxWidth / minColWidth).floor().clamp(1, children.length);
-      final colWidth = (c.maxWidth - (cols - 1) * spacing) / cols;
-      // Wrap preserves the wrap-to-next-line behaviour on narrow screens.
-      // We deliberately avoid IntrinsicHeight here — some children contain
-      // nested LayoutBuilders (_PayrollBlock uses another _ResponsiveRow for
-      // its stat tiles) and LayoutBuilder cannot satisfy intrinsic queries.
-      return Wrap(
-        spacing: spacing,
-        runSpacing: spacing,
-        children: [
-          for (final w in children) SizedBox(width: colWidth, child: w),
-        ],
+      final cols =
+          (c.maxWidth / minColWidth).floor().clamp(1, children.length);
+
+      if (!equalSize) {
+        final colWidth = (c.maxWidth - (cols - 1) * spacing) / cols;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final w in children) SizedBox(width: colWidth, child: w),
+          ],
+        );
+      }
+
+      // Split children into rows of [cols] and render each row as an
+      // IntrinsicHeight + Row(stretch) so every tile in a row gets the same
+      // height, and Expanded gives equal widths.
+      final rows = <Widget>[];
+      for (var i = 0; i < children.length; i += cols) {
+        final end = (i + cols).clamp(0, children.length);
+        final slice = children.sublist(i, end);
+        rows.add(
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var j = 0; j < cols; j++) ...[
+                  if (j > 0) SizedBox(width: spacing),
+                  Expanded(
+                    child: j < slice.length ? slice[j] : const SizedBox(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+        if (end < children.length) {
+          rows.add(SizedBox(height: spacing));
+        }
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: rows,
       );
     });
   }
@@ -231,36 +323,39 @@ class _SectionCard extends StatelessWidget {
   final String title;
   final IconData? icon;
   final Widget child;
-  final Widget? trailing;
   const _SectionCard({
     required this.title,
     this.icon,
     required this.child,
-    this.trailing,
   });
   @override
   Widget build(BuildContext context) {
+    final p = LuxiumColors.of(context);
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(LuxiumSpacing.xl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(children: [
               if (icon != null) ...[
-                Icon(icon, size: 18, color: Colors.grey[700]),
-                const SizedBox(width: 8),
+                Icon(icon, size: 18, color: p.subdued),
+                const SizedBox(width: LuxiumSpacing.sm),
               ],
-              Text(title,
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w700)),
-              if (trailing != null) ...[
-                const Spacer(),
-                trailing!,
-              ],
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: p.foreground,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+              ),
             ]),
-            const SizedBox(height: 16),
+            const SizedBox(height: LuxiumSpacing.lg),
             child,
           ],
         ),
@@ -286,38 +381,54 @@ class _KpiCard extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
+    final p = LuxiumColors.of(context);
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(LuxiumSpacing.xl),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(label,
+                Expanded(
+                  child: Text(
+                    label,
                     style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[600],
-                        fontWeight: FontWeight.w500)),
+                      fontSize: 13,
+                      color: p.subdued,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(LuxiumSpacing.sm),
                   decoration: BoxDecoration(
                     color: iconBg,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(LuxiumRadius.lg),
                   ),
                   child: Icon(icon, color: iconColor, size: 20),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(value,
-                style: const TextStyle(
-                    fontSize: 28, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 4),
-            Text(subtitle,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            const SizedBox(height: LuxiumSpacing.md),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.w700,
+                height: 1.1,
+                letterSpacing: -0.4,
+                fontFamily: 'GeistMono',
+                color: p.foreground,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              style: TextStyle(fontSize: 12, color: p.subdued),
+            ),
           ],
         ),
       ),
@@ -326,33 +437,42 @@ class _KpiCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Headcount by department — horizontal bars
+// Headcount by department — ranked horizontal bars
 // ---------------------------------------------------------------------------
-class _DeptBars extends StatelessWidget {
+//
+// Design: a single-color brand bar with gradient, count + percentage pinned
+// on the right. Bars share a common max so the longest bar fills the track.
+// Single-color (cta) instead of rainbow reads as more professional and keeps
+// the visual weight on ranking, not on hue differentiation.
+class _DeptBars extends StatefulWidget {
   final Map<String, int> counts;
   const _DeptBars({required this.counts});
+
+  @override
+  State<_DeptBars> createState() => _DeptBarsState();
+}
+
+class _DeptBarsState extends State<_DeptBars> {
+  int? _hoveredIndex;
+
   @override
   Widget build(BuildContext context) {
-    if (counts.isEmpty) {
+    if (widget.counts.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(child: Text('No data', style: TextStyle(color: Colors.grey))),
+        child: Center(
+            child: Text('No data', style: TextStyle(color: Colors.grey))),
       );
     }
-    final entries = counts.entries.toList()
+    final entries = widget.counts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
     final max = entries.first.value;
     final total = entries.fold<int>(0, (s, e) => s + e.value);
-    final palette = const [
-      Color(0xFF3B82F6),
-      Color(0xFF10B981),
-      Color(0xFFF59E0B),
-      Color(0xFFEF4444),
-      Color(0xFF8B5CF6),
-      Color(0xFF06B6D4),
-    ];
+    final p = LuxiumColors.of(context);
+
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (var i = 0; i < entries.length; i++)
           _DeptBarRow(
@@ -360,112 +480,171 @@ class _DeptBars extends StatelessWidget {
             value: entries[i].value,
             max: max,
             total: total,
-            color: palette[i % palette.length],
+            palette: p,
+            hovered: _hoveredIndex == i,
+            dimmed: _hoveredIndex != null && _hoveredIndex != i,
+            onHover: (h) => setState(() => _hoveredIndex = h ? i : null),
           ),
       ],
     );
   }
 }
 
-class _DeptBarRow extends StatefulWidget {
+class _DeptBarRow extends StatelessWidget {
   final String label;
   final int value;
   final int max;
   final int total;
-  final Color color;
+  final LuxiumPalette palette;
+  final bool hovered;
+  final bool dimmed;
+  final ValueChanged<bool> onHover;
+
   const _DeptBarRow({
     required this.label,
     required this.value,
     required this.max,
     required this.total,
-    required this.color,
+    required this.palette,
+    required this.hovered,
+    required this.dimmed,
+    required this.onHover,
   });
-  @override
-  State<_DeptBarRow> createState() => _DeptBarRowState();
-}
-
-class _DeptBarRowState extends State<_DeptBarRow> {
-  bool _hover = false;
 
   @override
   Widget build(BuildContext context) {
-    final share = widget.total <= 0
+    final share =
+        total <= 0 ? 0.0 : (value * 100.0) / total;
+    final shareLabel = total <= 0
         ? '0%'
-        : '${((widget.value * 100.0) / widget.total).toStringAsFixed(widget.value * 100.0 / widget.total >= 10 ? 0 : 1)}%';
+        : '${share.toStringAsFixed(share >= 10 ? 0 : 1)}%';
+    final opacity = dimmed ? 0.55 : 1.0;
+
     return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      child: BrandTooltip.richRows(
-        rows: {
-          'Department': widget.label,
-          'Headcount': widget.value.toString(),
-          'Share': share,
-        },
-        child: AnimatedContainer(
+      onEnter: (_) => onHover(true),
+      onExit: (_) => onHover(false),
+      child: Tooltip(
+        message: '$label\nHeadcount: $value\nShare: $shareLabel',
+        waitDuration: const Duration(milliseconds: 150),
+        preferBelow: false,
+        textStyle: const TextStyle(fontSize: 12, color: Colors.white),
+        child: AnimatedOpacity(
           duration: const Duration(milliseconds: 160),
-          curve: Curves.easeOut,
-          margin: const EdgeInsets.symmetric(vertical: 2),
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
-          decoration: BoxDecoration(
-            color: _hover
-                ? Theme.of(context)
-                    .colorScheme
-                    .surfaceContainerHighest
-                    .withValues(alpha: 0.7)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 110,
-                child: Text(
-                  widget.label,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: _hover ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 160),
-                    curve: Curves.easeOut,
-                    height: _hover ? 16 : 14,
-                    // Fill-on-load animation: tween the bar from 0 to its
-                    // final share over 450 ms on first build so rows feel
-                    // alive (Chart.js-style reveal).
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween(
-                        begin: 0,
-                        end: widget.max == 0 ? 0.0 : widget.value / widget.max,
-                      ),
-                      duration: const Duration(milliseconds: 450),
-                      curve: Curves.easeOutCubic,
-                      builder: (context, v, _) => LinearProgressIndicator(
-                        value: v,
-                        minHeight: _hover ? 16 : 14,
-                        backgroundColor: Colors.grey.withValues(alpha: 0.15),
-                        valueColor: AlwaysStoppedAnimation(widget.color),
-                      ),
+          opacity: opacity,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 128,
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight:
+                          hovered ? FontWeight.w700 : FontWeight.w500,
+                      color: palette.foreground,
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 24,
-                child: Text(widget.value.toString(),
+                const SizedBox(width: LuxiumSpacing.md),
+                Expanded(
+                  child: _BarTrack(
+                    fraction: max == 0 ? 0 : value / max,
+                    palette: palette,
+                    hovered: hovered,
+                  ),
+                ),
+                const SizedBox(width: LuxiumSpacing.md),
+                SizedBox(
+                  width: 28,
+                  child: Text(
+                    value.toString(),
                     textAlign: TextAlign.right,
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-              ),
-            ],
+                    style: TextStyle(
+                      fontFamily: 'GeistMono',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: palette.foreground,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: LuxiumSpacing.sm),
+                SizedBox(
+                  width: 40,
+                  child: Text(
+                    shareLabel,
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontFamily: 'GeistMono',
+                      fontSize: 11.5,
+                      color: palette.subdued,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _BarTrack extends StatelessWidget {
+  final double fraction;
+  final LuxiumPalette palette;
+  final bool hovered;
+  const _BarTrack({
+    required this.fraction,
+    required this.palette,
+    required this.hovered,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final height = hovered ? 22.0 : 20.0;
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: palette.muted,
+        borderRadius: BorderRadius.circular(LuxiumRadius.lg),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: LayoutBuilder(builder: (context, c) {
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: fraction.clamp(0.0, 1.0)),
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeOutCubic,
+          builder: (context, v, _) {
+            final w = (c.maxWidth * v).clamp(0.0, c.maxWidth);
+            return Align(
+              alignment: Alignment.centerLeft,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                curve: Curves.easeOut,
+                width: w,
+                height: height,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      palette.cta,
+                      hovered
+                          ? palette.cta
+                          : palette.cta.withValues(alpha: 0.85),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(LuxiumRadius.lg),
+                ),
+              ),
+            );
+          },
+        );
+      }),
     );
   }
 }
@@ -587,12 +766,13 @@ class _DonutWithLegendState extends State<_DonutWithLegend> {
                   onEnter: (_) => _setHover(i),
                   onExit: (_) => _setHover(null),
                   cursor: SystemMouseCursors.basic,
-                  child: BrandTooltip.richRows(
-                    rows: {
-                      'Category': _pretty(entries[i].key),
-                      'Count': entries[i].value.toString(),
-                      'Share': _percent(entries[i].value, total),
-                    },
+                  child: Tooltip(
+                    message:
+                        '${_pretty(entries[i].key)}\nCount: ${entries[i].value}\nShare: ${_percent(entries[i].value, total)}',
+                    waitDuration: const Duration(milliseconds: 150),
+                    preferBelow: false,
+                    textStyle:
+                        const TextStyle(fontSize: 12, color: Colors.white),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 160),
                       curve: Curves.easeOut,
@@ -690,20 +870,10 @@ class _TenureBarsState extends State<_TenureBars> {
     // Always give the Y axis some headroom so a 0-bar still looks like a chart.
     final maxY = max == 0 ? 4.0 : (max * 1.25);
 
-    final hovered = _hoveredIndex;
-    final hoverRows = hovered == null
-        ? null
-        : {
-            'Tenure': _order[hovered],
-            'Employees': values[hovered].toString(),
-            'Share': total <= 0
-                ? '0%'
-                : '${((values[hovered] * 100.0) / total).toStringAsFixed(values[hovered] * 100.0 / total >= 10 ? 0 : 1)}%',
-          };
-
-    // Wrap the BarChart in a single BrandTooltip whose content switches to
-    // reflect the currently hovered bar. Cheaper than one tooltip per bar —
-    // fl_chart's own touchCallback drives the hover state.
+    // fl_chart's own `touchTooltipData` is the reliable hover surface for
+    // bar charts on desktop — the tooltip follows the pointer and doesn't
+    // depend on widget mount timing the way our OverlayPortal-based
+    // BrandTooltip did. Content mirrors the old richRows payload.
     Widget chart = BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
@@ -774,12 +944,37 @@ class _TenureBarsState extends State<_TenureBars> {
         ],
         barTouchData: BarTouchData(
           enabled: true,
-          // Suppress fl_chart's own tooltip; we use BrandTooltip.
           touchTooltipData: BarTouchTooltipData(
-            getTooltipColor: (_) => Colors.transparent,
-            tooltipPadding: EdgeInsets.zero,
-            tooltipMargin: 0,
-            getTooltipItem: (group, groupIdx, rod, rodIdx) => null,
+            getTooltipColor: (_) => const Color(0xE6111827),
+            tooltipPadding: const EdgeInsets.symmetric(
+                horizontal: 10, vertical: 6),
+            tooltipMargin: 8,
+            getTooltipItem: (group, groupIdx, rod, rodIdx) {
+              final i = group.x;
+              if (i < 0 || i >= values.length) return null;
+              final count = values[i];
+              final share = total <= 0
+                  ? '0%'
+                  : '${((count * 100.0) / total).toStringAsFixed(count * 100.0 / total >= 10 ? 0 : 1)}%';
+              return BarTooltipItem(
+                '${_order[i]}\n',
+                const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+                children: [
+                  TextSpan(
+                    text: '$count ${count == 1 ? 'employee' : 'employees'} · $share',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           touchCallback: (event, response) {
             final idx = response?.spot?.touchedBarGroupIndex;
@@ -797,9 +992,7 @@ class _TenureBarsState extends State<_TenureBars> {
       curve: Curves.easeOut,
     );
 
-    final body = SizedBox(height: 180, child: chart);
-    if (hoverRows == null) return body;
-    return BrandTooltip.richRows(rows: hoverRows, child: body);
+    return SizedBox(height: 180, child: chart);
   }
 }
 
@@ -896,8 +1089,14 @@ class _RingGauge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = percent.clamp(0, 100);
-    return BrandTooltip.richRows(
-      rows: tooltipRows,
+    final msg = tooltipRows.entries
+        .map((e) => '${e.key}: ${e.value}')
+        .join('\n');
+    return Tooltip(
+      message: msg,
+      waitDuration: const Duration(milliseconds: 150),
+      preferBelow: false,
+      textStyle: const TextStyle(fontSize: 12, color: Colors.white),
       child: Column(
         children: [
           SizedBox(
@@ -955,37 +1154,6 @@ class _MiniMetric extends StatelessWidget {
   }
 }
 
-/// Segmented toggle in the Payroll Summary card header. Flips the provider
-/// between yearly (current calendar year) and monthly (current month) —
-/// dashboardDataProvider watches the state so numbers refresh immediately.
-class _PayrollTimeframeToggle extends ConsumerWidget {
-  const _PayrollTimeframeToggle();
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tf = ref.watch(dashboardTimeframeProvider);
-    return SegmentedButton<DashboardTimeframe>(
-      style: SegmentedButton.styleFrom(
-        visualDensity: VisualDensity.compact,
-        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-      ),
-      showSelectedIcon: false,
-      segments: const [
-        ButtonSegment(
-          value: DashboardTimeframe.yearly,
-          label: Text('Yearly'),
-        ),
-        ButtonSegment(
-          value: DashboardTimeframe.monthly,
-          label: Text('Monthly'),
-        ),
-      ],
-      selected: {tf},
-      onSelectionChanged: (s) =>
-          ref.read(dashboardTimeframeProvider.notifier).state = s.first,
-    );
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Payroll block — total + statutory tiles
 // ---------------------------------------------------------------------------
@@ -1011,6 +1179,7 @@ class _PayrollBlock extends StatelessWidget {
         _ResponsiveRow(
           minColWidth: 140,
           spacing: 12,
+          equalSize: false,
           children: [
             _StatTile(
               label: 'SSS',
@@ -1087,6 +1256,7 @@ class _MovementBlock extends StatelessWidget {
     return _ResponsiveRow(
       minColWidth: 160,
       spacing: 12,
+      equalSize: false,
       children: [
         _MovementTile(
           label: 'New Hires',

@@ -137,7 +137,7 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
           : Form(
               key: _formKey,
               child: ListView(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
                 children: [
                   _card([
                     const _Lbl('Identity'),

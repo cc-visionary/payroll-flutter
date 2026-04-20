@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/profile_provider.dart';
+import '../../app/breakpoints.dart';
 import '../../data/repositories/company_settings_repository.dart';
 import '../../widgets/syncing_dialog.dart';
 import '../../widgets/responsive_table.dart';
@@ -95,7 +96,7 @@ class _State extends ConsumerState<LarkSettingsScreen> {
         const AttendanceSourceFlags(manualCsvEnabled: true, larkEnabled: true);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Text('Integrations', style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 4),
@@ -238,22 +239,49 @@ class _SyncCard extends StatelessWidget {
     required this.child,
   });
   @override
-  Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+  Widget build(BuildContext context) {
+    final mobile = isMobile(context);
+    final header = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title,
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600)),
+        Text(subtitle,
+            style: const TextStyle(color: Colors.grey, fontSize: 12)),
+      ],
+    );
+    final syncBtn = FilledButton.icon(
+      onPressed: onSync,
+      icon: const Icon(Icons.sync, size: 16),
+      label: const Text('Sync from Lark'),
+    );
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (mobile)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                header,
+                const SizedBox(height: 12),
+                syncBtn,
+              ],
+            )
+          else
             Row(children: [
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-                Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-              ])),
-              FilledButton.icon(onPressed: onSync, icon: const Icon(Icons.sync, size: 16), label: const Text('Sync from Lark')),
+              Expanded(child: header),
+              syncBtn,
             ]),
-            const SizedBox(height: 12),
-            child,
-          ]),
-        ),
-      );
+          const SizedBox(height: 12),
+          child,
+        ]),
+      ),
+    );
+  }
 }
 
 // Employees linked card ------------------------------------------------------
@@ -276,25 +304,50 @@ class _EmployeeLinkCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(_employeeLinkStatsProvider);
+    final mobile = isMobile(context);
+    final headerBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Employee Lark User IDs',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600)),
+        async.when(
+          loading: () => const Text('Loading…',
+              style: TextStyle(color: Colors.grey, fontSize: 12)),
+          error: (_, __) => const SizedBox.shrink(),
+          data: (s) => Text('${s.linked} of ${s.total} employees linked',
+              style: const TextStyle(color: Colors.grey, fontSize: 12)),
+        ),
+      ],
+    );
+    final syncAllBtn = FilledButton.icon(
+      onPressed: () {
+        onSync();
+        ref.invalidate(_employeeLinkStatsProvider);
+      },
+      icon: const Icon(Icons.sync, size: 16),
+      label: const Text('Sync All from Lark'),
+    );
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Employee Lark User IDs', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-              async.when(
-                loading: () => const Text('Loading…', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                error: (_, __) => const SizedBox.shrink(),
-                data: (s) => Text('${s.linked} of ${s.total} employees linked', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-              ),
-            ])),
-            FilledButton.icon(
-              onPressed: () { onSync(); ref.invalidate(_employeeLinkStatsProvider); },
-              icon: const Icon(Icons.sync, size: 16),
-              label: const Text('Sync All from Lark'),
-            ),
-          ]),
+          if (mobile)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                headerBlock,
+                const SizedBox(height: 12),
+                syncAllBtn,
+              ],
+            )
+          else
+            Row(children: [
+              Expanded(child: headerBlock),
+              syncAllBtn,
+            ]),
           const SizedBox(height: 4),
           const Text('Matches each employee\'s Employee Number with Lark\'s employee_no field to link Lark User IDs. Used for payslip approval routing.',
               style: TextStyle(color: Colors.grey, fontSize: 12)),

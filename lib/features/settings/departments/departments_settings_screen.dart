@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/breakpoints.dart';
 import '../../../data/models/department.dart';
 import '../../../data/models/employee.dart';
 import '../../../data/repositories/department_repository.dart';
@@ -19,20 +20,25 @@ class DepartmentsSettingsScreen extends ConsumerWidget {
     final employeesAsync =
         ref.watch(employeeListProvider(const EmployeeListQuery()));
 
+    final mobile = isMobile(context);
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(mobile ? 16 : 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Text('Departments',
-              style: Theme.of(context).textTheme.headlineSmall),
-          const Spacer(),
-          FilledButton.icon(
-            onPressed: () => _openForm(context, ref,
-                employees: employeesAsync.asData?.value ?? const []),
-            icon: const Icon(Icons.add),
-            label: const Text('Add Department'),
-          ),
-        ]),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text('Departments',
+                style: Theme.of(context).textTheme.headlineSmall),
+            FilledButton.icon(
+              onPressed: () => _openForm(context, ref,
+                  employees: employeesAsync.asData?.value ?? const []),
+              icon: const Icon(Icons.add),
+              label: const Text('Add Department'),
+            ),
+          ],
+        ),
         const SizedBox(height: 4),
         const Text(
           'Organize employees and define approval routing. Departments with '

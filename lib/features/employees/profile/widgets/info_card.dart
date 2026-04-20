@@ -115,6 +115,7 @@ ChipTone toneForStatus(String status) {
     case 'COMPLETED':
     case 'ACTIVE':
     case 'PAID':
+    case 'DEDUCTED':
       return ChipTone.success;
     case 'REVIEW':
     case 'PENDING':

@@ -89,6 +89,12 @@ Deno.serve(async (req) => {
 // deno-lint-ignore no-explicit-any
 async function updatePayslipApproval(supabase: any, instanceCode: string, larkStatus: string) {
   const appStatus = mapToPayslipApprovalStatus(larkStatus);
+  // Revoke is sticky: once an admin flips a payslip to RECALLED locally,
+  // we ignore any further Lark status events on that row. For APPROVED
+  // instances, Lark's "cancel" reopens the approval for the employee to
+  // re-review — if they re-approve, Lark fires another APPROVED event
+  // which would otherwise undo the revoke. `.neq('approval_status',
+  // 'RECALLED')` is the guard.
   const { data, error } = await supabase
     .from('payslips')
     .update({
@@ -96,6 +102,7 @@ async function updatePayslipApproval(supabase: any, instanceCode: string, larkSt
       lark_approval_status: larkStatus,
     })
     .eq('lark_approval_instance_code', instanceCode)
+    .neq('approval_status', 'RECALLED')
     .select('id');
   if (error) return { table: 'payslips', error: error.message };
   return { table: 'payslips', matched: data?.length ?? 0 };

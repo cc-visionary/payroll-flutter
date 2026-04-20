@@ -33,19 +33,26 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
     };
     final canManage = profile?.canManageEmployees ?? false;
 
+    final mobile = isMobile(context);
     return Scaffold(
-      drawer: isMobile(context) ? const AppDrawer() : null,
+      drawer: mobile ? const AppDrawer() : null,
       appBar: AppBar(
         title: const Text('Employees'),
         actions: [
           if (canManage)
             Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: FilledButton.icon(
-                onPressed: () => context.push('/employees/new'),
-                icon: const Icon(Icons.add),
-                label: const Text('New employee'),
-              ),
+              padding: const EdgeInsets.only(right: 8),
+              child: mobile
+                  ? IconButton(
+                      tooltip: 'New employee',
+                      onPressed: () => context.push('/employees/new'),
+                      icon: const Icon(Icons.add),
+                    )
+                  : FilledButton.icon(
+                      onPressed: () => context.push('/employees/new'),
+                      icon: const Icon(Icons.add),
+                      label: const Text('New employee'),
+                    ),
             ),
         ],
       ),
@@ -54,9 +61,13 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Expanded(
+                SizedBox(
+                  width: mobile ? double.infinity : 360,
                   child: TextField(
                     decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.search),
@@ -67,13 +78,11 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
                     onChanged: (v) => setState(() => _search = v),
                   ),
                 ),
-                const SizedBox(width: 16),
                 FilterChip(
                   label: const Text('Include archived'),
                   selected: _includeArchived,
                   onSelected: (v) => setState(() => _includeArchived = v),
                 ),
-                const SizedBox(width: 8),
                 IconButton(
                   tooltip: 'Refresh',
                   onPressed: () => ref.invalidate(employeeListProvider),
@@ -171,13 +180,104 @@ class _EmployeesTable extends ConsumerWidget {
                             archived ? Icons.restore : Icons.archive_outlined,
                             size: 18),
                         onPressed: () async {
-                          final repo = ref.read(employeeRepositoryProvider);
-                          if (archived) {
-                            await repo.restore(e.id);
-                          } else {
-                            await repo.archive(e.id);
+                          final messenger = ScaffoldMessenger.of(context);
+                          final name = e.fullName;
+                          final errorColor =
+                              Theme.of(context).colorScheme.error;
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) {
+                              final bodyStyle =
+                                  Theme.of(ctx).textTheme.bodyMedium;
+                              final boldStyle = bodyStyle?.copyWith(
+                                  fontWeight: FontWeight.w600);
+                              return AlertDialog(
+                                title: Text(archived
+                                    ? 'Restore employee?'
+                                    : 'Archive employee?'),
+                                content: archived
+                                    ? Text.rich(
+                                        TextSpan(
+                                          style: bodyStyle,
+                                          children: [
+                                            const TextSpan(
+                                                text: 'This returns '),
+                                            TextSpan(
+                                                text: name, style: boldStyle),
+                                            TextSpan(
+                                                text:
+                                                    ' (${e.employeeNumber}) to the active roster. They\'ll be eligible for payroll, attendance, and approvals again.'),
+                                          ],
+                                        ),
+                                      )
+                                    : Text.rich(
+                                        TextSpan(
+                                          style: bodyStyle,
+                                          children: [
+                                            const TextSpan(text: 'This hides '),
+                                            TextSpan(
+                                                text: name, style: boldStyle),
+                                            TextSpan(
+                                                text:
+                                                    ' (${e.employeeNumber}) from the active list. Their records stay intact and they can be restored anytime. Ongoing payroll runs will not include them after archiving.'),
+                                          ],
+                                        ),
+                                      ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(ctx).pop(false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  if (archived)
+                                    FilledButton(
+                                      onPressed: () =>
+                                          Navigator.of(ctx).pop(true),
+                                      child: const Text('Restore'),
+                                    )
+                                  else
+                                    FilledButton(
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor: errorColor,
+                                        foregroundColor: Theme.of(ctx)
+                                            .colorScheme
+                                            .onError,
+                                      ),
+                                      onPressed: () =>
+                                          Navigator.of(ctx).pop(true),
+                                      child: const Text('Archive'),
+                                    ),
+                                ],
+                              );
+                            },
+                          );
+                          if (!context.mounted) return;
+                          if (confirmed != true) return;
+                          try {
+                            final repo = ref.read(employeeRepositoryProvider);
+                            if (archived) {
+                              await repo.restore(e.id);
+                            } else {
+                              await repo.archive(e.id);
+                            }
+                            if (!context.mounted) return;
+                            ref.invalidate(employeeListProvider);
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(archived
+                                    ? 'Restored $name.'
+                                    : 'Archived $name.'),
+                              ),
+                            );
+                          } catch (err) {
+                            if (!context.mounted) return;
+                            messenger.showSnackBar(
+                              SnackBar(
+                                backgroundColor: errorColor,
+                                content: Text('Error: $err'),
+                              ),
+                            );
                           }
-                          ref.invalidate(employeeListProvider);
                         },
                       ),
                     ],

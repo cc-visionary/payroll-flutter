@@ -14,12 +14,15 @@ import 'package:url_launcher/url_launcher.dart';
 /// Override per build with:
 ///   flutter build windows --dart-define=UPDATE_MANIFEST_URL=https://.../version.json
 ///
-/// The default points at a placeholder so unconfigured builds surface a clear
-/// "not configured" message instead of silently breaking. Host the manifest on
-/// any static URL — Supabase Storage, S3, GitHub Releases, a plain web server.
+/// The default points at the GitHub Releases "latest" redirector so any build —
+/// including local dev builds and manually-compiled installers — can check for
+/// updates out of the box. CI injects the same URL via --dart-define for
+/// parity. Host the manifest on any static URL (Supabase Storage, S3, plain
+/// web) by overriding this at build time.
 const String kUpdateManifestUrl = String.fromEnvironment(
   'UPDATE_MANIFEST_URL',
-  defaultValue: 'https://updates.luxium.ph/payroll-flutter/version.json',
+  defaultValue:
+      'https://github.com/cc-visionary/payroll-flutter/releases/latest/download/version.json',
 );
 
 /// Per-platform install channel. Used to pick between a store-link update
@@ -148,6 +151,12 @@ class UpdateManifest {
         return platforms['macos'];
       case UpdateChannel.linuxDirect:
         return platforms['linux'];
+      case UpdateChannel.sideloadAndroid:
+        // Sideload Android pulls the .apk directly from GitHub Releases; no
+        // Play Store store-link, no auto-install (Android blocks those from
+        // unknown sources). Opens the APK in the browser so the OS's
+        // "package installer" flow takes over.
+        return platforms['android'];
       default:
         return null;
     }
@@ -158,7 +167,6 @@ class UpdateManifest {
       case UpdateChannel.appStore:
         return stores['ios'];
       case UpdateChannel.playStore:
-      case UpdateChannel.sideloadAndroid:
         return stores['android'];
       default:
         return null;
@@ -245,6 +253,10 @@ class UpdateService {
       final res = await _http
           .get(Uri.parse(manifestUrl))
           .timeout(const Duration(seconds: 10));
+      if (res.statusCode == 404) {
+        // No release published yet — friendlier than a raw 404.
+        return UpdateUpToDate(current);
+      }
       if (res.statusCode != 200) {
         return UpdateError(
             'Update server returned HTTP ${res.statusCode}.');
@@ -263,6 +275,14 @@ class UpdateService {
       return const UpdateError('Update check timed out.');
     } on SocketException {
       return const UpdateError('No internet connection.');
+    } on HandshakeException {
+      return const UpdateError(
+          "Couldn't reach the update server (TLS handshake failed). "
+          'Check that the update URL is correct.');
+    } on HttpException catch (e) {
+      return UpdateError('Update server error: ${e.message}');
+    } on FormatException {
+      return const UpdateError('Update manifest is malformed.');
     } catch (e) {
       return UpdateError('Update check failed: $e');
     }
@@ -305,13 +325,15 @@ class UpdateService {
         return _downloadAndLaunchWindowsInstaller(update, onProgress);
       case UpdateChannel.macosDirect:
       case UpdateChannel.linuxDirect:
+      case UpdateChannel.sideloadAndroid:
+        // Sideload Android: open the GitHub Release APK in the browser;
+        // Android's package installer takes over once the download lands.
         final asset = update.manifest.assetFor(update.channel);
         if (asset == null || asset.url.isEmpty) return false;
         return launchUrl(Uri.parse(asset.url),
             mode: LaunchMode.externalApplication);
       case UpdateChannel.appStore:
       case UpdateChannel.playStore:
-      case UpdateChannel.sideloadAndroid:
         final link = update.manifest.storeLinkFor(update.channel);
         if (link == null || link.isEmpty) return false;
         return launchUrl(Uri.parse(link),

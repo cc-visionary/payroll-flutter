@@ -3,15 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../app/breakpoints.dart';
 import '../../../../data/repositories/payroll_repository.dart';
 import '../../../../widgets/syncing_dialog.dart';
 import '../../../auth/profile_provider.dart';
 import '../compute/compute_service.dart';
+import '../../payslips/payslip_pdf_context.dart';
 import 'providers.dart';
 import 'tabs/approvals_tab.dart';
 import 'tabs/disbursement_tab.dart';
 import 'tabs/payslips_tab.dart';
 import 'tabs/summary_tab.dart';
+import 'widgets/distribute_13th_dialog.dart';
 import 'widgets/status_timeline.dart';
 
 /// Payroll run detail — Summary / Payslips / Disbursement / Approvals tabs.
@@ -98,12 +101,13 @@ class _PayrollRunDetailScreenState
           final showApprovals =
               detail.run.status == 'REVIEW' || detail.run.status == 'RELEASED';
           final tabCount = showApprovals ? 4 : 3;
+          final hPad = isMobile(context) ? 16.0 : 24.0;
           return DefaultTabController(
             length: tabCount,
             child: NestedScrollView(
               headerSliverBuilder: (context, _) => [
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+                  padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 0),
                   sliver: SliverToBoxAdapter(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -128,7 +132,7 @@ class _PayrollRunDetailScreenState
                   delegate: _TabBarDelegate(
                     child: Container(
                       color: Theme.of(context).scaffoldBackgroundColor,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      padding: EdgeInsets.symmetric(horizontal: hPad),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
@@ -157,7 +161,7 @@ class _PayrollRunDetailScreenState
                 ),
               ],
               body: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: EdgeInsets.symmetric(horizontal: hPad),
                 child: TabBarView(
                   children: [
                     PayrollSummaryTab(detail: detail),
@@ -213,85 +217,97 @@ class _Header extends StatelessWidget {
     final start = detail.payPeriodStart;
     final end = detail.payPeriodEnd;
     final payDate = detail.payDate;
-    final range = (start != null && end != null)
-        ? '${_fmtDate(start)} - ${_fmtDate(end)}'
-        : null;
-    return Row(
+    final range = '${_fmtDate(start)} - ${_fmtDate(end)}';
+    final mobile = isMobile(context);
+
+    final titleBlock = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  InkWell(
-                    onTap: () {
-                      if (context.canPop()) {
-                        context.pop();
-                      } else {
-                        context.go('/payroll');
-                      }
-                    },
-                    child: Text(
-                      'Payroll Runs',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                  const Text('  /  ',
-                      style: TextStyle(color: Color(0xFF9CA3AF))),
-                  Text(
-                    code,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+        Row(
+          children: [
+            InkWell(
+              onTap: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/payroll');
+                }
+              },
+              child: Text(
+                'Payroll Runs',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
-              const SizedBox(height: 6),
-              Text(
+            ),
+            const Text('  /  ',
+                style: TextStyle(color: Color(0xFF9CA3AF))),
+            Flexible(
+              child: Text(
                 code,
                 style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  height: 1.2,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
                 ),
+                overflow: TextOverflow.ellipsis,
               ),
-              if (range != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    payDate == null
-                        ? range
-                        : '$range | Pay Date: ${_fmtDate(payDate)}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-            ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          code,
+          style: TextStyle(
+            fontSize: mobile ? 18 : 22,
+            fontWeight: FontWeight.w700,
+            height: 1.2,
           ),
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(20),
-          ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
           child: Text(
-            label,
+            '$range | Pay Date: ${_fmtDate(payDate)}',
             style: TextStyle(
               fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: fg,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ),
+      ],
+    );
+    final statusPill = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: fg,
+        ),
+      ),
+    );
+
+    if (mobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          titleBlock,
+          const SizedBox(height: 8),
+          Align(alignment: Alignment.centerLeft, child: statusPill),
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: titleBlock),
+        statusPill,
       ],
     );
   }
@@ -380,6 +396,34 @@ class _ActionBar extends ConsumerWidget {
           ),
         if (status == 'REVIEW' || status == 'RELEASED')
           _SendLarkApprovalsButton(runId: detail.run.id),
+        if (status == 'REVIEW')
+          PopupMenuButton<String>(
+            tooltip: 'More actions',
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'distribute_13th') {
+                showDialog<bool>(
+                  context: context,
+                  builder: (_) => Distribute13thDialog(runId: detail.run.id),
+                );
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem<String>(
+                value: 'distribute_13th',
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.card_giftcard_outlined, size: 20),
+                  title: Text('Distribute 13th Month'),
+                  subtitle: Text(
+                    "Attach a 13th-month line to this run's payslips",
+                    style: TextStyle(fontSize: 11),
+                  ),
+                ),
+              ),
+            ],
+          ),
       ],
     );
   }
@@ -615,17 +659,28 @@ class _SendLarkApprovalsButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final countsAsync = ref.watch(payslipApprovalCountsProvider(runId));
     final counts = countsAsync.asData?.value ?? const <String, int>{};
-    final unsent = counts['DRAFT_IN_REVIEW'] ?? 0;
-    final alreadyTouched =
-        counts.entries.fold<int>(0, (s, e) => e.key == 'DRAFT_IN_REVIEW' ? s : s + e.value);
+    // DRAFT_IN_REVIEW = never sent; RECALLED = previously sent, pulled back.
+    // Both are eligible to dispatch — the edge function filters on both.
+    final unsent =
+        (counts['DRAFT_IN_REVIEW'] ?? 0) + (counts['RECALLED'] ?? 0);
+    final alreadyTouched = counts.entries.fold<int>(
+      0,
+      (s, e) => (e.key == 'DRAFT_IN_REVIEW' || e.key == 'RECALLED')
+          ? s
+          : s + e.value,
+    );
 
+    // `alreadyTouched` kept as a marker for "partial progress" phrasing, but
+    // the primary label now always states the exact count being sent so the
+    // action is unambiguous ("Send All Lark Approvals (9)" vs
+    // "Send Remaining Lark Approvals (3)").
     final String label;
     if (unsent == 0) {
-      label = 'Resend Lark Approvals';
+      label = 'Send All Lark Approvals (0)';
     } else if (alreadyTouched == 0) {
-      label = 'Send Lark Approvals ($unsent)';
+      label = 'Send All Lark Approvals ($unsent)';
     } else {
-      label = 'Send Remaining ($unsent)';
+      label = 'Send Remaining Lark Approvals ($unsent)';
     }
 
     return OutlinedButton.icon(
@@ -635,20 +690,57 @@ class _SendLarkApprovalsButton extends ConsumerWidget {
               final ok = await _confirm(context, unsent: unsent);
               if (!ok || !context.mounted) return;
               final messenger = ScaffoldMessenger.of(context);
-              final res = await ref
-                  .read(payrollRepositoryProvider)
-                  .sendPayslipApprovals(runId);
-              ref.invalidate(payslipListForRunProvider(runId));
-              ref.invalidate(payrollRunDetailProvider(runId));
-              ref.invalidate(payslipApprovalCountsProvider(runId));
-              ref.invalidate(larkApprovalCountsProvider(runId));
-              final sent = (res['sent'] as num?)?.toInt() ?? 0;
-              final failed = (res['failed'] as num?)?.toInt() ?? 0;
-              if (!context.mounted) return;
-              final msg = failed == 0
-                  ? 'Sent $sent Lark approval${sent == 1 ? '' : 's'}.'
-                  : 'Sent $sent, $failed failed.';
-              messenger.showSnackBar(SnackBar(content: Text(msg)));
+              try {
+                // Lark's approval template has a required PDF attachment
+                // widget, so we build every payslip's PDF up-front and
+                // pass them as base64 so the edge function can upload to
+                // Lark before creating each approval instance.
+                final rows = await ref
+                    .read(payrollRepositoryProvider)
+                    .payslipListForRun(runId);
+                final ids = <String>[
+                  for (final r in rows)
+                    if (r['approval_status'] == 'DRAFT_IN_REVIEW' ||
+                        r['approval_status'] == 'RECALLED')
+                      r['id'] as String,
+                ];
+                messenger.showSnackBar(SnackBar(
+                  content: Text(
+                      'Generating ${ids.length} payslip PDF${ids.length == 1 ? '' : 's'}…'),
+                  duration: const Duration(seconds: 3),
+                ));
+                final pdfs =
+                    await buildPayslipPdfsBase64ForIds(ref, ids);
+                final res = await ref
+                    .read(payrollRepositoryProvider)
+                    .sendPayslipApprovals(
+                      runId,
+                      payslipIds: ids,
+                      pdfsByPayslipId: pdfs,
+                    );
+                ref.invalidate(payslipListForRunProvider(runId));
+                ref.invalidate(payrollRunDetailProvider(runId));
+                ref.invalidate(payslipApprovalCountsProvider(runId));
+                ref.invalidate(larkApprovalCountsProvider(runId));
+                final sent = (res['sent'] as num?)?.toInt() ?? 0;
+                final failed = (res['failed'] as num?)?.toInt() ?? 0;
+                final errs = (res['errors'] as List?) ?? const [];
+                if (!context.mounted) return;
+                messenger.hideCurrentSnackBar();
+                messenger.showSnackBar(SnackBar(
+                  content: Text(failed == 0
+                      ? 'Sent $sent Lark approval${sent == 1 ? '' : 's'}.'
+                      : 'Sent $sent, $failed failed'
+                          '${errs.isNotEmpty ? ": ${(errs.first as Map)['error']}" : ''}.'),
+                ));
+              } catch (e) {
+                if (!context.mounted) return;
+                messenger.hideCurrentSnackBar();
+                messenger.showSnackBar(SnackBar(
+                  backgroundColor: Colors.red.shade600,
+                  content: Text('Send failed: $e'),
+                ));
+              }
             },
       style: OutlinedButton.styleFrom(
         foregroundColor: const Color(0xFF2563EB),

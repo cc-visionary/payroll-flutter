@@ -5,7 +5,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'session_provider.dart';
 
-enum AppRole { SUPER_ADMIN, ADMIN, HR, MANAGER, EMPLOYEE }
+enum AppRole {
+  SUPER_ADMIN,
+  ADMIN,
+  PAYROLL_ADMIN,
+  HR,
+  HR_ADMIN,
+  MANAGER,
+  FINANCE_MANAGER,
+  EMPLOYEE,
+}
 
 AppRole _parseRole(String? s) {
   switch (s) {
@@ -13,10 +22,16 @@ AppRole _parseRole(String? s) {
       return AppRole.SUPER_ADMIN;
     case 'ADMIN':
       return AppRole.ADMIN;
+    case 'PAYROLL_ADMIN':
+      return AppRole.PAYROLL_ADMIN;
     case 'HR':
       return AppRole.HR;
+    case 'HR_ADMIN':
+      return AppRole.HR_ADMIN;
     case 'MANAGER':
       return AppRole.MANAGER;
+    case 'FINANCE_MANAGER':
+      return AppRole.FINANCE_MANAGER;
     default:
       return AppRole.EMPLOYEE;
   }
@@ -28,6 +43,7 @@ class UserProfile {
   final String companyId;
   final String? employeeId;
   final AppRole appRole;
+  final bool mustChangePassword;
 
   const UserProfile({
     required this.userId,
@@ -35,18 +51,26 @@ class UserProfile {
     required this.companyId,
     required this.employeeId,
     required this.appRole,
+    required this.mustChangePassword,
   });
 
   bool get isAdmin =>
-      appRole == AppRole.SUPER_ADMIN || appRole == AppRole.ADMIN;
-  bool get isHrOrAdmin => isAdmin || appRole == AppRole.HR;
+      appRole == AppRole.SUPER_ADMIN ||
+      appRole == AppRole.ADMIN ||
+      appRole == AppRole.PAYROLL_ADMIN ||
+      appRole == AppRole.HR_ADMIN;
+
+  bool get isHrOrAdmin =>
+      isAdmin || appRole == AppRole.HR;
+
   bool get canManageEmployees => isHrOrAdmin;
-  bool get canRunPayroll => isHrOrAdmin;
+  bool get canRunPayroll =>
+      isHrOrAdmin || appRole == AppRole.PAYROLL_ADMIN;
   bool get canEditTaxTables => appRole == AppRole.SUPER_ADMIN;
 }
 
 /// Loads the authenticated user's app-level profile (users row + employee_id +
-/// app_role claim from JWT). Null while logged out.
+/// app_role claim from JWT + must_change_password flag). Null while logged out.
 final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
   final session = ref.watch(authStateProvider).value;
   if (session == null) return null;
@@ -55,7 +79,6 @@ final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
   final userId = session.user.id;
   final email = session.user.email ?? '';
 
-  // app_role is set by an admin in auth.users.app_metadata or via a JWT hook.
   final claims = session.accessToken.isEmpty
       ? <String, dynamic>{}
       : _decodeJwtPayload(session.accessToken);
@@ -66,8 +89,8 @@ final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
   Map<String, dynamic>? userRow;
   try {
     userRow = await client
-        .from('users')
-        .select('company_id')
+        .from('user_emails')
+        .select('company_id, must_change_password')
         .eq('id', userId)
         .maybeSingle();
   } catch (_) {
@@ -92,6 +115,7 @@ final userProfileProvider = FutureProvider<UserProfile?>((ref) async {
     companyId: userRow?['company_id'] as String? ?? '',
     employeeId: employeeId,
     appRole: appRole,
+    mustChangePassword: (userRow?['must_change_password'] as bool?) ?? false,
   );
 });
 

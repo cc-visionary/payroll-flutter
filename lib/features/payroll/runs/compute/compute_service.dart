@@ -119,8 +119,8 @@ class PayrollComputeService {
       _loadAttendance(employees.map((e) => e['id'] as String).toList(),
           payPeriodInput.startDate, payPeriodInput.endDate),
       _loadManualAdjustments(runId),
-      _loadCashAdvances(companyId, payPeriodInput.startDate, payPeriodInput.endDate),
-      _loadReimbursements(companyId, payPeriodInput.startDate, payPeriodInput.endDate),
+      _loadCashAdvances(companyId, payPeriodInput.startDate, payPeriodInput.endDate, runId),
+      _loadReimbursements(companyId, payPeriodInput.startDate, payPeriodInput.endDate, runId),
       _loadActivePenaltyInstallments(
           employees.map((e) => e['id'] as String).toList(),
           payPeriodInput.endDate,
@@ -416,7 +416,10 @@ class PayrollComputeService {
   }
 
   Future<Map<String, List<Map<String, dynamic>>>> _loadCashAdvances(
-      String companyId, DateTime periodStart, DateTime periodEnd) async {
+      String companyId,
+      DateTime periodStart,
+      DateTime periodEnd,
+      String runId) async {
     // Local `status` is cash_advance_status enum: PENDING / DEDUCTED / CANCELLED.
     // "Approved in Lark, not yet deducted by payroll" = status == PENDING AND
     // lark_approval_status == 'APPROVED' AND is_deducted == false.
@@ -438,11 +441,23 @@ class PayrollComputeService {
         .eq('is_deducted', false)
         .gte('lark_approved_at', startIso)
         .lt('lark_approved_at', endExclusiveIso);
-    return _groupBy(rows, 'employee_id');
+    // Skip-list filter — mirrors the penalty installment pattern. If HR has
+    // deferred this advance for the current run, drop it; the record is
+    // untouched (`is_deducted` stays false) so the next run still sees it.
+    final filtered = (rows as List<dynamic>)
+        .cast<Map<String, dynamic>>()
+        .where((r) {
+      final skipped = r['skipped_payroll_run_ids'];
+      return !(skipped is List && skipped.contains(runId));
+    }).toList();
+    return _groupBy(filtered, 'employee_id');
   }
 
   Future<Map<String, List<Map<String, dynamic>>>> _loadReimbursements(
-      String companyId, DateTime periodStart, DateTime periodEnd) async {
+      String companyId,
+      DateTime periodStart,
+      DateTime periodEnd,
+      String runId) async {
     // Same pattern as cash advances — local status is reimbursement_status enum
     // (PENDING / PAID / CANCELLED). The "ready to pay" filter is PENDING +
     // Lark-approved + not yet paid.
@@ -460,7 +475,13 @@ class PayrollComputeService {
         .eq('is_paid', false)
         .gte('transaction_date', startIso)
         .lte('transaction_date', endIso);
-    return _groupBy(rows, 'employee_id');
+    final filtered = (rows as List<dynamic>)
+        .cast<Map<String, dynamic>>()
+        .where((r) {
+      final skipped = r['skipped_payroll_run_ids'];
+      return !(skipped is List && skipped.contains(runId));
+    }).toList();
+    return _groupBy(filtered, 'employee_id');
   }
 
   Future<Map<String, List<Map<String, dynamic>>>>
@@ -718,7 +739,23 @@ class PayrollComputeService {
     Map<String, Map<String, dynamic>> shifts,
     Map<String, dynamic>? defaultShift,
   ) {
-    final dayType = _parseDayType(r['day_type'] as String);
+    // Day-type rule, mirrors AttendanceRowVm.dayType:
+    //   - Holiday day types (REGULAR_HOLIDAY / SPECIAL_HOLIDAY /
+    //     SPECIAL_WORKING) are authoritative — keep them.
+    //   - Otherwise, the per-record `shift_template_id` decides:
+    //     null → REST_DAY (no scheduled work, even if the row's stored
+    //     day_type still says WORKDAY from a stale import).
+    //     non-null → WORKDAY (scheduled, even if stored day_type says
+    //     REST_DAY because admin manually added a shift later).
+    //   Aligns with how Lark sync sets these two columns at import time
+    //   and prevents premium-pay drift when the columns disagree.
+    final rawDayType = _parseDayType(r['day_type'] as String);
+    final hasShiftAssigned = (r['shift_template_id'] as String?) != null;
+    final dayType = (rawDayType == e.DayType.REGULAR_HOLIDAY ||
+            rawDayType == e.DayType.SPECIAL_HOLIDAY ||
+            rawDayType == e.DayType.SPECIAL_WORKING)
+        ? rawDayType
+        : (hasShiftAssigned ? e.DayType.WORKDAY : e.DayType.REST_DAY);
     final inAt = r['actual_time_in'] == null
         ? null
         : DateTime.parse(r['actual_time_in'] as String);
@@ -854,18 +891,24 @@ class PayrollComputeService {
       }
     }
 
-    // Effective OT: derived (manual flags + implicit-break excess) takes
-    // precedence; falls back to Lark's `approved_ot_minutes` ONLY when the
-    // employee actually clocked in — otherwise a stale OT minute on an
-    // unworked day (rest day, absent, holiday no-show) would surface as
-    // paid OT. Mirrors AttendanceRowVm.overtimeMinutes.
+    // Effective OT priority (mirrors AttendanceRowVm.overtimeMinutes):
+    //   1. Lark-approved duration (`approved_ot_minutes > 0`) — hard cap at
+    //      the approved amount, ignoring any clock-out overage. A 36-min
+    //      approval with a 37-min actual stay pays 36.
+    //   2. Admin-toggled flags (`late_out_approved` / `early_in_approved`)
+    //      with no stored duration — compute from clock diffs. No ceiling
+    //      because the dialog doesn't capture one.
+    //   3. Implicit break-through OT rolled into derivedOtMinutes.
+    //
+    // Zero when the employee didn't clock in — protects against stale
+    // Lark-synced OT on unworked days.
     double ot;
-    if (derivedOtMinutes > 0) {
-      ot = derivedOtMinutes;
-    } else if (inAt == null) {
+    if (inAt == null) {
       ot = 0;
-    } else {
+    } else if (approvedOtMinutes > 0) {
       ot = approvedOtMinutes;
+    } else {
+      ot = derivedOtMinutes;
     }
 
     // Per-day rate override — honored by every engine branch that calls

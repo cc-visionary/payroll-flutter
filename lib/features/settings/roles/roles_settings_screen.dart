@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/breakpoints.dart';
 import '../../../app/status_colors.dart';
 import '../../../data/models/role.dart';
 import '../../../data/repositories/role_repository.dart';
@@ -15,18 +16,22 @@ class RolesSettingsScreen extends ConsumerWidget {
     final countsAsync = ref.watch(roleUserCountsProvider);
 
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Text('Roles & Permissions',
-              style: Theme.of(context).textTheme.headlineSmall),
-          const Spacer(),
-          FilledButton.icon(
-            onPressed: () => _openForm(context, ref),
-            icon: const Icon(Icons.add),
-            label: const Text('Add Role'),
-          ),
-        ]),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text('Roles & Permissions',
+                style: Theme.of(context).textTheme.headlineSmall),
+            FilledButton.icon(
+              onPressed: () => _openForm(context, ref),
+              icon: const Icon(Icons.add),
+              label: const Text('Add Role'),
+            ),
+          ],
+        ),
         const SizedBox(height: 4),
         const Text(
           'Manage user roles and their permissions. System roles cannot be deleted but their permissions can be customized.',

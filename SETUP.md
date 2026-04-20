@@ -125,18 +125,26 @@ Re-running is safe — every step is an upsert. Existing users transition from `
 
 ## 4. Create the payslip-approval template in Lark
 
-The desktop "Send Payslip Approvals" button posts one Lark approval instance per payslip. You need a template:
+The desktop "Send All" / "Send Selected" buttons post one Lark approval instance per payslip. The edge function fetches the template definition at send-time and matches widgets by **name** (not ID), so you don't need to hand-set widget IDs — Lark's auto-generated ones are fine.
 
 1. In Lark, go to **Approval → Approval Admin → Create**.
-2. Template name: "Payroll Payslip Review".
-3. Add form fields (field IDs must match these — the Edge Function sends them):
-   - `payslip_id` (Single line)
-   - `employee` (Single line)
-   - `gross_pay` (Number)
-   - `net_pay` (Number)
-4. Set the approval flow (Finance Manager → HR Director → whoever).
-5. Publish. Back on **Approval Admin**, open the template's detail page — the URL contains the **approval_code** (e.g. `?approvalCode=7123456789`).
+2. Template name: "Payroll Payslip Review" (or anything — only the approval code matters).
+3. Add these three form widgets, in any order. The edge function matches by case-insensitive substring in the widget name:
+   - **"Department"** (Single line text) — populated with the employee's department name.
+   - **"Pay Period"** (Single line text) — populated with `period_start - period_end`.
+   - **"PDF"** (Attachment — `attachmentV2`) — the payslip PDF uploaded by the edge function. Mark as **required** so employees can't acknowledge without seeing the file.
+4. Set the approval flow. The first node's approver is set dynamically by the edge function — it mapping the employee receiving the payslip as the approver. So the first node should be a plain "Approver" step (no pre-assigned user); any subsequent nodes (e.g. HR sign-off) can have fixed approvers.
+5. Designate an initiator — this is the admin whose Lark `user_id` goes into `LARK_ADMIN_USER_ID` (§6). The template must allow that user to create instances.
+6. **Enable post-approval cancellation** (required for the desktop "Revoke" action on APPROVED payslips). In the template's **流程设置 / Flow settings** (or **其他设置 / Other settings** depending on your Lark version) check:
+   - **允许撤销审批中的申请 / Allow cancellation of in-progress applications** — needed for "Recall" on PENDING rows.
+   - **允许撤销 X 天内通过的审批 / Allow cancellation of approvals within X days** — needed for "Revoke" on APPROVED rows. Set X to however long after approval you want revocation to stay possible (e.g. 30 or 90 days).
+   - Without these, Lark rejects `/approval/v4/instances/cancel` and the UI will surface the error. The edge function itself marks the payslip as RECALLED only on a successful cancel — no silent pretend-success.
+7. Publish. Back on **Approval Admin**, open the template's detail page — the URL contains the **approval_code** (e.g. `?approvalCode=7123456789`).
    - Copy it → `LARK_PAYSLIP_APPROVAL_CODE`.
+
+> **How Revoke behaves on Lark's side:** When you click Revoke on an APPROVED payslip, Lark reverts that instance to pending and the employee sees it in their inbox again. Our local state flips to `RECALLED` immediately and stays there — the webhook + sync both skip updates on RECALLED rows, so any downstream employee action in Lark (re-approve, re-reject) no longer affects the payslip status on our side. The admin's revoke is sticky.
+
+> **Template compatibility:** This layout matches the payrollos Next.js app (`/home/ccvisionary/Documents/Work/[07] Projects/payrollos`). If you're already running payrollos against the same Lark tenant, reuse the same approval template + approval code + admin user id — no changes needed in Lark.
 
 ---
 
@@ -166,6 +174,7 @@ supabase secrets set \
   LARK_APP_SECRET="<from step 3>" \
   LARK_BASE_URL="https://open.larksuite.com/open-apis" \
   LARK_PAYSLIP_APPROVAL_CODE="<from step 4>" \
+  LARK_ADMIN_USER_ID="<Lark user_id of the admin who initiates payslip approvals — same value as payrollos>" \
   LARK_CASH_ADVANCE_APPROVAL_CODE="<cash-advance approval template code>" \
   LARK_REIMBURSEMENT_APPROVAL_CODE="<reimbursement approval template code>" \
   LARK_HOLIDAY_CALENDAR_ID="<lark shared calendar id with PH holidays>" \

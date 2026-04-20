@@ -1,6 +1,7 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/money.dart';
@@ -587,13 +588,33 @@ class _Row extends StatelessWidget {
     );
   }
 
-  /// Fallback layout for Cash Advance / Reimbursement rows.
+  /// Richer layout for Cash Advance / Reimbursement rows. Shows deduction/
+  /// payout state, when it happened, and a link to the consuming payslip
+  /// (resolved by `financialsByEmployeeProvider` via `_payslip_id`).
   Widget _buildGenericCard(BuildContext context) {
     final amount = row[kind.amountKey];
     final amountText = amount == null
         ? '—'
         : Money.fmtPhp(Decimal.parse(amount.toString()));
-    final status = (row['status'] as String?) ?? '—';
+
+    final isCashAdvance = kind == FinancialKind.cashAdvances;
+    final settled =
+        isCashAdvance ? row['is_deducted'] == true : row['is_paid'] == true;
+    final settledAtIso = (isCashAdvance
+            ? row['deducted_at']
+            : row['paid_at']) as String?;
+    final rawStatus = (row['status'] as String?)?.toUpperCase() ?? '';
+    final String displayStatus;
+    if (rawStatus == 'CANCELLED') {
+      displayStatus = 'CANCELLED';
+    } else if (settled) {
+      displayStatus = isCashAdvance ? 'DEDUCTED' : 'PAID';
+    } else {
+      displayStatus = rawStatus.isEmpty ? 'PENDING' : rawStatus;
+    }
+    final payslipId = row['_payslip_id'] as String?;
+    final subtle = Theme.of(context).colorScheme.onSurfaceVariant;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -601,45 +622,73 @@ class _Row extends StatelessWidget {
         border: Border.all(color: Theme.of(context).dividerColor),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _title(),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Created: ${_created()}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                amountText,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _title(),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Created: ${_created()}',
+                      style: TextStyle(fontSize: 12, color: subtle),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 4),
-              StatusChip(label: status, tone: toneForStatus(status)),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    amountText,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  StatusChip(
+                    label: displayStatus,
+                    tone: toneForStatus(displayStatus),
+                  ),
+                ],
+              ),
             ],
           ),
+          if (settled && settledAtIso != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              '${isCashAdvance ? 'Deducted' : 'Paid'} on ${_fmtDate(settledAtIso)}',
+              style: TextStyle(fontSize: 12, color: subtle),
+            ),
+          ],
+          if (payslipId != null) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => context.push('/payslips/$payslipId'),
+                icon: const Icon(Icons.receipt_long, size: 14),
+                label: const Text('View payslip'),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(40, 28),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

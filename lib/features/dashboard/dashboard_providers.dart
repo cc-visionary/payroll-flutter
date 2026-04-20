@@ -5,13 +5,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/profile_provider.dart';
 
-/// Timeframe toggle on the dashboard Payroll Summary tile. Yearly (default)
-/// sums every RELEASED run in the current calendar year; monthly restricts
-/// to RELEASED runs whose pay_date falls in the current month.
-enum DashboardTimeframe { yearly, monthly }
-
-final dashboardTimeframeProvider =
-    StateProvider<DashboardTimeframe>((ref) => DashboardTimeframe.yearly);
+/// Dashboard's selected year. Drives every yearly aggregation on the
+/// screen (Payroll Summary, Employee Movement totals, Attendance Overview
+/// period). Defaults to the current calendar year; the Dashboard header
+/// exposes a dropdown so HR can audit prior years.
+final dashboardYearProvider =
+    StateProvider<int>((ref) => DateTime.now().year);
 
 /// Aggregated dashboard snapshot for the selected period (default: current
 /// calendar month). All counts/amounts are computed on the server via single
@@ -107,6 +106,12 @@ String _tenureBucket(double months) {
 }
 
 final dashboardDataProvider = FutureProvider<DashboardData>((ref) async {
+  // IMPORTANT: subscribe to every reactive dependency *before* any await.
+  // Riverpod only tracks `ref.watch` calls that execute synchronously on
+  // the first pass — watches after an await don't register a subscription,
+  // so changes to them never invalidate this provider. That bit us with
+  // the year dropdown silently not refiltering.
+  final selectedYear = ref.watch(dashboardYearProvider);
   final profile = await ref.watch(userProfileProvider.future);
   final companyId = profile?.companyId;
   if (companyId == null || companyId.isEmpty) {
@@ -115,22 +120,24 @@ final dashboardDataProvider = FutureProvider<DashboardData>((ref) async {
 
   final client = Supabase.instance.client;
   final now = DateTime.now();
-  final periodStart = DateTime(now.year, now.month, 1);
-  final periodEnd = DateTime(now.year, now.month + 1, 0);
-  final ytdStart = DateTime(now.year, 1, 1);
-  final ytdEnd = DateTime(now.year, 12, 31);
+  final isCurrentYear = selectedYear == now.year;
+  final periodStart = isCurrentYear
+      ? DateTime(now.year, now.month, 1)
+      : DateTime(selectedYear, 1, 1);
+  final periodEnd = isCurrentYear
+      ? DateTime(now.year, now.month + 1, 0)
+      : DateTime(selectedYear, 12, 31);
+  final ytdStart = DateTime(selectedYear, 1, 1);
+  final ytdEnd = DateTime(selectedYear, 12, 31);
   final periodStartIso = _isoDate(periodStart);
   final periodEndIso = _isoDate(periodEnd);
   final ytdStartIso = _isoDate(ytdStart);
   final ytdEndIso = _isoDate(ytdEnd);
 
-  // Payroll summary timeframe — user-toggleable (yearly / monthly). Defaults
-  // to yearly so the tile isn't blank in months without a release yet.
-  final timeframe = ref.watch(dashboardTimeframeProvider);
-  final payrollStartIso =
-      timeframe == DashboardTimeframe.yearly ? ytdStartIso : periodStartIso;
-  final payrollEndIso =
-      timeframe == DashboardTimeframe.yearly ? ytdEndIso : periodEndIso;
+  // Payroll summary always spans the selected calendar year; monthly toggle
+  // removed per 2026-04 UX pass.
+  final payrollStartIso = ytdStartIso;
+  final payrollEndIso = ytdEndIso;
 
   // Run independent queries in parallel.
   final results = await Future.wait<dynamic>([
@@ -301,20 +308,24 @@ final dashboardDataProvider = FutureProvider<DashboardData>((ref) async {
           .toDecimal(scaleOnInfinitePrecision: 2);
 
   // ---- 4. Employment events ----
+  // All Employee Movement counts are now yearly (spans the selected year).
+  // The "This Month" framing was removed in the 2026-04 dashboard pass.
   final events = (results[4] as List).cast<Map<String, dynamic>>();
-  int newHires = 0, separationsMonth = 0, voluntary = 0, involuntary = 0;
+  int newHires = 0, separations = 0, voluntary = 0, involuntary = 0;
   for (final ev in events) {
     final t = (ev['event_type'] as String? ?? '').toUpperCase();
     final dStr = ev['event_date'] as String;
     final eventDate = DateTime.parse(dStr);
-    final inMonth = !eventDate.isBefore(periodStart) &&
-        !eventDate.isAfter(periodEnd);
+    final inYear = !eventDate.isBefore(ytdStart) &&
+        !eventDate.isAfter(ytdEnd);
+    if (!inYear) continue;
     if (t == 'HIRE' || t == 'NEW_HIRE') {
-      if (inMonth) newHires++;
-    } else if (t == 'SEPARATION' || t == 'TERMINATION' ||
-        t == 'RESIGNATION' || t == 'END_OF_CONTRACT') {
-      if (inMonth) separationsMonth++;
-      // Voluntary vs involuntary YTD — use payload.kind or event_type.
+      newHires++;
+    } else if (t == 'SEPARATION' ||
+        t == 'TERMINATION' ||
+        t == 'RESIGNATION' ||
+        t == 'END_OF_CONTRACT') {
+      separations++;
       final payload = ev['payload'] as Map<String, dynamic>? ?? const {};
       final kind = (payload['kind'] as String? ?? t).toUpperCase();
       if (t == 'RESIGNATION' || kind.contains('VOLUNTARY')) {
@@ -350,7 +361,7 @@ final dashboardDataProvider = FutureProvider<DashboardData>((ref) async {
     pagibigTotal: pgTot,
     withholdingTaxTotal: whTot,
     newHiresThisMonth: newHires,
-    separationsThisMonth: separationsMonth,
+    separationsThisMonth: separations,
     voluntaryYtd: voluntary,
     involuntaryYtd: involuntary,
     periodStart: periodStart,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/breakpoints.dart';
 import '../../../../data/models/employee.dart';
 import '../../../../data/repositories/employee_repository.dart';
 import '../../../../data/repositories/role_scorecard_repository.dart';
@@ -52,6 +53,112 @@ class ProfileHeader extends ConsumerWidget {
         ? 'ARCHIVED'
         : employee.employmentStatus.toUpperCase();
     final typeLabel = employee.employmentType.replaceAll('_', ' ');
+    final mobile = isMobile(context);
+
+    final nameBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          employee.fullName,
+          style: TextStyle(
+            fontSize: mobile ? 20 : 24,
+            fontWeight: FontWeight.w700,
+            height: 1.1,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            Text(
+              employee.employeeNumber,
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 12,
+                color: Color(0xFF6B7280),
+              ),
+            ),
+            const Text('│',
+                style: TextStyle(color: Color(0xFF9CA3AF))),
+            StatusChip(
+              label: typeLabel,
+              tone: toneForStatus(typeLabel),
+            ),
+            StatusChip(
+              label: statusLabel,
+              tone: archived
+                  ? ChipTone.danger
+                  : toneForStatus(statusLabel),
+            ),
+            if (employee.larkUserId != null) ...[
+              const Text('│',
+                  style: TextStyle(color: Color(0xFF9CA3AF))),
+              Text(
+                'Lark: ${employee.larkUserId}',
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  color: Color(0xFF6B7280),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _buildSubtitle(effectiveJobTitle, deptName),
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF374151),
+          ),
+        ),
+        if (entityName != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              'Hired under: $entityName',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF6B7280),
+              ),
+            ),
+          ),
+      ],
+    );
+
+    final actionButtons = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        if (canManage)
+          OutlinedButton(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content:
+                        Text('Workflow launcher — coming soon.')),
+              );
+            },
+            child: const Text('Start Workflow'),
+          ),
+        if (canManage)
+          OutlinedButton(
+            onPressed: () =>
+                context.push('/employees/${employee.id}/edit'),
+            child: const Text('Edit Employee'),
+          ),
+        if (isAdmin)
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+            ),
+            onPressed: () => _confirmSeparate(context, ref),
+            child: const Text('Separate Employee'),
+          ),
+      ],
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -84,119 +191,25 @@ class ProfileHeader extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 12),
-        // Name + action buttons row
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    employee.fullName,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      height: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      Text(
-                        employee.employeeNumber,
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 12,
-                          color: Color(0xFF6B7280),
-                        ),
-                      ),
-                      const Text('│',
-                          style: TextStyle(color: Color(0xFF9CA3AF))),
-                      StatusChip(
-                        label: typeLabel,
-                        tone: toneForStatus(typeLabel),
-                      ),
-                      StatusChip(
-                        label: statusLabel,
-                        tone: archived
-                            ? ChipTone.danger
-                            : toneForStatus(statusLabel),
-                      ),
-                      if (employee.larkUserId != null) ...[
-                        const Text('│',
-                            style: TextStyle(color: Color(0xFF9CA3AF))),
-                        Text(
-                          'Lark: ${employee.larkUserId}',
-                          style: const TextStyle(
-                            fontFamily: 'monospace',
-                            fontSize: 11,
-                            color: Color(0xFF6B7280),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _buildSubtitle(effectiveJobTitle, deptName),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF374151),
-                    ),
-                  ),
-                  if (entityName != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(
-                        'Hired under: $entityName',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF6B7280),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            // Action buttons
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (canManage)
-                  OutlinedButton(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content:
-                                Text('Workflow launcher — coming soon.')),
-                      );
-                    },
-                    child: const Text('Start Workflow'),
-                  ),
-                if (canManage)
-                  OutlinedButton(
-                    onPressed: () =>
-                        context.push('/employees/${employee.id}/edit'),
-                    child: const Text('Edit Employee'),
-                  ),
-                if (isAdmin)
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFDC2626),
-                    ),
-                    onPressed: () => _confirmSeparate(context, ref),
-                    child: const Text('Separate Employee'),
-                  ),
-              ],
-            ),
-          ],
-        ),
+        // Name + action buttons row — stacked on mobile.
+        if (mobile)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              nameBlock,
+              const SizedBox(height: 12),
+              actionButtons,
+            ],
+          )
+        else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: nameBlock),
+              const SizedBox(width: 16),
+              actionButtons,
+            ],
+          ),
         const SizedBox(height: 20),
         // Info cards row
         LayoutBuilder(builder: (ctx, c) {

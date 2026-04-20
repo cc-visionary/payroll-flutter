@@ -382,8 +382,6 @@ class _PayslipRow extends StatelessWidget {
     final periodText = item.periodStart == null || item.periodEnd == null
         ? '—'
         : '${item.periodStart!.toIso8601String().substring(0, 10)} - ${item.periodEnd!.toIso8601String().substring(0, 10)}';
-    final released = p.approvalStatus == 'APPROVED' ||
-        p.approvalStatus == 'RELEASED';
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -461,12 +459,11 @@ class _PayslipRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              if (released)
-                OutlinedButton.icon(
-                  onPressed: () => context.push('/payslips/${p.id}'),
-                  icon: const Icon(Icons.picture_as_pdf, size: 14),
-                  label: const Text('PDF'),
-                ),
+              OutlinedButton.icon(
+                onPressed: () => context.push('/payslips/${p.id}'),
+                icon: const Icon(Icons.picture_as_pdf, size: 14),
+                label: const Text('PDF'),
+              ),
             ],
           ),
         ],

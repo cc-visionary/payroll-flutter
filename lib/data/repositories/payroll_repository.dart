@@ -1,12 +1,39 @@
+import 'package:decimal/decimal.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/payroll_run.dart';
 import '../models/payslip.dart';
 
+/// Outcome of a `distributeThirteenthMonth` call — lets the UI show a
+/// success summary (N employees, total payout, any skipped rows).
+class DistributeThirteenthMonthResult {
+  final int employeesDistributed;
+  final Decimal totalPayout;
+  final List<String> errors;
+  const DistributeThirteenthMonthResult({
+    required this.employeesDistributed,
+    required this.totalPayout,
+    required this.errors,
+  });
+}
+
 class PayrollRepository {
   final SupabaseClient _client;
   PayrollRepository(this._client);
+
+  /// Compute the 13th-month payout for a given accrued-basis amount.
+  /// Formula: `basis / 12`, rounded to 2dp half-up. Negative input clamps
+  /// to zero (defensive — shouldn't happen in practice).
+  ///
+  /// Exposed as a static so the distribution dialog can preview payouts
+  /// without holding a repository reference.
+  static Decimal thirteenthMonthPayout(Decimal basis) {
+    if (basis <= Decimal.zero) return Decimal.zero;
+    return (basis / Decimal.fromInt(12))
+        .toDecimal(scaleOnInfinitePrecision: 10)
+        .round(scale: 2);
+  }
 
   Future<List<PayrollRun>> listRuns() async {
     // After the pay_periods drop, period + company fields live directly on
@@ -63,13 +90,56 @@ class PayrollRepository {
     return counts;
   }
 
-  /// Dispatch all DRAFT_IN_REVIEW payslips in the run to Lark for approval.
+  /// Dispatch DRAFT_IN_REVIEW payslips in the run to Lark for approval.
   /// Calls the `send-payslip-approvals` Edge Function which creates approval
-  /// instances server-side and updates each payslip's approval_status.
-  Future<Map<String, dynamic>> sendPayslipApprovals(String runId) async {
+  /// instances server-side.
+  ///
+  /// The Lark approval template (shared with the payrollos app) has a
+  /// required PDF attachment widget, so the caller must supply the encoded
+  /// payslip PDF for each payslip being dispatched in [pdfsByPayslipId]
+  /// (base64 strings, keyed by payslip id). The edge function uploads each
+  /// PDF to Lark's file API and references it as `attachmentV2` on the
+  /// approval form.
+  ///
+  /// Pass [payslipIds] to scope the dispatch to a subset (from the Approvals
+  /// tab selection). Omit to dispatch every DRAFT_IN_REVIEW payslip in the
+  /// run — but note that even in that case the caller still needs to supply
+  /// PDFs for every payslip that'll be dispatched.
+  Future<Map<String, dynamic>> sendPayslipApprovals(
+    String runId, {
+    List<String>? payslipIds,
+    required Map<String, String> pdfsByPayslipId,
+  }) async {
     final res = await _client.functions.invoke(
       'send-payslip-approvals',
-      body: {'run_id': runId},
+      body: {
+        'run_id': runId,
+        if (payslipIds != null && payslipIds.isNotEmpty)
+          'payslip_ids': payslipIds,
+        'pdfs_base64': pdfsByPayslipId,
+      },
+    );
+    return Map<String, dynamic>.from(res.data as Map);
+  }
+
+  /// Pull fresh Lark approval status for every payslip in the run that has
+  /// already been dispatched (has a `lark_approval_instance_code`). Calls the
+  /// `sync-payslip-approvals` Edge Function.
+  ///
+  /// Pass [payslipIds] to scope the sync to a selected subset. The webhook
+  /// keeps these in sync in near-realtime when deployed; this is the explicit
+  /// "refresh now" path that also backfills missed webhook events.
+  Future<Map<String, dynamic>> syncPayslipApprovals(
+    String runId, {
+    List<String>? payslipIds,
+  }) async {
+    final res = await _client.functions.invoke(
+      'sync-payslip-approvals',
+      body: {
+        'run_id': runId,
+        if (payslipIds != null && payslipIds.isNotEmpty)
+          'payslip_ids': payslipIds,
+      },
     );
     return Map<String, dynamic>.from(res.data as Map);
   }
@@ -198,9 +268,11 @@ class PayrollRepository {
         .select(
           '*, employees!inner(id, employee_number, first_name, middle_name, '
           'last_name, department_id, role_scorecard_id, hiring_entity_id, '
+          'accrued_thirteenth_month_basis, '
           'departments!employees_department_id_fkey(name), hiring_entities(code, name), '
           'role_scorecards(department_id, departments(name)), '
-          'employee_bank_accounts(bank_code, bank_name, account_number, account_name, account_type, is_primary, deleted_at))',
+          'employee_bank_accounts(bank_code, bank_name, account_number, account_name, account_type, is_primary, deleted_at)), '
+          'payslip_lines(id, category)',
         )
         .eq('payroll_run_id', runId);
     final out = (rows as List<dynamic>).cast<Map<String, dynamic>>();
@@ -279,6 +351,63 @@ class PayrollRepository {
         .from('penalty_installments')
         .update({'skipped_payroll_run_ids': next})
         .eq('id', installmentId);
+  }
+
+  /// Defer a specific cash advance out of the given payroll run. The
+  /// advance is added to `skipped_payroll_run_ids` so the next compute
+  /// for that run excludes it; subsequent runs still pick it up because
+  /// `is_deducted` is untouched. Caller is expected to trigger a Recompute
+  /// afterwards so the payslip_lines are rebuilt without the skipped row.
+  ///
+  /// [skip] = true to add the run id; false to remove it (undo).
+  Future<void> setCashAdvanceSkip({
+    required String advanceId,
+    required String runId,
+    required bool skip,
+  }) async {
+    final row = await _client
+        .from('cash_advances')
+        .select('skipped_payroll_run_ids')
+        .eq('id', advanceId)
+        .single();
+    final current =
+        (row['skipped_payroll_run_ids'] as List?)?.cast<String>() ?? const [];
+    final next = skip
+        ? {...current, runId}.toList()
+        : current.where((id) => id != runId).toList();
+    await _client
+        .from('cash_advances')
+        .update({'skipped_payroll_run_ids': next})
+        .eq('id', advanceId);
+  }
+
+  /// Defer a specific reimbursement out of the given payroll run. The
+  /// reimbursement is added to `skipped_payroll_run_ids` so the next
+  /// compute for that run excludes it; subsequent runs still pick it up
+  /// because `is_paid` is untouched. Caller is expected to trigger a
+  /// Recompute afterwards so the payslip_lines are rebuilt without the
+  /// skipped row.
+  ///
+  /// [skip] = true to add the run id; false to remove it (undo).
+  Future<void> setReimbursementSkip({
+    required String reimbursementId,
+    required String runId,
+    required bool skip,
+  }) async {
+    final row = await _client
+        .from('reimbursements')
+        .select('skipped_payroll_run_ids')
+        .eq('id', reimbursementId)
+        .single();
+    final current =
+        (row['skipped_payroll_run_ids'] as List?)?.cast<String>() ?? const [];
+    final next = skip
+        ? {...current, runId}.toList()
+        : current.where((id) => id != runId).toList();
+    await _client
+        .from('reimbursements')
+        .update({'skipped_payroll_run_ids': next})
+        .eq('id', reimbursementId);
   }
 
   /// Release a run: move status → RELEASED, stamp released_at, and lock
@@ -381,6 +510,46 @@ class PayrollRepository {
           .inFilter('id', penaltyInstallmentIds.toList());
     }
 
+    // 4.5 Tick up 13th-month accrual: sum each payslip's BASIC_PAY line
+    // amount and add it to that employee's running basis. Done before the
+    // status flip so a partial failure leaves the run in REVIEW state and
+    // the operator can retry. The status-machine guards double-releases
+    // on the same run, so no double-counting risk.
+    final basicPayRows = await _client
+        .from('payslip_lines')
+        .select('amount, payslips!inner(employee_id, payroll_run_id)')
+        .eq('payslips.payroll_run_id', runId)
+        .eq('category', 'BASIC_PAY');
+    final basicByEmp = <String, Decimal>{};
+    for (final r
+        in (basicPayRows as List<dynamic>).cast<Map<String, dynamic>>()) {
+      final emp = (r['payslips'] as Map<String, dynamic>)['employee_id']
+          as String;
+      final amt = Decimal.tryParse((r['amount'] ?? '0').toString()) ??
+          Decimal.zero;
+      basicByEmp[emp] = (basicByEmp[emp] ?? Decimal.zero) + amt;
+    }
+    if (basicByEmp.isNotEmpty) {
+      // PostgREST has no scalar-add; read-modify-write per employee.
+      final empRows = await _client
+          .from('employees')
+          .select('id, accrued_thirteenth_month_basis')
+          .inFilter('id', basicByEmp.keys.toList());
+      for (final row
+          in (empRows as List<dynamic>).cast<Map<String, dynamic>>()) {
+        final empId = row['id'] as String;
+        final current = Decimal.tryParse(
+                (row['accrued_thirteenth_month_basis'] ?? '0').toString()) ??
+            Decimal.zero;
+        final delta = basicByEmp[empId] ?? Decimal.zero;
+        final next = current + delta;
+        await _client
+            .from('employees')
+            .update({'accrued_thirteenth_month_basis': next.toString()})
+            .eq('id', empId);
+      }
+    }
+
     // 5. Flip the run to RELEASED
     await _client.from('payroll_runs').update({
       'status': 'RELEASED',
@@ -393,6 +562,148 @@ class PayrollRepository {
       'status': 'CANCELLED',
       if (reason != null && reason.isNotEmpty) 'remarks': reason,
     }).eq('id', runId);
+  }
+
+  /// Distribute 13th-month pay on the given run for the given employees.
+  ///
+  /// For each employee:
+  ///   1. Insert a `THIRTEENTH_MONTH_PAY` payslip_lines row on their payslip
+  ///      in this run (amount = accruedBasis / 12, rounded to 2dp).
+  ///   2. Zero their `accrued_thirteenth_month_basis`.
+  ///   3. Add the payout to `payslips.gross_pay` and `payslips.net_pay` so
+  ///      Summary tab totals reflect the new amount without a recompute.
+  /// Finally, flip `payroll_runs.is_thirteenth_month_distribution = true`.
+  ///
+  /// Skips employees who already have a `THIRTEENTH_MONTH_PAY` line on this
+  /// run's payslip (idempotent re-click).
+  Future<DistributeThirteenthMonthResult> distributeThirteenthMonth({
+    required String runId,
+    required List<String> employeeIds,
+  }) async {
+    final errors = <String>[];
+    if (employeeIds.isEmpty) {
+      return DistributeThirteenthMonthResult(
+        employeesDistributed: 0,
+        totalPayout: Decimal.zero,
+        errors: const [],
+      );
+    }
+
+    // Fetch current basis per employee.
+    final empRows = await _client
+        .from('employees')
+        .select('id, accrued_thirteenth_month_basis')
+        .inFilter('id', employeeIds);
+    final basisByEmp = <String, Decimal>{
+      for (final r in (empRows as List<dynamic>).cast<Map<String, dynamic>>())
+        r['id'] as String: Decimal.tryParse(
+                (r['accrued_thirteenth_month_basis'] ?? '0').toString()) ??
+            Decimal.zero,
+    };
+
+    // Fetch each employee's payslip on this run + current totals for the
+    // running-total update.
+    final payslipRows = await _client
+        .from('payslips')
+        .select('id, employee_id, gross_pay, net_pay')
+        .eq('payroll_run_id', runId)
+        .inFilter('employee_id', employeeIds);
+    final payslipByEmp = <String, Map<String, dynamic>>{
+      for (final r
+          in (payslipRows as List<dynamic>).cast<Map<String, dynamic>>())
+        r['employee_id'] as String: r,
+    };
+
+    // Detect payslips that already carry a distribution line so re-click
+    // doesn't double-post.
+    final payslipIds =
+        payslipByEmp.values.map((p) => p['id'] as String).toList();
+    final alreadyDistributedPayslipIds = <String>{};
+    if (payslipIds.isNotEmpty) {
+      final existingLineRows = await _client
+          .from('payslip_lines')
+          .select('payslip_id')
+          .inFilter('payslip_id', payslipIds)
+          .eq('category', 'THIRTEENTH_MONTH_PAY');
+      for (final r in (existingLineRows as List<dynamic>)
+          .cast<Map<String, dynamic>>()) {
+        alreadyDistributedPayslipIds.add(r['payslip_id'] as String);
+      }
+    }
+
+    int distributed = 0;
+    Decimal totalPayout = Decimal.zero;
+
+    for (final empId in employeeIds) {
+      final payslip = payslipByEmp[empId];
+      if (payslip == null) {
+        errors.add('$empId: no payslip on run');
+        continue;
+      }
+      if (alreadyDistributedPayslipIds.contains(payslip['id'])) {
+        errors.add('$empId: already distributed on this run');
+        continue;
+      }
+      final basis = basisByEmp[empId] ?? Decimal.zero;
+      final payout = thirteenthMonthPayout(basis);
+      if (payout <= Decimal.zero) {
+        errors.add('$empId: zero basis');
+        continue;
+      }
+
+      try {
+        // 1. Insert the payslip line.
+        await _client.from('payslip_lines').insert({
+          'payslip_id': payslip['id'],
+          'category': 'THIRTEENTH_MONTH_PAY',
+          'description': '13th Month Pay (distribution)',
+          'amount': payout.toString(),
+          'quantity': '1',
+          'rate': payout.toString(),
+          'sort_order': 450,
+        });
+
+        // 2. Zero the accrual.
+        await _client
+            .from('employees')
+            .update({'accrued_thirteenth_month_basis': '0'})
+            .eq('id', empId);
+
+        // 3. Update payslip totals.
+        final currentGross = Decimal.tryParse(
+                (payslip['gross_pay'] ?? '0').toString()) ??
+            Decimal.zero;
+        final currentNet = Decimal.tryParse(
+                (payslip['net_pay'] ?? '0').toString()) ??
+            Decimal.zero;
+        await _client.from('payslips').update({
+          'gross_pay': (currentGross + payout).toString(),
+          'net_pay': (currentNet + payout).toString(),
+        }).eq('id', payslip['id']);
+
+        distributed++;
+        totalPayout += payout;
+      } catch (e) {
+        errors.add('$empId: $e');
+      }
+    }
+
+    if (distributed > 0) {
+      try {
+        await _client
+            .from('payroll_runs')
+            .update({'is_thirteenth_month_distribution': true})
+            .eq('id', runId);
+      } catch (_) {
+        // Metadata-only flag; swallow if it fails.
+      }
+    }
+
+    return DistributeThirteenthMonthResult(
+      employeesDistributed: distributed,
+      totalPayout: totalPayout,
+      errors: errors,
+    );
   }
 
   /// Permanently delete a payroll run. Only allowed when status == CANCELLED
@@ -658,27 +969,30 @@ class PayrollRepository {
     return out;
   }
 
-  /// Trigger a fresh sync of approval statuses from Lark. (The approval
-  /// webhook keeps these in sync in near-real-time, but a manual refresh gives
-  /// the user confidence and handles missed webhooks.)
-  Future<void> refreshApprovalsFromLark(String runId) async {
-    // Noop on client; server-side webhook already updates on approval events.
-    // The UI simply re-queries payslipApprovalCountsProvider to show latest.
-  }
-
-  /// Recall all PENDING_APPROVAL payslips in the run back to editable state.
+  /// Recall PENDING_APPROVAL payslips in the run back to editable state.
   ///
   /// Dispatches to the `recall-payslip-approvals` Edge Function which
-  /// cancels each open Lark approval instance first, then flips the local
-  /// rows to `approval_status='RECALLED'` and clears `lark_approval_status`
-  /// (to NULL) so a subsequent Recompute will regenerate them.
+  /// cancels each open Lark approval instance (using the admin as
+  /// canceller — only the initiator can cancel), then flips the local
+  /// rows to `approval_status='RECALLED'` with `lark_approval_status=NULL`
+  /// so a subsequent send/recompute will regenerate them.
+  ///
+  /// Pass [payslipIds] to recall a specific subset (row-level or selection
+  /// bulk). Omit to recall every PENDING_APPROVAL row in the run.
   ///
   /// Returns the edge function's response payload
   /// (`{ ok, recalled, failed, errors }`).
-  Future<Map<String, dynamic>> recallPayslipApprovals(String runId) async {
+  Future<Map<String, dynamic>> recallPayslipApprovals(
+    String runId, {
+    List<String>? payslipIds,
+  }) async {
     final res = await _client.functions.invoke(
       'recall-payslip-approvals',
-      body: {'run_id': runId},
+      body: {
+        'run_id': runId,
+        if (payslipIds != null && payslipIds.isNotEmpty)
+          'payslip_ids': payslipIds,
+      },
     );
     return Map<String, dynamic>.from(res.data as Map);
   }
