@@ -23,16 +23,17 @@ class PayrollRepository {
   PayrollRepository(this._client);
 
   /// Compute the 13th-month payout for a given accrued-basis amount.
-  /// Formula: `basis / 12`, rounded to 2dp half-up. Negative input clamps
-  /// to zero (defensive — shouldn't happen in practice).
+  ///
+  /// Under the PROVISION model the accrual column already holds the
+  /// 13th-month earned (per-release `(basic - late) / 12` summed over
+  /// releases), so the payout equals the basis. Negative input clamps to
+  /// zero (defensive — shouldn't happen in practice).
   ///
   /// Exposed as a static so the distribution dialog can preview payouts
   /// without holding a repository reference.
   static Decimal thirteenthMonthPayout(Decimal basis) {
     if (basis <= Decimal.zero) return Decimal.zero;
-    return (basis / Decimal.fromInt(12))
-        .toDecimal(scaleOnInfinitePrecision: 10)
-        .round(scale: 2);
+    return basis;
   }
 
   Future<List<PayrollRun>> listRuns() async {
@@ -431,9 +432,22 @@ class PayrollRepository {
     // 20260418000001.
     final runRow = await _client
         .from('payroll_runs')
-        .select('id, period_start, period_end')
+        .select('id, status, period_start, period_end')
         .eq('id', runId)
         .single();
+    // Guard: only REVIEW runs can be released. RELEASED runs must not be
+    // re-released (would re-stamp released_at, re-lock attendance, and
+    // re-fire adjunct side-effects). DRAFT/COMPUTING/CANCELLED runs aren't
+    // ready or have been voided. The UI hides the Release button outside
+    // REVIEW state, but a stale client or racing click could still land
+    // here — refuse server-side.
+    final currentStatus = runRow['status'] as String?;
+    if (currentStatus != 'REVIEW') {
+      throw StateError(
+        'Cannot release run in state "$currentStatus" — only REVIEW runs '
+        'can be released.',
+      );
+    }
     final startIso = runRow['period_start'] as String;
     final endIso = runRow['period_end'] as String;
 
@@ -510,45 +524,12 @@ class PayrollRepository {
           .inFilter('id', penaltyInstallmentIds.toList());
     }
 
-    // 4.5 Tick up 13th-month accrual: sum each payslip's BASIC_PAY line
-    // amount and add it to that employee's running basis. Done before the
-    // status flip so a partial failure leaves the run in REVIEW state and
-    // the operator can retry. The status-machine guards double-releases
-    // on the same run, so no double-counting risk.
-    final basicPayRows = await _client
-        .from('payslip_lines')
-        .select('amount, payslips!inner(employee_id, payroll_run_id)')
-        .eq('payslips.payroll_run_id', runId)
-        .eq('category', 'BASIC_PAY');
-    final basicByEmp = <String, Decimal>{};
-    for (final r
-        in (basicPayRows as List<dynamic>).cast<Map<String, dynamic>>()) {
-      final emp = (r['payslips'] as Map<String, dynamic>)['employee_id']
-          as String;
-      final amt = Decimal.tryParse((r['amount'] ?? '0').toString()) ??
-          Decimal.zero;
-      basicByEmp[emp] = (basicByEmp[emp] ?? Decimal.zero) + amt;
-    }
-    if (basicByEmp.isNotEmpty) {
-      // PostgREST has no scalar-add; read-modify-write per employee.
-      final empRows = await _client
-          .from('employees')
-          .select('id, accrued_thirteenth_month_basis')
-          .inFilter('id', basicByEmp.keys.toList());
-      for (final row
-          in (empRows as List<dynamic>).cast<Map<String, dynamic>>()) {
-        final empId = row['id'] as String;
-        final current = Decimal.tryParse(
-                (row['accrued_thirteenth_month_basis'] ?? '0').toString()) ??
-            Decimal.zero;
-        final delta = basicByEmp[empId] ?? Decimal.zero;
-        final next = current + delta;
-        await _client
-            .from('employees')
-            .update({'accrued_thirteenth_month_basis': next.toString()})
-            .eq('id', empId);
-      }
-    }
+    // 4.5 (removed) Per-release 13th-month accrual tick-up. The UI and
+    // distribute flow now live-compute `(Σ basic − Σ late) ÷ 12` directly
+    // from payslip_lines, so no stored running value is needed. The
+    // legacy `employees.accrued_thirteenth_month_basis` column is kept
+    // for backward-compat but is no longer written on release (and is
+    // zeroed on distribution by `distributeThirteenthMonth`).
 
     // 5. Flip the run to RELEASED
     await _client.from('payroll_runs').update({
@@ -564,18 +545,147 @@ class PayrollRepository {
     }).eq('id', runId);
   }
 
+  /// Live-computed 13th-month payout per employee for a given run.
+  ///
+  /// For each requested employee, sums BASIC_PAY and LATE_UT_DEDUCTION
+  /// across their payslips whose run is RELEASED or IS the current run,
+  /// bounded by:
+  ///   - **upper:** current run's `period_end` (defensive — shouldn't pick
+  ///     up future-period payslips).
+  ///   - **lower:** `period_end` of the most recent prior run where the
+  ///     same employee received a THIRTEENTH_MONTH_PAY line (exclusive).
+  ///
+  /// Payout = `max(0, (Σ basic − Σ late) ÷ 12)`, rounded 2dp. Returns a
+  /// map keyed by employee_id; employees with no eligible payslips get a
+  /// zero row.
+  Future<Map<String, LiveThirteenthMonth>> thirteenthMonthPayoutsForRun(
+    String runId,
+    List<String> employeeIds,
+  ) async {
+    if (employeeIds.isEmpty) return const {};
+
+    // Upper bound = current run's period_end.
+    final runRow = await _client
+        .from('payroll_runs')
+        .select('period_end')
+        .eq('id', runId)
+        .single();
+    final currentEndStr = runRow['period_end'] as String?;
+    final currentEnd = currentEndStr == null
+        ? null
+        : DateTime.parse(currentEndStr);
+
+    final rows = await _client
+        .from('payslips')
+        .select(
+          'employee_id, '
+          'payroll_runs!inner(id, status, period_end), '
+          'payslip_lines(category, amount)',
+        )
+        .inFilter('employee_id', employeeIds) as List<dynamic>;
+
+    final empAgg = <String, _EmpLive13th>{};
+    for (final raw in rows.cast<Map<String, dynamic>>()) {
+      final empId = raw['employee_id'] as String;
+      final run = raw['payroll_runs'] as Map<String, dynamic>?;
+      if (run == null) continue;
+      final status = run['status'] as String?;
+      final thisRunId = run['id'] as String?;
+      final endStr = run['period_end'] as String?;
+      final end = endStr == null ? null : DateTime.parse(endStr);
+
+      Decimal basic = Decimal.zero;
+      Decimal late = Decimal.zero;
+      bool hasThirteenth = false;
+      final lines = (raw['payslip_lines'] as List<dynamic>?)
+              ?.cast<Map<String, dynamic>>() ??
+          const [];
+      for (final l in lines) {
+        final cat = l['category'] as String?;
+        final amt = Decimal.tryParse((l['amount'] ?? '0').toString()) ??
+            Decimal.zero;
+        if (cat == 'BASIC_PAY') {
+          basic += amt;
+        } else if (cat == 'LATE_UT_DEDUCTION') {
+          late += amt;
+        } else if (cat == 'THIRTEENTH_MONTH_PAY') {
+          hasThirteenth = true;
+        }
+      }
+
+      final agg = empAgg.putIfAbsent(empId, () => _EmpLive13th());
+      // Track last prior distribution boundary (exclude current run — its
+      // line gets inserted during distribution; we still need to include
+      // its basic/late in the sum).
+      if (hasThirteenth && thisRunId != runId && end != null) {
+        if (agg.lastDistEnd == null || end.isAfter(agg.lastDistEnd!)) {
+          agg.lastDistEnd = end;
+        }
+      }
+      agg.records.add(_EmpLive13thRecord(
+        status: status,
+        isCurrentRun: thisRunId == runId,
+        periodEnd: end,
+        basic: basic,
+        late: late,
+      ));
+    }
+
+    final out = <String, LiveThirteenthMonth>{};
+    for (final empId in employeeIds) {
+      final agg = empAgg[empId];
+      if (agg == null) {
+        out[empId] = LiveThirteenthMonth.zero();
+        continue;
+      }
+      Decimal sumBasic = Decimal.zero;
+      Decimal sumLate = Decimal.zero;
+      for (final r in agg.records) {
+        if (!r.isCurrentRun && r.status != 'RELEASED') continue;
+        if (r.periodEnd == null) continue;
+        if (agg.lastDistEnd != null &&
+            !r.periodEnd!.isAfter(agg.lastDistEnd!)) {
+          continue;
+        }
+        if (currentEnd != null && r.periodEnd!.isAfter(currentEnd)) continue;
+        sumBasic += r.basic;
+        sumLate += r.late;
+      }
+      final net = sumBasic - sumLate;
+      final netClamped = net < Decimal.zero ? Decimal.zero : net;
+      final payout = netClamped <= Decimal.zero
+          ? Decimal.zero
+          : (netClamped / Decimal.fromInt(12))
+              .toDecimal(scaleOnInfinitePrecision: 10)
+              .round(scale: 2);
+      out[empId] = LiveThirteenthMonth(
+        totalBasic: sumBasic,
+        totalLate: sumLate,
+        netBasic: netClamped,
+        payout: payout,
+        sinceLastDistribution: agg.lastDistEnd,
+      );
+    }
+    return out;
+  }
+
   /// Distribute 13th-month pay on the given run for the given employees.
   ///
+  /// Payout per employee is **live-computed** from `payslip_lines`:
+  /// `(Σ basic − Σ late) ÷ 12` across RELEASED payslips plus this run,
+  /// scoped since the employee's last distribution. No stored running
+  /// value is consulted.
+  ///
   /// For each employee:
-  ///   1. Insert a `THIRTEENTH_MONTH_PAY` payslip_lines row on their payslip
-  ///      in this run (amount = accruedBasis / 12, rounded to 2dp).
-  ///   2. Zero their `accrued_thirteenth_month_basis`.
-  ///   3. Add the payout to `payslips.gross_pay` and `payslips.net_pay` so
-  ///      Summary tab totals reflect the new amount without a recompute.
+  ///   1. Insert a `THIRTEENTH_MONTH_PAY` payslip_lines row on their
+  ///      payslip in this run.
+  ///   2. Zero their legacy `accrued_thirteenth_month_basis` column
+  ///      (kept for backward-compat; not authoritative).
+  ///   3. Add the payout to `payslips.gross_pay` and `payslips.net_pay`.
   /// Finally, flip `payroll_runs.is_thirteenth_month_distribution = true`.
   ///
-  /// Skips employees who already have a `THIRTEENTH_MONTH_PAY` line on this
-  /// run's payslip (idempotent re-click).
+  /// Skips employees who already have a `THIRTEENTH_MONTH_PAY` line on
+  /// this run's payslip (idempotent re-click).
   Future<DistributeThirteenthMonthResult> distributeThirteenthMonth({
     required String runId,
     required List<String> employeeIds,
@@ -589,17 +699,25 @@ class PayrollRepository {
       );
     }
 
-    // Fetch current basis per employee.
-    final empRows = await _client
-        .from('employees')
-        .select('id, accrued_thirteenth_month_basis')
-        .inFilter('id', employeeIds);
-    final basisByEmp = <String, Decimal>{
-      for (final r in (empRows as List<dynamic>).cast<Map<String, dynamic>>())
-        r['id'] as String: Decimal.tryParse(
-                (r['accrued_thirteenth_month_basis'] ?? '0').toString()) ??
-            Decimal.zero,
-    };
+    // Guard: distribution mutates payslip lines and totals. Refuse if the
+    // run isn't in REVIEW — RELEASED runs are sealed, and we don't want
+    // to mutate them post-finalization.
+    final statusRow = await _client
+        .from('payroll_runs')
+        .select('status')
+        .eq('id', runId)
+        .single();
+    final runStatus = statusRow['status'] as String?;
+    if (runStatus != 'REVIEW') {
+      throw StateError(
+        'Cannot distribute 13th month on run in state "$runStatus" — '
+        'only REVIEW runs accept distribution.',
+      );
+    }
+
+    // Live-compute payouts for everyone in one batch.
+    final liveByEmp =
+        await thirteenthMonthPayoutsForRun(runId, employeeIds);
 
     // Fetch each employee's payslip on this run + current totals for the
     // running-total update.
@@ -644,8 +762,8 @@ class PayrollRepository {
         errors.add('$empId: already distributed on this run');
         continue;
       }
-      final basis = basisByEmp[empId] ?? Decimal.zero;
-      final payout = thirteenthMonthPayout(basis);
+      final live = liveByEmp[empId] ?? LiveThirteenthMonth.zero();
+      final payout = live.payout;
       if (payout <= Decimal.zero) {
         errors.add('$empId: zero basis');
         continue;
@@ -663,7 +781,7 @@ class PayrollRepository {
           'sort_order': 450,
         });
 
-        // 2. Zero the accrual.
+        // 2. Zero the legacy accrual column (no longer authoritative).
         await _client
             .from('employees')
             .update({'accrued_thirteenth_month_basis': '0'})
@@ -969,6 +1087,121 @@ class PayrollRepository {
     return out;
   }
 
+  /// Breakdown of an employee's 13th-month accrual, scoped to a date range.
+  /// Source of truth is `payslip_lines` on RELEASED runs whose period
+  /// overlaps [from, to]. Payout is computed live as
+  /// `(Σ basic − Σ late) ÷ 12` — no stored running value, no drift.
+  Future<ThirteenthMonthBreakdown> thirteenthMonthBreakdownForEmployee(
+    String employeeId, {
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final rows = await _client
+        .from('payslips')
+        .select(
+          'id, created_at, '
+          'payroll_runs!inner(id, status, period_start, period_end, pay_date, released_at), '
+          'payslip_lines(category, amount, quantity, rate)',
+        )
+        .eq('employee_id', employeeId)
+        .eq('payroll_runs.status', 'RELEASED') as List<dynamic>;
+
+    final records = <_PayslipRecord>[];
+    for (final raw in rows.cast<Map<String, dynamic>>()) {
+      final run = raw['payroll_runs'] as Map<String, dynamic>?;
+      if (run == null) continue;
+      final releasedAt = run['released_at'] as String?;
+      final periodStart = run['period_start'] as String?;
+      // Sort key: released_at preferred, fall back to period_start / created_at.
+      final sortKey = releasedAt ?? periodStart ?? raw['created_at'] as String?;
+      if (sortKey == null) continue;
+
+      Decimal basic = Decimal.zero;
+      Decimal late = Decimal.zero;
+      final basicItems = <BasicPayItem>[];
+      final lines = (raw['payslip_lines'] as List<dynamic>?)
+              ?.cast<Map<String, dynamic>>() ??
+          const [];
+      for (final l in lines) {
+        final cat = l['category'] as String?;
+        final amt = Decimal.tryParse((l['amount'] ?? '0').toString()) ??
+            Decimal.zero;
+        if (cat == 'BASIC_PAY') {
+          basic += amt;
+          // Each BASIC_PAY line is one (days, rate, amount) bucket. Hourly/
+          // daily wage types produce one line per distinct daily rate;
+          // monthly-wage employees produce a single line with qty/rate both
+          // zero — we still keep the bucket so the UI can show the total.
+          basicItems.add(BasicPayItem(
+            days: Decimal.tryParse((l['quantity'] ?? '0').toString()) ??
+                Decimal.zero,
+            rate: Decimal.tryParse((l['rate'] ?? '0').toString()) ??
+                Decimal.zero,
+            amount: amt,
+          ));
+        } else if (cat == 'LATE_UT_DEDUCTION') {
+          late += amt;
+        }
+      }
+
+      records.add(_PayslipRecord(
+        sortKey: sortKey,
+        periodStart: periodStart == null ? null : DateTime.parse(periodStart),
+        periodEnd: run['period_end'] == null
+            ? null
+            : DateTime.parse(run['period_end'] as String),
+        payDate: run['pay_date'] == null
+            ? null
+            : DateTime.parse(run['pay_date'] as String),
+        basicPay: basic,
+        basicItems: basicItems,
+        lateDeduction: late,
+      ));
+    }
+
+    records.sort((a, b) => a.sortKey.compareTo(b.sortKey));
+
+    // Date-range filter: keep records whose period overlaps [from, to].
+    // Records missing both period fields fall through (can't decide), so
+    // we include them — better to surface suspicious data than hide it.
+    bool inRange(_PayslipRecord r) {
+      final s = r.periodStart;
+      final e = r.periodEnd;
+      if (s == null && e == null) return true;
+      if (e != null && e.isBefore(from)) return false;
+      if (s != null && s.isAfter(to)) return false;
+      return true;
+    }
+
+    Decimal totalBasic = Decimal.zero;
+    Decimal totalLate = Decimal.zero;
+    final entries = <ThirteenthMonthContribution>[];
+    for (final r in records) {
+      if (!inRange(r)) continue;
+      if (r.basicPay <= Decimal.zero) continue;
+      final net = r.basicPay - r.lateDeduction;
+      totalBasic += r.basicPay;
+      totalLate += r.lateDeduction;
+      entries.add(ThirteenthMonthContribution(
+        periodStart: r.periodStart,
+        periodEnd: r.periodEnd,
+        payDate: r.payDate,
+        basicPay: r.basicPay,
+        basicItems: r.basicItems,
+        lateDeduction: r.lateDeduction,
+        netBasic: net < Decimal.zero ? Decimal.zero : net,
+      ));
+    }
+
+    final totalNet = totalBasic - totalLate;
+    return ThirteenthMonthBreakdown(
+      contributions: entries,
+      totalBasic: totalBasic,
+      totalLate: totalLate,
+      totalNetBasic: totalNet < Decimal.zero ? Decimal.zero : totalNet,
+    );
+  }
+
   /// Recall PENDING_APPROVAL payslips in the run back to editable state.
   ///
   /// Dispatches to the `recall-payslip-approvals` Edge Function which
@@ -1054,4 +1287,193 @@ final payslipsByEmployeeProvider =
         from: q.from,
         to: q.to,
       );
+});
+
+/// Live-computed 13th-month figures for one employee at the moment of a
+/// specific payroll-run distribution. Source of truth is `payslip_lines`,
+/// not the legacy `accrued_thirteenth_month_basis` column.
+class LiveThirteenthMonth {
+  final Decimal totalBasic;
+  final Decimal totalLate;
+  final Decimal netBasic;
+  final Decimal payout;
+  final DateTime? sinceLastDistribution;
+  const LiveThirteenthMonth({
+    required this.totalBasic,
+    required this.totalLate,
+    required this.netBasic,
+    required this.payout,
+    this.sinceLastDistribution,
+  });
+  LiveThirteenthMonth.zero()
+      : totalBasic = Decimal.zero,
+        totalLate = Decimal.zero,
+        netBasic = Decimal.zero,
+        payout = Decimal.zero,
+        sinceLastDistribution = null;
+}
+
+class _EmpLive13th {
+  DateTime? lastDistEnd;
+  final List<_EmpLive13thRecord> records = [];
+}
+
+class _EmpLive13thRecord {
+  final String? status;
+  final bool isCurrentRun;
+  final DateTime? periodEnd;
+  final Decimal basic;
+  final Decimal late;
+  const _EmpLive13thRecord({
+    required this.status,
+    required this.isCurrentRun,
+    required this.periodEnd,
+    required this.basic,
+    required this.late,
+  });
+}
+
+/// One (days, daily rate, amount) bucket from a payslip's BASIC_PAY lines.
+/// Multiple buckets per payslip are possible when the effective daily rate
+/// varies across the period (rate changes, overrides, etc.).
+class BasicPayItem {
+  final Decimal days;
+  final Decimal rate;
+  final Decimal amount;
+  const BasicPayItem({
+    required this.days,
+    required this.rate,
+    required this.amount,
+  });
+}
+
+/// One released payslip that contributed to an employee's 13th-month accrual.
+/// `netBasic = basicPay − lateDeduction` — the per-period contribution to
+/// the DOLE numerator. No ÷12 at the per-release level; that division is
+/// applied once at the grand total.
+class ThirteenthMonthContribution {
+  final DateTime? periodStart;
+  final DateTime? periodEnd;
+  final DateTime? payDate;
+  final Decimal basicPay;
+  final List<BasicPayItem> basicItems;
+  final Decimal lateDeduction;
+  final Decimal netBasic;
+  const ThirteenthMonthContribution({
+    required this.periodStart,
+    required this.periodEnd,
+    required this.payDate,
+    required this.basicPay,
+    required this.basicItems,
+    required this.lateDeduction,
+    required this.netBasic,
+  });
+}
+
+class ThirteenthMonthBreakdown {
+  final List<ThirteenthMonthContribution> contributions;
+  final Decimal totalBasic;
+  final Decimal totalLate;
+  final Decimal totalNetBasic;
+  const ThirteenthMonthBreakdown({
+    required this.contributions,
+    required this.totalBasic,
+    required this.totalLate,
+    required this.totalNetBasic,
+  });
+
+  /// The DOLE 13th-month payout: `(Σ basic − Σ late) ÷ 12`, rounded 2dp
+  /// half-up. This is what HR should actually pay out — computed live from
+  /// payslip_lines, not from any stored running value.
+  Decimal get thirteenthMonthPayout {
+    if (totalNetBasic <= Decimal.zero) return Decimal.zero;
+    return (totalNetBasic / Decimal.fromInt(12))
+        .toDecimal(scaleOnInfinitePrecision: 10)
+        .round(scale: 2);
+  }
+}
+
+class _PayslipRecord {
+  final String sortKey;
+  final DateTime? periodStart;
+  final DateTime? periodEnd;
+  final DateTime? payDate;
+  final Decimal basicPay;
+  final List<BasicPayItem> basicItems;
+  final Decimal lateDeduction;
+  const _PayslipRecord({
+    required this.sortKey,
+    required this.periodStart,
+    required this.periodEnd,
+    required this.payDate,
+    required this.basicPay,
+    required this.basicItems,
+    required this.lateDeduction,
+  });
+}
+
+class ThirteenthMonthBreakdownQuery {
+  final String employeeId;
+  final DateTime from;
+  final DateTime to;
+  const ThirteenthMonthBreakdownQuery({
+    required this.employeeId,
+    required this.from,
+    required this.to,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ThirteenthMonthBreakdownQuery &&
+          other.employeeId == employeeId &&
+          other.from == from &&
+          other.to == to);
+
+  @override
+  int get hashCode => Object.hash(employeeId, from, to);
+}
+
+final thirteenthMonthBreakdownProvider = FutureProvider.family<
+    ThirteenthMonthBreakdown, ThirteenthMonthBreakdownQuery>((ref, q) {
+  return ref
+      .watch(payrollRepositoryProvider)
+      .thirteenthMonthBreakdownForEmployee(
+        q.employeeId,
+        from: q.from,
+        to: q.to,
+      );
+});
+
+/// Keyed query for the distribute-13th dialog to fetch batch payouts.
+class ThirteenthMonthPayoutsForRunQuery {
+  final String runId;
+  final List<String> employeeIds;
+  const ThirteenthMonthPayoutsForRunQuery({
+    required this.runId,
+    required this.employeeIds,
+  });
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! ThirteenthMonthPayoutsForRunQuery) return false;
+    if (other.runId != runId) return false;
+    if (other.employeeIds.length != employeeIds.length) return false;
+    for (var i = 0; i < employeeIds.length; i++) {
+      if (other.employeeIds[i] != employeeIds[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hash(runId, Object.hashAll(employeeIds));
+}
+
+final thirteenthMonthPayoutsForRunProvider = FutureProvider.family<
+    Map<String, LiveThirteenthMonth>,
+    ThirteenthMonthPayoutsForRunQuery>((ref, q) {
+  return ref
+      .watch(payrollRepositoryProvider)
+      .thirteenthMonthPayoutsForRun(q.runId, q.employeeIds);
 });

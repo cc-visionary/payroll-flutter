@@ -79,7 +79,6 @@ final _groups = <_NavGroup>[
   ]),
   _NavGroup('Time & Pay', [
     _NavItem('Attendance', Icons.schedule_outlined, '/attendance', _always),
-    _NavItem('Leave', Icons.beach_access_outlined, '/leave', _always),
     _NavItem('Payroll', Icons.payments_outlined, '/payroll', _always),
     _NavItem('Adjuncts', Icons.receipt_long_outlined, '/adjuncts', _always),
     _NavItem('Compensation', Icons.account_balance_wallet_outlined,

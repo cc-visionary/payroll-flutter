@@ -80,6 +80,12 @@ class _PayslipsTabState extends ConsumerState<PayslipsTab> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _TotalsRow(totals: totals),
+                const SizedBox(height: 12),
+                _ThirteenthMonthCard(
+                  employeeId: widget.employee.id,
+                  from: _from,
+                  to: _to,
+                ),
                 const SizedBox(height: 16),
                 _History(items: items),
               ],
@@ -469,5 +475,376 @@ class _PayslipRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+/// Full-width breakdown of the 13th-month accrual within the current date
+/// range. Computed live from `payslip_lines` on RELEASED runs whose period
+/// overlaps the range — no stored running value, no drift.
+/// Payout = `(Σ basic − Σ late) ÷ 12`, applied once at the total row.
+class _ThirteenthMonthCard extends ConsumerWidget {
+  final String employeeId;
+  final DateTime from;
+  final DateTime to;
+  const _ThirteenthMonthCard({
+    required this.employeeId,
+    required this.from,
+    required this.to,
+  });
+
+  static const _bg = Color(0xFFEEF2FF);
+  static const _fg = Color(0xFF4338CA);
+  static const _fgSoft = Color(0xFF6366F1);
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(thirteenthMonthBreakdownProvider(
+      ThirteenthMonthBreakdownQuery(
+        employeeId: employeeId,
+        from: from,
+        to: to,
+      ),
+    ));
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _bg,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '13th Month Accrued',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _fg,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Payout at year-end or separation · Scoped to selected date range',
+                      style: TextStyle(fontSize: 11, color: _fgSoft),
+                    ),
+                  ],
+                ),
+              ),
+              async.when(
+                loading: () => const SizedBox(
+                  height: 22,
+                  width: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                error: (_, __) => const Text(
+                  '—',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: _fg,
+                  ),
+                ),
+                data: (bd) => Text(
+                  Money.fmtPhp(bd.thirteenthMonthPayout),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: _fg,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.55),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Text(
+              'Formula: (Σ Basic Pay − Σ Late/UT) ÷ 12',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: _fg,
+                fontFamily: 'GeistMono',
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          async.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(
+                child: SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
+            error: (e, _) => Text(
+              'Could not load breakdown: $e',
+              style: const TextStyle(fontSize: 12, color: Color(0xFFB91C1C)),
+            ),
+            data: (bd) {
+              if (bd.contributions.isEmpty) {
+                return Text(
+                  'No released payslips in this date range.',
+                  style: TextStyle(fontSize: 12, color: _fg.withValues(alpha: 0.8)),
+                );
+              }
+              return _ThirteenthMonthTable(breakdown: bd);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThirteenthMonthTable extends StatelessWidget {
+  final ThirteenthMonthBreakdown breakdown;
+  const _ThirteenthMonthTable({required this.breakdown});
+
+  List<ThirteenthMonthContribution> get contributions => breakdown.contributions;
+
+  static const _fg = _ThirteenthMonthCard._fg;
+  static const _fgSoft = _ThirteenthMonthCard._fgSoft;
+
+  static const _monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  String _periodLabel(ThirteenthMonthContribution c) {
+    final s = c.periodStart;
+    final e = c.periodEnd;
+    if (s == null && e == null) {
+      return c.payDate == null
+          ? '—'
+          : 'Pay ${_fmtDate(c.payDate!)}';
+    }
+    if (s != null && e != null) {
+      final sameMonth = s.year == e.year && s.month == e.month;
+      if (sameMonth) {
+        return '${_monthNames[s.month - 1]} ${s.day}–${e.day}, ${s.year}';
+      }
+      final sameYear = s.year == e.year;
+      if (sameYear) {
+        return '${_monthNames[s.month - 1]} ${s.day} – '
+            '${_monthNames[e.month - 1]} ${e.day}, ${s.year}';
+      }
+      return '${_fmtDate(s)} – ${_fmtDate(e)}';
+    }
+    return _fmtDate((s ?? e)!);
+  }
+
+  String _fmtDate(DateTime d) =>
+      '${_monthNames[d.month - 1]} ${d.day}, ${d.year}';
+
+  @override
+  Widget build(BuildContext context) {
+    final divider = Colors.white.withValues(alpha: 0.7);
+
+    TableRow header() => TableRow(
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.45),
+          ),
+          children: [
+            _th('Period'),
+            _th('Basic Pay', end: true),
+            _th('Late/UT', end: true),
+            _th('Net Basic', end: true),
+          ],
+        );
+
+    TableRow rowFor(ThirteenthMonthContribution c) => TableRow(
+          children: [
+            _cell(_periodLabel(c)),
+            _basicPayCell(c),
+            _cell(
+              c.lateDeduction <= Decimal.zero
+                  ? '—'
+                  : '−${Money.fmtPhp(c.lateDeduction)}',
+              end: true,
+              mono: true,
+              color: c.lateDeduction <= Decimal.zero
+                  ? _fgSoft
+                  : const Color(0xFFB91C1C),
+            ),
+            _cell(Money.fmtPhp(c.netBasic),
+                end: true, mono: true, bold: true),
+          ],
+        );
+
+    TableRow totalRow() => TableRow(
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: divider, width: 1)),
+          ),
+          children: [
+            _cell('Total (${contributions.length} '
+                'release${contributions.length == 1 ? "" : "s"})',
+                bold: true),
+            _cell(Money.fmtPhp(breakdown.totalBasic),
+                end: true, mono: true, bold: true),
+            _cell(
+              breakdown.totalLate <= Decimal.zero
+                  ? '—'
+                  : '−${Money.fmtPhp(breakdown.totalLate)}',
+              end: true,
+              mono: true,
+              bold: true,
+              color: breakdown.totalLate <= Decimal.zero
+                  ? _fgSoft
+                  : const Color(0xFFB91C1C),
+            ),
+            _cell(Money.fmtPhp(breakdown.totalNetBasic),
+                end: true, mono: true, bold: true),
+          ],
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Table(
+          columnWidths: const {
+            0: FlexColumnWidth(2.4),
+            1: FlexColumnWidth(1.2),
+            2: FlexColumnWidth(1.1),
+            3: FlexColumnWidth(1.2),
+          },
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          children: [
+            header(),
+            for (final c in contributions) rowFor(c),
+            totalRow(),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '13th Month = ${Money.fmtPhp(breakdown.totalNetBasic)} ÷ 12',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _fg,
+                    fontFamily: 'GeistMono',
+                  ),
+                ),
+              ),
+              Text(
+                Money.fmtPhp(breakdown.thirteenthMonthPayout),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: _fg,
+                  fontFamily: 'GeistMono',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _th(String text, {bool end = false}) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Text(
+          text,
+          textAlign: end ? TextAlign.end : TextAlign.start,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: _fg,
+            letterSpacing: 0.3,
+          ),
+        ),
+      );
+
+  Widget _cell(
+    String text, {
+    bool end = false,
+    bool mono = false,
+    bool bold = false,
+    Color? color,
+  }) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+        child: Text(
+          text,
+          textAlign: end ? TextAlign.end : TextAlign.start,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+            fontFamily: mono ? 'GeistMono' : null,
+            color: color ?? _fg,
+          ),
+        ),
+      );
+
+  /// Renders the Basic Pay cell showing each `days × daily wage` bucket on its
+  /// own line, with the payslip's total beneath in bold. Monthly-wage rows
+  /// come through with `days == 0 && rate == 0` — we skip the composition
+  /// line there and just show the total.
+  Widget _basicPayCell(ThirteenthMonthContribution c) {
+    final items = c.basicItems
+        .where((i) => i.days > Decimal.zero && i.rate > Decimal.zero)
+        .toList();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (final i in items)
+            Text(
+              '${_fmtDays(i.days)} × ${Money.fmtPhp(i.rate)}',
+              style: const TextStyle(
+                fontSize: 11,
+                fontFamily: 'GeistMono',
+                color: _fgSoft,
+              ),
+            ),
+          if (items.isNotEmpty) const SizedBox(height: 2),
+          Text(
+            Money.fmtPhp(c.basicPay),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              fontFamily: 'GeistMono',
+              color: _fg,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _fmtDays(Decimal d) {
+    // Drop trailing zeros — "10.000" → "10", "9.500" → "9.5".
+    final s = d.toString();
+    if (!s.contains('.')) return '$s days';
+    var trimmed = s.replaceFirst(RegExp(r'0+$'), '');
+    if (trimmed.endsWith('.')) trimmed = trimmed.substring(0, trimmed.length - 1);
+    return '$trimmed ${d == Decimal.one ? "day" : "days"}';
   }
 }

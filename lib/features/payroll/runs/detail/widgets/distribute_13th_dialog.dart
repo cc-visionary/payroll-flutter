@@ -37,27 +37,45 @@ class _Distribute13thDialogState extends ConsumerState<Distribute13thDialog> {
     try {
       final repo = ref.read(payrollRepositoryProvider);
       final raw = await repo.payslipListForRun(widget.runId);
-      final rows = <_Row>[];
+      final employeeIds = <String>[];
+      final empById = <String, Map<String, dynamic>>{};
+      final payslipIdByEmp = <String, String>{};
+      final alreadyByEmp = <String, bool>{};
       for (final r in raw) {
         final emp = r['employees'] as Map<String, dynamic>?;
         if (emp == null) continue;
-        final basis = Decimal.tryParse(
-                (emp['accrued_thirteenth_month_basis'] ?? '0').toString()) ??
-            Decimal.zero;
-        final payout = PayrollRepository.thirteenthMonthPayout(basis);
+        final empId = emp['id'] as String;
+        employeeIds.add(empId);
+        empById[empId] = emp;
+        payslipIdByEmp[empId] = r['id'] as String;
         final lines = (r['payslip_lines'] as List<dynamic>?)
                 ?.cast<Map<String, dynamic>>() ??
             const <Map<String, dynamic>>[];
-        final alreadyDistributed = lines.any(
+        alreadyByEmp[empId] = lines.any(
             (l) => (l['category'] as String?) == 'THIRTEENTH_MONTH_PAY');
+      }
+
+      // Live compute: (Σ basic − Σ late) ÷ 12 per employee, scoped to
+      // RELEASED payslips + this run since their last distribution.
+      final live = await repo.thirteenthMonthPayoutsForRun(
+        widget.runId,
+        employeeIds,
+      );
+
+      final rows = <_Row>[];
+      for (final empId in employeeIds) {
+        final emp = empById[empId]!;
+        final l = live[empId] ?? LiveThirteenthMonth.zero();
         rows.add(_Row(
-          employeeId: emp['id'] as String,
+          employeeId: empId,
           employeeNumber: (emp['employee_number'] as String?) ?? '—',
           name: _nameFor(emp),
-          basis: basis,
-          payout: payout,
-          alreadyDistributed: alreadyDistributed,
-          payslipId: r['id'] as String,
+          basis: l.netBasic,
+          payout: l.payout,
+          totalBasic: l.totalBasic,
+          totalLate: l.totalLate,
+          alreadyDistributed: alreadyByEmp[empId] ?? false,
+          payslipId: payslipIdByEmp[empId] ?? '',
         ));
       }
       rows.sort((a, b) => a.employeeNumber.compareTo(b.employeeNumber));
@@ -142,9 +160,10 @@ class _Distribute13thDialogState extends ConsumerState<Distribute13thDialog> {
                     children: [
                       const Text(
                         'Adds a "13th Month Pay" line to each selected '
-                        "employee's payslip on this run, then resets "
-                        'their accrued basis. The basis is the sum of '
-                        'basic pay since their last distribution.',
+                        "employee's payslip on this run. Payout is "
+                        'live-computed from released payslips plus this '
+                        'run: (Σ Basic Pay − Σ Late/UT) ÷ 12, scoped '
+                        "since the employee's last distribution.",
                         style: TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                       const SizedBox(height: 4),
@@ -191,8 +210,8 @@ class _Distribute13thDialogState extends ConsumerState<Distribute13thDialog> {
                                   r.alreadyDistributed
                                       ? 'Already distributed on this run'
                                       : r.basis <= Decimal.zero
-                                          ? 'Not eligible — zero basis'
-                                          : 'Basis ${Money.fmtPhp(r.basis)}  →  Pay ${Money.fmtPhp(r.payout)}',
+                                          ? 'Not eligible — no net basic earned'
+                                          : 'Basic ${Money.fmtPhp(r.totalBasic)} − Late ${Money.fmtPhp(r.totalLate)} = ${Money.fmtPhp(r.basis)} ÷ 12 → ${Money.fmtPhp(r.payout)}',
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: r.eligible
@@ -264,6 +283,8 @@ class _Row {
   final String name;
   final Decimal basis;
   final Decimal payout;
+  final Decimal totalBasic;
+  final Decimal totalLate;
   final bool alreadyDistributed;
   final String payslipId;
   _Row({
@@ -272,6 +293,8 @@ class _Row {
     required this.name,
     required this.basis,
     required this.payout,
+    required this.totalBasic,
+    required this.totalLate,
     required this.alreadyDistributed,
     required this.payslipId,
   });

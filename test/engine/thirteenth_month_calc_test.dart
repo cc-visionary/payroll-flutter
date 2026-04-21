@@ -3,20 +3,24 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/data/repositories/payroll_repository.dart';
 
 void main() {
-  group('thirteenthMonthPayout', () {
-    test('divides basis by 12 with banker rounding to 2dp', () {
-      // Annual basic = ₱154,830 → payout = 12,902.50 exactly.
+  group('thirteenthMonthPayout (provision model)', () {
+    // Under the provision model, `accrued_thirteenth_month_basis` already
+    // holds the 13th-month earned (per-release `(basic - late) / 12`
+    // summed over releases), so the payout equals the accrued basis.
+
+    test('payout equals the accrued basis', () {
+      // A full year's provisions summed to exactly one month's basic.
       expect(
-        PayrollRepository.thirteenthMonthPayout(Decimal.parse('154830')),
+        PayrollRepository.thirteenthMonthPayout(Decimal.parse('12902.50')),
         Decimal.parse('12902.50'),
       );
     });
 
-    test('rounds half-up on 2nd decimal', () {
-      // 1 / 12 = 0.0833333... → 0.08
+    test('mid-year basis pays out whatever has accrued', () {
+      // Only a few provisions so far — payout is proportionally small.
       expect(
-        PayrollRepository.thirteenthMonthPayout(Decimal.parse('1')),
-        Decimal.parse('0.08'),
+        PayrollRepository.thirteenthMonthPayout(Decimal.parse('807.69')),
+        Decimal.parse('807.69'),
       );
     });
 

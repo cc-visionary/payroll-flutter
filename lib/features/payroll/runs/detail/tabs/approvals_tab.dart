@@ -7,6 +7,22 @@ import '../../../../../data/repositories/payroll_repository.dart';
 import '../../../payslips/payslip_pdf_context.dart';
 import '../providers.dart';
 
+/// Resolves an employee's department name with fallback: direct
+/// `employees.departments.name` first, then the department attached to
+/// their role scorecard (`role_scorecards.departments.name`). Returns null
+/// if both are missing. EMP005-009 sit at the scorecard level, which is
+/// why the direct lookup alone showed "—".
+String? _deptFor(Map<String, dynamic>? emp) {
+  final direct =
+      (emp?['departments'] as Map<String, dynamic>?)?['name'] as String?;
+  if (direct != null && direct.trim().isNotEmpty) return direct;
+  final scorecard = emp?['role_scorecards'] as Map<String, dynamic>?;
+  final scDept = (scorecard?['departments'] as Map<String, dynamic>?)
+      ?['name'] as String?;
+  if (scDept != null && scDept.trim().isNotEmpty) return scDept;
+  return null;
+}
+
 class PayrollApprovalsTab extends ConsumerStatefulWidget {
   final String runId;
   const PayrollApprovalsTab({super.key, required this.runId});
@@ -537,8 +553,9 @@ class _ApprovalRow extends StatelessWidget {
         .where((s) => s != null && (s as String).isNotEmpty)
         .join(' ');
     final number = emp?['employee_number'] as String? ?? '—';
-    final dept =
-        (emp?['departments'] as Map<String, dynamic>?)?['name'] as String?;
+    // Falls back to role_scorecards.departments.name when the employee has
+    // no direct department_id (department is carried by the role card).
+    final dept = _deptFor(emp);
     final sentAt = row['lark_approval_sent_at'] as String?;
     final status = row['lark_approval_status'] as String?;
     // `approval_status` (our local state machine) drives the row action —
@@ -761,8 +778,7 @@ class _ApprovalDetailDialog extends StatelessWidget {
         .where((s) => s != null && (s as String).isNotEmpty)
         .join(' ');
     final number = emp?['employee_number'] as String? ?? '—';
-    final dept =
-        (emp?['departments'] as Map<String, dynamic>?)?['name'] as String?;
+    final dept = _deptFor(emp);
     final payslipId = row['id'] as String?;
     final payslipNumber = row['payslip_number'] as String?;
     final status = row['lark_approval_status'] as String?;

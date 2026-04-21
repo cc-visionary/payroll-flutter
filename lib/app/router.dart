@@ -29,7 +29,6 @@ import '../features/compensation/compensation_screen.dart';
 import '../features/compliance/compliance_screen.dart';
 import '../features/documents/documents_screen.dart';
 import '../features/hiring/hiring_screen.dart';
-import '../features/leave/leave_requests_screen.dart';
 import '../features/offboarding/offboarding_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/org_chart/org_chart_screen.dart';
@@ -128,7 +127,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/payslips/:id',
             builder: (c, s) => PayslipPreviewScreen(payslipId: s.pathParameters['id']!),
           ),
-          GoRoute(path: '/leave', builder: (c, s) => const LeaveRequestsScreen()),
           GoRoute(path: '/adjuncts', builder: (c, s) => const AdjunctsScreen()),
           GoRoute(path: '/hiring', builder: (c, s) => const HiringScreen()),
           GoRoute(path: '/onboarding', builder: (c, s) => const OnboardingScreen()),

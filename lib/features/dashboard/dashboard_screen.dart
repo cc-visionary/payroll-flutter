@@ -251,11 +251,12 @@ class _DashboardBody extends ConsumerWidget {
 // Layout helpers
 // ---------------------------------------------------------------------------
 
-/// Responsive grid row. When [equalSize] is true (default), cards in the same
-/// row get equal width (Expanded) and equal height (IntrinsicHeight); children
-/// MUST NOT use nested LayoutBuilder-based layouts, or intrinsic sizing will
-/// throw. When [equalSize] is false, falls back to a Wrap — use this for
-/// internal tile grids inside a card.
+/// Responsive grid row. [equalSize] (default true) gives cards in the same
+/// row equal width via Expanded; their heights follow the tallest child
+/// naturally (no IntrinsicHeight, so children may freely contain
+/// LayoutBuilder / fl_chart / nested ResponsiveRow). When [equalSize] is
+/// false, falls back to a Wrap — use this for internal tile grids inside
+/// a card.
 class _ResponsiveRow extends StatelessWidget {
   final List<Widget> children;
   final double minColWidth;
@@ -285,26 +286,26 @@ class _ResponsiveRow extends StatelessWidget {
         );
       }
 
-      // Split children into rows of [cols] and render each row as an
-      // IntrinsicHeight + Row(stretch) so every tile in a row gets the same
-      // height, and Expanded gives equal widths.
+      // Split children into rows of [cols] and render each as a plain Row
+      // with Expanded for equal widths. Tallest child sets the row height;
+      // shorter cards align to top. We intentionally avoid IntrinsicHeight
+      // because children may contain LayoutBuilder-based widgets (fl_chart,
+      // nested _ResponsiveRow) that cannot answer intrinsic-size queries.
       final rows = <Widget>[];
       for (var i = 0; i < children.length; i += cols) {
         final end = (i + cols).clamp(0, children.length);
         final slice = children.sublist(i, end);
         rows.add(
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var j = 0; j < cols; j++) ...[
-                  if (j > 0) SizedBox(width: spacing),
-                  Expanded(
-                    child: j < slice.length ? slice[j] : const SizedBox(),
-                  ),
-                ],
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var j = 0; j < cols; j++) ...[
+                if (j > 0) SizedBox(width: spacing),
+                Expanded(
+                  child: j < slice.length ? slice[j] : const SizedBox(),
+                ),
               ],
-            ),
+            ],
           ),
         );
         if (end < children.length) {
@@ -613,20 +614,17 @@ class _BarTrack extends StatelessWidget {
         borderRadius: BorderRadius.circular(LuxiumRadius.lg),
       ),
       clipBehavior: Clip.antiAlias,
-      child: LayoutBuilder(builder: (context, c) {
-        return TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: fraction.clamp(0.0, 1.0)),
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeOutCubic,
-          builder: (context, v, _) {
-            final w = (c.maxWidth * v).clamp(0.0, c.maxWidth);
-            return Align(
-              alignment: Alignment.centerLeft,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                curve: Curves.easeOut,
-                width: w,
-                height: height,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: fraction.clamp(0.0, 1.0)),
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeOutCubic,
+        builder: (context, v, _) {
+          return Align(
+            alignment: Alignment.centerLeft,
+            child: FractionallySizedBox(
+              widthFactor: v.clamp(0.0, 1.0),
+              heightFactor: 1,
+              child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.centerLeft,
@@ -641,10 +639,10 @@ class _BarTrack extends StatelessWidget {
                   borderRadius: BorderRadius.circular(LuxiumRadius.lg),
                 ),
               ),
-            );
-          },
-        );
-      }),
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -712,25 +710,28 @@ class _DonutWithLegendState extends State<_DonutWithLegend> {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              PieChart(PieChartData(
-                sections: sections,
-                centerSpaceRadius: 38,
-                sectionsSpace: 2,
-                startDegreeOffset: -90,
-                pieTouchData: PieTouchData(
-                  enabled: true,
-                  touchCallback: (event, response) {
-                    final idx = response?.touchedSection?.touchedSectionIndex;
-                    if (!event.isInterestedForInteractions ||
-                        idx == null ||
-                        idx < 0) {
-                      _setHover(null);
-                    } else {
-                      _setHover(idx);
-                    }
-                  },
-                ),
-              )),
+              ExcludeSemantics(
+                child: PieChart(PieChartData(
+                  sections: sections,
+                  centerSpaceRadius: 38,
+                  sectionsSpace: 2,
+                  startDegreeOffset: -90,
+                  pieTouchData: PieTouchData(
+                    enabled: true,
+                    touchCallback: (event, response) {
+                      final idx =
+                          response?.touchedSection?.touchedSectionIndex;
+                      if (!event.isInterestedForInteractions ||
+                          idx == null ||
+                          idx < 0) {
+                        _setHover(null);
+                      } else {
+                        _setHover(idx);
+                      }
+                    },
+                  ),
+                )),
+              ),
               IgnorePointer(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -992,7 +993,7 @@ class _TenureBarsState extends State<_TenureBars> {
       curve: Curves.easeOut,
     );
 
-    return SizedBox(height: 180, child: chart);
+    return SizedBox(height: 180, child: ExcludeSemantics(child: chart));
   }
 }
 
