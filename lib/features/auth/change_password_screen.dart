@@ -43,17 +43,32 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     try {
       final client = Supabase.instance.client;
       await client.auth.updateUser(UserAttributes(password: pw));
-      final userId = client.auth.currentUser!.id;
-      await client
-          .from('users')
-          .update({'must_change_password': false})
-          .eq('id', userId);
+      // SECURITY DEFINER RPC: flips must_change_password=false for auth.uid().
+      // Going through the `users` table directly relied on column-level grants
+      // + RLS that can silently drop the row under some permission shapes —
+      // the RPC avoids that trap so the flag always clears.
+      await client.rpc('clear_must_change_password');
       ref.invalidate(userProfileProvider);
       if (mounted) context.go('/dashboard');
+    } on AuthException catch (e) {
+      setState(() => _error = _friendlyAuthError(e));
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  String _friendlyAuthError(AuthException e) {
+    final code = (e is AuthApiException ? e.code : null) ?? '';
+    final msg = e.message;
+    switch (code) {
+      case 'same_password':
+        return 'Your new password must be different from the temporary password.';
+      case 'weak_password':
+        return 'That password is too weak. Pick something longer or less common.';
+      default:
+        return msg;
     }
   }
 

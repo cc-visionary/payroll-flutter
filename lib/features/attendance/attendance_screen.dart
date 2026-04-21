@@ -1340,10 +1340,9 @@ class _DashedLinePainter extends CustomPainter {
 }
 
 // ---------------------------------------------------------------------------
-// Two-field date range picker — picks From and To independently via separate
-// showDatePicker dialogs. Avoids the built-in showDateRangePicker's UX
-// footguns (can't go to prior months when initialDateRange spans current
-// month; requires scrolling that isn't obvious on desktop).
+// Sync-range dialog. Uses Flutter's built-in showDateRangePicker (same widget
+// used by the payroll run dialog) so start + end are highlighted together,
+// plus a strip of quick-range chips for common windows.
 // ---------------------------------------------------------------------------
 class _RangePickerDialog extends StatefulWidget {
   final DateTime initialStart;
@@ -1364,31 +1363,23 @@ class _RangePickerDialogState extends State<_RangePickerDialog> {
   late DateTime _start = widget.initialStart;
   late DateTime _end = widget.initialEnd;
 
-  Future<void> _pickStart() async {
-    final d = await showDatePicker(
+  Future<void> _pickRange() async {
+    final picked = await showDateRangePicker(
       context: context,
-      initialDate: _start,
       firstDate: widget.firstDate,
       lastDate: widget.lastDate,
-      helpText: 'From',
+      initialDateRange: DateTimeRange(start: _start, end: _end),
+      helpText: 'Sync range',
+      saveText: 'Use range',
+      fieldStartLabelText: 'From',
+      fieldEndLabelText: 'To',
     );
-    if (d != null) {
+    if (picked != null) {
       setState(() {
-        _start = d;
-        if (_start.isAfter(_end)) _end = _start;
+        _start = picked.start;
+        _end = picked.end;
       });
     }
-  }
-
-  Future<void> _pickEnd() async {
-    final d = await showDatePicker(
-      context: context,
-      initialDate: _end.isBefore(_start) ? _start : _end,
-      firstDate: _start,
-      lastDate: widget.lastDate,
-      helpText: 'To',
-    );
-    if (d != null) setState(() => _end = d);
   }
 
   void _quickRange(int monthsBack) {
@@ -1416,24 +1407,23 @@ class _RangePickerDialogState extends State<_RangePickerDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.calendar_today, size: 16),
-                  label: Text('From: ${_fmt(_start)}'),
-                  onPressed: _pickStart,
+            InkWell(
+              onTap: _pickRange,
+              borderRadius: BorderRadius.circular(4),
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Date range',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  suffixIcon: Icon(Icons.date_range, size: 16),
+                ),
+                child: Text(
+                  '${_fmt(_start)}  →  ${_fmt(_end)}',
+                  style: const TextStyle(fontSize: 13),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.calendar_today, size: 16),
-                  label: Text('To: ${_fmt(_end)}'),
-                  onPressed: _pickEnd,
-                ),
-              ),
-            ]),
-            const SizedBox(height: 12),
+            ),
+            const SizedBox(height: 8),
             Text('$days day${days == 1 ? '' : 's'} selected',
                 style: const TextStyle(color: Colors.grey, fontSize: 12)),
             const SizedBox(height: 16),

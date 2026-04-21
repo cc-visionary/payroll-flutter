@@ -40,9 +40,20 @@ import 'shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authStateProvider);
+  // Nudge the router to re-run redirect whenever the async user profile
+  // resolves — otherwise a fresh sign-in can land on /dashboard before
+  // must_change_password has loaded, and the redirect never fires again.
+  final profileRefresh = ValueNotifier<int>(0);
+  ref.listen(userProfileProvider, (previous, next) {
+    profileRefresh.value++;
+  });
+  ref.onDispose(profileRefresh.dispose);
   return GoRouter(
     initialLocation: '/dashboard',
-    refreshListenable: GoRouterRefreshStream(Supabase.instance.client.auth.onAuthStateChange),
+    refreshListenable: Listenable.merge([
+      GoRouterRefreshStream(Supabase.instance.client.auth.onAuthStateChange),
+      profileRefresh,
+    ]),
     errorBuilder: (c, s) => const _NotFoundRedirect(),
     redirect: (context, state) {
       final loggedIn = auth.asData?.value != null;
