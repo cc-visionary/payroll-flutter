@@ -225,20 +225,20 @@ const seedUsers = <SeedUser>[
     passwordEnvKey: 'HR_PASSWORD',
     defaultPassword: 'HrAdmin123!',
     roleCode: 'HR_ADMIN',
-    appRole: 'HR',
+    appRole: 'HR_ADMIN',
   ),
   SeedUser(
     email: 'payroll@gamecove.ph',
     passwordEnvKey: 'PAYROLL_PASSWORD',
     defaultPassword: 'Payroll123!',
     roleCode: 'PAYROLL_ADMIN',
-    appRole: 'ADMIN',
+    appRole: 'PAYROLL_ADMIN',
   ),
   SeedUser(
     email: 'finance@gamecove.ph',
     passwordEnvKey: 'FINANCE_PASSWORD',
     defaultPassword: 'Finance123!',
     roleCode: 'FINANCE_MANAGER',
-    appRole: 'ADMIN',
+    appRole: 'FINANCE_MANAGER',
   ),
 ];

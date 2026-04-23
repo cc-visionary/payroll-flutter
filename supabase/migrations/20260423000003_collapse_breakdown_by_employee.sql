@@ -15,8 +15,13 @@
 -- The column shape stays identical EXCEPT `payslip_id` is removed. The Dart
 -- model `StatutoryPayableBreakdownRow` was updated in the same change so the
 -- repository keeps parsing rows correctly.
+--
+-- `drop view` (not `create or replace`) because Postgres forbids dropping
+-- a column from a replaced view. Grant is re-issued at the bottom of the file.
 
-create or replace view statutory_payable_breakdown_v as
+drop view if exists statutory_payable_breakdown_v cascade;
+
+create view statutory_payable_breakdown_v as
 with released_payslip as (
   select
     p.id                                          as payslip_id,

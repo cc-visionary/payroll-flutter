@@ -270,7 +270,7 @@ class PayrollRepository {
           '*, employees!inner(id, employee_number, first_name, middle_name, '
           'last_name, department_id, role_scorecard_id, hiring_entity_id, '
           'accrued_thirteenth_month_basis, '
-          'departments!employees_department_id_fkey(name), hiring_entities(code, name), '
+          'departments!employees_department_id_fkey(name), hiring_entities!employees_hiring_entity_id_fkey(code, name), '
           'role_scorecards(department_id, departments(name)), '
           'employee_bank_accounts(bank_code, bank_name, account_number, account_name, account_type, is_primary, deleted_at)), '
           'payslip_lines(id, category)',

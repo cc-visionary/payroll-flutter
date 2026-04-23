@@ -150,7 +150,7 @@ final dashboardDataProvider = FutureProvider<DashboardData>((ref) async {
             'id, employment_type, employment_status, hire_date, separation_date, '
             'department_id, hiring_entity_id, role_scorecard_id, deleted_at, '
             'departments!employees_department_id_fkey(name), '
-            'hiring_entities(name), '
+            'hiring_entities!employees_hiring_entity_id_fkey(name), '
             'role_scorecards(department_id, departments(name))')
         .eq('company_id', companyId)
         .isFilter('deleted_at', null),
