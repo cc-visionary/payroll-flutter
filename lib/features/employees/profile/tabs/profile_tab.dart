@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/money.dart';
 import '../../../../data/models/employee.dart';
 import '../../../auth/profile_provider.dart';
+import '../providers.dart';
 
 class ProfileTab extends ConsumerWidget {
   final Employee employee;
@@ -13,6 +14,16 @@ class ProfileTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(userProfileProvider).asData?.value;
     final isAdmin = profile?.isAdmin ?? false;
+
+    // Resolve the override entity name (when set) so HR sees the actual
+    // brand label instead of a UUID. The brand-allocation entity is already
+    // shown in the profile header.
+    final statutoryNameAsync = employee.statutoryEntityId == null
+        ? const AsyncValue<String?>.data(null)
+        : ref.watch(hiringEntityNameProvider(employee.statutoryEntityId!));
+    final statutoryEntityLabel = employee.statutoryEntityId == null
+        ? 'Inherits from brand allocation'
+        : (statutoryNameAsync.asData?.value ?? '…');
 
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -45,6 +56,7 @@ class ProfileTab extends ConsumerWidget {
                   : _fmtDate(employee.regularizationDate!),
             ),
             _KV('Job Title', employee.jobTitle ?? '—'),
+            _KV('Statutory Employer of Record', statutoryEntityLabel),
           ]),
         ),
         const SizedBox(height: 16),

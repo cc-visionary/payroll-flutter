@@ -9,6 +9,7 @@ import '../../../../widgets/syncing_dialog.dart';
 import '../../../auth/profile_provider.dart';
 import '../compute/compute_service.dart';
 import '../../payslips/payslip_pdf_context.dart';
+import 'finance_export.dart';
 import 'providers.dart';
 import 'tabs/approvals_tab.dart';
 import 'tabs/disbursement_tab.dart';
@@ -395,6 +396,12 @@ class _ActionBar extends ConsumerWidget {
             label: const Text('Export Payslips'),
           ),
         if (status == 'REVIEW' || status == 'RELEASED')
+          OutlinedButton.icon(
+            onPressed: () => _exportFinanceTracking(context, ref),
+            icon: const Icon(Icons.account_balance_wallet_outlined, size: 16),
+            label: const Text('Export for Finance'),
+          ),
+        if (status == 'REVIEW' || status == 'RELEASED')
           _SendLarkApprovalsButton(runId: detail.run.id),
         if (status == 'REVIEW')
           PopupMenuButton<String>(
@@ -432,6 +439,49 @@ class _ActionBar extends ConsumerWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$action — coming soon.')),
     );
+  }
+
+  Future<void> _exportFinanceTracking(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final rows = await ref
+          .read(payrollRepositoryProvider)
+          .payslipListForRun(detail.run.id);
+      final exportRows = [
+        for (final r in rows)
+          FinanceExportRow.fromPayslipRow(
+            r,
+            payDate: detail.payDate,
+            periodStart: detail.payPeriodStart,
+            periodEnd: detail.payPeriodEnd,
+          ),
+      ];
+      if (exportRows.isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('No payslips to export.')),
+        );
+        return;
+      }
+      final path = await exportFinanceTrackingXlsx(
+        rows: exportRows,
+        periodStart: detail.payPeriodStart,
+        periodEnd: detail.payPeriodEnd,
+      );
+      if (path != null && context.mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Exported to $path')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Export failed: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _compute(

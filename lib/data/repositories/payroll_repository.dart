@@ -1237,6 +1237,28 @@ final payrollRepositoryProvider =
 final payrollRunsProvider =
     FutureProvider<List<PayrollRun>>((ref) => ref.watch(payrollRepositoryProvider).listRuns());
 
+/// Sidebar notification badge — count of `payroll_runs` currently in REVIEW
+/// (i.e. waiting for HR/Admin to release). Self-refreshes every 60s so a
+/// release in another tab/session clears the badge within roughly a minute.
+class PayrollRunsAwaitingReleaseCountNotifier extends AsyncNotifier<int> {
+  @override
+  Future<int> build() async {
+    final rows = await Supabase.instance.client
+        .from('payroll_runs')
+        .select('id')
+        .eq('status', 'REVIEW') as List<dynamic>;
+    final count = rows.length;
+    Future.delayed(const Duration(seconds: 60), () {
+      ref.invalidateSelf();
+    });
+    return count;
+  }
+}
+
+final payrollRunsAwaitingReleaseCountProvider =
+    AsyncNotifierProvider<PayrollRunsAwaitingReleaseCountNotifier, int>(
+        PayrollRunsAwaitingReleaseCountNotifier.new);
+
 final payslipApprovalCountsProvider =
     FutureProvider.family<Map<String, int>, String>((ref, runId) {
   return ref.watch(payrollRepositoryProvider).payslipApprovalCounts(runId);

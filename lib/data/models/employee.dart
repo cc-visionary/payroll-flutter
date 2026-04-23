@@ -14,6 +14,12 @@ class Employee {
   final String? roleScorecardId;
   final String? reportsToId;
   final String? hiringEntityId;
+  /// Override of `hiringEntityId` for statutory remittance grouping only
+  /// (SSS / PhilHealth / Pag-IBIG / BIR / employee loans). When `null` the
+  /// statutory views inherit from `hiringEntityId`. Brand allocation,
+  /// payroll grouping, and disbursement export always use `hiringEntityId`
+  /// regardless of this column.
+  final String? statutoryEntityId;
   final String employmentType;
   final String employmentStatus;
   final DateTime hireDate;
@@ -52,6 +58,7 @@ class Employee {
     this.roleScorecardId,
     this.reportsToId,
     this.hiringEntityId,
+    this.statutoryEntityId,
     required this.employmentType,
     required this.employmentStatus,
     required this.hireDate,
@@ -92,6 +99,7 @@ class Employee {
         roleScorecardId: r['role_scorecard_id'] as String?,
         reportsToId: r['reports_to_id'] as String?,
         hiringEntityId: r['hiring_entity_id'] as String?,
+        statutoryEntityId: r['statutory_entity_id'] as String?,
         employmentType: r['employment_type'] as String,
         employmentStatus: r['employment_status'] as String,
         hireDate: DateTime.parse(r['hire_date'] as String),

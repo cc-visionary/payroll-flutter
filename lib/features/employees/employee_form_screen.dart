@@ -7,6 +7,7 @@ import '../../data/models/employee.dart';
 import '../../data/models/employee_bank_account.dart';
 import '../../data/repositories/employee_bank_account_repository.dart';
 import '../../data/repositories/employee_repository.dart';
+import '../../data/repositories/hiring_entity_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../auth/profile_provider.dart';
 import '../payroll/constants.dart';
@@ -42,6 +43,11 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
   bool _isOtEligible = true;
   bool _isNdEligible = true;
   bool _isHolidayEligible = true;
+
+  // Statutory employer-of-record override (HR/Admin editable). null = inherit
+  // from brand allocation (`hiring_entity_id`). Stored as `statutory_entity_id`.
+  String? _statutoryEntityId;
+  String? _origStatutoryEntityId;
 
   // Admin-only payroll overrides
   bool _taxOnFullEarnings = false;
@@ -96,6 +102,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       _isOtEligible = e.isOtEligible;
       _isNdEligible = e.isNdEligible;
       _isHolidayEligible = e.isHolidayPayEligible;
+      _statutoryEntityId = e.statutoryEntityId;
+      _origStatutoryEntityId = e.statutoryEntityId;
       _taxOnFullEarnings = e.taxOnFullEarnings;
       _origTaxOnFull = e.taxOnFullEarnings;
       _declaredWage.text = e.declaredWageOverride?.toString() ?? '';
@@ -117,8 +125,11 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
     final profile = ref.read(userProfileProvider).asData?.value;
     if (profile == null) return;
     final canEditTax = profile.isHrOrAdmin;
+    final canEditStatutoryEntity = profile.isHrOrAdmin;
     final canEditWage = profile.appRole == AppRole.SUPER_ADMIN;
     final taxDirty = canEditTax && _taxOnFullEarnings != _origTaxOnFull;
+    final statutoryEntityDirty = canEditStatutoryEntity &&
+        _statutoryEntityId != _origStatutoryEntityId;
     final wageText = _declaredWage.text.trim();
     final wageCurrent = wageText.isEmpty ? null : wageText;
     final wageDirty = canEditWage &&
@@ -195,6 +206,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
             paymentSourceAccount: _paymentSourceAccount,
             paymentMethod:
                 _paymentSourceAccount == null ? null : 'BANK_TRANSFER',
+            writeStatutoryEntity: statutoryEntityDirty,
+            statutoryEntityId: _statutoryEntityId,
           );
       if (!mounted) return;
       ref.invalidate(employeeListProvider);
@@ -301,6 +314,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                               onClear: () => setState(() => _regularizationDate = null),
                             ),
                           ]),
+                          const SizedBox(height: 12),
+                          _buildStatutoryEntityField(),
                         ],
                       ),
                     ),
@@ -416,6 +431,63 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
             ),
           ],
           onChanged: (v) => setState(() => _roleScorecardId = v),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatutoryEntityField() {
+    final profile = ref.watch(userProfileProvider).asData?.value;
+    final canEdit = profile?.isHrOrAdmin ?? false;
+    final async = ref.watch(hiringEntityListProvider);
+    return async.when(
+      loading: () => const InputDecorator(
+        decoration: InputDecoration(
+          labelText: 'Statutory Employer of Record',
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+        child: Text('Loading…'),
+      ),
+      error: (e, _) => InputDecorator(
+        decoration: const InputDecoration(
+          labelText: 'Statutory Employer of Record',
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+        child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
+      ),
+      data: (entities) {
+        final activeIds = entities.map((e) => e.id).toSet();
+        // Defensive: if the persisted value points to an inactive/deleted
+        // entity, surface it as "(unavailable)" so the dropdown still opens.
+        final currentValue =
+            _statutoryEntityId != null && activeIds.contains(_statutoryEntityId)
+                ? _statutoryEntityId
+                : null;
+        return DropdownButtonFormField<String?>(
+          initialValue: currentValue,
+          decoration: const InputDecoration(
+            labelText: 'Statutory Employer of Record',
+            helperText: 'Leave blank to inherit from brand allocation.',
+            border: OutlineInputBorder(),
+            isDense: true,
+          ),
+          items: [
+            const DropdownMenuItem<String?>(
+              value: null,
+              child: Text('— Inherit from brand allocation —'),
+            ),
+            ...entities.map(
+              (e) => DropdownMenuItem<String?>(
+                value: e.id,
+                child: Text(e.name),
+              ),
+            ),
+          ],
+          onChanged: canEdit
+              ? (v) => setState(() => _statutoryEntityId = v)
+              : null,
         );
       },
     );

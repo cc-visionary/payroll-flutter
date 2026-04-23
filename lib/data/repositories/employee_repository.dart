@@ -86,6 +86,10 @@ class EmployeeRepository {
     bool writePaymentRouting = false,
     String? paymentMethod,
     String? paymentSourceAccount,
+    // Statutory employer override — separate write flag because empty string
+    // is meaningful here (clears the override / inherits brand allocation).
+    bool writeStatutoryEntity = false,
+    String? statutoryEntityId,
   }) async {
     final payload = <String, dynamic>{
       if (id != null) 'id': id,
@@ -123,6 +127,9 @@ class EmployeeRepository {
     if (writePaymentRouting) {
       payload['payment_method'] = paymentMethod;
       payload['payment_source_account'] = paymentSourceAccount;
+    }
+    if (writeStatutoryEntity) {
+      payload['statutory_entity_id'] = statutoryEntityId;
     }
     Map<String, dynamic> row;
     if (id == null) {
