@@ -55,6 +55,9 @@ class HiringEntityRepository {
     String country = 'PH',
     String? phoneNumber,
     String? email,
+    String? legalSignatoryName,
+    String? legalSignatoryRole,
+    String? hrManagerName,
     bool isActive = true,
   }) async {
     final payload = {
@@ -75,6 +78,9 @@ class HiringEntityRepository {
       'country': country,
       'phone_number': phoneNumber,
       'email': email,
+      'legal_signatory_name': legalSignatoryName,
+      'legal_signatory_role': legalSignatoryRole,
+      'hr_manager_name': hrManagerName,
       'is_active': isActive,
     };
     if (id == null) {

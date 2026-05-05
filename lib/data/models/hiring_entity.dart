@@ -17,6 +17,9 @@ class HiringEntity {
   final String country;
   final String? phoneNumber;
   final String? email;
+  final String? legalSignatoryName;
+  final String? legalSignatoryRole;
+  final String? hrManagerName;
   final bool isActive;
 
   const HiringEntity({
@@ -38,6 +41,9 @@ class HiringEntity {
     this.country = 'PH',
     this.phoneNumber,
     this.email,
+    this.legalSignatoryName,
+    this.legalSignatoryRole,
+    this.hrManagerName,
     this.isActive = true,
   });
 
@@ -60,6 +66,9 @@ class HiringEntity {
         country: r['country'] as String? ?? 'PH',
         phoneNumber: r['phone_number'] as String?,
         email: r['email'] as String?,
+        legalSignatoryName: r['legal_signatory_name'] as String?,
+        legalSignatoryRole: r['legal_signatory_role'] as String?,
+        hrManagerName: r['hr_manager_name'] as String?,
         isActive: r['is_active'] as bool? ?? true,
       );
 }
