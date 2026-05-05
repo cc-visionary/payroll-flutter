@@ -26,6 +26,12 @@ class Employee {
   final DateTime? regularizationDate;
   final String? workEmail;
   final String? mobileNumber;
+  final DateTime? birthDate;
+  final String? addressLine1;
+  final String? addressLine2;
+  final String? city;
+  final String? province;
+  final String? zipCode;
   final bool isRankAndFile;
   final bool isOtEligible;
   final bool isNdEligible;
@@ -65,6 +71,12 @@ class Employee {
     this.regularizationDate,
     this.workEmail,
     this.mobileNumber,
+    this.birthDate,
+    this.addressLine1,
+    this.addressLine2,
+    this.city,
+    this.province,
+    this.zipCode,
     required this.isRankAndFile,
     required this.isOtEligible,
     required this.isNdEligible,
@@ -108,6 +120,14 @@ class Employee {
             : DateTime.parse(r['regularization_date'] as String),
         workEmail: r['work_email'] as String?,
         mobileNumber: r['mobile_number'] as String?,
+        birthDate: r['birth_date'] == null
+            ? null
+            : DateTime.parse(r['birth_date'] as String),
+        addressLine1: r['present_address_line1'] as String?,
+        addressLine2: r['present_address_line2'] as String?,
+        city: r['present_city'] as String?,
+        province: r['present_province'] as String?,
+        zipCode: r['present_zip_code'] as String?,
         isRankAndFile: r['is_rank_and_file'] as bool? ?? true,
         isOtEligible: r['is_ot_eligible'] as bool? ?? true,
         isNdEligible: r['is_nd_eligible'] as bool? ?? true,

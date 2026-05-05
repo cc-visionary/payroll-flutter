@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/money.dart';
 import '../../../../data/models/employee.dart';
+import '../../../../data/repositories/employee_statutory_id_repository.dart';
 import '../../../auth/profile_provider.dart';
 import '../providers.dart';
 
@@ -25,6 +26,10 @@ class ProfileTab extends ConsumerWidget {
         ? 'Inherits from brand allocation'
         : (statutoryNameAsync.asData?.value ?? '…');
 
+    final statutoryIds =
+        ref.watch(employeeStatutoryIdsProvider(employee.id)).asData?.value ??
+            const <String, String>{};
+
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 16),
       children: [
@@ -34,9 +39,22 @@ class ProfileTab extends ConsumerWidget {
             _KV('First Name', employee.firstName),
             _KV('Middle Name', employee.middleName ?? '—'),
             _KV('Last Name', employee.lastName),
+            _KV('Birthday',
+                employee.birthDate == null ? '—' : _fmtDate(employee.birthDate!)),
             _KV('Work Email', employee.workEmail ?? '—'),
             _KV('Mobile Number', employee.mobileNumber ?? '—'),
+            _KV('Address', _fmtAddress(employee)),
             _KV('Lark User ID', employee.larkUserId ?? '—'),
+          ]),
+        ),
+        const SizedBox(height: 16),
+        _Section(
+          title: 'Statutory IDs',
+          subtitle: 'Used for SSS, PhilHealth, and Pag-IBIG remittances',
+          child: _KVGrid(items: [
+            _KV('SSS Number', statutoryIds['SSS'] ?? '—'),
+            _KV('PhilHealth Number', statutoryIds['PHILHEALTH'] ?? '—'),
+            _KV('Pag-IBIG Number', statutoryIds['PAGIBIG'] ?? '—'),
           ]),
         ),
         const SizedBox(height: 16),
@@ -262,6 +280,19 @@ class _FlagTile extends StatelessWidget {
       ],
     );
   }
+}
+
+String _fmtAddress(Employee e) {
+  final cityProv = [e.city, e.province]
+      .where((s) => s != null && s.isNotEmpty)
+      .join(', ');
+  final tail = [cityProv, e.zipCode]
+      .where((s) => s != null && s.isNotEmpty)
+      .join(' ');
+  final parts = [e.addressLine1, e.addressLine2, tail]
+      .where((s) => s != null && s.isNotEmpty)
+      .toList();
+  return parts.isEmpty ? '—' : parts.join(', ');
 }
 
 String _fmtDate(DateTime d) {

@@ -7,6 +7,7 @@ import '../../data/models/employee.dart';
 import '../../data/models/employee_bank_account.dart';
 import '../../data/repositories/employee_bank_account_repository.dart';
 import '../../data/repositories/employee_repository.dart';
+import '../../data/repositories/employee_statutory_id_repository.dart';
 import '../../data/repositories/hiring_entity_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../auth/profile_provider.dart';
@@ -31,6 +32,15 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
   final _lastName = TextEditingController();
   final _workEmail = TextEditingController();
   final _mobile = TextEditingController();
+  DateTime? _birthDate;
+  final _addressLine1 = TextEditingController();
+  final _addressLine2 = TextEditingController();
+  final _city = TextEditingController();
+  final _province = TextEditingController();
+  final _zipCode = TextEditingController();
+  final _sss = TextEditingController();
+  final _philhealth = TextEditingController();
+  final _pagibig = TextEditingController();
 
   String? _roleScorecardId;
   String? _paymentSourceAccount;
@@ -94,6 +104,18 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       _origPaymentSourceAccount = e.paymentSourceAccount;
       _workEmail.text = e.workEmail ?? '';
       _mobile.text = e.mobileNumber ?? '';
+      _birthDate = e.birthDate;
+      _addressLine1.text = e.addressLine1 ?? '';
+      _addressLine2.text = e.addressLine2 ?? '';
+      _city.text = e.city ?? '';
+      _province.text = e.province ?? '';
+      _zipCode.text = e.zipCode ?? '';
+      final ids = await ref
+          .read(employeeStatutoryIdRepositoryProvider)
+          .byEmployee(e.id);
+      _sss.text = ids['SSS'] ?? '';
+      _philhealth.text = ids['PHILHEALTH'] ?? '';
+      _pagibig.text = ids['PAGIBIG'] ?? '';
       _employmentType = e.employmentType;
       _employmentStatus = e.employmentStatus;
       _hireDate = e.hireDate;
@@ -171,7 +193,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       final derivedJobTitle = selectedCard?.jobTitle as String?;
       final derivedDepartmentId = selectedCard?.departmentId as String?;
 
-      await ref.read(employeeRepositoryProvider).upsert(
+      final saved = await ref.read(employeeRepositoryProvider).upsert(
             id: _existing?.id,
             companyId: _existing?.companyId ?? profile.companyId,
             employeeNumber: _empNo.text.trim(),
@@ -183,6 +205,12 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
             roleScorecardId: _roleScorecardId,
             workEmail: _workEmail.text.trim().isEmpty ? null : _workEmail.text.trim(),
             mobileNumber: _mobile.text.trim().isEmpty ? null : _mobile.text.trim(),
+            birthDate: _birthDate,
+            addressLine1: _addressLine1.text.trim().isEmpty ? null : _addressLine1.text.trim(),
+            addressLine2: _addressLine2.text.trim().isEmpty ? null : _addressLine2.text.trim(),
+            city: _city.text.trim().isEmpty ? null : _city.text.trim(),
+            province: _province.text.trim().isEmpty ? null : _province.text.trim(),
+            zipCode: _zipCode.text.trim().isEmpty ? null : _zipCode.text.trim(),
             employmentType: _employmentType,
             employmentStatus: _employmentStatus,
             hireDate: _hireDate,
@@ -209,8 +237,19 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
             writeStatutoryEntity: statutoryEntityDirty,
             statutoryEntityId: _statutoryEntityId,
           );
+      await ref.read(employeeStatutoryIdRepositoryProvider).upsertAll(
+        saved.id,
+        {
+          'SSS': _sss.text.trim().isEmpty ? null : _sss.text.trim(),
+          'PHILHEALTH':
+              _philhealth.text.trim().isEmpty ? null : _philhealth.text.trim(),
+          'PAGIBIG':
+              _pagibig.text.trim().isEmpty ? null : _pagibig.text.trim(),
+        },
+      );
       if (!mounted) return;
       ref.invalidate(employeeListProvider);
+      ref.invalidate(employeeStatutoryIdsProvider(saved.id));
       // Also refresh the single-employee provider so the profile screen
       // reflects edits (declared wage, tax toggle, etc.) immediately on return.
       if (_existing?.id != null) {
@@ -263,6 +302,43 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                           _responsiveRow([
                             _field(_workEmail, 'Work email'),
                             _field(_mobile, 'Mobile number'),
+                          ]),
+                          const SizedBox(height: 12),
+                          _responsiveRow([
+                            _DatePickerField(
+                              label: 'Birthday',
+                              value: _birthDate,
+                              onTap: () => _pickDate(
+                                  _birthDate ?? DateTime(2000, 1, 1),
+                                  (d) => _birthDate = d),
+                              onClear: () => setState(() => _birthDate = null),
+                            ),
+                            _field(_addressLine1, 'Address line 1'),
+                          ]),
+                          const SizedBox(height: 12),
+                          _field(_addressLine2, 'Address line 2'),
+                          const SizedBox(height: 12),
+                          _responsiveRow([
+                            _field(_city, 'City'),
+                            _field(_province, 'Province'),
+                            _field(_zipCode, 'ZIP code'),
+                          ]),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const _SectionLabel('Statutory IDs'),
+                          _responsiveRow([
+                            _field(_sss, 'SSS Number'),
+                            _field(_philhealth, 'PhilHealth Number'),
+                            _field(_pagibig, 'Pag-IBIG Number'),
                           ]),
                         ],
                       ),
