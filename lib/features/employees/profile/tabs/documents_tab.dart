@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../data/models/employee.dart';
 import '../../../auth/profile_provider.dart';
+import '../../../documents/providers.dart';
+import '../../../documents/templates/document_template.dart';
+import '../../../documents/templates/template_registry.dart';
 import '../providers.dart';
 import '../widgets/info_card.dart';
 
@@ -61,7 +64,7 @@ class _DocumentsTabState extends ConsumerState<DocumentsTab> {
                 FilledButton(
                   onPressed: _selectedType == null
                       ? null
-                      : () {
+                      : () async {
                           final id = _templateIdForLabel(_selectedType!);
                           if (id == null) {
                             ScaffoldMessenger.of(context).showSnackBar(
@@ -73,9 +76,36 @@ class _DocumentsTabState extends ConsumerState<DocumentsTab> {
                             );
                             return;
                           }
-                          context.go(
-                            '/documents/generate/$id?employeeId=${widget.employee.id}',
-                          );
+                          final tpl = findTemplateById(id);
+                          if (tpl != null &&
+                              widget.employee.hiringEntityId != null) {
+                            final hiringEntity = await ref
+                                .read(hiringEntityByIdProvider(
+                                        widget.employee.hiringEntityId!)
+                                    .future)
+                                .catchError((_) => null);
+                            final ctx = AutofillContext(
+                              employee: widget.employee,
+                              company: hiringEntity,
+                              ref: ref,
+                            );
+                            final gates = tpl.gates(ctx);
+                            if (gates.isNotEmpty) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(gates.first.reason),
+                                  ),
+                                );
+                              }
+                              return;
+                            }
+                          }
+                          if (context.mounted) {
+                            context.go(
+                              '/documents/generate/$id?employeeId=${widget.employee.id}',
+                            );
+                          }
                         },
                   child: const Text('Generate'),
                 ),

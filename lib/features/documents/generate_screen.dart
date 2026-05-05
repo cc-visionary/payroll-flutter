@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -38,6 +40,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
   CoeInputs? _coe;
   NteInputs? _nte;
   bool _autofillDone = false;
+  String? _autofillError;
 
   @override
   void initState() {
@@ -48,6 +51,20 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
   Future<void> _runAutofill() async {
     final tpl = findTemplateById(widget.templateId);
     final eId = widget.employeeId;
+
+    // Pre-warm the font theme so any cold-start failure surfaces here
+    // rather than as an unhelpful preview build error.
+    try {
+      await PdfTheme.defaults();
+    } catch (_) {
+      setState(() {
+        _autofillError =
+            'Font download failed — connect to the internet once to enable PDF generation.';
+        _autofillDone = true;
+      });
+      return;
+    }
+
     if (tpl is CoeTemplate) {
       if (eId == null) {
         setState(() {
@@ -140,6 +157,21 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         body: const Center(child: CircularProgressIndicator()),
       );
     }
+    if (_autofillError != null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(tpl.name)),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              _autofillError!,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       appBar: AppBar(title: Text(tpl.name)),
       body: Row(
@@ -190,14 +222,10 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
         date: inputs.dateSigned,
       );
-      return PdfPreviewScaffold(
-        filename: filename,
-        enabled: errors.isEmpty,
-        buildPdf: (PdfPageFormat format) async {
-          final theme = await PdfTheme.defaults();
-          return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
-        },
-      );
+      return _previewWithBanner(errors, filename, (format) async {
+        final theme = await PdfTheme.defaults();
+        return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
+      });
     }
     if (tpl is CoeTemplate && _coe != null) {
       final inputs = _coe!;
@@ -208,14 +236,10 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
         date: DateTime.now(),
       );
-      return PdfPreviewScaffold(
-        filename: filename,
-        enabled: errors.isEmpty,
-        buildPdf: (PdfPageFormat format) async {
-          final theme = await PdfTheme.defaults();
-          return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
-        },
-      );
+      return _previewWithBanner(errors, filename, (format) async {
+        final theme = await PdfTheme.defaults();
+        return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
+      });
     }
     if (tpl is NteTemplate && _nte != null) {
       final inputs = _nte!;
@@ -226,15 +250,43 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
         date: inputs.dateIssued,
       );
-      return PdfPreviewScaffold(
-        filename: filename,
-        enabled: errors.isEmpty,
-        buildPdf: (PdfPageFormat format) async {
-          final theme = await PdfTheme.defaults();
-          return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
-        },
-      );
+      return _previewWithBanner(errors, filename, (format) async {
+        final theme = await PdfTheme.defaults();
+        return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
+      });
     }
     return const Center(child: Text('Preview not implemented'));
+  }
+
+  Widget _previewWithBanner(
+    List<ValidationError> errors,
+    String filename,
+    Future<Uint8List> Function(PdfPageFormat) build,
+  ) {
+    return Column(
+      children: [
+        if (errors.isNotEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            color: Colors.amber.shade100,
+            child: Tooltip(
+              message: errors.map((e) => '• ${e.message}').join('\n'),
+              child: Text(
+                '${errors.length} issue${errors.length == 1 ? '' : 's'} — '
+                'hover for details.',
+                style: const TextStyle(color: Colors.black87),
+              ),
+            ),
+          ),
+        Expanded(
+          child: PdfPreviewScaffold(
+            filename: filename,
+            enabled: errors.isEmpty,
+            buildPdf: build,
+          ),
+        ),
+      ],
+    );
   }
 }
