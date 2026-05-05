@@ -213,6 +213,12 @@ class _FormState extends ConsumerState<_EntityForm> {
       TextEditingController(text: widget.existing?.phoneNumber ?? '');
   late final _email =
       TextEditingController(text: widget.existing?.email ?? '');
+  late final _signatoryName = TextEditingController(
+      text: widget.existing?.legalSignatoryName ?? '');
+  late final _signatoryRole = TextEditingController(
+      text: widget.existing?.legalSignatoryRole ?? '');
+  late final _hrManager = TextEditingController(
+      text: widget.existing?.hrManagerName ?? '');
   late bool _isActive = widget.existing?.isActive ?? true;
   bool _saving = false;
   String? _error;
@@ -234,7 +240,10 @@ class _FormState extends ConsumerState<_EntityForm> {
       _province,
       _zip,
       _phone,
-      _email
+      _email,
+      _signatoryName,
+      _signatoryRole,
+      _hrManager
     ]) {
       c.dispose();
     }
@@ -273,6 +282,9 @@ class _FormState extends ConsumerState<_EntityForm> {
             zipCode: t(_zip),
             phoneNumber: t(_phone),
             email: t(_email),
+            legalSignatoryName: t(_signatoryName),
+            legalSignatoryRole: t(_signatoryRole),
+            hrManagerName: t(_hrManager),
             isActive: _isActive,
           );
       widget.onSaved();
@@ -350,6 +362,19 @@ class _FormState extends ConsumerState<_EntityForm> {
                   _text(_city, 'City'),
                   _text(_province, 'Province'),
                   _text(_zip, 'ZIP'),
+                ]),
+                const SizedBox(height: 16),
+                _sectionHeader(context, 'Document Defaults'),
+                _row([
+                  _text(_signatoryName, 'Legal Signatory Name',
+                      hint: 'e.g. Clinton Xu'),
+                  _text(_signatoryRole, 'Legal Signatory Role',
+                      hint: 'e.g. CEO'),
+                ]),
+                _row([
+                  _text(_hrManager, 'HR Manager Name',
+                      hint: 'e.g. Brixter Del Mundo'),
+                  const SizedBox.shrink(),
                 ]),
                 if (_error != null)
                   Padding(
