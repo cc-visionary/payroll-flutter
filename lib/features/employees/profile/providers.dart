@@ -152,6 +152,22 @@ final leaveBalancesProvider =
   return (rows as List<dynamic>).cast<Map<String, dynamic>>();
 });
 
+// --- Employment events ----------------------------------------------------
+
+/// Raw `employment_events` rows for an employee, newest-first. Exposed
+/// for templates that need HIRE / SEPARATION dates without having to
+/// re-query Supabase directly.
+final employmentEventsProvider = FutureProvider.family<
+    List<Map<String, dynamic>>, String>((ref, employeeId) async {
+  final client = Supabase.instance.client;
+  final rows = await client
+      .from('employment_events')
+      .select()
+      .eq('employee_id', employeeId)
+      .order('event_date', ascending: false);
+  return (rows as List<dynamic>).cast<Map<String, dynamic>>();
+});
+
 // --- Employee documents ---------------------------------------------------
 
 final employeeDocumentsProvider =

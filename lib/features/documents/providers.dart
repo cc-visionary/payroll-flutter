@@ -1,0 +1,147 @@
+import 'package:decimal/decimal.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../data/models/employee.dart';
+import '../../data/models/hiring_entity.dart';
+import '../../data/repositories/employee_repository.dart';
+import '../../data/repositories/hiring_entity_repository.dart';
+import '../auth/profile_provider.dart';
+
+/// Single hiring entity by id, or null when soft-deleted / not found.
+final hiringEntityByIdProvider =
+    FutureProvider.family<HiringEntity?, String>((ref, id) async {
+  final profile = await ref.watch(userProfileProvider.future);
+  if (profile == null) return null;
+  final entities = await ref
+      .read(hiringEntityRepositoryProvider)
+      .list(profile.companyId);
+  for (final e in entities) {
+    if (e.id == id) return e;
+  }
+  return null;
+});
+
+/// Single employee by id.
+final documentEmployeeProvider =
+    FutureProvider.family<Employee?, String>((ref, id) {
+  return ref.watch(employeeRepositoryProvider).byId(id);
+});
+
+/// Latest event of [eventType] for [employeeId], or null when none
+/// exists. Quitclaim/COE call this for SEPARATION; COE also calls for
+/// HIRE.
+final latestEmploymentEventProvider = FutureProvider.family<
+    Map<String, dynamic>?, ({String employeeId, String eventType})>(
+  (ref, key) async {
+    final client = Supabase.instance.client;
+    final rows = await client
+        .from('employment_events')
+        .select()
+        .eq('employee_id', key.employeeId)
+        .eq('event_type', key.eventType)
+        .order('event_date', ascending: false)
+        .limit(1);
+    final list = (rows as List<dynamic>).cast<Map<String, dynamic>>();
+    return list.isEmpty ? null : list.first;
+  },
+);
+
+/// Final-pay breakdown for the Quitclaim template. Aggregates
+/// 13th-month accrual, last-cutoff net pay, unused-leave conversion (if
+/// computed), and outstanding cash-advance balance.
+class FinalPayBreakdown {
+  final Decimal thirteenthMonth;
+  final Decimal lastNetPay;
+  final Decimal unusedLeaveConversion;
+  final Decimal outstandingCashAdvance;
+  final bool thirteenthMonthAvailable;
+  const FinalPayBreakdown({
+    required this.thirteenthMonth,
+    required this.lastNetPay,
+    required this.unusedLeaveConversion,
+    required this.outstandingCashAdvance,
+    required this.thirteenthMonthAvailable,
+  });
+  Decimal get total =>
+      thirteenthMonth + lastNetPay + unusedLeaveConversion -
+      outstandingCashAdvance;
+}
+
+final finalPayBreakdownProvider =
+    FutureProvider.family<FinalPayBreakdown, String>((ref, employeeId) async {
+  final client = Supabase.instance.client;
+
+  Decimal asDecimal(Object? v) {
+    if (v == null) return Decimal.zero;
+    if (v is num) return Decimal.parse(v.toString());
+    if (v is String) {
+      try {
+        return Decimal.parse(v);
+      } catch (_) {
+        return Decimal.zero;
+      }
+    }
+    return Decimal.zero;
+  }
+
+  // 13th-month accrual lives on `employees.accrued_thirteenth_month_basis`
+  // (per migration 20260421000001 — provision model: column already
+  // stores the payable amount). No separate accruals table exists.
+  Decimal thirteenthMonth = Decimal.zero;
+  bool thirteenthMonthAvailable = false;
+  try {
+    final empRow = await client
+        .from('employees')
+        .select('accrued_thirteenth_month_basis')
+        .eq('id', employeeId)
+        .maybeSingle();
+    if (empRow != null && empRow['accrued_thirteenth_month_basis'] != null) {
+      thirteenthMonth = asDecimal(empRow['accrued_thirteenth_month_basis']);
+      thirteenthMonthAvailable = true;
+    }
+  } catch (_) {
+    thirteenthMonthAvailable = false;
+  }
+
+  // Last released payslip net pay.
+  Decimal lastNetPay = Decimal.zero;
+  try {
+    final psRow = await client
+        .from('payslips')
+        .select('net_pay')
+        .eq('employee_id', employeeId)
+        .order('created_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+    if (psRow != null) lastNetPay = asDecimal(psRow['net_pay']);
+  } catch (_) {}
+
+  // Unused leave conversion not stored as a single field — left at zero
+  // until the leave-conversion feature exists. HR overrides via the
+  // breakdown form when applicable.
+  final unusedLeaveConversion = Decimal.zero;
+
+  // Outstanding cash-advance balance. The `cash_advances` table has no
+  // `outstanding_balance` column — we sum `amount` for rows that haven't
+  // been deducted yet (per migration 20260414000010).
+  Decimal outstandingCashAdvance = Decimal.zero;
+  try {
+    final caRows = await client
+        .from('cash_advances')
+        .select('amount, is_deducted')
+        .eq('employee_id', employeeId)
+        .eq('is_deducted', false);
+    for (final r in (caRows as List<dynamic>).cast<Map<String, dynamic>>()) {
+      outstandingCashAdvance += asDecimal(r['amount']);
+    }
+  } catch (_) {}
+
+  return FinalPayBreakdown(
+    thirteenthMonth: thirteenthMonth,
+    lastNetPay: lastNetPay,
+    unusedLeaveConversion: unusedLeaveConversion,
+    outstandingCashAdvance: outstandingCashAdvance,
+    thirteenthMonthAvailable: thirteenthMonthAvailable,
+  );
+});
