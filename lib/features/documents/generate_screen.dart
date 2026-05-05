@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pdf/pdf.dart';
 
+import '../../core/pdf/pdf_filename.dart';
+import '../../core/pdf/pdf_preview_scaffold.dart';
+import '../../core/pdf/pdf_theme.dart';
+import 'forms/quitclaim_form.dart';
+import 'pdf/pdf_builder.dart';
+import 'providers.dart';
+import 'templates/document_template.dart';
+import 'templates/quitclaim_inputs.dart';
+import 'templates/quitclaim_template.dart';
 import 'templates/template_registry.dart';
 
-/// Two-pane scaffold: form on the left, PDF preview on the right.
-/// Phases 5-7 replace the form panel with per-template forms; this
-/// shell exists so the router can wire the route immediately.
 class GenerateScreen extends ConsumerStatefulWidget {
   final String templateId;
   final String? employeeId;
@@ -21,6 +28,41 @@ class GenerateScreen extends ConsumerStatefulWidget {
 }
 
 class _GenerateScreenState extends ConsumerState<GenerateScreen> {
+  QuitclaimInputs? _quitclaim;
+  bool _autofillDone = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _runAutofill());
+  }
+
+  Future<void> _runAutofill() async {
+    final tpl = findTemplateById(widget.templateId);
+    if (tpl is! QuitclaimTemplate) {
+      setState(() => _autofillDone = true);
+      return;
+    }
+    final eId = widget.employeeId;
+    if (eId == null) {
+      setState(() {
+        _quitclaim = tpl.emptyInputs();
+        _autofillDone = true;
+      });
+      return;
+    }
+    final emp = await ref.read(documentEmployeeProvider(eId).future);
+    final co = (emp == null || emp.hiringEntityId == null)
+        ? null
+        : await ref.read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+    final ctx = AutofillContext(employee: emp, company: co, ref: ref);
+    final filled = await tpl.autofill(ctx);
+    setState(() {
+      _quitclaim = filled;
+      _autofillDone = true;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final tpl = findTemplateById(widget.templateId);
@@ -42,29 +84,57 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         ),
       );
     }
-    final phaseLabel =
-        const {'quitclaim': 5, 'coe': 6, 'nte': 7}[tpl.id]?.toString() ?? '?';
+    if (!_autofillDone) {
+      return Scaffold(
+        appBar: AppBar(title: Text(tpl.name)),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
     return Scaffold(
       appBar: AppBar(title: Text(tpl.name)),
       body: Row(
         children: [
-          Container(
+          SizedBox(
             width: 480,
-            color: Theme.of(context).colorScheme.surface,
-            padding: const EdgeInsets.all(24),
-            child: Center(
-              child: Text(
-                'Form for "${tpl.name}" — implemented in Phase $phaseLabel.',
-                textAlign: TextAlign.center,
-              ),
-            ),
+            child: _formFor(tpl),
           ),
           const VerticalDivider(width: 1),
-          const Expanded(
-            child: Center(child: Text('Preview placeholder')),
-          ),
+          Expanded(child: _previewFor(tpl)),
         ],
       ),
     );
+  }
+
+  Widget _formFor(DocumentTemplate tpl) {
+    if (tpl is QuitclaimTemplate && _quitclaim != null) {
+      return QuitclaimForm(
+        initial: _quitclaim!,
+        employeeLocked: widget.employeeId != null,
+        onChanged: (next) => setState(() => _quitclaim = next),
+      );
+    }
+    return const Center(child: Text('Form not implemented'));
+  }
+
+  Widget _previewFor(DocumentTemplate tpl) {
+    if (tpl is QuitclaimTemplate && _quitclaim != null) {
+      final inputs = _quitclaim!;
+      final errors = tpl.validate(inputs);
+      final filename = filenameForDocument(
+        templateId: 'quitclaim',
+        employeeNumber: null,
+        employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
+        date: inputs.dateSigned,
+      );
+      return PdfPreviewScaffold(
+        filename: filename,
+        enabled: errors.isEmpty,
+        buildPdf: (PdfPageFormat format) async {
+          final theme = await PdfTheme.defaults();
+          return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
+        },
+      );
+    }
+    return const Center(child: Text('Preview not implemented'));
   }
 }

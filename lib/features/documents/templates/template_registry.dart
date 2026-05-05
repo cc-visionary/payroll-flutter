@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../blocks/block.dart';
 import '../blocks/paragraph_block.dart';
 import 'document_template.dart';
+import 'quitclaim_template.dart';
 
 class _PlaceholderInputs extends TemplateInputs {
   @override
@@ -54,12 +55,7 @@ class _PlaceholderTemplate extends DocumentTemplate<_PlaceholderInputs> {
 /// placeholder with the real Quitclaim/COE/NTE template; the picker
 /// reads this list directly.
 const List<DocumentTemplate> kTemplates = [
-  _PlaceholderTemplate(
-    id: 'quitclaim',
-    name: 'Quitclaim',
-    description: 'Release, waiver, and quitclaim issued at separation.',
-    icon: Icons.assignment_turned_in_outlined,
-  ),
+  QuitclaimTemplate(),
   _PlaceholderTemplate(
     id: 'coe',
     name: 'Certificate of Employment',
