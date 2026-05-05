@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/money.dart';
 import '../../../../data/models/employee.dart';
 import '../../../../data/repositories/payroll_repository.dart';
+import '../../../payroll/thirteenth_month/thirteenth_month_preview_screen.dart';
 import '../widgets/info_card.dart';
 
 class PayslipsTab extends ConsumerStatefulWidget {
@@ -82,7 +83,7 @@ class _PayslipsTabState extends ConsumerState<PayslipsTab> {
                 _TotalsRow(totals: totals),
                 const SizedBox(height: 12),
                 _ThirteenthMonthCard(
-                  employeeId: widget.employee.id,
+                  employee: widget.employee,
                   from: _from,
                   to: _to,
                 ),
@@ -485,11 +486,11 @@ class _PayslipRow extends StatelessWidget {
 /// overlaps the range — no stored running value, no drift.
 /// Payout = `(Σ basic − Σ late) ÷ 12`, applied once at the total row.
 class _ThirteenthMonthCard extends ConsumerWidget {
-  final String employeeId;
+  final Employee employee;
   final DateTime from;
   final DateTime to;
   const _ThirteenthMonthCard({
-    required this.employeeId,
+    required this.employee,
     required this.from,
     required this.to,
   });
@@ -502,7 +503,7 @@ class _ThirteenthMonthCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(thirteenthMonthBreakdownProvider(
       ThirteenthMonthBreakdownQuery(
-        employeeId: employeeId,
+        employeeId: employee.id,
         from: from,
         to: to,
       ),
@@ -561,6 +562,23 @@ class _ThirteenthMonthCard extends ConsumerWidget {
                     color: _fg,
                   ),
                 ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'Export 13th-month PDF',
+                icon: const Icon(Icons.download_outlined, color: _fg),
+                onPressed: async.asData?.value == null ||
+                        async.asData!.value.contributions.isEmpty
+                    ? null
+                    : () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ThirteenthMonthPreviewScreen(
+                              employee: employee,
+                              from: from,
+                              to: to,
+                            ),
+                          ),
+                        ),
               ),
             ],
           ),

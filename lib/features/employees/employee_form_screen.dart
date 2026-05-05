@@ -8,6 +8,7 @@ import '../../data/models/employee_bank_account.dart';
 import '../../data/repositories/employee_bank_account_repository.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../data/repositories/employee_statutory_id_repository.dart';
+import 'profile/providers.dart';
 import '../../data/repositories/hiring_entity_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../auth/profile_provider.dart';
@@ -47,8 +48,12 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
   String? _origPaymentSourceAccount;
   String _employmentType = 'PROBATIONARY';
   String _employmentStatus = 'ACTIVE';
+  String _origEmploymentStatus = 'ACTIVE';
+  DateTime? _separationDate;
+  DateTime? _origSeparationDate;
+  final _separationReason = TextEditingController();
   DateTime _hireDate = DateTime.now();
-  DateTime? _regularizationDate;
+  final _probationMonths = TextEditingController(text: '6');
   bool _isRankAndFile = true;
   bool _isOtEligible = true;
   bool _isNdEligible = true;
@@ -118,8 +123,19 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       _pagibig.text = ids['PAGIBIG'] ?? '';
       _employmentType = e.employmentType;
       _employmentStatus = e.employmentStatus;
+      _origEmploymentStatus = e.employmentStatus;
+      _separationDate = e.separationDate;
+      _origSeparationDate = e.separationDate;
       _hireDate = e.hireDate;
-      _regularizationDate = e.regularizationDate;
+      // Derive probation months from the stored regularization date so the
+      // input reflects the saved policy. Empty when no regularization date.
+      if (e.regularizationDate != null) {
+        final m = (e.regularizationDate!.year - e.hireDate.year) * 12 +
+            (e.regularizationDate!.month - e.hireDate.month);
+        _probationMonths.text = m > 0 ? m.toString() : '';
+      } else {
+        _probationMonths.text = '';
+      }
       _isRankAndFile = e.isRankAndFile;
       _isOtEligible = e.isOtEligible;
       _isNdEligible = e.isNdEligible;
@@ -214,7 +230,9 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
             employmentType: _employmentType,
             employmentStatus: _employmentStatus,
             hireDate: _hireDate,
-            regularizationDate: _regularizationDate,
+            regularizationDate: _computedRegularizationDate(),
+            separationDate:
+                _employmentStatus == 'ACTIVE' ? null : _separationDate,
             isRankAndFile: _isRankAndFile,
             isOtEligible: _isOtEligible,
             isNdEligible: _isNdEligible,
@@ -237,6 +255,27 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
             writeStatutoryEntity: statutoryEntityDirty,
             statutoryEntityId: _statutoryEntityId,
           );
+      // Record a SEPARATION_CONFIRMED timeline event when:
+      //   - status transitions from ACTIVE → non-ACTIVE, or
+      //   - the employee is already separated and the separation date moves.
+      // Uses the saved employee's id so this works for new employees too.
+      final isSeparating =
+          _employmentStatus != 'ACTIVE' && _separationDate != null;
+      final statusChangedToSeparated =
+          _origEmploymentStatus == 'ACTIVE' && _employmentStatus != 'ACTIVE';
+      final separationDateChanged = _origEmploymentStatus != 'ACTIVE' &&
+          _separationDate != _origSeparationDate;
+      if (isSeparating && (statusChangedToSeparated || separationDateChanged)) {
+        await ref.read(employeeRepositoryProvider).recordSeparationEvent(
+              employeeId: saved.id,
+              separationDate: _separationDate!,
+              reason: _employmentStatus,
+              remarks: _separationReason.text.trim().isEmpty
+                  ? null
+                  : _separationReason.text.trim(),
+              actorUserId: profile.userId,
+            );
+      }
       await ref.read(employeeStatutoryIdRepositoryProvider).upsertAll(
         saved.id,
         {
@@ -250,6 +289,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       if (!mounted) return;
       ref.invalidate(employeeListProvider);
       ref.invalidate(employeeStatutoryIdsProvider(saved.id));
+      ref.invalidate(timelineProvider(saved.id));
       // Also refresh the single-employee provider so the profile screen
       // reflects edits (declared wage, tax toggle, etc.) immediately on return.
       if (_existing?.id != null) {
@@ -257,10 +297,18 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       }
       context.pop();
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// Probation months → regularization date = hire date + N months.
+  /// Returns null when input is blank or non-positive.
+  DateTime? _computedRegularizationDate() {
+    final m = int.tryParse(_probationMonths.text.trim());
+    if (m == null || m <= 0) return null;
+    return DateTime(_hireDate.year, _hireDate.month + m, _hireDate.day);
   }
 
   Future<void> _pickDate(DateTime initial, void Function(DateTime) set) async {
@@ -371,7 +419,13 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                                 'ACTIVE', 'RESIGNED', 'TERMINATED', 'AWOL',
                                 'DECEASED', 'END_OF_CONTRACT', 'RETIRED'
                               ].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                              onChanged: (v) => setState(() => _employmentStatus = v!),
+                              onChanged: (v) => setState(() {
+                                _employmentStatus = v!;
+                                if (_employmentStatus != 'ACTIVE' &&
+                                    _separationDate == null) {
+                                  _separationDate = DateTime.now();
+                                }
+                              }),
                             ),
                           ]),
                           const SizedBox(height: 12),
@@ -381,17 +435,71 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                               value: _hireDate,
                               onTap: () => _pickDate(_hireDate, (d) => _hireDate = d),
                             ),
-                            _DatePickerField(
-                              label: 'Regularization date',
-                              value: _regularizationDate,
-                              onTap: () => _pickDate(
-                                  _regularizationDate ?? DateTime.now(),
-                                  (d) => _regularizationDate = d),
-                              onClear: () => setState(() => _regularizationDate = null),
+                            TextFormField(
+                              controller: _probationMonths,
+                              keyboardType: TextInputType.number,
+                              decoration: InputDecoration(
+                                labelText: 'Probation period (months)',
+                                border: const OutlineInputBorder(),
+                                hintText: '6',
+                                helperText: _computedRegularizationDate() == null
+                                    ? 'Leave blank to skip regularization'
+                                    : 'Regularizes on '
+                                        '${_computedRegularizationDate()!.toIso8601String().substring(0, 10)}',
+                              ),
+                              onChanged: (_) => setState(() {}),
                             ),
                           ]),
                           const SizedBox(height: 12),
                           _buildStatutoryEntityField(),
+                          if (_employmentStatus != 'ACTIVE') ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .errorContainer
+                                    .withValues(alpha: 0.25),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  const _SectionLabel('Separation'),
+                                  _responsiveRow([
+                                    _DatePickerField(
+                                      label: 'Separation date',
+                                      value: _separationDate,
+                                      onTap: () => _pickDate(
+                                          _separationDate ?? DateTime.now(),
+                                          (d) => _separationDate = d),
+                                      onClear: () => setState(
+                                          () => _separationDate = null),
+                                    ),
+                                    TextFormField(
+                                      controller: _separationReason,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Reason / remarks (optional)',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                    ),
+                                  ]),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Recorded on the timeline as Separation Confirmed. '
+                                    'Used by COE generation as the end-of-employment date.',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),

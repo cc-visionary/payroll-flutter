@@ -106,16 +106,25 @@ class EmployeeProfileScreen extends ConsumerWidget {
               ],
               body: Padding(
                 padding: EdgeInsets.symmetric(horizontal: hPad),
-                child: TabBarView(
-                  children: [
-                    ProfileTab(employee: employee),
-                    AttendanceTab(employee: employee),
-                    PayslipsTab(employee: employee),
-                    RoleTab(employee: employee),
-                    FinancialsTab(employee: employee),
-                    TimelineTab(employee: employee),
-                    DocumentsTab(employee: employee),
-                  ],
+                // NestedScrollView shares one PrimaryScrollController across
+                // every TabBarView child; during tab swipes two ListViews can
+                // briefly attach, which crashes the default Scrollbar. Suppress
+                // the ambient scrollbar here — each tab is short and works fine
+                // without it.
+                child: ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context)
+                      .copyWith(scrollbars: false),
+                  child: TabBarView(
+                    children: [
+                      ProfileTab(employee: employee),
+                      AttendanceTab(employee: employee),
+                      PayslipsTab(employee: employee),
+                      RoleTab(employee: employee),
+                      FinancialsTab(employee: employee),
+                      TimelineTab(employee: employee),
+                      DocumentsTab(employee: employee),
+                    ],
+                  ),
                 ),
               ),
             ),

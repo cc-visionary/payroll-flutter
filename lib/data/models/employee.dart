@@ -24,6 +24,7 @@ class Employee {
   final String employmentStatus;
   final DateTime hireDate;
   final DateTime? regularizationDate;
+  final DateTime? separationDate;
   final String? workEmail;
   final String? mobileNumber;
   final DateTime? birthDate;
@@ -69,6 +70,7 @@ class Employee {
     required this.employmentStatus,
     required this.hireDate,
     this.regularizationDate,
+    this.separationDate,
     this.workEmail,
     this.mobileNumber,
     this.birthDate,
@@ -118,6 +120,9 @@ class Employee {
         regularizationDate: r['regularization_date'] == null
             ? null
             : DateTime.parse(r['regularization_date'] as String),
+        separationDate: r['separation_date'] == null
+            ? null
+            : DateTime.parse(r['separation_date'] as String),
         workEmail: r['work_email'] as String?,
         mobileNumber: r['mobile_number'] as String?,
         birthDate: r['birth_date'] == null

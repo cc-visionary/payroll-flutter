@@ -39,8 +39,41 @@ Future<Map<String, String>> buildPayslipPdfsBase64ForIds(
   WidgetRef ref,
   List<String> payslipIds,
 ) async {
+  final byId = await buildPayslipPdfBytesForIds(ref, payslipIds);
+  return {for (final e in byId.entries) e.key: base64Encode(e.value)};
+}
+
+/// Same as [buildPayslipPdfsBase64ForIds] but returns raw PDF bytes plus
+/// the loaded employee + period context — used by the ZIP-of-payslips
+/// exporter, which needs both the bytes (to add to the archive) and the
+/// employee details (to build per-file names).
+class PayslipPdfBuildResult {
+  final Uint8List bytes;
+  final Employee employee;
+  final DateTime periodStart;
+  final DateTime periodEnd;
+  const PayslipPdfBuildResult({
+    required this.bytes,
+    required this.employee,
+    required this.periodStart,
+    required this.periodEnd,
+  });
+}
+
+Future<Map<String, Uint8List>> buildPayslipPdfBytesForIds(
+  WidgetRef ref,
+  List<String> payslipIds,
+) async {
+  final results = await buildPayslipPdfsForIds(ref, payslipIds);
+  return {for (final e in results.entries) e.key: e.value.bytes};
+}
+
+Future<Map<String, PayslipPdfBuildResult>> buildPayslipPdfsForIds(
+  WidgetRef ref,
+  List<String> payslipIds,
+) async {
   final repo = ref.read(payrollRepositoryProvider);
-  final out = <String, String>{};
+  final out = <String, PayslipPdfBuildResult>{};
   for (final id in payslipIds) {
     final ps = await repo.payslipById(id);
     if (ps == null) {
@@ -60,7 +93,12 @@ Future<Map<String, String>> buildPayslipPdfsBase64ForIds(
       payDate: ctx.payDate,
       attendanceRows: ctx.attendanceRows,
     ));
-    out[id] = base64Encode(bytes);
+    out[id] = PayslipPdfBuildResult(
+      bytes: bytes,
+      employee: ctx.employee,
+      periodStart: ctx.periodStart,
+      periodEnd: ctx.periodEnd,
+    );
   }
   return out;
 }

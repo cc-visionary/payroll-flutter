@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/money.dart';
 import '../../../../data/models/employee.dart';
 import '../../../auth/profile_provider.dart';
+import '../../../lark/lark_repository.dart';
+import '../../../../widgets/syncing_dialog.dart';
 import '../providers.dart';
 import '../widgets/info_card.dart';
 import 'add_penalty_dialog.dart';
@@ -21,6 +23,42 @@ class FinancialsTab extends ConsumerStatefulWidget {
 
 class _FinancialsTabState extends ConsumerState<FinancialsTab> {
   FinancialKind _kind = FinancialKind.penalties;
+
+  Future<void> _syncFromLark(BuildContext context) async {
+    final profile = ref.read(userProfileProvider).asData?.value;
+    final companyId = profile?.companyId;
+    final larkUserId = widget.employee.larkUserId;
+    if (companyId == null || companyId.isEmpty || larkUserId == null) return;
+    final lark = ref.read(larkRepositoryProvider);
+    final messenger = ScaffoldMessenger.of(context);
+    // YTD range so historical Lark records get backfilled, not just the
+    // edge function's 30-day default.
+    final from = DateTime(DateTime.now().year, 1, 1);
+    final to = DateTime.now();
+    final label = '${_kindLabel(_kind)}s for ${widget.employee.fullName}';
+    try {
+      final res = await runWithSyncingDialog(
+        context,
+        label,
+        () => _kind == FinancialKind.cashAdvances
+            ? lark.syncCashAdvances(companyId,
+                from: from, to: to, larkUserId: larkUserId)
+            : lark.syncReimbursements(companyId,
+                from: from, to: to, larkUserId: larkUserId),
+      );
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(
+        content: Text(
+          '$label: ${res.created} created, ${res.updated} updated'
+          '${res.errors.isNotEmpty ? " — ${res.errors.length} error(s)" : ""}',
+        ),
+      ));
+      ref.invalidate(financialsByEmployeeProvider);
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('Sync failed: $e')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,9 +92,11 @@ class _FinancialsTabState extends ConsumerState<FinancialsTab> {
                   setState(() => _kind = FinancialKind.reimbursements),
             ),
             const Spacer(),
-            if (canManage)
+            if (canManage && _kind != FinancialKind.penalties)
               OutlinedButton.icon(
-                onPressed: () => _showComingSoon(context, 'Sync from Lark'),
+                onPressed: widget.employee.larkUserId == null
+                    ? null
+                    : () => _syncFromLark(context),
                 icon: const Icon(Icons.cloud_sync_outlined, size: 16),
                 label: const Text('Sync from Lark'),
               ),

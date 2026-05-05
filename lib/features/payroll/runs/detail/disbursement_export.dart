@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:decimal/decimal.dart';
 import 'package:excel/excel.dart';
 import 'package:file_picker/file_picker.dart';
@@ -28,7 +29,9 @@ import '../../constants.dart';
 /// Filenames:
 ///   - Per-group: `{SourceAccountName} - {Remarks.trim()}.xlsx`
 ///     e.g. `GCash Chris - November 15 - November 30, 2025 Cutoff Salary.xlsx`
-///   - All: `Disbursement {Month D} - {Month D}, {Year}.xlsx`
+///   - All: `Disbursement {Month D} - {Month D}, {Year}.zip` containing one
+///     xlsx per payment source (each formatted exactly like the per-group
+///     export — banks expect single-sheet workbooks, not multi-sheet ones).
 
 class DisbursementExportRow {
   final String firstName;
@@ -149,12 +152,13 @@ bool get _useMobileShareSheet {
 Future<String?> _promptSaveLocation({
   required String dialogTitle,
   required String fileName,
+  String extension = 'xlsx',
 }) async {
   return FilePicker.platform.saveFile(
     dialogTitle: dialogTitle,
     fileName: _safeFileName(fileName),
     type: FileType.custom,
-    allowedExtensions: const ['xlsx'],
+    allowedExtensions: [extension],
   );
 }
 
@@ -163,8 +167,13 @@ Future<void> _writeExcel(Excel excel, String path) async {
   if (bytes == null) {
     throw Exception('Excel.save() returned null');
   }
-  // Ensure `.xlsx` suffix — the save dialog may strip or omit it.
-  final target = path.toLowerCase().endsWith('.xlsx') ? path : '$path.xlsx';
+  await _writeBytes(bytes, path, '.xlsx');
+}
+
+/// Write bytes to disk, ensuring the path ends with [extension] (the save
+/// dialog may strip or omit it).
+Future<void> _writeBytes(List<int> bytes, String path, String extension) async {
+  final target = path.toLowerCase().endsWith(extension) ? path : '$path$extension';
   await File(target).writeAsBytes(bytes);
 }
 
@@ -176,19 +185,25 @@ Future<String?> _shareExcel(Excel excel, String fileName) async {
   if (bytes == null) {
     throw Exception('Excel.save() returned null');
   }
+  return _shareBytes(
+    bytes,
+    fileName,
+    mimeType:
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
+}
+
+Future<String?> _shareBytes(
+  List<int> bytes,
+  String fileName, {
+  required String mimeType,
+}) async {
   final dir = await getTemporaryDirectory();
   final safe = _safeFileName(fileName);
-  final named = safe.toLowerCase().endsWith('.xlsx') ? safe : '$safe.xlsx';
-  final path = '${dir.path}${Platform.pathSeparator}$named';
+  final path = '${dir.path}${Platform.pathSeparator}$safe';
   await File(path).writeAsBytes(bytes);
   final result = await Share.shareXFiles(
-    [
-      XFile(
-        path,
-        mimeType:
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      ),
-    ],
+    [XFile(path, mimeType: mimeType)],
     subject: fileName,
   );
   // Treat dismiss as "no export happened" so the UI doesn't report a false
@@ -227,48 +242,73 @@ Future<String?> exportDisbursementGroupXlsx({
   return path;
 }
 
-/// Export every group into a single multi-sheet workbook. Sheet names are
-/// truncated to 31 characters (Excel limit).
-Future<String?> exportDisbursementAllXlsx({
+/// Export every group as its own xlsx, bundled into one zip. Each xlsx is
+/// byte-identical to what `exportDisbursementGroupXlsx` would produce — banks
+/// (Metrobank, etc.) expect their own single-sheet workbook, so we ship N
+/// files in a zip rather than one multi-sheet workbook.
+Future<String?> exportDisbursementAllZip({
   required List<DisbursementGroupExport> groups,
   required DateTime? periodStart,
   required DateTime? periodEnd,
 }) async {
   if (groups.isEmpty) return null;
   final filename =
-      'Disbursement ${_dateRangeLabel(periodStart, periodEnd)}.xlsx';
-
+      'Disbursement ${_dateRangeLabel(periodStart, periodEnd)}.zip';
   final remarks = formatRemarks(periodStart, periodEnd);
-  final excel = Excel.createExcel();
-  final defaultSheet = excel.getDefaultSheet();
+
+  final archive = Archive();
+  final usedNames = <String>{};
   for (final group in groups) {
-    final sheetName = _clampSheetName(group.sourceAccountName);
-    final ws = excel[sheetName];
+    final excel = Excel.createExcel();
+    excel.rename(excel.getDefaultSheet() ?? 'Sheet1', 'Sheet 1');
+    final ws = excel['Sheet 1'];
     for (final r in _buildSheetRows(group, remarks)) {
       ws.appendRow(r);
     }
+    final bytes = excel.save();
+    if (bytes == null) {
+      throw Exception('Excel.save() returned null');
+    }
+    final entryName = _uniqueZipEntryName(
+      _safeFileName('${group.sourceAccountName} - ${remarks.trim()}.xlsx'),
+      usedNames,
+    );
+    archive.addFile(ArchiveFile(entryName, bytes.length, bytes));
   }
-  if (defaultSheet != null &&
-      !groups.any((g) => _clampSheetName(g.sourceAccountName) == defaultSheet)) {
-    excel.delete(defaultSheet);
+
+  final zipBytes = ZipEncoder().encode(archive);
+  if (zipBytes == null) {
+    throw Exception('ZipEncoder.encode() returned null');
   }
 
   if (_useMobileShareSheet) {
-    return _shareExcel(excel, filename);
+    return _shareBytes(
+      zipBytes,
+      filename,
+      mimeType: 'application/zip',
+    );
   }
   final path = await _promptSaveLocation(
     dialogTitle: 'Save disbursement',
     fileName: filename,
+    extension: 'zip',
   );
   if (path == null) return null;
-  await _writeExcel(excel, path);
+  await _writeBytes(zipBytes, path, '.zip');
   return path;
 }
 
-String _clampSheetName(String name) {
-  // Excel forbids: \ / ? * [ ] : and caps name length at 31.
-  final cleaned = name.replaceAll(RegExp(r'[\\/?*\[\]:]'), ' ').trim();
-  return cleaned.length <= 31 ? cleaned : cleaned.substring(0, 31);
+/// Two groups can resolve to the same sanitised filename (e.g. duplicate
+/// labels). Suffix collisions with ` (2)`, ` (3)`, … so the zip stays valid.
+String _uniqueZipEntryName(String name, Set<String> used) {
+  if (used.add(name)) return name;
+  final dot = name.lastIndexOf('.');
+  final base = dot > 0 ? name.substring(0, dot) : name;
+  final ext = dot > 0 ? name.substring(dot) : '';
+  for (var i = 2;; i++) {
+    final candidate = '$base ($i)$ext';
+    if (used.add(candidate)) return candidate;
+  }
 }
 
 /// Build the TSV representation used by the per-group "Copy" button. Kept

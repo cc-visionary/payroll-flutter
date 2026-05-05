@@ -31,9 +31,35 @@ class PayslipPreviewScreen extends ConsumerWidget {
         ),
         data: (ps) {
           if (ps == null) return const Center(child: Text('Payslip not found.'));
-          return FutureBuilder<PayslipPdfContext>(
-            future: loadPayslipPdfContext(ref, ps),
-            builder: (context, snap) {
+          return _PayslipPreviewBody(payslip: ps);
+        },
+      ),
+    );
+  }
+}
+
+class _PayslipPreviewBody extends ConsumerStatefulWidget {
+  final Payslip payslip;
+  const _PayslipPreviewBody({required this.payslip});
+
+  @override
+  ConsumerState<_PayslipPreviewBody> createState() =>
+      _PayslipPreviewBodyState();
+}
+
+class _PayslipPreviewBodyState extends ConsumerState<_PayslipPreviewBody> {
+  // Cache the future so FutureBuilder doesn't rebind PdfPreview's internal
+  // ScrollController on every rebuild — that race trips the Scrollbar
+  // single-position assertion mid-scroll.
+  late final Future<PayslipPdfContext> _ctxFuture =
+      loadPayslipPdfContext(ref, widget.payslip);
+
+  @override
+  Widget build(BuildContext context) {
+    final ps = widget.payslip;
+    return FutureBuilder<PayslipPdfContext>(
+      future: _ctxFuture,
+      builder: (context, snap) {
               if (snap.hasError) {
                 return Center(
                   child: Text(
@@ -107,9 +133,6 @@ class PayslipPreviewScreen extends ConsumerWidget {
               );
             },
           );
-        },
-      ),
-    );
   }
 }
 

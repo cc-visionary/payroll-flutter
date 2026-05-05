@@ -187,7 +187,7 @@ class _PayrollDisbursementTabState
             ))
         .toList();
     try {
-      final path = await exportDisbursementAllXlsx(
+      final path = await exportDisbursementAllZip(
         groups: exports,
         periodStart: detail?.payPeriodStart,
         periodEnd: detail?.payPeriodEnd,
@@ -612,8 +612,6 @@ class _GroupRow extends StatelessWidget {
                     value: source,
                     onChanged: onSourceChanged,
                     employeeBankCodes: _employeeBankCodes(emp),
-                    hiringEntityCode: (emp?['hiring_entities']
-                        as Map<String, dynamic>?)?['code'] as String?,
                   )
                 : Text(
                     paymentSourceLabel(source),
@@ -657,28 +655,24 @@ class _SourceDropdown extends StatelessWidget {
   // have an account in. If empty, show everything (the payroll compute may
   // have run before the employee added any bank accounts).
   final Set<String> employeeBankCodes;
-  // Employee's hiring entity code (e.g. LUXIUM, GAMECOVE). When set, the
-  // dropdown hides sources tagged for a different entity so disbursement
-  // can't route across companies.
-  final String? hiringEntityCode;
   const _SourceDropdown({
     required this.value,
     required this.onChanged,
     required this.employeeBankCodes,
-    required this.hiringEntityCode,
   });
 
   @override
   Widget build(BuildContext context) {
     final hasFilter = employeeBankCodes.isNotEmpty;
-    // Company scope — shared sources (hiringEntityCode == null) always pass.
-    Iterable<PaymentSource> scoped = paymentSourceAccounts.where((p) =>
-        p.hiringEntityCode == null || p.hiringEntityCode == hiringEntityCode);
+    // No hiring-entity scope: HR can override the auto-assigned default and
+    // pay across companies (e.g., pay a GameCove-hired employee through
+    // Luxium's Metrobank). Bank-code filter still applies so we don't surface
+    // a source where the employee has no matching account.
     final eligible = hasFilter
-        ? scoped
+        ? paymentSourceAccounts
             .where((p) => p.bankCode == null || employeeBankCodes.contains(p.bankCode))
             .toList()
-        : scoped.toList();
+        : paymentSourceAccounts.toList();
     // Ensure the currently-selected value is always in the list, even if it
     // no longer matches the filter — so we don't flash a null value.
     final ensureCurrent = value != null &&

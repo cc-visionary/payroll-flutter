@@ -80,17 +80,19 @@ class LarkRepository {
         if (from != null) 'from': from.toIso8601String().substring(0, 10),
         if (to != null) 'to': to.toIso8601String().substring(0, 10),
       });
-  Future<LarkSyncResult> syncCashAdvances(String companyId, {DateTime? from, DateTime? to}) =>
+  Future<LarkSyncResult> syncCashAdvances(String companyId, {DateTime? from, DateTime? to, String? larkUserId}) =>
       _invoke('sync-lark-cash-advances', {
         'company_id': companyId,
         if (from != null) 'from': from.toIso8601String().substring(0, 10),
         if (to != null) 'to': to.toIso8601String().substring(0, 10),
+        if (larkUserId != null) 'lark_user_id': larkUserId,
       });
-  Future<LarkSyncResult> syncReimbursements(String companyId, {DateTime? from, DateTime? to}) =>
+  Future<LarkSyncResult> syncReimbursements(String companyId, {DateTime? from, DateTime? to, String? larkUserId}) =>
       _invoke('sync-lark-reimbursements', {
         'company_id': companyId,
         if (from != null) 'from': from.toIso8601String().substring(0, 10),
         if (to != null) 'to': to.toIso8601String().substring(0, 10),
+        if (larkUserId != null) 'lark_user_id': larkUserId,
       });
   Future<LarkSyncResult> syncCalendar(String companyId, int year) =>
       _invoke('sync-lark-calendar', {'company_id': companyId, 'year': year});

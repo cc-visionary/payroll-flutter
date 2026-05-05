@@ -39,6 +39,30 @@ class EmployeeRepository {
     return Employee.fromRow(row);
   }
 
+  /// Append a `SEPARATION_CONFIRMED` row to `employment_events` so the
+  /// employee's timeline reflects the exit. Stored as APPROVED because the
+  /// status change on the employee row is itself the approval gate.
+  Future<void> recordSeparationEvent({
+    required String employeeId,
+    required DateTime separationDate,
+    required String reason,
+    String? remarks,
+    String? actorUserId,
+  }) async {
+    await _client.from('employment_events').insert({
+      'employee_id': employeeId,
+      'event_type': 'SEPARATION_CONFIRMED',
+      'event_date': separationDate.toIso8601String().substring(0, 10),
+      'status': 'APPROVED',
+      'payload': {'reason': reason},
+      if (remarks != null && remarks.isNotEmpty) 'remarks': remarks,
+      if (actorUserId != null) 'requested_by_id': actorUserId,
+      if (actorUserId != null) 'approved_by_id': actorUserId,
+      if (actorUserId != null)
+        'approved_at': DateTime.now().toUtc().toIso8601String(),
+    });
+  }
+
   Future<void> archive(String id) async {
     await _client
         .from('employees')
@@ -72,6 +96,7 @@ class EmployeeRepository {
     required String employmentStatus,
     required DateTime hireDate,
     DateTime? regularizationDate,
+    DateTime? separationDate,
     bool isRankAndFile = true,
     bool isOtEligible = true,
     bool isNdEligible = true,
@@ -119,6 +144,7 @@ class EmployeeRepository {
       'employment_status': employmentStatus,
       'hire_date': hireDate.toIso8601String().substring(0, 10),
       'regularization_date': regularizationDate?.toIso8601String().substring(0, 10),
+      'separation_date': separationDate?.toIso8601String().substring(0, 10),
       'is_rank_and_file': isRankAndFile,
       'is_ot_eligible': isOtEligible,
       'is_nd_eligible': isNdEligible,

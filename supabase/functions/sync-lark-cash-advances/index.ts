@@ -17,7 +17,7 @@ import {
   json,
 } from '../_shared/lark.ts';
 
-interface Body { company_id?: string; from?: string; to?: string }
+interface Body { company_id?: string; from?: string; to?: string; lark_user_id?: string }
 
 // Walk Lark approval form and pluck first numeric value as amount + first
 // text value as reason. Lark widget IDs are auto-generated, so we discover
@@ -81,6 +81,7 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch (_) {}
   const companyId = body.company_id;
   if (!companyId) return json({ error: 'company_id required' }, 400);
+  const filterLarkUserId = body.lark_user_id ?? null;
 
   const now = new Date();
   let to = body.to ? new Date(body.to) : now;
@@ -119,6 +120,9 @@ Deno.serve(async (req) => {
       try {
         const inst = await getApprovalInstance(auth, code);
         if (inst.status !== 'APPROVED') { skipped++; continue; }
+        if (filterLarkUserId && inst.user_id !== filterLarkUserId && inst.open_id !== filterLarkUserId) {
+          skipped++; continue;
+        }
         const employeeId = empByLarkId.get(inst.user_id) ?? empByLarkId.get(inst.open_id ?? '');
         if (!employeeId) { skipped++; errors.push(`${code}: no employee for user ${inst.user_id}`); continue; }
         const parsed = inst.form ? extractCashAdvance(inst.form) : { amount: null, reason: null };

@@ -73,6 +73,18 @@ class ProfileTab extends ConsumerWidget {
                   ? '—'
                   : _fmtDate(employee.regularizationDate!),
             ),
+            _KV(
+              'Separation Date',
+              employee.separationDate == null
+                  ? '—'
+                  : _fmtDate(employee.separationDate!),
+            ),
+            _KV(
+              'Period of Employment',
+              employee.separationDate == null
+                  ? '${_fmtDate(employee.hireDate)} – Present'
+                  : '${_fmtDate(employee.hireDate)} – ${_fmtDate(employee.separationDate!)}',
+            ),
             _KV('Job Title', employee.jobTitle ?? '—'),
             _KV('Statutory Employer of Record', statutoryEntityLabel),
           ]),

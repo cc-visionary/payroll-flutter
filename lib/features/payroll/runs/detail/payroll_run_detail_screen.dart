@@ -10,6 +10,7 @@ import '../../../auth/profile_provider.dart';
 import '../compute/compute_service.dart';
 import '../../payslips/payslip_pdf_context.dart';
 import 'finance_export.dart';
+import 'payslips_export.dart';
 import 'providers.dart';
 import 'tabs/approvals_tab.dart';
 import 'tabs/disbursement_tab.dart';
@@ -391,7 +392,7 @@ class _ActionBar extends ConsumerWidget {
           ),
         if (status == 'REVIEW' || status == 'RELEASED')
           OutlinedButton.icon(
-            onPressed: () => _stub(context, 'Export Payslips'),
+            onPressed: () => _exportPayslipsZip(context, ref),
             icon: const Icon(Icons.file_download_outlined, size: 16),
             label: const Text('Export Payslips'),
           ),
@@ -435,10 +436,54 @@ class _ActionBar extends ConsumerWidget {
     );
   }
 
-  void _stub(BuildContext context, String action) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$action — coming soon.')),
-    );
+  Future<void> _exportPayslipsZip(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final rows = await ref
+          .read(payrollRepositoryProvider)
+          .payslipListForRun(detail.run.id);
+      final ids = <String>[for (final r in rows) r['id'] as String];
+      if (ids.isEmpty) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('No payslips to export.')),
+        );
+        return;
+      }
+      messenger.showSnackBar(SnackBar(
+        content: Text(
+            'Generating ${ids.length} payslip PDF${ids.length == 1 ? '' : 's'}…'),
+        duration: const Duration(seconds: 30),
+      ));
+      final result = await exportPayslipsZip(
+        ref: ref,
+        payslipIds: ids,
+        periodStart: detail.payPeriodStart,
+        periodEnd: detail.payPeriodEnd,
+        onProgress: (done, total) {
+          messenger.hideCurrentSnackBar();
+          messenger.showSnackBar(SnackBar(
+            content: Text('Building payslip PDFs ($done of $total)…'),
+            duration: const Duration(seconds: 30),
+          ));
+        },
+      );
+      if (!context.mounted) return;
+      messenger.hideCurrentSnackBar();
+      if (result == null) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Exported ${result.pdfCount} payslip(s) to ${result.path}')),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(
+        backgroundColor: Colors.red.shade600,
+        content: Text('Export failed: $e'),
+      ));
+    }
   }
 
   Future<void> _exportFinanceTracking(
