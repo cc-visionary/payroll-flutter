@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../data/models/employee.dart';
 import '../../../auth/profile_provider.dart';
@@ -60,13 +61,22 @@ class _DocumentsTabState extends ConsumerState<DocumentsTab> {
                 FilledButton(
                   onPressed: _selectedType == null
                       ? null
-                      : () => ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Generate "$_selectedType" — coming soon.',
+                      : () {
+                          final id = _templateIdForLabel(_selectedType!);
+                          if (id == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '"$_selectedType" not yet supported.',
+                                ),
                               ),
-                            ),
-                          ),
+                            );
+                            return;
+                          }
+                          context.go(
+                            '/documents/generate/$id?employeeId=${widget.employee.id}',
+                          );
+                        },
                   child: const Text('Generate'),
                 ),
               ],
@@ -101,6 +111,16 @@ class _DocumentsTabState extends ConsumerState<DocumentsTab> {
         ),
       ],
     );
+  }
+
+  String? _templateIdForLabel(String label) {
+    switch (label) {
+      case 'Certificate of Employment':
+        return 'coe';
+      // Other dropdown options remain document-upload only for v1.
+      default:
+        return null;
+    }
   }
 }
 

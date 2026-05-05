@@ -28,6 +28,7 @@ import '../features/auth/profile_provider.dart';
 import '../features/compensation/compensation_screen.dart';
 import '../features/compliance/compliance_screen.dart';
 import '../features/documents/documents_screen.dart';
+import '../features/documents/generate_screen.dart';
 import '../features/hiring/hiring_screen.dart';
 import '../features/offboarding/offboarding_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
@@ -150,6 +151,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/compliance', builder: (c, s) => const ComplianceScreen()),
           GoRoute(path: '/workflows', builder: (c, s) => const WorkflowsScreen()),
           GoRoute(path: '/documents', builder: (c, s) => const DocumentsScreen()),
+          GoRoute(
+            path: '/documents/generate/:templateId',
+            builder: (c, s) => GenerateScreen(
+              templateId: s.pathParameters['templateId']!,
+              employeeId: s.uri.queryParameters['employeeId'],
+            ),
+          ),
           GoRoute(path: '/audit', builder: (c, s) => const AuditLogScreen()),
           GoRoute(path: '/settings', builder: (c, s) => const SettingsScreen()),
           GoRoute(
