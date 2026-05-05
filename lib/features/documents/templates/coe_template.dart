@@ -1,0 +1,137 @@
+import 'package:flutter/material.dart' show Icons, IconData;
+import 'package:intl/intl.dart';
+
+import '../../../core/pdf/interpolate.dart';
+import '../blocks/block.dart';
+import '../blocks/company_header_block.dart';
+import '../blocks/paragraph_block.dart';
+import '../blocks/signature_block.dart';
+import '../blocks/spacer_block.dart';
+import '../blocks/title_block.dart';
+import '../providers.dart';
+import 'coe_gates.dart';
+import 'coe_inputs.dart';
+import 'coe_validate.dart';
+import 'document_template.dart';
+
+// PLACEHOLDER — engineer MUST replace with canonical wording from
+// JAM employee record PDFs in Phase 8 Task 40. Confirm with user.
+const _coeBodyText =
+    'This is to certify that {employeeFullName} was employed with '
+    '{companyName} as {position} from {dateStart} to {dateEnd}.';
+
+class CoeTemplate extends DocumentTemplate<CoeInputs> {
+  const CoeTemplate();
+
+  @override
+  String get id => 'coe';
+  @override
+  String get name => 'Certificate of Employment';
+  @override
+  String get description => 'Issued only after an employee has separated.';
+  @override
+  IconData get icon => Icons.workspace_premium_outlined;
+  @override
+  int get version => 1;
+
+  @override
+  CoeInputs emptyInputs() => CoeInputs(
+        employeeId: '',
+        employeeFullName: '',
+        companyId: '',
+        companyName: '',
+        position: '',
+      );
+
+  @override
+  Future<CoeInputs> autofill(AutofillContext ctx) async {
+    final emp = ctx.employee;
+    if (emp == null) return emptyInputs();
+    final co = ctx.company;
+    final hireRow = await ctx.ref.read(latestEmploymentEventProvider(
+            (employeeId: emp.id, eventType: 'HIRE'))
+        .future);
+    final sepRow = await ctx.ref.read(latestEmploymentEventProvider(
+            (employeeId: emp.id, eventType: 'SEPARATION'))
+        .future);
+    DateTime? toDate(Map<String, dynamic>? r) {
+      if (r == null) return null;
+      final v = r['event_date'] as String?;
+      return v == null ? null : DateTime.parse(v);
+    }
+
+    return CoeInputs(
+      employeeId: emp.id,
+      employeeFullName: emp.fullName,
+      companyId: co?.id ?? '',
+      companyName: co?.name ?? '',
+      companyAddress: co == null ? null : _addressOf(co),
+      hrManagerName: co?.hrManagerName,
+      // Position fallback — Employee model has no `position` field; HR
+      // overrides if blank.
+      position: '',
+      dateStart: toDate(hireRow),
+      dateEnd: toDate(sepRow),
+    );
+  }
+
+  @override
+  List<Gate> gates(AutofillContext ctx) {
+    final emp = ctx.employee;
+    if (emp == null) return const [];
+    return computeCoeGates(
+      hasSeparationEvent: false,
+      employmentStatus: emp.employmentStatus,
+    );
+  }
+
+  @override
+  List<ValidationError> validate(CoeInputs inputs) => validateCoe(inputs);
+
+  @override
+  List<Block> build(CoeInputs i) {
+    final fmt = DateFormat('MMMM d, yyyy');
+    return [
+      CompanyHeaderBlock(name: i.companyName, address: i.companyAddress),
+      const SpacerBlock(24),
+      const TitleBlock('CERTIFICATE OF EMPLOYMENT'),
+      const SpacerBlock(24),
+      const ParagraphBlock('TO WHOM IT MAY CONCERN:'),
+      const SpacerBlock(12),
+      ParagraphBlock(
+        interpolate(
+          _coeBodyText,
+          {
+            'employeeFullName': i.employeeFullName,
+            'position': i.position,
+            'companyName': i.companyName,
+            'dateStart': i.dateStart == null ? '—' : fmt.format(i.dateStart!),
+            'dateEnd': i.dateEnd == null ? '—' : fmt.format(i.dateEnd!),
+          },
+          lenient: true,
+        ),
+      ),
+      ParagraphBlock(
+        'This certification is issued upon the request of ${i.employeeFullName} '
+        'for whatever legal purpose it may serve.',
+      ),
+      const SpacerBlock(48),
+      SignatureBlock(
+        name: i.hrManagerName,
+        role: 'HR Manager — ${i.companyName}',
+        date: DateTime.now(),
+      ),
+    ];
+  }
+}
+
+String _addressOf(dynamic co) {
+  final parts = [
+    co.addressLine1,
+    co.addressLine2,
+    [co.city, co.province, co.zipCode]
+        .where((s) => s != null && (s as String).isNotEmpty)
+        .join(', '),
+  ].where((s) => s != null && (s as String).isNotEmpty).cast<String>().toList();
+  return parts.join(' · ');
+}

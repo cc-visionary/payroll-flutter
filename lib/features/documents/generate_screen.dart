@@ -6,9 +6,12 @@ import 'package:pdf/pdf.dart';
 import '../../core/pdf/pdf_filename.dart';
 import '../../core/pdf/pdf_preview_scaffold.dart';
 import '../../core/pdf/pdf_theme.dart';
+import 'forms/coe_form.dart';
 import 'forms/quitclaim_form.dart';
 import 'pdf/pdf_builder.dart';
 import 'providers.dart';
+import 'templates/coe_inputs.dart';
+import 'templates/coe_template.dart';
 import 'templates/document_template.dart';
 import 'templates/quitclaim_inputs.dart';
 import 'templates/quitclaim_template.dart';
@@ -29,6 +32,7 @@ class GenerateScreen extends ConsumerStatefulWidget {
 
 class _GenerateScreenState extends ConsumerState<GenerateScreen> {
   QuitclaimInputs? _quitclaim;
+  CoeInputs? _coe;
   bool _autofillDone = false;
 
   @override
@@ -39,11 +43,32 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
 
   Future<void> _runAutofill() async {
     final tpl = findTemplateById(widget.templateId);
+    final eId = widget.employeeId;
+    if (tpl is CoeTemplate) {
+      if (eId == null) {
+        setState(() {
+          _coe = tpl.emptyInputs();
+          _autofillDone = true;
+        });
+        return;
+      }
+      final emp = await ref.read(documentEmployeeProvider(eId).future);
+      final co = (emp == null || emp.hiringEntityId == null)
+          ? null
+          : await ref
+              .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+      final ctx = AutofillContext(employee: emp, company: co, ref: ref);
+      final filled = await tpl.autofill(ctx);
+      setState(() {
+        _coe = filled;
+        _autofillDone = true;
+      });
+      return;
+    }
     if (tpl is! QuitclaimTemplate) {
       setState(() => _autofillDone = true);
       return;
     }
-    final eId = widget.employeeId;
     if (eId == null) {
       setState(() {
         _quitclaim = tpl.emptyInputs();
@@ -113,6 +138,13 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         onChanged: (next) => setState(() => _quitclaim = next),
       );
     }
+    if (tpl is CoeTemplate && _coe != null) {
+      return CoeForm(
+        initial: _coe!,
+        employeeLocked: widget.employeeId != null,
+        onChanged: (next) => setState(() => _coe = next),
+      );
+    }
     return const Center(child: Text('Form not implemented'));
   }
 
@@ -125,6 +157,24 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         employeeNumber: null,
         employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
         date: inputs.dateSigned,
+      );
+      return PdfPreviewScaffold(
+        filename: filename,
+        enabled: errors.isEmpty,
+        buildPdf: (PdfPageFormat format) async {
+          final theme = await PdfTheme.defaults();
+          return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
+        },
+      );
+    }
+    if (tpl is CoeTemplate && _coe != null) {
+      final inputs = _coe!;
+      final errors = tpl.validate(inputs);
+      final filename = filenameForDocument(
+        templateId: 'coe',
+        employeeNumber: null,
+        employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
+        date: DateTime.now(),
       );
       return PdfPreviewScaffold(
         filename: filename,

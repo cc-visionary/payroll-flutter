@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../blocks/block.dart';
 import '../blocks/paragraph_block.dart';
+import 'coe_template.dart';
 import 'document_template.dart';
 import 'quitclaim_template.dart';
 
@@ -56,12 +57,7 @@ class _PlaceholderTemplate extends DocumentTemplate<_PlaceholderInputs> {
 /// reads this list directly.
 const List<DocumentTemplate> kTemplates = [
   QuitclaimTemplate(),
-  _PlaceholderTemplate(
-    id: 'coe',
-    name: 'Certificate of Employment',
-    description: 'Issued only after an employee has separated.',
-    icon: Icons.workspace_premium_outlined,
-  ),
+  CoeTemplate(),
   _PlaceholderTemplate(
     id: 'nte',
     name: 'Notice to Explain',
