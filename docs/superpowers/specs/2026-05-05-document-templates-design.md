@@ -29,23 +29,63 @@ The system is built on a reusable block library that also covers four future tem
 
 ## Architectural approach
 
-**Approach 1 of three considered**, recommended and accepted: a code-defined `DocumentTemplate` class per template, composing reusable `Block` primitives that render to a single `pdf` package output. The right-pane preview displays the actual generated PDF via `printing.PdfPreview` — there is **one render path**, not two. This eliminates preview-vs-PDF drift, gives WYSIWYG pagination including page numbers, and matches the existing payslip preview pattern in `lib/features/payroll/payslips/payslip_preview_screen.dart`.
+**Approach 1 of three considered**, recommended and accepted: a code-defined `DocumentTemplate` class per template, composing reusable `Block` primitives that render to a single `pdf` package output. The right-pane preview displays the actual generated PDF via `printing.PdfPreview` — there is **one render path**, not two. This eliminates preview-vs-PDF drift, gives WYSIWYG pagination including page numbers, and **mirrors the existing payslip preview pattern** in `lib/features/payroll/payslips/`.
+
+**Mirror the payslip layering precisely:**
+
+| Payslip | Document templates (this spec) |
+|---|---|
+| `_payslipProvider(id)` reads the row | `employeeProvider(id)` + `hiringEntityProvider(id)` etc. |
+| `loadPayslipPdfContext(ref, payslip)` hydrates employee, company, period, attendance | `template.autofill(AutofillContext)` returns typed `I` |
+| `PayslipPdfInput { ... }` — a plain typed record, no widgets | `TemplateInputs I` per template — same role |
+| `Future<Uint8List> buildPayslipPdf(PayslipPdfInput)` — pure, async, in-memory | `Future<Uint8List> PdfBuilder.build(blocks, theme)` — same shape |
+| `PdfPreview(build: (fmt) async => buildPayslipPdf(input))` | `PdfPreview(build: (fmt) async => PdfBuilder.build(template.build(inputs), theme))` |
+| Inter via `PdfGoogleFonts.interLight()` etc., cached after first fetch | Inter via `PdfGoogleFonts` — **same fonts as payslip for visual consistency** |
+| Two custom actions: Download (`Printing.sharePdf`) + Print (`Printing.layoutPdf`, hidden on web) | **Same two actions** on the document preview |
+| Bulk reuse: `buildPayslipPdfsBase64ForIds`, ZIP export in `payslips_export.dart` | Bulk paths out of v1 scope — but `PdfBuilder.build` is the same pure function bulk callers can reuse later |
+| No storage upload, no edge-function rendering, no caching of bytes | **Same** — fully ephemeral, client-side render only |
+
+**Font choice:** **Inter via `PdfGoogleFonts`**, not bundled Satoshi assets. Reasons: (1) consistent with payslip and any other PDF in the app; (2) `PdfGoogleFonts` caches bytes after first fetch (cold-start requires network once per host, subsequent renders offline); (3) avoids font-asset bundling and `pw.Font.helvetica()` fallbacks that don't render `₱` correctly. Light (300) is the body weight, SemiBold (600) is used for `pw.FontWeight.bold`. Italic + BoldItalic available so no text falls back to Helvetica.
+
+**Reusable PDF infrastructure:** the codebase already has multiple PDF generators (`payslip_pdf.dart`, `thirteenth_month_pdf.dart`, `disbursement_export.dart`, `payslips_export.dart`). This spec lifts shared concerns out of `lib/features/documents/pdf/` into a **shared** location at `lib/core/pdf/` so future PDF features (and refactors of the existing ones) can reuse them. See "Shared PDF layer" below.
 
 Approaches considered and rejected:
 
 - **Per-template mega-widget with shared PDF helpers** — less ceremony, but every new template re-implements form/preview/PDF wiring; visual consistency depends on developer discipline.
 - **JSON-driven templates from day one** — premature; we don't yet know the right block shape. Approach 1 earns the right to become this once the block library is battle-tested.
 
+## Shared PDF layer
+
+New folder `lib/core/pdf/` — the reusable foundation for any PDF export in the app, including this feature, the existing payslip/13th-month/disbursement PDFs (which can migrate at their leisure), and any future PDF (e.g., the four deferred templates):
+
+```
+lib/core/pdf/
+├── pdf_theme.dart                   # PdfTheme: fonts, sizes, margins, page-number config
+├── pdf_fonts.dart                   # loadInterTheme() → pw.ThemeData; cached load via PdfGoogleFonts
+├── pdf_preview_scaffold.dart        # Reusable PdfPreview wrapper with Download + Print actions
+├── pdf_filename.dart                # filenameFor({prefix, employeeNumber, dateYmd}) helper
+└── page_footer.dart                 # standard "Page X of Y" footer builder for pw.MultiPage
+```
+
+`pdf_preview_scaffold.dart` exports a `PdfPreviewScaffold` widget that takes:
+- `Future<Uint8List> Function(PdfPageFormat) build` — same callback shape as `PdfPreview.build`
+- `String filename`
+- `bool allowPrint` — auto-set based on platform (desktop + mobile only, hidden on web)
+- All the existing `PdfPreview` styling (`maxPageWidth: 820`, `allowPrinting: false`, `allowSharing: false`, `canChangeOrientation: false`, `canChangePageFormat: false`, `canDebug: false`, custom Download + Print `PdfPreviewAction`s)
+
+The payslip preview screen can migrate to use this scaffold in a follow-up; the document templates feature uses it from day one. Centralized so any future "open this PDF in a preview pane with Download + Print" call is one widget.
+
+`pdf_fonts.dart` exports `Future<pw.ThemeData> loadInterTheme()` returning the same Inter Light/SemiBold/LightItalic/SemiBoldItalic theme the payslip uses today. Caches the theme after first call so subsequent PDF builds skip the Google Fonts fetch entirely.
+
 ## Folder layout
 
 ```
 lib/features/documents/
 ├── documents_screen.dart            # Replaces coming-soon. Template picker.
-├── generate_screen.dart             # Form (left) + PdfPreview (right), two-pane.
+├── generate_screen.dart             # Form (left) + PdfPreviewScaffold (right), two-pane.
 │
 ├── blocks/                          # Block primitives — single render path (toPdf only)
 │   ├── block.dart                   # abstract Block { pw.Widget toPdf(PdfTheme); }
-│   ├── pdf_theme.dart               # fonts, sizes, margins, page-number footer config
 │   ├── title_block.dart
 │   ├── heading_block.dart
 │   ├── section_heading_block.dart   # "1. Reason for Deduction" pattern
@@ -88,7 +128,7 @@ lib/features/documents/
 │   └── quill_field.dart             # rich-text field used in charges_editor
 │
 ├── pdf/
-│   ├── pdf_builder.dart             # walks Block list, returns Future<Uint8List>
+│   ├── pdf_builder.dart             # buildDocumentPdf(blocks, theme) → Future<Uint8List>; uses lib/core/pdf/
 │   └── delta_to_pdf.dart            # Quill Delta → pw.RichText runs
 │
 └── providers.dart                   # Riverpod: autofill data sources
@@ -117,13 +157,11 @@ There is no `toPreview(BuildContext)` method. The right-pane preview displays th
 
 ### `PdfTheme`
 
-Single shared theme so all templates render as one visual family.
+Lives in `lib/core/pdf/pdf_theme.dart` so any PDF generator can use the same defaults. Single shared theme so all templates (and any other app PDF that opts in) render as one visual family.
 
 ```dart
 class PdfTheme {
-  final pw.Font displayFont;          // Satoshi
-  final pw.Font bodyFont;             // Satoshi
-  final pw.Font monoFont;             // Geist Mono — numbers, dates, currencies
+  final pw.ThemeData fontTheme;       // from loadInterTheme(); Inter Light/SemiBold + italics
   final PdfPageFormat pageFormat;     // A4
   final EdgeInsets pageMargin;        // 25mm
   final double titleSize;             // 22pt
@@ -135,6 +173,8 @@ class PdfTheme {
   final PageNumberPosition pageNumberPosition; // default bottomCenter
   final double footerFontSize;        // 9pt
   final EdgeInsets footerMargin;      // bottom 12mm
+
+  static Future<PdfTheme> defaults() async => PdfTheme._(fontTheme: await loadInterTheme(), ...);
 }
 ```
 
@@ -224,6 +264,8 @@ Hard data (amounts, employment dates, company) is autofilled and rendered as a r
 
 ## Data flow
 
+Mirrors the payslip flow exactly, parameterized by template:
+
 ```
 User opens /documents
         │
@@ -234,33 +276,44 @@ TemplatePicker (reads kTemplates registry)
         │ (pick template + employee)
         ▼
 GenerateScreen (templateId, employeeId?)
-   ├── AutofillContext built from providers (one-shot at screen open)
-   │     • employeeProvider(id)               → Employee
-   │     • employmentEventsProvider(id)       → HIRE / SEPARATION dates
-   │     • hiringEntityProvider(id)           → company name, address
-   │     • thirteenthMonthAccrualProvider(id) → quitclaim only
-   │     • payslipLinesAggregateProvider(id)  → quitclaim only
+   ├── AutofillContext built from providers (one-shot at screen open):
+   │     • employeeProvider(id)                → Employee
+   │     • employmentEventsProvider(id)        → HIRE / SEPARATION dates
+   │     • hiringEntityProvider(id)            → company row (name, address parts,
+   │                                              legal_signatory_name/role,
+   │                                              hr_manager_name)
+   │     • thirteenthMonthAccrualProvider(id)  → quitclaim only
+   │     • payslipLinesAggregateProvider(id)   → quitclaim only
    │
    ├── template.autofill(ctx) → I prefilled (locked Autofilled chips)
    ├── template.gates(ctx)    → hard-block list (COE only)
    │
-   ├── FormPane (left)                       PdfPreview (right)
-   │   • renders typed inputs                • shows the PDF bytes
-   │   • locked-with-unlock UX               • re-renders on input change (200ms debounce)
-   │   • on change → setState                • displays "Page X of Y" footer per page
+   ├── FormPane (left)                       PdfPreviewScaffold (right)
+   │   • renders typed inputs                • build callback:
+   │   • locked-with-unlock UX                   final blocks = template.build(inputs);
+   │   • on change → debounced setState          return buildDocumentPdf(blocks, theme);
+   │                                         • re-runs on input change (200ms debounce)
+   │                                         • Download (sharePdf) + Print (layoutPdf) actions
    │                                         • placeholder when validate() has errors
    │
-   └── Generate button (enabled iff validate(inputs).isEmpty)
+   └── Download / Print buttons live inside PdfPreviewScaffold (no separate Generate button)
             │
             ▼
-       PdfBuilder.build(blocks, theme) → Uint8List      // same call as preview
-            │
-            ▼
-       printing.layoutPdf() — system PDF preview/print/save dialog
-       (no DB writes, no storage uploads)
+       Same buildDocumentPdf(...) Uint8List → printing.sharePdf or printing.layoutPdf
+       (no DB writes, no storage uploads, no caching — fresh render every time)
 ```
 
-**One render path**: every input change debounces 200ms; if `validate(inputs)` is empty, the screen calls `template.build(inputs) → blocks`, then `PdfBuilder.build(blocks, theme) → Uint8List`, and `PdfPreview` displays those bytes. Generate button uses the **same call** to produce the file passed to `printing.layoutPdf`. Preview and generated file are byte-identical.
+**One render path**: every input change debounces 200ms; if `validate(inputs)` is empty, `PdfPreviewScaffold` calls its `build` callback, which calls `template.build(inputs) → blocks`, then `buildDocumentPdf(blocks, theme) → Uint8List`. The Download and Print actions in the scaffold trigger the **same callback** for the bytes they hand to `Printing.sharePdf` / `Printing.layoutPdf`. Preview and final file are byte-identical.
+
+**No separate "Generate" button** — Download + Print are the terminal actions, matching the payslip pattern (the user sees the file, then chooses what to do with it). When `validate(inputs)` is non-empty, both actions are disabled (greyed out) inside the scaffold.
+
+**Filename pattern** (`lib/core/pdf/pdf_filename.dart::filenameForDocument`):
+- `Quitclaim_<EmployeeNumber>_<YYYYMMDD>.pdf`
+- `COE_<EmployeeNumber>_<YYYYMMDD>.pdf`
+- `NTE_<EmployeeNumber>_<YYYYMMDD>.pdf`
+- Falls back to `<TemplateId>_<first8OfEmployeeUuid>_<YYYYMMDD>.pdf` when employee number is null.
+
+**Bulk paths (out of v1 scope, but designed for):** `buildDocumentPdf(blocks, theme)` is a pure async function. A future bulk-issuance feature can call it in a loop the same way `payslips_export.dart` calls `buildPayslipPdf` for ZIP export, or wrap it in a base64 helper for Lark approval routing the way `buildPayslipPdfsBase64ForIds` does today.
 
 **Autofill is one-shot**, not reactive — fetched once at screen open. If upstream data changes mid-edit, HR re-opens the screen.
 
@@ -404,18 +457,18 @@ Each breakdown row is itself autofilled; each is individually editable via the s
 ### Validation surfaces
 
 - **Per-field:** red border + below-field error text, matching existing form patterns.
-- **Form-level:** badge on Generate button `(N issues)` with hover popover listing all errors.
+- **Form-level:** banner above `PdfPreviewScaffold` listing the count and (on hover) the per-field errors. `PdfPreviewScaffold`'s Download + Print actions are disabled (greyed) while errors exist.
 - **Gate failures:** shown at template-picker step, not after entry — user never lands on a screen they cannot generate from.
-- **Preview placeholder:** `PdfPreview` shows "Complete required fields" placeholder while `validate(inputs)` is non-empty.
+- **Preview placeholder:** `PdfPreviewScaffold` shows "Complete required fields" placeholder while `validate(inputs)` is non-empty.
 
 ### PDF rendering failure modes
 
 | Failure | Behavior |
 |---|---|
 | Quill Delta contains unsupported attribute (image embed, color, etc.) | Strip the attribute, log debug warning, render the text. v1 Quill toolbar exposes only supported subset (bold/italic/underline/bullet/numbered/nested) so this is a guardrail, not a UX path. |
-| Satoshi or Geist Mono font asset missing | Fall back to `pw.Font.helvetica()` and log. PDF still renders. |
+| `PdfGoogleFonts` cold-fetch fails (offline first run) | Surface a banner: "Font download failed — connect to the internet once to enable PDF generation." Subsequent renders use the cache. Same behavior as payslip. |
 | Block tree exceeds page bounds | `pw.MultiPage` paginates automatically. `PageBreakBlock` forces a break. |
-| `printing.layoutPdf()` throws (driver issue, OS dialog cancelled) | Snackbar: "Couldn't open print dialog — try again or save the file." Form remains filled, no state change. |
+| `printing.layoutPdf()` / `sharePdf()` throws (driver issue, OS dialog cancelled) | Snackbar: "Couldn't open print/save dialog — try again." Form remains filled, no state change. |
 
 ### Concurrent state and permissions
 
@@ -426,7 +479,7 @@ Each breakdown row is itself autofilled; each is individually editable via the s
 
 ## Page numbers
 
-`PdfBuilder` always uses `pw.MultiPage` (never `pw.Page`), so even single-page docs render "Page 1 of 1". Footer position bottom-center, format `"Page X of Y"`, 9pt grey, 12mm bottom margin. Configurable via `PdfTheme`. v1 always-on for all three templates. Because the right-pane preview displays the actual PDF bytes, page numbers appear in both surfaces identically.
+`buildDocumentPdf` always uses `pw.MultiPage` (never `pw.Page`), so even single-page docs render "Page 1 of 1". Footer is built by `lib/core/pdf/page_footer.dart::buildStandardPageFooter(theme, context)` — bottom-center, format `"Page X of Y"`, 9pt grey, 12mm bottom margin. Configurable via `PdfTheme`. v1 always-on for all three templates. Because the right-pane preview displays the actual PDF bytes, page numbers appear in both surfaces identically. The same footer builder is available for any other app PDF that wants consistent pagination.
 
 ## Testing strategy
 
@@ -452,10 +505,11 @@ PDF goldens use `printing`'s raster utility (or equivalent). No block-preview go
 
 ### Integration tests (`integration_test/documents/`)
 
-- **Flow A — global Documents screen:** pick template → pick employee → form auto-fills → preview renders → Generate opens print dialog (stubbed `printing.layoutPdf` captures bytes).
+- **Flow A — global Documents screen:** pick template → pick employee → form auto-fills → preview renders → Download/Print buttons enabled → click captures bytes via stubbed `Printing.sharePdf` / `Printing.layoutPdf`.
 - **Flow B — employee profile:** open employee → Documents tab → Generate → template-picker dialog → form opens with employee locked → Flow A continuation.
 - **Flow C — gate behavior:** active employee shows COE grayed; separated employee shows COE enabled.
 - **Flow D — locked-with-unlock:** autofilled field is read-only; Override → editable; warning banner; clearing the field still allows submission iff manually filled.
+- **Flow E — incomplete form:** missing required field → preview shows "Complete required fields"; Download + Print actions disabled.
 
 ### Out of scope
 
@@ -492,17 +546,15 @@ These are nullable so the migration is non-breaking. A small admin form in `lib/
 New `pubspec.yaml` entries:
 
 - `flutter_quill` — rich-text editor for NTE charge bodies. Pin to a stable major.
-- (No new PDF dependency — `pdf: ^3.12.0` and `printing: ^5.14.3` already present.)
+- (No new PDF dependency — `pdf: ^3.12.0`, `printing: ^5.14.3`, and Google Fonts via `printing.PdfGoogleFonts` are already present and used by the payslip pipeline.)
 
 Custom code, no new dependency:
 
 - `delta_to_pdf.dart` — Quill Delta → `pw.RichText` walker. ~150 LOC. No off-the-shelf converter targets the `pdf` package directly; existing converters target HTML or Quill's own renderer.
 
-Font assets:
+Fonts:
 
-- Satoshi (Variable) — display + body. Already in `assets/fonts/` (verify; add if missing).
-- Geist Mono — numbers, dates, currencies. Already in `assets/fonts/` (verify; add if missing).
-- Helvetica fallback via `pw.Font.helvetica()` if either is missing at runtime.
+- **Inter via `PdfGoogleFonts`**, identical to the payslip pipeline (Light 300, SemiBold 600, plus italics). Cached after first fetch; offline thereafter. No bundled font assets, no Helvetica fallback needed.
 
 ## Implementation phases
 
@@ -511,12 +563,13 @@ This spec is one feature with a single implementation plan; the writing-plans sk
 Suggested phasing for the plan author:
 
 1. **Schema migration** — `hiring_entities` signatory + HR manager columns + admin form in Settings to fill them.
-2. **Block library + `PdfTheme` + `PdfBuilder`** — primitives only, no composites yet. Goldens per primitive.
-3. **`DocumentTemplate` interface, registry, picker UI, route wiring** — empty templates, picker shows them with "coming soon" generate.
-4. **Quitclaim end-to-end** — first template with full form + autofill + preview + generate. Validates the architecture on the simplest doc.
-5. **COE end-to-end** — adds the gate pattern.
-6. **NTE end-to-end** — adds memo composites + Quill rich text + Delta-to-PDF.
-7. **Polish + permissions wiring + integration tests + final goldens.**
+2. **Shared PDF layer at `lib/core/pdf/`** — `PdfTheme`, `loadInterTheme`, `buildStandardPageFooter`, `PdfPreviewScaffold`, `filenameForDocument`. Covered by tests in `test/core/pdf/`. Existing payslip code is **not** migrated here in this feature — it stays as-is; migration is a follow-up refactor.
+3. **Block library** in `lib/features/documents/blocks/` — primitives only, no composites yet. Goldens per primitive.
+4. **`DocumentTemplate` interface, registry, picker UI, route wiring** — empty templates, picker shows them with disabled Download/Print until populated.
+5. **Quitclaim end-to-end** — first template with full form + autofill + preview + Download/Print. Validates the architecture on the simplest doc.
+6. **COE end-to-end** — adds the gate pattern.
+7. **NTE end-to-end** — adds memo composites + Quill rich text + Delta-to-PDF.
+8. **Polish + permissions wiring + integration tests + final goldens.**
 
 ## Open questions
 
