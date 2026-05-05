@@ -6,14 +6,12 @@
 // instead we render to bytes and inspect via Printing.raster.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:payroll_flutter/core/pdf/page_footer.dart';
 import 'package:payroll_flutter/core/pdf/pdf_theme.dart';
 
 void main() {
-  test('buildStandardPageFooter formats "Page X of Y"', () async {
-    final theme = await PdfTheme.defaults();
+  test('buildStandardPageFooter formats "Page X of Y"', () {
     // Build a tiny stub Context-like value via a helper in production
     // code: buildStandardPageFooterText(pageNumber, pagesCount).
     expect(buildStandardPageFooterText(1, 3), 'Page 1 of 3');
@@ -21,8 +19,8 @@ void main() {
     expect(buildStandardPageFooterText(1, 1), 'Page 1 of 1');
   });
 
-  test('buildStandardPageFooter returns a centered Container', () async {
-    final theme = await PdfTheme.defaults();
+  test('buildStandardPageFooter returns a centered Container', () {
+    final theme = PdfTheme.testStub();
     final widget = buildStandardPageFooter(theme, pageNumber: 2, pagesCount: 5);
     expect(widget, isA<pw.Container>());
   });

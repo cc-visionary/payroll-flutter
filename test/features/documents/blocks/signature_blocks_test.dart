@@ -38,8 +38,8 @@ void main() {
     expect(b.text.startsWith('If the employee'), true);
   });
 
-  test('all blocks render without throwing', () async {
-    final theme = await PdfTheme.defaults();
+  test('all blocks render without throwing', () {
+    final theme = PdfTheme.testStub();
     expect(
       () => SignatureBlock(name: 'X', role: 'Y', date: DateTime(2026, 1, 1)).toPdf(theme),
       returnsNormally,

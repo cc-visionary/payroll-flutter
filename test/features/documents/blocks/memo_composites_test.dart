@@ -24,8 +24,8 @@ void main() {
     expect(b, isNotNull);
   });
 
-  test('composites render without throwing', () async {
-    final theme = await PdfTheme.defaults();
+  test('composites render without throwing', () {
+    final theme = PdfTheme.testStub();
     expect(
       () => MemoHeaderBlock(
         titleText: 't',

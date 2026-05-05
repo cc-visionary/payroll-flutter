@@ -14,8 +14,8 @@ void main() {
     expect(block.formatted, '3. Repayment Options');
   });
 
-  test('blocks render without throwing', () async {
-    final theme = await PdfTheme.defaults();
+  test('blocks render without throwing', () {
+    final theme = PdfTheme.testStub();
     expect(() => const HeadingBlock('h').toPdf(theme), returnsNormally);
     expect(
       () =>

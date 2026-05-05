@@ -14,7 +14,7 @@ class _StubBlock extends Block {
 
 void main() {
   test('buildDocumentPdf returns non-empty bytes for one block', () async {
-    final theme = await PdfTheme.defaults();
+    final theme = PdfTheme.testStub();
     final bytes = await buildDocumentPdf(
       blocks: [const _StubBlock('Hello')],
       theme: theme,
@@ -25,7 +25,7 @@ void main() {
   });
 
   test('buildDocumentPdf renders multiple blocks', () async {
-    final theme = await PdfTheme.defaults();
+    final theme = PdfTheme.testStub();
     final bytes = await buildDocumentPdf(
       blocks: [
         const _StubBlock('Block one'),

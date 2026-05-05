@@ -13,8 +13,8 @@ void main() {
     expect(block.rows[1].value, '2026-05-05');
   });
 
-  test('renders without throwing', () async {
-    final theme = await PdfTheme.defaults();
+  test('renders without throwing', () {
+    final theme = PdfTheme.testStub();
     expect(
       () => const KeyValueBlock([KeyValueRow('A', 'B')]).toPdf(theme),
       returnsNormally,

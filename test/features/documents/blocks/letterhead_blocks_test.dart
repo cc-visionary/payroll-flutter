@@ -23,8 +23,8 @@ void main() {
     expect(block.subject, 'Preventive Suspension Pending Investigation');
   });
 
-  test('blocks render without throwing', () async {
-    final theme = await PdfTheme.defaults();
+  test('blocks render without throwing', () {
+    final theme = PdfTheme.testStub();
     expect(
       () => const CompanyHeaderBlock(name: 'X', address: 'Y').toPdf(theme),
       returnsNormally,

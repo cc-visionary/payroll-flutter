@@ -14,7 +14,7 @@ import 'package:payroll_flutter/features/documents/templates/nte_template.dart';
 void main() {
   test('NTE with 6 charges paginates and produces valid multi-page PDF',
       () async {
-    final theme = await PdfTheme.defaults();
+    final theme = PdfTheme.testStub();
     final inputs = NteInputs(
       employeeId: 'e1',
       employeeFullName: 'Donald Xu',

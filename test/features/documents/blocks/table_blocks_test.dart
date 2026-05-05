@@ -25,8 +25,8 @@ void main() {
     expect(block.headers.length, 3);
   });
 
-  test('blocks render without throwing', () async {
-    final theme = await PdfTheme.defaults();
+  test('blocks render without throwing', () {
+    final theme = PdfTheme.testStub();
     expect(
       () => const TableBlock(
         headers: ['A'],

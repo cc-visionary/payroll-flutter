@@ -4,8 +4,8 @@ import 'package:payroll_flutter/core/pdf/pdf_theme.dart';
 import 'package:payroll_flutter/features/documents/blocks/spacer_block.dart';
 
 void main() {
-  test('SpacerBlock toPdf returns SizedBox with the requested height', () async {
-    final theme = await PdfTheme.defaults();
+  test('SpacerBlock toPdf returns SizedBox with the requested height', () {
+    final theme = PdfTheme.testStub();
     final block = const SpacerBlock(24);
     final widget = block.toPdf(theme);
     expect(widget, isA<pw.SizedBox>());

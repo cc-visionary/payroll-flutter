@@ -4,8 +4,8 @@ import 'package:payroll_flutter/features/documents/blocks/paragraph_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/emphasis_paragraph_block.dart';
 
 void main() {
-  test('ParagraphBlock renders with body size', () async {
-    final theme = await PdfTheme.defaults();
+  test('ParagraphBlock renders with body size', () {
+    final theme = PdfTheme.testStub();
     const block = ParagraphBlock('Hello world.');
     expect(() => block.toPdf(theme), returnsNormally);
   });

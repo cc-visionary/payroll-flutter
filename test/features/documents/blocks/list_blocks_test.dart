@@ -27,8 +27,8 @@ void main() {
     expect(block.items.first.leadBold, 'Immediate Payment Due');
   });
 
-  test('blocks render without throwing', () async {
-    final theme = await PdfTheme.defaults();
+  test('blocks render without throwing', () {
+    final theme = PdfTheme.testStub();
     expect(
         () => const BulletListBlock(['a', 'b']).toPdf(theme), returnsNormally);
     expect(

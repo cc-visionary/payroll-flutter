@@ -8,8 +8,8 @@ void main() {
     expect(block.text, 'PREVENTIVE SUSPENSION MEMO');
   });
 
-  test('TitleBlock toPdf does not throw', () async {
-    final theme = await PdfTheme.defaults();
+  test('TitleBlock toPdf does not throw', () {
+    final theme = PdfTheme.testStub();
     expect(() => const TitleBlock('Title').toPdf(theme), returnsNormally);
   });
 }

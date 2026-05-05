@@ -12,8 +12,8 @@ void main() {
     expect(block.items[0].label, 'Lump Sum Payment');
   });
 
-  test('renders without throwing', () async {
-    final theme = await PdfTheme.defaults();
+  test('renders without throwing', () {
+    final theme = PdfTheme.testStub();
     expect(
       () => const CheckboxListBlock(
         [CheckboxItem(label: 'A', body: 'b')],

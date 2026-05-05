@@ -49,4 +49,27 @@ class PdfTheme {
       footerMargin: const pw.EdgeInsets.only(bottom: 34),
     );
   }
+
+  /// Synchronous theme suitable for tests — avoids fetching Inter from
+  /// Google Fonts (which races and times out under flutter_test). Uses
+  /// the built-in Helvetica family. **Do not use in production code.**
+  static PdfTheme testStub() {
+    return PdfTheme(
+      fontTheme: pw.ThemeData.withFont(
+        base: pw.Font.helvetica(),
+        bold: pw.Font.helveticaBold(),
+        italic: pw.Font.helveticaOblique(),
+        boldItalic: pw.Font.helveticaBoldOblique(),
+      ),
+      pageFormat: PdfPageFormat.a4,
+      pageMargin: const pw.EdgeInsets.all(70.866),
+      titleSize: 22,
+      headingSize: 14,
+      bodySize: 11,
+      textColor: PdfColors.black,
+      showPageNumbers: true,
+      footerFontSize: 9,
+      footerMargin: const pw.EdgeInsets.only(bottom: 34),
+    );
+  }
 }
