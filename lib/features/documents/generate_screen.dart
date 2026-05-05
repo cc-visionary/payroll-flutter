@@ -7,12 +7,15 @@ import '../../core/pdf/pdf_filename.dart';
 import '../../core/pdf/pdf_preview_scaffold.dart';
 import '../../core/pdf/pdf_theme.dart';
 import 'forms/coe_form.dart';
+import 'forms/nte_form.dart';
 import 'forms/quitclaim_form.dart';
 import 'pdf/pdf_builder.dart';
 import 'providers.dart';
 import 'templates/coe_inputs.dart';
 import 'templates/coe_template.dart';
 import 'templates/document_template.dart';
+import 'templates/nte_inputs.dart';
+import 'templates/nte_template.dart';
 import 'templates/quitclaim_inputs.dart';
 import 'templates/quitclaim_template.dart';
 import 'templates/template_registry.dart';
@@ -33,6 +36,7 @@ class GenerateScreen extends ConsumerStatefulWidget {
 class _GenerateScreenState extends ConsumerState<GenerateScreen> {
   QuitclaimInputs? _quitclaim;
   CoeInputs? _coe;
+  NteInputs? _nte;
   bool _autofillDone = false;
 
   @override
@@ -61,6 +65,27 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       final filled = await tpl.autofill(ctx);
       setState(() {
         _coe = filled;
+        _autofillDone = true;
+      });
+      return;
+    }
+    if (tpl is NteTemplate) {
+      if (eId == null) {
+        setState(() {
+          _nte = tpl.emptyInputs();
+          _autofillDone = true;
+        });
+        return;
+      }
+      final emp = await ref.read(documentEmployeeProvider(eId).future);
+      final co = (emp == null || emp.hiringEntityId == null)
+          ? null
+          : await ref
+              .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+      final ctx = AutofillContext(employee: emp, company: co, ref: ref);
+      final filled = await tpl.autofill(ctx);
+      setState(() {
+        _nte = filled;
         _autofillDone = true;
       });
       return;
@@ -145,6 +170,13 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         onChanged: (next) => setState(() => _coe = next),
       );
     }
+    if (tpl is NteTemplate && _nte != null) {
+      return NteForm(
+        initial: _nte!,
+        employeeLocked: widget.employeeId != null,
+        onChanged: (next) => setState(() => _nte = next),
+      );
+    }
     return const Center(child: Text('Form not implemented'));
   }
 
@@ -175,6 +207,24 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         employeeNumber: null,
         employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
         date: DateTime.now(),
+      );
+      return PdfPreviewScaffold(
+        filename: filename,
+        enabled: errors.isEmpty,
+        buildPdf: (PdfPageFormat format) async {
+          final theme = await PdfTheme.defaults();
+          return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
+        },
+      );
+    }
+    if (tpl is NteTemplate && _nte != null) {
+      final inputs = _nte!;
+      final errors = tpl.validate(inputs);
+      final filename = filenameForDocument(
+        templateId: 'nte',
+        employeeNumber: null,
+        employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
+        date: inputs.dateIssued,
       );
       return PdfPreviewScaffold(
         filename: filename,
