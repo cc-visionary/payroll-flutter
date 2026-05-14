@@ -172,6 +172,48 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
     }
   }
 
+  Future<void> _onPickerEmployeeChanged(String newEmployeeId) async {
+    final tpl = findTemplateById(widget.templateId);
+    if (tpl == null) return;
+    try {
+      final emp =
+          await ref.read(documentEmployeeProvider(newEmployeeId).future);
+      final co = (emp == null || emp.hiringEntityId == null)
+          ? null
+          : await ref
+              .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+      final ctx = AutofillContext(employee: emp, company: co, ref: ref);
+      if (tpl is CoeTemplate) {
+        final filled = await tpl.autofill(ctx);
+        if (!mounted) return;
+        setState(() => _coe = filled);
+      } else if (tpl is NteTemplate) {
+        final filled = await tpl.autofill(ctx);
+        if (!mounted) return;
+        setState(() => _nte = filled);
+      } else if (tpl is NonRegTemplate) {
+        final filled = await tpl.autofill(ctx);
+        if (!mounted) return;
+        setState(() => _nonReg = filled);
+      } else if (tpl is QuitclaimTemplate) {
+        final filled = await tpl.autofill(ctx);
+        if (!mounted) return;
+        setState(() => _quitclaim = filled);
+      }
+    } catch (e, st) {
+      // ignore: avoid_print
+      print('Re-autofill failed: $e\n$st');
+      if (!mounted) return;
+      // Surface a small inline error via setState; don't replace the whole
+      // screen since the form is usable as-is with the new employeeId.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not refresh fields for new employee: $e'),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final tpl = findTemplateById(widget.templateId);
@@ -232,30 +274,38 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
   Widget _formFor(DocumentTemplate tpl) {
     if (tpl is QuitclaimTemplate && _quitclaim != null) {
       return QuitclaimForm(
+        key: ValueKey('quitclaim-${_quitclaim!.employeeId}'),
         initial: _quitclaim!,
         employeeLocked: widget.employeeId != null,
         onChanged: (next) => setState(() => _quitclaim = next),
+        onEmployeeChanged: _onPickerEmployeeChanged,
       );
     }
     if (tpl is CoeTemplate && _coe != null) {
       return CoeForm(
+        key: ValueKey('coe-${_coe!.employeeId}'),
         initial: _coe!,
         employeeLocked: widget.employeeId != null,
         onChanged: (next) => setState(() => _coe = next),
+        onEmployeeChanged: _onPickerEmployeeChanged,
       );
     }
     if (tpl is NteTemplate && _nte != null) {
       return NteForm(
+        key: ValueKey('nte-${_nte!.employeeId}'),
         initial: _nte!,
         employeeLocked: widget.employeeId != null,
         onChanged: (next) => setState(() => _nte = next),
+        onEmployeeChanged: _onPickerEmployeeChanged,
       );
     }
     if (tpl is NonRegTemplate && _nonReg != null) {
       return NonRegForm(
+        key: ValueKey('non_reg-${_nonReg!.employeeId}'),
         initial: _nonReg!,
         employeeLocked: widget.employeeId != null,
         onChanged: (next) => setState(() => _nonReg = next),
+        onEmployeeChanged: _onPickerEmployeeChanged,
       );
     }
     return const Center(child: Text('Form not implemented'));

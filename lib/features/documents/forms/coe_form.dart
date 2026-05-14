@@ -11,11 +11,13 @@ class CoeForm extends ConsumerStatefulWidget {
   final CoeInputs initial;
   final bool employeeLocked;
   final ValueChanged<CoeInputs> onChanged;
+  final ValueChanged<String> onEmployeeChanged;
   const CoeForm({
     super.key,
     required this.initial,
     required this.employeeLocked,
     required this.onChanged,
+    required this.onEmployeeChanged,
   });
 
   @override
@@ -61,8 +63,9 @@ class _CoeFormState extends ConsumerState<CoeForm> {
       EmployeePicker(
         selectedId: _i.employeeId.isEmpty ? null : _i.employeeId,
         locked: widget.employeeLocked,
+        includeArchived: true,
         onChanged: (id) {
-          if (id != null) _set(_i.copyWith(employeeId: id));
+          if (id != null) widget.onEmployeeChanged(id);
         },
       ),
       const SizedBox(height: 16),

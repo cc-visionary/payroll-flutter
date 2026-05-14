@@ -13,11 +13,13 @@ class QuitclaimForm extends ConsumerStatefulWidget {
   final QuitclaimInputs initial;
   final bool employeeLocked;
   final ValueChanged<QuitclaimInputs> onChanged;
+  final ValueChanged<String> onEmployeeChanged;
   const QuitclaimForm({
     super.key,
     required this.initial,
     required this.employeeLocked,
     required this.onChanged,
+    required this.onEmployeeChanged,
   });
 
   @override
@@ -63,8 +65,9 @@ class _QuitclaimFormState extends ConsumerState<QuitclaimForm> {
         EmployeePicker(
           selectedId: _i.employeeId.isEmpty ? null : _i.employeeId,
           locked: widget.employeeLocked,
+          includeArchived: true,
           onChanged: (id) {
-            if (id != null) _set(_i.copyWith(employeeId: id));
+            if (id != null) widget.onEmployeeChanged(id);
           },
         ),
         if (_errFor('employee') != null)

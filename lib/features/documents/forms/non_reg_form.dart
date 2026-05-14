@@ -11,11 +11,13 @@ class NonRegForm extends ConsumerStatefulWidget {
   final NonRegInputs initial;
   final bool employeeLocked;
   final ValueChanged<NonRegInputs> onChanged;
+  final ValueChanged<String> onEmployeeChanged;
   const NonRegForm({
     super.key,
     required this.initial,
     required this.employeeLocked,
     required this.onChanged,
+    required this.onEmployeeChanged,
   });
 
   @override
@@ -55,7 +57,7 @@ class _NonRegFormState extends ConsumerState<NonRegForm> {
             selectedId: _i.employeeId.isEmpty ? null : _i.employeeId,
             locked: widget.employeeLocked,
             onChanged: (id) {
-              if (id != null) _set(_i.copyWith(employeeId: id));
+              if (id != null) widget.onEmployeeChanged(id);
             },
           ),
           const SizedBox(height: 16),
