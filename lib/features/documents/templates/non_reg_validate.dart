@@ -63,5 +63,26 @@ List<ValidationError> validateNonReg(NonRegInputs i) {
       }
     }
   }
+  final ps = i.probationaryStart;
+  final pe = i.probationaryEnd;
+  final ee = i.effectiveEndDate;
+  if (ps != null && pe != null && pe.isBefore(ps)) {
+    errs.add(const ValidationError(
+        'probationaryEnd',
+        'Probationary end must be on or after the probationary start.'));
+  }
+  if (ps != null && ee != null && ee.isBefore(ps)) {
+    errs.add(const ValidationError(
+        'effectiveEndDate',
+        'Effective end date must be on or after the probationary start.'));
+  }
+  if (pe != null && ee != null) {
+    final limit = pe.add(const Duration(days: 7));
+    if (ee.isAfter(limit)) {
+      errs.add(const ValidationError(
+          'effectiveEndDate',
+          'Effective end date must be on or before probationary end + 7 days.'));
+    }
+  }
   return errs;
 }

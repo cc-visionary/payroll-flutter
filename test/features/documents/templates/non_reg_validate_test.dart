@@ -119,4 +119,47 @@ void main() {
       true,
     );
   });
+
+  test('probationaryEnd before probationaryStart flagged', () {
+    final i = valid().copyWith(
+      probationaryStart: DateTime(2025, 12, 6),
+      probationaryEnd: DateTime(2025, 6, 9),
+    );
+    expect(
+      validateNonReg(i).any((e) => e.field == 'probationaryEnd'),
+      true,
+    );
+  });
+
+  test('effectiveEndDate before probationaryStart flagged', () {
+    final i = valid().copyWith(
+      effectiveEndDate: DateTime(2025, 6, 1),
+    );
+    expect(
+      validateNonReg(i).any((e) => e.field == 'effectiveEndDate'),
+      true,
+    );
+  });
+
+  test('effectiveEndDate well after probationaryEnd flagged', () {
+    final i = valid().copyWith(
+      probationaryEnd: DateTime(2025, 12, 6),
+      effectiveEndDate: DateTime(2026, 1, 1),
+    );
+    expect(
+      validateNonReg(i).any((e) => e.field == 'effectiveEndDate'),
+      true,
+    );
+  });
+
+  test('effectiveEndDate within 7-day grace of probationaryEnd OK', () {
+    final i = valid().copyWith(
+      probationaryEnd: DateTime(2025, 12, 6),
+      effectiveEndDate: DateTime(2025, 12, 12), // +6 days = within grace
+    );
+    expect(
+      validateNonReg(i).any((e) => e.field == 'effectiveEndDate'),
+      false,
+    );
+  });
 }
