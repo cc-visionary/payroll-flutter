@@ -46,6 +46,12 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
   NonRegInputs? _nonReg;
   bool _autofillDone = false;
   String? _autofillError;
+  // Monotonically incrementing key suffix bumped on every successful
+  // autofill (initial mount + every picker-driven re-autofill). The form
+  // widget's ValueKey uses this so it remounts cleanly when autofill
+  // delivers new field values, but does NOT remount on optimistic local
+  // state changes (e.g. the picker setting just `employeeId`).
+  int _autofillRev = 0;
 
   @override
   void initState() {
@@ -76,6 +82,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           setState(() {
             _coe = tpl.emptyInputs();
             _autofillDone = true;
+            _autofillRev++;
           });
           return;
         }
@@ -89,6 +96,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         setState(() {
           _coe = filled;
           _autofillDone = true;
+          _autofillRev++;
         });
         return;
       }
@@ -97,6 +105,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           setState(() {
             _nte = tpl.emptyInputs();
             _autofillDone = true;
+            _autofillRev++;
           });
           return;
         }
@@ -110,6 +119,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         setState(() {
           _nte = filled;
           _autofillDone = true;
+          _autofillRev++;
         });
         return;
       }
@@ -118,6 +128,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           setState(() {
             _nonReg = tpl.emptyInputs();
             _autofillDone = true;
+            _autofillRev++;
           });
           return;
         }
@@ -131,6 +142,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         setState(() {
           _nonReg = filled;
           _autofillDone = true;
+          _autofillRev++;
         });
         return;
       }
@@ -142,6 +154,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         setState(() {
           _quitclaim = tpl.emptyInputs();
           _autofillDone = true;
+          _autofillRev++;
         });
         return;
       }
@@ -155,6 +168,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       setState(() {
         _quitclaim = filled;
         _autofillDone = true;
+        _autofillRev++;
       });
     } catch (e, st) {
       // Log to console for debugging — keep the existing app behavior
@@ -186,19 +200,31 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       if (tpl is CoeTemplate) {
         final filled = await tpl.autofill(ctx);
         if (!mounted) return;
-        setState(() => _coe = filled);
+        setState(() {
+          _coe = filled;
+          _autofillRev++;
+        });
       } else if (tpl is NteTemplate) {
         final filled = await tpl.autofill(ctx);
         if (!mounted) return;
-        setState(() => _nte = filled);
+        setState(() {
+          _nte = filled;
+          _autofillRev++;
+        });
       } else if (tpl is NonRegTemplate) {
         final filled = await tpl.autofill(ctx);
         if (!mounted) return;
-        setState(() => _nonReg = filled);
+        setState(() {
+          _nonReg = filled;
+          _autofillRev++;
+        });
       } else if (tpl is QuitclaimTemplate) {
         final filled = await tpl.autofill(ctx);
         if (!mounted) return;
-        setState(() => _quitclaim = filled);
+        setState(() {
+          _quitclaim = filled;
+          _autofillRev++;
+        });
       }
     } catch (e, st) {
       // ignore: avoid_print
@@ -274,7 +300,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
   Widget _formFor(DocumentTemplate tpl) {
     if (tpl is QuitclaimTemplate && _quitclaim != null) {
       return QuitclaimForm(
-        key: ValueKey('quitclaim-${_quitclaim!.employeeId}'),
+        key: ValueKey('quitclaim-$_autofillRev'),
         initial: _quitclaim!,
         employeeLocked: widget.employeeId != null,
         onChanged: (next) => setState(() => _quitclaim = next),
@@ -283,7 +309,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
     }
     if (tpl is CoeTemplate && _coe != null) {
       return CoeForm(
-        key: ValueKey('coe-${_coe!.employeeId}'),
+        key: ValueKey('coe-$_autofillRev'),
         initial: _coe!,
         employeeLocked: widget.employeeId != null,
         onChanged: (next) => setState(() => _coe = next),
@@ -292,7 +318,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
     }
     if (tpl is NteTemplate && _nte != null) {
       return NteForm(
-        key: ValueKey('nte-${_nte!.employeeId}'),
+        key: ValueKey('nte-$_autofillRev'),
         initial: _nte!,
         employeeLocked: widget.employeeId != null,
         onChanged: (next) => setState(() => _nte = next),
@@ -301,7 +327,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
     }
     if (tpl is NonRegTemplate && _nonReg != null) {
       return NonRegForm(
-        key: ValueKey('non_reg-${_nonReg!.employeeId}'),
+        key: ValueKey('non_reg-$_autofillRev'),
         initial: _nonReg!,
         employeeLocked: widget.employeeId != null,
         onChanged: (next) => setState(() => _nonReg = next),

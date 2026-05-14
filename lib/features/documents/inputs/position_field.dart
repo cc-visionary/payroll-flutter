@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../data/repositories/employee_repository.dart';
+import '../../../data/repositories/role_scorecard_repository.dart';
 
-/// Autocomplete field for HR Manager Name. Suggests from the active
-/// employee list as the user types; free-text is still accepted (for
-/// external consultants or names not on the roster).
+/// Autocomplete field for Position. Suggests from the active
+/// `role_scorecards.job_title` list as the user types; free-text is still
+/// accepted (for ad-hoc positions or external hires whose role isn't on
+/// the scorecard list yet).
 ///
-/// Uses `RawAutocomplete` with an externally-managed `TextEditingController`
-/// so the field keeps focus while typing AND can be re-seeded by the
-/// parent when autofill brings in a new value.
-class HrManagerField extends ConsumerStatefulWidget {
+/// Same controller-managed pattern as `HrManagerField`: external value
+/// only re-seeds the controller when the user isn't actively editing.
+class PositionField extends ConsumerStatefulWidget {
   final String value;
   final ValueChanged<String> onChanged;
   final String? hintText;
-  const HrManagerField({
+  const PositionField({
     super.key,
     required this.value,
     required this.onChanged,
@@ -22,20 +22,17 @@ class HrManagerField extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<HrManagerField> createState() => _HrManagerFieldState();
+  ConsumerState<PositionField> createState() => _PositionFieldState();
 }
 
-class _HrManagerFieldState extends ConsumerState<HrManagerField> {
+class _PositionFieldState extends ConsumerState<PositionField> {
   late final TextEditingController _controller =
       TextEditingController(text: widget.value);
   late final FocusNode _focusNode = FocusNode();
 
   @override
-  void didUpdateWidget(HrManagerField oldWidget) {
+  void didUpdateWidget(PositionField oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Only sync external value into the controller when the user isn't
-    // actively editing this field. Avoids cursor jumps and focus loss
-    // mid-typing. Triggered by parent autofill propagating a fresh value.
     if (widget.value != _controller.text && !_focusNode.hasFocus) {
       _controller.text = widget.value;
     }
@@ -50,10 +47,11 @@ class _HrManagerFieldState extends ConsumerState<HrManagerField> {
 
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(employeeListProvider(const EmployeeListQuery()));
-    final names = async.asData?.value
-            .map((e) => e.fullName)
-            .where((n) => n.isNotEmpty)
+    final async = ref.watch(roleScorecardListProvider);
+    final titles = async.asData?.value
+            .map((c) => c.jobTitle)
+            .where((t) => t.isNotEmpty)
+            .toSet()
             .toList() ??
         const <String>[];
 
@@ -62,8 +60,8 @@ class _HrManagerFieldState extends ConsumerState<HrManagerField> {
       focusNode: _focusNode,
       optionsBuilder: (textEditingValue) {
         final q = textEditingValue.text.trim().toLowerCase();
-        if (q.isEmpty) return names.take(8);
-        return names.where((n) => n.toLowerCase().contains(q)).take(8);
+        if (q.isEmpty) return titles.take(8);
+        return titles.where((t) => t.toLowerCase().contains(q)).take(8);
       },
       fieldViewBuilder:
           (context, controller, focusNode, onFieldSubmitted) {
@@ -73,7 +71,8 @@ class _HrManagerFieldState extends ConsumerState<HrManagerField> {
           decoration: InputDecoration(
             border: const OutlineInputBorder(),
             isDense: true,
-            hintText: widget.hintText ?? 'Type or select an employee',
+            hintText:
+                widget.hintText ?? 'Type or select from responsibility cards',
           ),
           onChanged: widget.onChanged,
         );
@@ -105,9 +104,7 @@ class _HrManagerFieldState extends ConsumerState<HrManagerField> {
           ),
         );
       },
-      onSelected: (sel) {
-        widget.onChanged(sel);
-      },
+      onSelected: widget.onChanged,
     );
   }
 }

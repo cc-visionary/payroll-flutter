@@ -6,6 +6,7 @@ import '../inputs/date_field.dart';
 import '../inputs/employee_picker.dart';
 import '../inputs/findings_editor.dart';
 import '../inputs/hr_manager_field.dart';
+import '../inputs/position_field.dart';
 import '../templates/non_reg_inputs.dart';
 
 class NonRegForm extends ConsumerStatefulWidget {
@@ -58,18 +59,19 @@ class _NonRegFormState extends ConsumerState<NonRegForm> {
             selectedId: _i.employeeId.isEmpty ? null : _i.employeeId,
             locked: widget.employeeLocked,
             onChanged: (id) {
-              if (id != null) widget.onEmployeeChanged(id);
+              if (id != null) {
+                // Optimistic local update so validation passes immediately
+                // while the parent's async autofill is still running.
+                _set(_i.copyWith(employeeId: id));
+                widget.onEmployeeChanged(id);
+              }
             },
           ),
           const SizedBox(height: 16),
           _label('Position'),
           const SizedBox(height: 4),
-          TextFormField(
-            initialValue: _i.employeePosition,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
+          PositionField(
+            value: _i.employeePosition,
             onChanged: (s) => _set(_i.copyWith(employeePosition: s)),
           ),
           const SizedBox(height: 16),

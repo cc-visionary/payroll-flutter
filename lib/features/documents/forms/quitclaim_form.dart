@@ -67,7 +67,12 @@ class _QuitclaimFormState extends ConsumerState<QuitclaimForm> {
           locked: widget.employeeLocked,
           includeArchived: true,
           onChanged: (id) {
-            if (id != null) widget.onEmployeeChanged(id);
+            if (id != null) {
+              // Optimistic local update so validation passes immediately
+              // while the parent's async autofill is still running.
+              _set(_i.copyWith(employeeId: id));
+              widget.onEmployeeChanged(id);
+            }
           },
         ),
         if (_errFor('employee') != null)

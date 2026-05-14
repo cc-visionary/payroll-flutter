@@ -59,7 +59,12 @@ class _NteFormState extends ConsumerState<NteForm> {
         selectedId: _i.employeeId.isEmpty ? null : _i.employeeId,
         locked: widget.employeeLocked,
         onChanged: (id) {
-          if (id != null) widget.onEmployeeChanged(id);
+          if (id != null) {
+            // Optimistic local update so validation passes immediately
+            // while the parent's async autofill is still running.
+            _set(_i.copyWith(employeeId: id));
+            widget.onEmployeeChanged(id);
+          }
         },
       ),
       const SizedBox(height: 16),

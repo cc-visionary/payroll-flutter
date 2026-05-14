@@ -5,6 +5,7 @@ import '../inputs/company_picker.dart';
 import '../inputs/date_field.dart';
 import '../inputs/employee_picker.dart';
 import '../inputs/hr_manager_field.dart';
+import '../inputs/position_field.dart';
 import '../templates/coe_inputs.dart';
 import '../templates/coe_validate.dart';
 
@@ -66,7 +67,12 @@ class _CoeFormState extends ConsumerState<CoeForm> {
         locked: widget.employeeLocked,
         includeArchived: true,
         onChanged: (id) {
-          if (id != null) widget.onEmployeeChanged(id);
+          if (id != null) {
+            // Optimistic local update so validation passes immediately
+            // while the parent's async autofill is still running.
+            _set(_i.copyWith(employeeId: id));
+            widget.onEmployeeChanged(id);
+          }
         },
       ),
       const SizedBox(height: 16),
@@ -82,12 +88,8 @@ class _CoeFormState extends ConsumerState<CoeForm> {
       const SizedBox(height: 16),
       _label('Position'),
       const SizedBox(height: 4),
-      TextFormField(
-        initialValue: _i.position,
-        decoration: const InputDecoration(
-          border: OutlineInputBorder(),
-          isDense: true,
-        ),
+      PositionField(
+        value: _i.position,
         onChanged: (s) => _set(_i.copyWith(position: s)),
       ),
       if (_err('position') != null)
