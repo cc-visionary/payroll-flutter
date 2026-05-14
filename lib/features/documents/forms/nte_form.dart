@@ -25,6 +25,14 @@ class NteForm extends ConsumerStatefulWidget {
 
 class _NteFormState extends ConsumerState<NteForm> {
   late NteInputs _i = widget.initial;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   void _set(NteInputs n) {
     setState(() => _i = n);
     widget.onChanged(n);
@@ -35,7 +43,13 @@ class _NteFormState extends ConsumerState<NteForm> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(padding: const EdgeInsets.all(16), children: [
+    return Scrollbar(
+      controller: _scrollController,
+      child: ListView(
+        controller: _scrollController,
+        primary: false,
+        padding: const EdgeInsets.all(16),
+        children: [
       _label('Employee'),
       const SizedBox(height: 4),
       EmployeePicker(
@@ -113,6 +127,8 @@ class _NteFormState extends ConsumerState<NteForm> {
         items: _i.applicableViolations,
         onChanged: (next) => _set(_i.copyWith(applicableViolations: next)),
       ),
-    ]);
+        ],
+      ),
+    );
   }
 }

@@ -24,6 +24,14 @@ class CoeForm extends ConsumerStatefulWidget {
 
 class _CoeFormState extends ConsumerState<CoeForm> {
   late CoeInputs _i = widget.initial;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   void _set(CoeInputs next) {
     setState(() => _i = next);
     widget.onChanged(next);
@@ -41,7 +49,13 @@ class _CoeFormState extends ConsumerState<CoeForm> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(padding: const EdgeInsets.all(16), children: [
+    return Scrollbar(
+      controller: _scrollController,
+      child: ListView(
+        controller: _scrollController,
+        primary: false,
+        padding: const EdgeInsets.all(16),
+        children: [
       _label('Employee'),
       const SizedBox(height: 4),
       EmployeePicker(
@@ -114,6 +128,8 @@ class _CoeFormState extends ConsumerState<CoeForm> {
             style: TextStyle(color: Colors.orange, fontSize: 12),
           ),
         ),
-    ]);
+        ],
+      ),
+    );
   }
 }

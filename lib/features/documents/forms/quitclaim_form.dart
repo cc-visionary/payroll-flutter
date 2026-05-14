@@ -26,6 +26,13 @@ class QuitclaimForm extends ConsumerStatefulWidget {
 
 class _QuitclaimFormState extends ConsumerState<QuitclaimForm> {
   late QuitclaimInputs _i = widget.initial;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   void _set(QuitclaimInputs next) {
     setState(() => _i = next);
@@ -44,10 +51,14 @@ class _QuitclaimFormState extends ConsumerState<QuitclaimForm> {
     final breakdown = _i.employeeId.isEmpty
         ? null
         : ref.watch(finalPayBreakdownProvider(_i.employeeId)).asData?.value;
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const Text('Employee', style: TextStyle(fontWeight: FontWeight.w600)),
+    return Scrollbar(
+      controller: _scrollController,
+      child: ListView(
+        controller: _scrollController,
+        primary: false,
+        padding: const EdgeInsets.all(16),
+        children: [
+          const Text('Employee', style: TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
         EmployeePicker(
           selectedId: _i.employeeId.isEmpty ? null : _i.employeeId,
@@ -120,7 +131,8 @@ class _QuitclaimFormState extends ConsumerState<QuitclaimForm> {
               style: TextStyle(color: Colors.orange, fontSize: 12),
             ),
           ),
-      ],
+        ],
+      ),
     );
   }
 }
