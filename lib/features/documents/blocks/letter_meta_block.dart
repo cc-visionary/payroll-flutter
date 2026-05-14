@@ -16,11 +16,13 @@ class LetterParty {
 class LetterMetaBlock extends Block {
   final DateTime date;
   final LetterParty to;
+  final String? position;
   final LetterParty from;
   final String subject;
   const LetterMetaBlock({
     required this.date,
     required this.to,
+    this.position,
     required this.from,
     required this.subject,
   });
@@ -71,6 +73,8 @@ class LetterMetaBlock extends Block {
         pw.SizedBox(height: 12),
         row('Date:', value(formatter.format(date))),
         row('To:', partyValue(to)),
+        if (position != null && position!.isNotEmpty)
+          row('Position:', value(position!)),
         row('From:', partyValue(from)),
         row('Subject:', value(subject)),
         divider,

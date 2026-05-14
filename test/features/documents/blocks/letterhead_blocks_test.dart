@@ -39,4 +39,29 @@ void main() {
       returnsNormally,
     );
   });
+
+  test('LetterMetaBlock stores optional position', () {
+    final block = LetterMetaBlock(
+      date: DateTime(2025, 12, 3),
+      to: const LetterParty(name: 'Jamaica Phomela Litang Vidal'),
+      position: 'Human Resources and Administrative Assistant',
+      from: const LetterParty(name: 'Brixter Del Mundo'),
+      subject: 'NOTICE OF NON-REGULARIZATION',
+    );
+    expect(block.position, 'Human Resources and Administrative Assistant');
+  });
+
+  test('LetterMetaBlock renders with position without throwing', () {
+    final theme = PdfTheme.testStub();
+    expect(
+      () => LetterMetaBlock(
+        date: DateTime(2025, 12, 3),
+        to: const LetterParty(name: 'A'),
+        position: 'Some Position',
+        from: const LetterParty(name: 'B'),
+        subject: 'S',
+      ).toPdf(theme),
+      returnsNormally,
+    );
+  });
 }
