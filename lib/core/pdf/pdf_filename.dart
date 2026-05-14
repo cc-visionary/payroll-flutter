@@ -27,6 +27,8 @@ String _prefixFor(String templateId) {
       return 'COE';
     case 'nte':
       return 'NTE';
+    case 'non_reg':
+      return 'NonReg';
     default:
       return templateId;
   }

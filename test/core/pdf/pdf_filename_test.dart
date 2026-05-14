@@ -39,6 +39,18 @@ void main() {
       );
     });
 
+    test('non_reg template uses NonReg prefix', () {
+      expect(
+        filenameForDocument(
+          templateId: 'non_reg',
+          employeeNumber: 'EMP-003',
+          employeeId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+          date: DateTime(2025, 12, 3),
+        ),
+        'NonReg_EMP-003_20251203.pdf',
+      );
+    });
+
     test('unknown template id passes through verbatim', () {
       expect(
         filenameForDocument(
