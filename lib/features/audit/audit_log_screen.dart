@@ -109,6 +109,35 @@ String _entityDisplay(Map<String, dynamic> row) {
       return '$type · $category · ₱$amount';
     }
     if (category.isNotEmpty) return '$type · $category';
+  } else if (type == 'employment_events') {
+    final eventType = (json?['event_type'] as String? ?? '').trim();
+    if (eventType.isNotEmpty) return '$type · $eventType';
+  } else if (type == 'employee_documents') {
+    final docType = (json?['document_type'] as String? ?? '').trim();
+    final title = (json?['title'] as String? ?? '').trim();
+    if (docType.isNotEmpty && title.isNotEmpty) {
+      return '$type · $docType · $title';
+    }
+    if (title.isNotEmpty) return '$type · $title';
+    if (docType.isNotEmpty) return '$type · $docType';
+  } else if (type == 'leave_requests') {
+    final status = (json?['status'] as String? ?? '').trim();
+    if (status.isNotEmpty) return '$type · $status';
+  } else if (type == 'hiring_entities') {
+    final name = (json?['name'] as String? ?? '').trim();
+    final code = (json?['code'] as String? ?? '').trim();
+    if (name.isNotEmpty && code.isNotEmpty) return '$type · $name ($code)';
+    if (name.isNotEmpty) return '$type · $name';
+    if (code.isNotEmpty) return '$type · $code';
+  } else if (type == 'users') {
+    // users table has only id/company_id/status in old/new_values — email
+    // lives in the description column. Fall back to short id.
+    final status = (json?['status'] as String? ?? '').trim();
+    if (status.isNotEmpty) return '$type · $status · $idShort';
+  } else if (type == 'user_roles') {
+    final roleId = (json?['role_id'] as String? ?? '').trim();
+    final roleShort = roleId.length >= 8 ? roleId.substring(0, 8) : roleId;
+    if (roleShort.isNotEmpty) return '$type · role:$roleShort';
   }
   return '$type $idShort';
 }
