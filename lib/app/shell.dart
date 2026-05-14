@@ -139,8 +139,7 @@ final _groups = <_NavGroup>[
     ),
     _NavItem('Workflows', Icons.alt_route_outlined, '/workflows', _always,
         comingSoon: true),
-    _NavItem('Documents', Icons.description_outlined, '/documents', _always,
-        comingSoon: true),
+    _NavItem('Documents', Icons.description_outlined, '/documents', _always),
   ]),
   _NavGroup('System', [
     _NavItem('Audit', Icons.history_outlined, '/audit', _admin),

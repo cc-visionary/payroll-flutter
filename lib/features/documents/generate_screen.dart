@@ -70,10 +70,77 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       return;
     }
 
-    if (tpl is CoeTemplate) {
+    try {
+      if (tpl is CoeTemplate) {
+        if (eId == null) {
+          setState(() {
+            _coe = tpl.emptyInputs();
+            _autofillDone = true;
+          });
+          return;
+        }
+        final emp = await ref.read(documentEmployeeProvider(eId).future);
+        final co = (emp == null || emp.hiringEntityId == null)
+            ? null
+            : await ref
+                .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+        final ctx = AutofillContext(employee: emp, company: co, ref: ref);
+        final filled = await tpl.autofill(ctx);
+        setState(() {
+          _coe = filled;
+          _autofillDone = true;
+        });
+        return;
+      }
+      if (tpl is NteTemplate) {
+        if (eId == null) {
+          setState(() {
+            _nte = tpl.emptyInputs();
+            _autofillDone = true;
+          });
+          return;
+        }
+        final emp = await ref.read(documentEmployeeProvider(eId).future);
+        final co = (emp == null || emp.hiringEntityId == null)
+            ? null
+            : await ref
+                .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+        final ctx = AutofillContext(employee: emp, company: co, ref: ref);
+        final filled = await tpl.autofill(ctx);
+        setState(() {
+          _nte = filled;
+          _autofillDone = true;
+        });
+        return;
+      }
+      if (tpl is NonRegTemplate) {
+        if (eId == null) {
+          setState(() {
+            _nonReg = tpl.emptyInputs();
+            _autofillDone = true;
+          });
+          return;
+        }
+        final emp = await ref.read(documentEmployeeProvider(eId).future);
+        final co = (emp == null || emp.hiringEntityId == null)
+            ? null
+            : await ref
+                .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+        final ctx = AutofillContext(employee: emp, company: co, ref: ref);
+        final filled = await tpl.autofill(ctx);
+        setState(() {
+          _nonReg = filled;
+          _autofillDone = true;
+        });
+        return;
+      }
+      if (tpl is! QuitclaimTemplate) {
+        setState(() => _autofillDone = true);
+        return;
+      }
       if (eId == null) {
         setState(() {
-          _coe = tpl.emptyInputs();
+          _quitclaim = tpl.emptyInputs();
           _autofillDone = true;
         });
         return;
@@ -86,74 +153,23 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       final ctx = AutofillContext(employee: emp, company: co, ref: ref);
       final filled = await tpl.autofill(ctx);
       setState(() {
-        _coe = filled;
+        _quitclaim = filled;
         _autofillDone = true;
       });
-      return;
-    }
-    if (tpl is NteTemplate) {
-      if (eId == null) {
-        setState(() {
-          _nte = tpl.emptyInputs();
-          _autofillDone = true;
-        });
-        return;
-      }
-      final emp = await ref.read(documentEmployeeProvider(eId).future);
-      final co = (emp == null || emp.hiringEntityId == null)
-          ? null
-          : await ref
-              .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
-      final ctx = AutofillContext(employee: emp, company: co, ref: ref);
-      final filled = await tpl.autofill(ctx);
+    } catch (e, st) {
+      // Log to console for debugging — keep the existing app behavior
+      // of also surfacing a user-friendly message.
+      // ignore: avoid_print
+      print('Autofill failed for ${widget.templateId}: $e\n$st');
+      if (!mounted) return;
       setState(() {
-        _nte = filled;
+        _autofillError =
+            'Could not load document data: $e\n\n'
+            'Try going back and reopening this template. If the problem '
+            'persists, check that the employee record is complete.';
         _autofillDone = true;
       });
-      return;
     }
-    if (tpl is NonRegTemplate) {
-      if (eId == null) {
-        setState(() {
-          _nonReg = tpl.emptyInputs();
-          _autofillDone = true;
-        });
-        return;
-      }
-      final emp = await ref.read(documentEmployeeProvider(eId).future);
-      final co = (emp == null || emp.hiringEntityId == null)
-          ? null
-          : await ref
-              .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
-      final ctx = AutofillContext(employee: emp, company: co, ref: ref);
-      final filled = await tpl.autofill(ctx);
-      setState(() {
-        _nonReg = filled;
-        _autofillDone = true;
-      });
-      return;
-    }
-    if (tpl is! QuitclaimTemplate) {
-      setState(() => _autofillDone = true);
-      return;
-    }
-    if (eId == null) {
-      setState(() {
-        _quitclaim = tpl.emptyInputs();
-        _autofillDone = true;
-      });
-      return;
-    }
-    final emp = await ref.read(documentEmployeeProvider(eId).future);
-    final co = (emp == null || emp.hiringEntityId == null)
-        ? null
-        : await ref.read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
-    final ctx = AutofillContext(employee: emp, company: co, ref: ref);
-    final filled = await tpl.autofill(ctx);
-    setState(() {
-      _quitclaim = filled;
-      _autofillDone = true;
-    });
   }
 
   @override
