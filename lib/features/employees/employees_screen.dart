@@ -32,6 +32,7 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
       for (final c in cardsAsync.asData?.value ?? const []) c.id: c.jobTitle,
     };
     final canManage = profile?.canManageEmployees ?? false;
+    final isSuperAdmin = profile?.appRole == AppRole.SUPER_ADMIN;
 
     final mobile = isMobile(context);
     return Scaffold(
@@ -106,6 +107,7 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
                       : _EmployeesTable(
                           rows: rows,
                           canManage: canManage,
+                          isSuperAdmin: isSuperAdmin,
                           roleTitleById: roleTitleById,
                         ),
                 ),
@@ -121,10 +123,12 @@ class _EmployeesScreenState extends ConsumerState<EmployeesScreen> {
 class _EmployeesTable extends ConsumerWidget {
   final List<Employee> rows;
   final bool canManage;
+  final bool isSuperAdmin;
   final Map<String, String> roleTitleById;
   const _EmployeesTable({
     required this.rows,
     required this.canManage,
+    required this.isSuperAdmin,
     required this.roleTitleById,
   });
 
@@ -280,6 +284,13 @@ class _EmployeesTable extends ConsumerWidget {
                           }
                         },
                       ),
+                      if (isSuperAdmin && !archived)
+                        IconButton(
+                          tooltip: 'Delete permanently',
+                          icon: const Icon(Icons.delete_outline,
+                              size: 18, color: Colors.red),
+                          onPressed: () => _confirmDelete(context, ref, e),
+                        ),
                     ],
                   )
                 : const SizedBox.shrink()),
@@ -287,6 +298,80 @@ class _EmployeesTable extends ConsumerWidget {
         );
       }).toList(),
     );
+  }
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    Employee employee,
+  ) async {
+    final controller = TextEditingController();
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) {
+          final matches = controller.text.trim() == employee.fullName;
+          return AlertDialog(
+            title: const Text('Permanently delete employee?'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'This permanently removes the employee record AND all '
+                  'related history: payslips, attendance, leave requests, '
+                  'documents, employment events, cash advances, penalties. '
+                  'This action cannot be undone.',
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Type "${employee.fullName}" to confirm:',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  onChanged: (_) => setSt(() {}),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: matches ? () => Navigator.pop(ctx, true) : null,
+                child: const Text('Delete permanently'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ref.read(employeeRepositoryProvider).delete(employee.id);
+      if (!context.mounted) return;
+      ref.invalidate(employeeListProvider);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('${employee.fullName} permanently deleted.'),
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Delete failed: $e')),
+      );
+    }
   }
 }
 

@@ -74,6 +74,12 @@ class EmployeeRepository {
     await _client.from('employees').update({'deleted_at': null}).eq('id', id);
   }
 
+  /// Permanently delete an employee and cascade-remove all related rows.
+  /// SUPER_ADMIN-only — server-side RPC enforces the role gate.
+  Future<void> delete(String id) async {
+    await _client.rpc('delete_employee_cascade', params: {'_employee_id': id});
+  }
+
   Future<Employee> upsert({
     String? id,
     required String companyId,
