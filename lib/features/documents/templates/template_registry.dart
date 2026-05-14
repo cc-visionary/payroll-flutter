@@ -1,5 +1,6 @@
 import 'coe_template.dart';
 import 'document_template.dart';
+import 'non_reg_template.dart';
 import 'nte_template.dart';
 import 'quitclaim_template.dart';
 
@@ -8,6 +9,7 @@ const List<DocumentTemplate> kTemplates = [
   QuitclaimTemplate(),
   CoeTemplate(),
   NteTemplate(),
+  NonRegTemplate(),
 ];
 
 DocumentTemplate? findTemplateById(String id) {
