@@ -64,4 +64,17 @@ void main() {
       returnsNormally,
     );
   });
+
+  test('LetterMetaBlock renders with null subject without throwing', () {
+    final theme = PdfTheme.testStub();
+    expect(
+      () => LetterMetaBlock(
+        date: DateTime(2025, 12, 3),
+        to: const LetterParty(name: 'A'),
+        from: const LetterParty(name: 'B'),
+        subject: null,
+      ).toPdf(theme),
+      returnsNormally,
+    );
+  });
 }

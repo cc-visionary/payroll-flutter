@@ -18,13 +18,13 @@ class LetterMetaBlock extends Block {
   final LetterParty to;
   final String? position;
   final LetterParty from;
-  final String subject;
+  final String? subject;
   const LetterMetaBlock({
     required this.date,
     required this.to,
     this.position,
     required this.from,
-    required this.subject,
+    this.subject,
   });
 
   @override
@@ -76,7 +76,8 @@ class LetterMetaBlock extends Block {
         if (position != null && position!.isNotEmpty)
           row('Position:', value(position!)),
         row('From:', partyValue(from)),
-        row('Subject:', value(subject)),
+        if (subject != null && subject!.isNotEmpty)
+          row('Subject:', value(subject!)),
         divider,
       ],
     );
