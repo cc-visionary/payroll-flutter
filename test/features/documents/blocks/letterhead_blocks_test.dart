@@ -77,4 +77,34 @@ void main() {
       returnsNormally,
     );
   });
+
+  test('LetterMetaBlock honors showDividers flag', () {
+    final theme = PdfTheme.testStub();
+    expect(
+      () => LetterMetaBlock(
+        date: DateTime(2025, 12, 3),
+        to: const LetterParty(name: 'A'),
+        from: const LetterParty(name: 'B'),
+        subject: null,
+        showDividers: false,
+      ).toPdf(theme),
+      returnsNormally,
+    );
+    // showDividers default is true; verify constructor stores both values.
+    final dividers = LetterMetaBlock(
+      date: DateTime(2025, 12, 3),
+      to: const LetterParty(name: 'A'),
+      from: const LetterParty(name: 'B'),
+      subject: 'S',
+    );
+    expect(dividers.showDividers, true);
+    final noDividers = LetterMetaBlock(
+      date: DateTime(2025, 12, 3),
+      to: const LetterParty(name: 'A'),
+      from: const LetterParty(name: 'B'),
+      subject: 'S',
+      showDividers: false,
+    );
+    expect(noDividers.showDividers, false);
+  });
 }

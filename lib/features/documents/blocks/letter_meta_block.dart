@@ -19,18 +19,22 @@ class LetterMetaBlock extends Block {
   final String? position;
   final LetterParty from;
   final String? subject;
+  final bool showDividers;
   const LetterMetaBlock({
     required this.date,
     required this.to,
     this.position,
     required this.from,
     this.subject,
+    this.showDividers = true,
   });
 
   @override
   pw.Widget toPdf(PdfTheme theme) {
     final formatter = DateFormat('MMMM d, yyyy');
-    final divider = pw.Divider(color: PdfColors.grey400, height: 1);
+    final divider = showDividers
+        ? pw.Divider(color: PdfColors.grey400, height: 1)
+        : pw.SizedBox.shrink();
 
     pw.Widget label(String text) => pw.Text(
           text,
