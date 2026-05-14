@@ -6,6 +6,7 @@ import '../../app/breakpoints.dart';
 import '../../app/shell.dart';
 import '../../app/status_colors.dart';
 import '../../app/tokens.dart';
+import '../../data/repositories/audit_repository.dart';
 import '../../data/repositories/statutory_payables_repository.dart';
 import 'payables_export.dart';
 import 'providers.dart';
@@ -163,6 +164,34 @@ class _ExportMenu extends ConsumerWidget {
         isCustomRange: period.mode == PeriodMode.customRange,
       );
       if (path != null) {
+        // Sum every employee row across every agency on every brand
+        // sheet for the audit "records" total. Agency list is captured
+        // in metadata so a later audit query can filter by it.
+        final recordCount = sheets
+            .expand((s) => s.sections)
+            .fold<int>(0, (n, sec) => n + sec.rows.length);
+        final agencies = sheets
+            .expand((s) => s.sections.map((sec) => sec.agency.name))
+            .toSet()
+            .toList();
+        final brandNames = sheets.map((s) => s.brand.name).toList();
+        final fileName = path
+            .replaceAll('\\', '/')
+            .split('/')
+            .last;
+        ref.read(auditRepositoryProvider).logExport(
+          description:
+              'Statutory payables export: $fileName · ${period.label()} · $recordCount records',
+          entityType: 'statutory_payables',
+          metadata: {
+            'file_name': fileName,
+            'period': period.label(),
+            'record_count': recordCount,
+            'agencies': agencies,
+            'brands': brandNames,
+            'single_brand': singleBrand,
+          },
+        );
         messenger.showSnackBar(SnackBar(content: Text('Saved: $path')));
       }
     } catch (e) {

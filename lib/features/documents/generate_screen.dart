@@ -8,6 +8,7 @@ import 'package:pdf/pdf.dart';
 import '../../core/pdf/pdf_filename.dart';
 import '../../core/pdf/pdf_preview_scaffold.dart';
 import '../../core/pdf/pdf_theme.dart';
+import '../../data/repositories/audit_repository.dart';
 import 'forms/coe_form.dart';
 import 'forms/nte_form.dart';
 import 'forms/quitclaim_form.dart';
@@ -222,10 +223,34 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
         date: inputs.dateSigned,
       );
-      return _previewWithBanner(errors, filename, (format) async {
-        final theme = await PdfTheme.defaults();
-        return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
-      });
+      // Prefer the typed-in / autofilled full name; fall back to the
+      // short employee id when the name hasn't been resolved yet.
+      final who = inputs.employeeFullName.trim().isNotEmpty
+          ? inputs.employeeFullName.trim()
+          : (inputs.employeeId.isEmpty
+              ? '(unknown employee)'
+              : inputs.employeeId);
+      return _previewWithBanner(
+        errors,
+        filename,
+        (format) async {
+          final theme = await PdfTheme.defaults();
+          return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
+        },
+        onExported: (action) {
+          ref.read(auditRepositoryProvider).logExport(
+            description: 'Quitclaim PDF $action: $who',
+            entityType: 'document_template_pdf',
+            metadata: {
+              'template_id': 'quitclaim',
+              'employee_id':
+                  inputs.employeeId.isEmpty ? null : inputs.employeeId,
+              'file_name': filename,
+              'action': action,
+            },
+          );
+        },
+      );
     }
     if (tpl is CoeTemplate && _coe != null) {
       final inputs = _coe!;
@@ -236,10 +261,32 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
         date: DateTime.now(),
       );
-      return _previewWithBanner(errors, filename, (format) async {
-        final theme = await PdfTheme.defaults();
-        return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
-      });
+      final who = inputs.employeeFullName.trim().isNotEmpty
+          ? inputs.employeeFullName.trim()
+          : (inputs.employeeId.isEmpty
+              ? '(unknown employee)'
+              : inputs.employeeId);
+      return _previewWithBanner(
+        errors,
+        filename,
+        (format) async {
+          final theme = await PdfTheme.defaults();
+          return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
+        },
+        onExported: (action) {
+          ref.read(auditRepositoryProvider).logExport(
+            description: 'COE PDF $action: $who',
+            entityType: 'document_template_pdf',
+            metadata: {
+              'template_id': 'coe',
+              'employee_id':
+                  inputs.employeeId.isEmpty ? null : inputs.employeeId,
+              'file_name': filename,
+              'action': action,
+            },
+          );
+        },
+      );
     }
     if (tpl is NteTemplate && _nte != null) {
       final inputs = _nte!;
@@ -250,10 +297,34 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
         date: inputs.dateIssued,
       );
-      return _previewWithBanner(errors, filename, (format) async {
-        final theme = await PdfTheme.defaults();
-        return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
-      });
+      final who = inputs.employeeFullName.trim().isNotEmpty
+          ? inputs.employeeFullName.trim()
+          : (inputs.employeeId.isEmpty
+              ? '(unknown employee)'
+              : inputs.employeeId);
+      final subject = inputs.finalSubject;
+      return _previewWithBanner(
+        errors,
+        filename,
+        (format) async {
+          final theme = await PdfTheme.defaults();
+          return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
+        },
+        onExported: (action) {
+          ref.read(auditRepositoryProvider).logExport(
+            description: 'NTE PDF $action: $who — $subject',
+            entityType: 'document_template_pdf',
+            metadata: {
+              'template_id': 'nte',
+              'employee_id':
+                  inputs.employeeId.isEmpty ? null : inputs.employeeId,
+              'subject': subject,
+              'file_name': filename,
+              'action': action,
+            },
+          );
+        },
+      );
     }
     return const Center(child: Text('Preview not implemented'));
   }
@@ -261,8 +332,9 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
   Widget _previewWithBanner(
     List<ValidationError> errors,
     String filename,
-    Future<Uint8List> Function(PdfPageFormat) build,
-  ) {
+    Future<Uint8List> Function(PdfPageFormat) build, {
+    void Function(String action)? onExported,
+  }) {
     return Column(
       children: [
         if (errors.isNotEmpty)
@@ -284,6 +356,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
             filename: filename,
             enabled: errors.isEmpty,
             buildPdf: build,
+            onExported: onExported,
           ),
         ),
       ],

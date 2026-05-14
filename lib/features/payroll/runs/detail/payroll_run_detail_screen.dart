@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../app/breakpoints.dart';
+import '../../../../data/repositories/audit_repository.dart';
 import '../../../../data/repositories/payroll_repository.dart';
 import '../../../../widgets/syncing_dialog.dart';
 import '../../../auth/profile_provider.dart';
@@ -515,6 +516,23 @@ class _ActionBar extends ConsumerWidget {
         periodStart: detail.payPeriodStart,
         periodEnd: detail.payPeriodEnd,
       );
+      if (path != null) {
+        final fileName = path
+            .replaceAll('\\', '/')
+            .split('/')
+            .last;
+        ref.read(auditRepositoryProvider).logExport(
+          description:
+              'Finance export: $fileName · ${exportRows.length} rows',
+          entityType: 'payroll_finance',
+          entityId: detail.run.id,
+          metadata: {
+            'file_name': fileName,
+            'record_count': exportRows.length,
+            'payroll_run_id': detail.run.id,
+          },
+        );
+      }
       if (path != null && context.mounted) {
         messenger.showSnackBar(
           SnackBar(content: Text('Exported to $path')),

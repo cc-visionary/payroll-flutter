@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 
 import '../../../data/models/payslip.dart';
+import '../../../data/repositories/audit_repository.dart';
 import '../../../data/repositories/payroll_repository.dart';
 import 'payslip_pdf.dart';
 import 'payslip_pdf_context.dart';
@@ -104,6 +105,7 @@ class _PayslipPreviewBodyState extends ConsumerState<_PayslipPreviewBody> {
                     onPressed: (ctx, build, pageFormat) async {
                       final bytes = await build(pageFormat);
                       await Printing.sharePdf(bytes: bytes, filename: filename);
+                      _logPayslipExport('download', ps, ctx2: snap.data!);
                     },
                   ),
                   if (canPrint)
@@ -114,6 +116,7 @@ class _PayslipPreviewBodyState extends ConsumerState<_PayslipPreviewBody> {
                           onLayout: (format) => build(format),
                           name: filename,
                         );
+                        _logPayslipExport('print', ps, ctx2: snap.data!);
                       },
                     ),
                 ],
@@ -133,6 +136,25 @@ class _PayslipPreviewBodyState extends ConsumerState<_PayslipPreviewBody> {
               );
             },
           );
+  }
+
+  void _logPayslipExport(
+    String action,
+    Payslip ps, {
+    required PayslipPdfContext ctx2,
+  }) {
+    final who = ctx2.employee.fullName;
+    final number = ps.payslipNumber ?? ps.id.substring(0, 8).toUpperCase();
+    ref.read(auditRepositoryProvider).logExport(
+      description: 'Payslip PDF $action: $who · $number',
+      entityType: 'payslips',
+      entityId: ps.id,
+      metadata: {
+        'payslip_number': ps.payslipNumber,
+        'employee_id': ctx2.employee.id,
+        'action': action,
+      },
+    );
   }
 }
 

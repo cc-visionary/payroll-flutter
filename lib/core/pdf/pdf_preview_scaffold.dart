@@ -22,12 +22,20 @@ class PdfPreviewScaffold extends StatelessWidget {
   /// inject `true` so the print action is exercised regardless of host.
   final bool? canPrintOverride;
 
+  /// Fired after a successful export action. `action` is either
+  /// `'download'` (Save dialog completed) or `'print'` (system print
+  /// dialog completed). Callers wire this to an audit-log write — the
+  /// widget itself stays UI-only and doesn't touch Riverpod / repos so
+  /// it can be embedded anywhere a PDF preview is needed.
+  final void Function(String action)? onExported;
+
   const PdfPreviewScaffold({
     super.key,
     required this.buildPdf,
     required this.filename,
     this.enabled = true,
     this.canPrintOverride,
+    this.onExported,
   });
 
   @override
@@ -64,6 +72,7 @@ class PdfPreviewScaffold extends StatelessWidget {
             try {
               final bytes = await b(fmt);
               await Printing.sharePdf(bytes: bytes, filename: filename);
+              onExported?.call('download');
             } catch (e) {
               if (ctx.mounted) {
                 ScaffoldMessenger.of(ctx).showSnackBar(
@@ -85,6 +94,7 @@ class PdfPreviewScaffold extends StatelessWidget {
                   onLayout: (format) => b(format),
                   name: filename,
                 );
+                onExported?.call('print');
               } catch (e) {
                 if (ctx.mounted) {
                   ScaffoldMessenger.of(ctx).showSnackBar(

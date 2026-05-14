@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/money.dart';
+import '../../../../../data/repositories/audit_repository.dart';
 import '../../../../../data/repositories/payroll_repository.dart';
 import '../../../constants.dart';
 import '../disbursement_export.dart';
@@ -192,6 +193,35 @@ class _PayrollDisbursementTabState
         periodStart: detail?.payPeriodStart,
         periodEnd: detail?.payPeriodEnd,
       );
+      if (path != null) {
+        // Only log on actual write — null = user cancelled dialog or
+        // dismissed the share sheet. Total = sum of every row's net
+        // pay across every group (bank disbursement summary).
+        final total = exports
+            .expand((g) => g.items)
+            .fold<Decimal>(Decimal.zero, (s, r) => s + r.netPay);
+        final rowCount =
+            exports.fold<int>(0, (n, g) => n + g.items.length);
+        // Strip directory prefix in a cross-platform way (handles both
+        // `/` on Unix and `\` on Windows without needing dart:io here).
+        final fileName = path
+            .replaceAll('\\', '/')
+            .split('/')
+            .last;
+        ref.read(auditRepositoryProvider).logExport(
+          description:
+              'Disbursement export (all groups): $fileName · $rowCount rows · ₱${total.toStringAsFixed(2)}',
+          entityType: 'payroll_disbursement',
+          entityId: runId,
+          metadata: {
+            'file_name': fileName,
+            'record_count': rowCount,
+            'total': total.toString(),
+            'group_count': exports.length,
+            'payroll_run_id': runId,
+          },
+        );
+      }
       if (!context.mounted) return;
       if (path != null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -478,6 +508,27 @@ class _GroupCard extends ConsumerWidget {
         periodStart: detail?.payPeriodStart,
         periodEnd: detail?.payPeriodEnd,
       );
+      if (path != null) {
+        final total = export.items
+            .fold<Decimal>(Decimal.zero, (s, r) => s + r.netPay);
+        final fileName = path
+            .replaceAll('\\', '/')
+            .split('/')
+            .last;
+        ref.read(auditRepositoryProvider).logExport(
+          description:
+              'Disbursement export (${export.sourceAccountName}): $fileName · ${export.items.length} rows · ₱${total.toStringAsFixed(2)}',
+          entityType: 'payroll_disbursement',
+          entityId: runId,
+          metadata: {
+            'file_name': fileName,
+            'source_account_name': export.sourceAccountName,
+            'record_count': export.items.length,
+            'total': total.toString(),
+            'payroll_run_id': runId,
+          },
+        );
+      }
       if (!context.mounted) return;
       if (path != null) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -9,6 +9,7 @@ import 'package:printing/printing.dart';
 
 import '../../../data/models/employee.dart';
 import '../../../data/models/hiring_entity.dart';
+import '../../../data/repositories/audit_repository.dart';
 import '../../../data/repositories/hiring_entity_repository.dart';
 import '../../../data/repositories/payroll_repository.dart';
 import '../../auth/profile_provider.dart';
@@ -92,6 +93,7 @@ class _ThirteenthMonthPreviewScreenState
                 onPressed: (ctx, build, pageFormat) async {
                   final bytes = await build(pageFormat);
                   await Printing.sharePdf(bytes: bytes, filename: filename);
+                  _log13thMonth('download', employee, filename);
                 },
               ),
               if (canPrint)
@@ -102,6 +104,7 @@ class _ThirteenthMonthPreviewScreenState
                       onLayout: (format) => build(format),
                       name: filename,
                     );
+                    _log13thMonth('print', employee, filename);
                   },
                 ),
             ],
@@ -163,6 +166,22 @@ class _ThirteenthMonthPreviewScreenState
       companyAddress: companyAddress,
       companyLogoBytes: logoBytes,
       companyLogoHeight: logoSpec.height,
+    );
+  }
+
+  void _log13thMonth(String action, Employee employee, String filename) {
+    ref.read(auditRepositoryProvider).logExport(
+      description: '13th-month PDF $action: ${employee.fullName}',
+      entityType: '13th_month',
+      entityId: employee.id,
+      metadata: {
+        'employee_id': employee.id,
+        'employee_number': employee.employeeNumber,
+        'from': widget.from.toIso8601String(),
+        'to': widget.to.toIso8601String(),
+        'file_name': filename,
+        'action': action,
+      },
     );
   }
 }
