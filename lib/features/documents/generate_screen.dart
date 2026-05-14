@@ -10,6 +10,7 @@ import '../../core/pdf/pdf_preview_scaffold.dart';
 import '../../core/pdf/pdf_theme.dart';
 import '../../data/repositories/audit_repository.dart';
 import 'forms/coe_form.dart';
+import 'forms/non_reg_form.dart';
 import 'forms/nte_form.dart';
 import 'forms/quitclaim_form.dart';
 import 'pdf/pdf_builder.dart';
@@ -17,6 +18,8 @@ import 'providers.dart';
 import 'templates/coe_inputs.dart';
 import 'templates/coe_template.dart';
 import 'templates/document_template.dart';
+import 'templates/non_reg_inputs.dart';
+import 'templates/non_reg_template.dart';
 import 'templates/nte_inputs.dart';
 import 'templates/nte_template.dart';
 import 'templates/quitclaim_inputs.dart';
@@ -40,6 +43,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
   QuitclaimInputs? _quitclaim;
   CoeInputs? _coe;
   NteInputs? _nte;
+  NonRegInputs? _nonReg;
   bool _autofillDone = false;
   String? _autofillError;
 
@@ -104,6 +108,27 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       final filled = await tpl.autofill(ctx);
       setState(() {
         _nte = filled;
+        _autofillDone = true;
+      });
+      return;
+    }
+    if (tpl is NonRegTemplate) {
+      if (eId == null) {
+        setState(() {
+          _nonReg = tpl.emptyInputs();
+          _autofillDone = true;
+        });
+        return;
+      }
+      final emp = await ref.read(documentEmployeeProvider(eId).future);
+      final co = (emp == null || emp.hiringEntityId == null)
+          ? null
+          : await ref
+              .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+      final ctx = AutofillContext(employee: emp, company: co, ref: ref);
+      final filled = await tpl.autofill(ctx);
+      setState(() {
+        _nonReg = filled;
         _autofillDone = true;
       });
       return;
@@ -208,6 +233,13 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         initial: _nte!,
         employeeLocked: widget.employeeId != null,
         onChanged: (next) => setState(() => _nte = next),
+      );
+    }
+    if (tpl is NonRegTemplate && _nonReg != null) {
+      return NonRegForm(
+        initial: _nonReg!,
+        employeeLocked: widget.employeeId != null,
+        onChanged: (next) => setState(() => _nonReg = next),
       );
     }
     return const Center(child: Text('Form not implemented'));
@@ -319,6 +351,42 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
               'employee_id':
                   inputs.employeeId.isEmpty ? null : inputs.employeeId,
               'subject': subject,
+              'file_name': filename,
+              'action': action,
+            },
+          );
+        },
+      );
+    }
+    if (tpl is NonRegTemplate && _nonReg != null) {
+      final inputs = _nonReg!;
+      final errors = tpl.validate(inputs);
+      final filename = filenameForDocument(
+        templateId: 'non_reg',
+        employeeNumber: null,
+        employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
+        date: inputs.dateIssued,
+      );
+      final who = inputs.employeeFullName.trim().isNotEmpty
+          ? inputs.employeeFullName.trim()
+          : (inputs.employeeId.isEmpty
+              ? '(unknown employee)'
+              : inputs.employeeId);
+      return _previewWithBanner(
+        errors,
+        filename,
+        (format) async {
+          final theme = await PdfTheme.defaults();
+          return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
+        },
+        onExported: (action) {
+          ref.read(auditRepositoryProvider).logExport(
+            description: 'Non-Reg PDF $action: $who',
+            entityType: 'document_template_pdf',
+            metadata: {
+              'template_id': 'non_reg',
+              'employee_id':
+                  inputs.employeeId.isEmpty ? null : inputs.employeeId,
               'file_name': filename,
               'action': action,
             },
