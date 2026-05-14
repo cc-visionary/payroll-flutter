@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -57,7 +59,7 @@ class AuditLogScreen extends ConsumerWidget {
                         DataCell(Text(when.toString().substring(0, 19))),
                         DataCell(Text(r['user_email'] as String? ?? '—')),
                         DataCell(Text(r['action'] as String)),
-                        DataCell(Text('${r['entity_type']} ${(r['entity_id'] as String? ?? '').substring(0, 8)}')),
+                        DataCell(Text(_entityDisplay(r))),
                         DataCell(Text(r['description'] as String? ?? '')),
                       ]);
                     }).toList(),
@@ -67,4 +69,47 @@ class AuditLogScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Builds the Entity column label. For `employees` rows we extract the
+/// employee's full name (and number) from new_values, falling back to
+/// old_values for DELETEs. For other entity types we fall back to the
+/// original `<type> <id-prefix>` form so this stays a non-breaking change.
+String _entityDisplay(Map<String, dynamic> row) {
+  final type = row['entity_type'] as String? ?? '';
+  final id = row['entity_id'] as String? ?? '';
+  final idShort = id.length >= 8 ? id.substring(0, 8) : id;
+  if (type == 'employees') {
+    final json = _asMap(row['new_values']) ?? _asMap(row['old_values']);
+    if (json != null) {
+      final first = (json['first_name'] as String? ?? '').trim();
+      final middle = (json['middle_name'] as String? ?? '').trim();
+      final last = (json['last_name'] as String? ?? '').trim();
+      final number = (json['employee_number'] as String? ?? '').trim();
+      final name = [first, middle, last].where((s) => s.isNotEmpty).join(' ');
+      if (name.isNotEmpty) {
+        if (number.isNotEmpty) return '$type · $name ($number)';
+        return '$type · $name';
+      }
+    }
+  }
+  return '$type $idShort';
+}
+
+/// JSONB columns usually come back as `Map<String, dynamic>` from the
+/// supabase-dart client, but defensively handle a String payload too.
+Map<String, dynamic>? _asMap(dynamic value) {
+  if (value == null) return null;
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return value.cast<String, dynamic>();
+  if (value is String && value.isNotEmpty) {
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map) return decoded.cast<String, dynamic>();
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
 }
