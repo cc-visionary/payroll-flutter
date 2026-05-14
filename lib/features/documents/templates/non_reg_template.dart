@@ -6,6 +6,27 @@ import 'document_template.dart';
 import 'non_reg_inputs.dart';
 import 'non_reg_validate.dart';
 
+// Canonical legal copy lifted verbatim from
+// `[06] LUXIUM/[02] HR/[02] Employee Records/JAM/NOTICE OF
+// NON-REGULARIZATION_VIDAL - Google Docs.pdf`. Confirm wording with the
+// user before merge (Task 22).
+const _specificallyLead =
+    'Specifically, you failed to meet the agreed-upon standards in the '
+    'following areas:';
+const _finalPayText =
+    'Please arrange to return your Company ID, access keys, and any other '
+    'company property currently in your possession. Your Final Pay, '
+    'including your pro-rated 13th-month pay, will be processed in '
+    'accordance with Section 14 (Final Pay) of your contract and released '
+    'upon completion of the clearance process.';
+const _closingText =
+    'We thank you for the time spent with the company and wish you the '
+    'best in your future endeavors.';
+const _acknowledgmentText =
+    'I acknowledge receipt of this notice. I understand that my signature '
+    'attests only to the receipt of this letter and not necessarily my '
+    'agreement with its contents.';
+
 /// PH Labor Code default: probationary period is six months from the
 /// hire date. HR can override via the lock/unlock toggle if a longer
 /// period was stipulated in the employment contract.
