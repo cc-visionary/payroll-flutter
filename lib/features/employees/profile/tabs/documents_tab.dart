@@ -19,16 +19,8 @@ class DocumentsTab extends ConsumerStatefulWidget {
 }
 
 class _DocumentsTabState extends ConsumerState<DocumentsTab> {
-  String? _selectedType;
-
-  static const _docTypes = [
-    'Offer Letter',
-    'Employment Contract',
-    'Certificate of Employment',
-    'Payslip Bundle',
-    'BIR 2316',
-    'Separation Letter',
-  ];
+  // Holds the selected template id (from kTemplates), or null.
+  String? _selectedTemplateId;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +38,7 @@ class _DocumentsTabState extends ConsumerState<DocumentsTab> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    initialValue: _selectedType,
+                    initialValue: _selectedTemplateId,
                     isExpanded: true,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
@@ -54,28 +46,18 @@ class _DocumentsTabState extends ConsumerState<DocumentsTab> {
                       isDense: true,
                     ),
                     items: [
-                      for (final type in _docTypes)
-                        DropdownMenuItem(value: type, child: Text(type)),
+                      for (final t in kTemplates)
+                        DropdownMenuItem(value: t.id, child: Text(t.name)),
                     ],
-                    onChanged: (v) => setState(() => _selectedType = v),
+                    onChanged: (v) => setState(() => _selectedTemplateId = v),
                   ),
                 ),
                 const SizedBox(width: 12),
                 FilledButton(
-                  onPressed: _selectedType == null
+                  onPressed: _selectedTemplateId == null
                       ? null
                       : () async {
-                          final id = _templateIdForLabel(_selectedType!);
-                          if (id == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  '"$_selectedType" not yet supported.',
-                                ),
-                              ),
-                            );
-                            return;
-                          }
+                          final id = _selectedTemplateId!;
                           final tpl = findTemplateById(id);
                           if (tpl != null &&
                               widget.employee.hiringEntityId != null) {
@@ -141,16 +123,6 @@ class _DocumentsTabState extends ConsumerState<DocumentsTab> {
         ),
       ],
     );
-  }
-
-  String? _templateIdForLabel(String label) {
-    switch (label) {
-      case 'Certificate of Employment':
-        return 'coe';
-      // Other dropdown options remain document-upload only for v1.
-      default:
-        return null;
-    }
   }
 }
 
