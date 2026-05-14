@@ -1,11 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app/router.dart';
 import 'app/theme.dart';
 import 'app/theme_mode_provider.dart';
 import 'core/env.dart';
+import 'data/repositories/audit_repository.dart';
+import 'data/services/auth_audit_service.dart';
 import 'data/supabase/client.dart';
 
 Future<void> main() async {
@@ -14,6 +17,12 @@ Future<void> main() async {
   // In debug the call is a no-op so local `flutter run` stays convenient.
   Env.assertConfigured(isRelease: kReleaseMode);
   await initSupabase();
+  // Wire LOGIN / LOGOUT audit instrumentation before ProviderScope
+  // mounts — a persisted session may already be active by the time
+  // the first widget builds, and we want the subscription live for
+  // any auth event fired during/after restoration.
+  AuthAuditService(AuditRepository(Supabase.instance.client))
+      .start(Supabase.instance.client);
   runApp(const ProviderScope(child: PayrollApp()));
 }
 
