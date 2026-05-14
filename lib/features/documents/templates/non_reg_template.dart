@@ -1,9 +1,21 @@
 import 'package:flutter/material.dart' show Icons, IconData;
 
 import '../blocks/block.dart';
+import '../providers.dart';
 import 'document_template.dart';
 import 'non_reg_inputs.dart';
 import 'non_reg_validate.dart';
+
+/// PH Labor Code default: probationary period is six months from the
+/// hire date. HR can override via the lock/unlock toggle if a longer
+/// period was stipulated in the employment contract.
+DateTime defaultProbationaryEnd(DateTime start) {
+  // Add 6 calendar months. Dart's DateTime does this safely: if the
+  // target month has no equivalent day-of-month, the constructor wraps
+  // into the next month (e.g. Aug 31 + 6 mo → Mar 3 the next year). For
+  // a probation-end calculation that overshoot is acceptable and rare.
+  return DateTime(start.year, start.month + 6, start.day);
+}
 
 class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
   const NonRegTemplate();
@@ -42,6 +54,27 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
     if (emp == null) return emptyInputs();
     final co = ctx.company;
     final today = DateTime.now();
+    // Pull the latest HIRE event; fall back to employee.hireDate (already
+    // on the Employee model) if no event row exists. Wrap in try/catch
+    // so tests / dev environments without an initialized Supabase client
+    // gracefully fall back to the model's hireDate. Consistent with
+    // providers.dart::finalPayBreakdownProvider.
+    Map<String, dynamic>? hireRow;
+    try {
+      hireRow = await ctx.ref.read(latestEmploymentEventProvider(
+              (employeeId: emp.id, eventType: 'HIRE'))
+          .future);
+    } catch (_) {
+      hireRow = null;
+    }
+    DateTime? eventDate(Map<String, dynamic>? r) {
+      if (r == null) return null;
+      final v = r['event_date'] as String?;
+      return v == null ? null : DateTime.parse(v);
+    }
+
+    final probStart = eventDate(hireRow) ?? emp.hireDate;
+    final probEnd = defaultProbationaryEnd(probStart);
     return NonRegInputs(
       employeeId: emp.id,
       employeeFullName: emp.fullName,
@@ -52,6 +85,9 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
       companyAddress: co == null ? null : _addressOf(co),
       hrManagerName: co?.hrManagerName,
       dateIssued: today,
+      probationaryStart: probStart,
+      probationaryEnd: probEnd,
+      effectiveEndDate: probEnd,
       salutationName: emp.lastName,
       findings: const [],
     );

@@ -4,7 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/data/models/employee.dart';
 import 'package:payroll_flutter/data/models/hiring_entity.dart';
 import 'package:payroll_flutter/features/documents/templates/document_template.dart';
-import 'package:payroll_flutter/features/documents/templates/non_reg_template.dart';
+import 'package:payroll_flutter/features/documents/templates/non_reg_template.dart'
+    show NonRegTemplate, defaultProbationaryEnd;
 
 void main() {
   test('template metadata', () {
@@ -45,6 +46,12 @@ void main() {
     expect(filled.companyName, 'LUXIUM TRADING CO.');
     expect(filled.hrManagerName, 'Brixter Del Mundo');
     expect(filled.salutationName, 'Vidal');
+  });
+
+  test('probationaryEnd defaults to start + 6 months when start known', () {
+    final start = DateTime(2025, 6, 9);
+    final end = defaultProbationaryEnd(start);
+    expect(end, DateTime(2025, 12, 9));
   });
 }
 
