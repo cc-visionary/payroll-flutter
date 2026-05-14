@@ -138,6 +138,12 @@ String _entityDisplay(Map<String, dynamic> row) {
     final roleId = (json?['role_id'] as String? ?? '').trim();
     final roleShort = roleId.length >= 8 ? roleId.substring(0, 8) : roleId;
     if (roleShort.isNotEmpty) return '$type · role:$roleShort';
+  } else if (type == 'lark_sync_logs') {
+    final syncType = (json?['sync_type'] as String? ?? '').trim();
+    if (syncType.isNotEmpty) return '$type · $syncType';
+  } else if (type == 'attendance_imports') {
+    final fileName = (json?['file_name'] as String? ?? '').trim();
+    if (fileName.isNotEmpty) return '$type · $fileName';
   }
   return '$type $idShort';
 }
