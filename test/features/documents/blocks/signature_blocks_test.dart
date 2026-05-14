@@ -59,4 +59,18 @@ void main() {
       returnsNormally,
     );
   });
+
+  test('SignatureBlock accepts null date', () {
+    const b = SignatureBlock(name: 'Donald', role: 'Employee', date: null);
+    expect(b.date, isNull);
+    expect(b.name, 'Donald');
+  });
+
+  test('SignatureBlock renders with null date without throwing', () {
+    final theme = PdfTheme.testStub();
+    expect(
+      () => const SignatureBlock(name: 'X', role: '', date: null).toPdf(theme),
+      returnsNormally,
+    );
+  });
 }

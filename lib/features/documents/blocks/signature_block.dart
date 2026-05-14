@@ -7,12 +7,15 @@ import 'block.dart';
 class SignatureBlock extends Block {
   final String? name;
   final String? role;
-  final DateTime date;
-  const SignatureBlock({this.name, this.role, required this.date});
+  final DateTime? date;
+  const SignatureBlock({this.name, this.role, this.date});
 
   @override
   pw.Widget toPdf(PdfTheme theme) {
     final fmt = DateFormat('MMMM d, yyyy');
+    final dateLine = date == null
+        ? 'Date: _______________________'
+        : 'Date: ${fmt.format(date!)}';
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -43,7 +46,7 @@ class SignatureBlock extends Block {
             ),
           ),
         pw.Text(
-          'Date: ${fmt.format(date)}',
+          dateLine,
           style: pw.TextStyle(
             fontSize: theme.bodySize,
             color: theme.textColor,
