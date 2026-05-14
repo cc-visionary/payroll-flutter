@@ -33,5 +33,35 @@ List<ValidationError> validateNonReg(NonRegInputs i) {
     errs.add(const ValidationError(
         'findings', 'Add at least one finding section.'));
   }
+  for (var fi = 0; fi < i.findings.length; fi++) {
+    final f = i.findings[fi];
+    if (f.title.trim().isEmpty) {
+      errs.add(ValidationError(
+          'findings[$fi].title', 'Finding title is required.'));
+    }
+    if (f.standard.trim().isEmpty) {
+      errs.add(ValidationError(
+          'findings[$fi].standard', 'Standard body is required.'));
+    }
+    if (f.finding.trim().isEmpty) {
+      errs.add(ValidationError(
+          'findings[$fi].finding', 'Finding body is required.'));
+    }
+    for (var si = 0; si < f.subFindings.length; si++) {
+      final s = f.subFindings[si];
+      if (s.title.trim().isEmpty) {
+        errs.add(ValidationError(
+          'findings[$fi].subFindings[$si].title',
+          'Sub-finding title is required.',
+        ));
+      }
+      if (s.body.trim().isEmpty) {
+        errs.add(ValidationError(
+          'findings[$fi].subFindings[$si].body',
+          'Sub-finding body is required.',
+        ));
+      }
+    }
+  }
   return errs;
 }

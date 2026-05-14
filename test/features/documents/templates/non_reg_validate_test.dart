@@ -57,4 +57,66 @@ void main() {
     final i = valid().copyWith(findings: const []);
     expect(validateNonReg(i).any((e) => e.field == 'findings'), true);
   });
+
+  test('empty finding title flagged', () {
+    final i = valid().copyWith(findings: const [
+      FindingSection(title: '', standard: 's', finding: 'f'),
+    ]);
+    expect(
+      validateNonReg(i).any((e) => e.field == 'findings[0].title'),
+      true,
+    );
+  });
+
+  test('empty finding standard flagged', () {
+    final i = valid().copyWith(findings: const [
+      FindingSection(title: 'T', standard: '', finding: 'f'),
+    ]);
+    expect(
+      validateNonReg(i).any((e) => e.field == 'findings[0].standard'),
+      true,
+    );
+  });
+
+  test('empty finding finding-body flagged', () {
+    final i = valid().copyWith(findings: const [
+      FindingSection(title: 'T', standard: 's', finding: ''),
+    ]);
+    expect(
+      validateNonReg(i).any((e) => e.field == 'findings[0].finding'),
+      true,
+    );
+  });
+
+  test('empty sub-finding title flagged', () {
+    final i = valid().copyWith(findings: const [
+      FindingSection(
+        title: 'T',
+        standard: 's',
+        finding: 'f',
+        subFindings: [SubFinding(title: '', body: 'b')],
+      ),
+    ]);
+    expect(
+      validateNonReg(i)
+          .any((e) => e.field == 'findings[0].subFindings[0].title'),
+      true,
+    );
+  });
+
+  test('empty sub-finding body flagged', () {
+    final i = valid().copyWith(findings: const [
+      FindingSection(
+        title: 'T',
+        standard: 's',
+        finding: 'f',
+        subFindings: [SubFinding(title: 't', body: '')],
+      ),
+    ]);
+    expect(
+      validateNonReg(i)
+          .any((e) => e.field == 'findings[0].subFindings[0].body'),
+      true,
+    );
+  });
 }
