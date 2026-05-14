@@ -50,4 +50,44 @@ void main() {
     final col = widget as pw.Column;
     expect(col.children.length, 3);
   });
+
+  test('nested children flatten into the column under the parent', () {
+    final theme = PdfTheme.testStub();
+    final widget = const LabelledBulletListBlock(items: [
+      LabelledBulletItem(
+        leadBold: 'Finding',
+        body: 'Parent body.',
+        children: [
+          LabelledBulletItem(leadBold: 'Sub A', body: 'a'),
+          LabelledBulletItem(leadBold: 'Sub B', body: 'b'),
+        ],
+      ),
+    ]).toPdf(theme);
+    final col = widget as pw.Column;
+    // 1 parent row + 2 child rows = 3 entries.
+    expect(col.children.length, 3);
+  });
+
+  test('depth-2 grandchildren are ignored (one-level nesting limit)', () {
+    final theme = PdfTheme.testStub();
+    final widget = const LabelledBulletListBlock(items: [
+      LabelledBulletItem(
+        leadBold: 'Finding',
+        body: 'Parent.',
+        children: [
+          LabelledBulletItem(
+            leadBold: 'Sub A',
+            body: 'a',
+            // These deeper-level children must NOT appear in output.
+            children: [
+              LabelledBulletItem(leadBold: 'Deeper', body: 'd'),
+            ],
+          ),
+        ],
+      ),
+    ]).toPdf(theme);
+    final col = widget as pw.Column;
+    // 1 parent + 1 child = 2 entries; grandchild dropped.
+    expect(col.children.length, 2);
+  });
 }

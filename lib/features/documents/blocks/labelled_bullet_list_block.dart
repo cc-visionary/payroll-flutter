@@ -23,11 +23,19 @@ class LabelledBulletListBlock extends Block {
 
   @override
   pw.Widget toPdf(PdfTheme theme) {
+    final rows = <pw.Widget>[];
+    for (final item in items) {
+      rows.add(_row(theme, item, nested: false));
+      // One-level nesting: walk children; grandchildren are intentionally
+      // not rendered. See spec §"New blocks" — Non-Reg sources have at
+      // most 2 levels.
+      for (final child in item.children) {
+        rows.add(_row(theme, child, nested: true));
+      }
+    }
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        for (final item in items) _row(theme, item, nested: false),
-      ],
+      children: rows,
     );
   }
 
