@@ -75,7 +75,7 @@ class NteTemplate extends DocumentTemplate<NteInputs> {
       employeeFullName: emp.fullName,
       employeeFirstName: emp.firstName,
       employeeLastName: emp.lastName,
-      employeePosition: '',
+      employeePosition: emp.jobTitle ?? '',
       employeeDepartment: '',
       companyId: co?.id ?? '',
       companyName: co?.name ?? '',

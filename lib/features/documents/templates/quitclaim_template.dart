@@ -10,6 +10,7 @@ import '../blocks/paragraph_block.dart';
 import '../blocks/spacer_block.dart';
 import '../blocks/title_block.dart';
 import '../../../core/pdf/interpolate.dart';
+import '../providers.dart';
 import 'document_template.dart';
 import 'quitclaim_inputs.dart';
 import 'quitclaim_validate.dart';
@@ -57,6 +58,23 @@ class QuitclaimTemplate extends DocumentTemplate<QuitclaimInputs> {
     final emp = ctx.employee;
     final co = ctx.company;
     if (emp == null) return emptyInputs();
+    // Prefer the latest SEPARATION employment_event; fall back to the
+    // Employee row's separationDate so freshly imported employees still
+    // surface a sensible Date Terminated.
+    Map<String, dynamic>? sepRow;
+    try {
+      sepRow = await ctx.ref.read(latestEmploymentEventProvider(
+              (employeeId: emp.id, eventType: 'SEPARATION'))
+          .future);
+    } catch (_) {
+      sepRow = null;
+    }
+    DateTime? toDate(Map<String, dynamic>? r) {
+      if (r == null) return null;
+      final v = r['event_date'] as String?;
+      return v == null ? null : DateTime.parse(v);
+    }
+
     return QuitclaimInputs(
       employeeId: emp.id,
       employeeFullName: emp.fullName,
@@ -65,6 +83,7 @@ class QuitclaimTemplate extends DocumentTemplate<QuitclaimInputs> {
       companyAddress: co == null ? null : _addressOf(co),
       companySignatoryName: co?.legalSignatoryName,
       companySignatoryRole: co?.legalSignatoryRole,
+      dateTerminated: toDate(sepRow) ?? emp.separationDate,
       dateSigned: DateTime.now(),
       finalPayAmount: Decimal.zero,
     );

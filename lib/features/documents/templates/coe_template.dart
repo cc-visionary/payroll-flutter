@@ -67,11 +67,13 @@ class CoeTemplate extends DocumentTemplate<CoeInputs> {
       companyName: co?.name ?? '',
       companyAddress: co == null ? null : _addressOf(co),
       hrManagerName: co?.hrManagerName,
-      // Position fallback — Employee model has no `position` field; HR
-      // overrides if blank.
-      position: '',
-      dateStart: toDate(hireRow),
-      dateEnd: toDate(sepRow),
+      // Position pulled from Employee.jobTitle; HR can override if needed.
+      position: emp.jobTitle ?? '',
+      // Prefer explicit employment_events rows; fall back to the values
+      // already on the Employee row so freshly imported employees don't
+      // surface as blank dates.
+      dateStart: toDate(hireRow) ?? emp.hireDate,
+      dateEnd: toDate(sepRow) ?? emp.separationDate,
     );
   }
 

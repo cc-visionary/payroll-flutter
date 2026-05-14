@@ -5,6 +5,7 @@ import '../inputs/company_picker.dart';
 import '../inputs/date_field.dart';
 import '../inputs/employee_picker.dart';
 import '../inputs/findings_editor.dart';
+import '../inputs/hr_manager_field.dart';
 import '../templates/non_reg_inputs.dart';
 
 class NonRegForm extends ConsumerStatefulWidget {
@@ -84,12 +85,8 @@ class _NonRegFormState extends ConsumerState<NonRegForm> {
           const SizedBox(height: 16),
           _label('HR Manager Name'),
           const SizedBox(height: 4),
-          TextFormField(
-            initialValue: _i.hrManagerName ?? '',
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
+          HrManagerField(
+            value: _i.hrManagerName ?? '',
             onChanged: (s) =>
                 _set(_i.copyWith(hrManagerName: s.isEmpty ? null : s)),
           ),

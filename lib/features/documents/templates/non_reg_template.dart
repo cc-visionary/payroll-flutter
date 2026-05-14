@@ -110,7 +110,7 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
       employeeId: emp.id,
       employeeFullName: emp.fullName,
       employeeLastName: emp.lastName,
-      employeePosition: '', // Employee model has no `position` field; HR fills.
+      employeePosition: emp.jobTitle ?? '',
       companyId: co?.id ?? '',
       companyName: co?.name ?? '',
       companyAddress: co == null ? null : _addressOf(co),
