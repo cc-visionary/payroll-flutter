@@ -37,7 +37,25 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
   }
 
   @override
-  Future<NonRegInputs> autofill(AutofillContext ctx) async => emptyInputs();
+  Future<NonRegInputs> autofill(AutofillContext ctx) async {
+    final emp = ctx.employee;
+    if (emp == null) return emptyInputs();
+    final co = ctx.company;
+    final today = DateTime.now();
+    return NonRegInputs(
+      employeeId: emp.id,
+      employeeFullName: emp.fullName,
+      employeeLastName: emp.lastName,
+      employeePosition: '', // Employee model has no `position` field; HR fills.
+      companyId: co?.id ?? '',
+      companyName: co?.name ?? '',
+      companyAddress: co == null ? null : _addressOf(co),
+      hrManagerName: co?.hrManagerName,
+      dateIssued: today,
+      salutationName: emp.lastName,
+      findings: const [],
+    );
+  }
 
   @override
   List<Gate> gates(AutofillContext ctx) => const [];
@@ -48,4 +66,15 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
 
   @override
   List<Block> build(NonRegInputs i) => const [];
+}
+
+String _addressOf(dynamic co) {
+  final parts = [
+    co.addressLine1,
+    co.addressLine2,
+    [co.city, co.province, co.zipCode]
+        .where((s) => s != null && (s as String).isNotEmpty)
+        .join(', '),
+  ].where((s) => s != null && (s as String).isNotEmpty).cast<String>().toList();
+  return parts.join(' · ');
 }
