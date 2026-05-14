@@ -71,16 +71,20 @@ class AuditLogScreen extends ConsumerWidget {
   }
 }
 
-/// Builds the Entity column label. For `employees` rows we extract the
-/// employee's full name (and number) from new_values, falling back to
-/// old_values for DELETEs. For other entity types we fall back to the
-/// original `<type> <id-prefix>` form so this stays a non-breaking change.
+/// Builds the Entity column label. For known entity types we extract a
+/// compact identifier from new_values (falling back to old_values for
+/// DELETEs). For unknown types we fall back to the original
+/// `<type> <id-prefix>` form so this stays a non-breaking change.
+///
+/// The audit_logs.description column already carries the rich human-
+/// readable summary (name, amount, status, etc.) — the Entity column
+/// is intentionally a compact secondary identifier.
 String _entityDisplay(Map<String, dynamic> row) {
   final type = row['entity_type'] as String? ?? '';
   final id = row['entity_id'] as String? ?? '';
   final idShort = id.length >= 8 ? id.substring(0, 8) : id;
+  final json = _asMap(row['new_values']) ?? _asMap(row['old_values']);
   if (type == 'employees') {
-    final json = _asMap(row['new_values']) ?? _asMap(row['old_values']);
     if (json != null) {
       final first = (json['first_name'] as String? ?? '').trim();
       final middle = (json['middle_name'] as String? ?? '').trim();
@@ -92,6 +96,19 @@ String _entityDisplay(Map<String, dynamic> row) {
         return '$type · $name';
       }
     }
+  } else if (type == 'payroll_runs') {
+    final status = (json?['status'] as String? ?? '').trim();
+    if (status.isNotEmpty) return '$type · $status';
+  } else if (type == 'payslips') {
+    final number = (json?['payslip_number'] as String? ?? '').trim();
+    if (number.isNotEmpty) return '$type · $number';
+  } else if (type == 'manual_adjustment_lines') {
+    final category = (json?['category'] as String? ?? '').trim();
+    final amount = json?['amount'];
+    if (category.isNotEmpty && amount != null) {
+      return '$type · $category · ₱$amount';
+    }
+    if (category.isNotEmpty) return '$type · $category';
   }
   return '$type $idShort';
 }
