@@ -74,12 +74,15 @@ class _QuillFieldState extends State<QuillField> {
               showListCheck: false,
             ),
           ),
-          ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 120, maxHeight: 240),
+          SizedBox(
+            height: 180,
             child: QuillEditor.basic(
               controller: _controller,
               config: const QuillEditorConfig(
                 padding: EdgeInsets.all(8),
+                placeholder: 'Describe the charge…',
+                expands: true,
+                autoFocus: false,
               ),
             ),
           ),
