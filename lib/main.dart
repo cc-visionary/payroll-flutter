@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -40,6 +41,9 @@ class PayrollApp extends ConsumerWidget {
       themeMode: themeMode,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
+      localizationsDelegates: const [
+        FlutterQuillLocalizations.delegate,
+      ],
     );
   }
 }
