@@ -8,6 +8,8 @@ import '../inputs/employee_picker.dart';
 import '../providers.dart';
 import '../templates/quitclaim_inputs.dart';
 import '../templates/quitclaim_validate.dart';
+import '../../../widgets/employee_name_field.dart';
+import '../../../widgets/role_title_field.dart';
 
 class QuitclaimForm extends ConsumerStatefulWidget {
   final QuitclaimInputs initial;
@@ -129,6 +131,48 @@ class _QuitclaimFormState extends ConsumerState<QuitclaimForm> {
           locked: false,
           onChanged: (d) => _set(_i.copyWith(finalPayAmount: d)),
         ),
+        const SizedBox(height: 16),
+        const Text(
+          'Signatory Name',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 4),
+        EmployeeNameField(
+          value: _i.companySignatoryName ?? '',
+          hintText: 'Type or select an employee',
+          onChanged: (v) => _set(
+            _i.copyWith(companySignatoryName: v.trim().isEmpty ? null : v),
+          ),
+        ),
+        if (_errFor('signatoryName') != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              _errFor('signatoryName')!,
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
+        const SizedBox(height: 16),
+        const Text(
+          'Signatory Role',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 4),
+        RoleTitleField(
+          value: _i.companySignatoryRole ?? '',
+          hintText: 'e.g. CEO',
+          onChanged: (v) => _set(
+            _i.copyWith(companySignatoryRole: v.trim().isEmpty ? null : v),
+          ),
+        ),
+        if (_errFor('signatoryRole') != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              _errFor('signatoryRole')!,
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
         const SizedBox(height: 16),
         if (_i.companySignatoryName == null ||
             _i.companySignatoryName!.isEmpty)
