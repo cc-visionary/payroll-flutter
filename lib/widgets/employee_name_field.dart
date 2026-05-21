@@ -1,37 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../data/repositories/employee_repository.dart';
+import '../data/repositories/employee_repository.dart';
 
-/// Autocomplete field for HR Manager Name. Suggests from the active
+/// Autocomplete field suggesting employee full-names. Suggests from the active
 /// employee list as the user types; free-text is still accepted (for
 /// external consultants or names not on the roster).
 ///
 /// Uses `RawAutocomplete` with an externally-managed `TextEditingController`
 /// so the field keeps focus while typing AND can be re-seeded by the
 /// parent when autofill brings in a new value.
-class HrManagerField extends ConsumerStatefulWidget {
+class EmployeeNameField extends ConsumerStatefulWidget {
   final String value;
   final ValueChanged<String> onChanged;
   final String? hintText;
-  const HrManagerField({
+  final String? labelText;
+  const EmployeeNameField({
     super.key,
     required this.value,
     required this.onChanged,
     this.hintText,
+    this.labelText,
   });
 
   @override
-  ConsumerState<HrManagerField> createState() => _HrManagerFieldState();
+  ConsumerState<EmployeeNameField> createState() => _EmployeeNameFieldState();
 }
 
-class _HrManagerFieldState extends ConsumerState<HrManagerField> {
+class _EmployeeNameFieldState extends ConsumerState<EmployeeNameField> {
   late final TextEditingController _controller =
       TextEditingController(text: widget.value);
   late final FocusNode _focusNode = FocusNode();
 
   @override
-  void didUpdateWidget(HrManagerField oldWidget) {
+  void didUpdateWidget(EmployeeNameField oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Only sync external value into the controller when the user isn't
     // actively editing this field. Avoids cursor jumps and focus loss
@@ -71,9 +73,10 @@ class _HrManagerFieldState extends ConsumerState<HrManagerField> {
           controller: controller,
           focusNode: focusNode,
           decoration: InputDecoration(
+            labelText: widget.labelText,
+            hintText: widget.hintText ?? 'Type or select an employee',
             border: const OutlineInputBorder(),
             isDense: true,
-            hintText: widget.hintText ?? 'Type or select an employee',
           ),
           onChanged: widget.onChanged,
         );

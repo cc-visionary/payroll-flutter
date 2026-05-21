@@ -5,9 +5,9 @@ import '../inputs/company_picker.dart';
 import '../inputs/date_field.dart';
 import '../inputs/employee_picker.dart';
 import '../inputs/findings_editor.dart';
-import '../inputs/hr_manager_field.dart';
-import '../inputs/position_field.dart';
 import '../templates/non_reg_inputs.dart';
+import '../../../widgets/employee_name_field.dart';
+import '../../../widgets/role_title_field.dart';
 
 class NonRegForm extends ConsumerStatefulWidget {
   final NonRegInputs initial;
@@ -70,7 +70,7 @@ class _NonRegFormState extends ConsumerState<NonRegForm> {
           const SizedBox(height: 16),
           _label('Position'),
           const SizedBox(height: 4),
-          PositionField(
+          RoleTitleField(
             value: _i.employeePosition,
             onChanged: (s) => _set(_i.copyWith(employeePosition: s)),
           ),
@@ -87,7 +87,7 @@ class _NonRegFormState extends ConsumerState<NonRegForm> {
           const SizedBox(height: 16),
           _label('HR Manager Name'),
           const SizedBox(height: 4),
-          HrManagerField(
+          EmployeeNameField(
             value: _i.hrManagerName ?? '',
             onChanged: (s) =>
                 _set(_i.copyWith(hrManagerName: s.isEmpty ? null : s)),

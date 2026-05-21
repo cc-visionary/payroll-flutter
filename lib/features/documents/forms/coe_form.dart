@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../inputs/company_picker.dart';
 import '../inputs/date_field.dart';
 import '../inputs/employee_picker.dart';
-import '../inputs/hr_manager_field.dart';
-import '../inputs/position_field.dart';
 import '../templates/coe_inputs.dart';
 import '../templates/coe_validate.dart';
+import '../../../widgets/employee_name_field.dart';
+import '../../../widgets/role_title_field.dart';
 
 class CoeForm extends ConsumerStatefulWidget {
   final CoeInputs initial;
@@ -88,7 +88,7 @@ class _CoeFormState extends ConsumerState<CoeForm> {
       const SizedBox(height: 16),
       _label('Position'),
       const SizedBox(height: 4),
-      PositionField(
+      RoleTitleField(
         value: _i.position,
         onChanged: (s) => _set(_i.copyWith(position: s)),
       ),
@@ -117,7 +117,7 @@ class _CoeFormState extends ConsumerState<CoeForm> {
       const SizedBox(height: 16),
       _label('HR Manager Name'),
       const SizedBox(height: 4),
-      HrManagerField(
+      EmployeeNameField(
         value: _i.hrManagerName ?? '',
         onChanged: (s) =>
             _set(_i.copyWith(hrManagerName: s.isEmpty ? null : s)),

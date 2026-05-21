@@ -1,37 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../data/repositories/role_scorecard_repository.dart';
+import '../data/repositories/role_scorecard_repository.dart';
 
-/// Autocomplete field for Position. Suggests from the active
+/// Autocomplete field suggesting role/job titles. Suggests from the active
 /// `role_scorecards.job_title` list as the user types; free-text is still
 /// accepted (for ad-hoc positions or external hires whose role isn't on
 /// the scorecard list yet).
 ///
-/// Same controller-managed pattern as `HrManagerField`: external value
+/// Same controller-managed pattern as `EmployeeNameField`: external value
 /// only re-seeds the controller when the user isn't actively editing.
-class PositionField extends ConsumerStatefulWidget {
+class RoleTitleField extends ConsumerStatefulWidget {
   final String value;
   final ValueChanged<String> onChanged;
   final String? hintText;
-  const PositionField({
+  final String? labelText;
+  const RoleTitleField({
     super.key,
     required this.value,
     required this.onChanged,
     this.hintText,
+    this.labelText,
   });
 
   @override
-  ConsumerState<PositionField> createState() => _PositionFieldState();
+  ConsumerState<RoleTitleField> createState() => _RoleTitleFieldState();
 }
 
-class _PositionFieldState extends ConsumerState<PositionField> {
+class _RoleTitleFieldState extends ConsumerState<RoleTitleField> {
   late final TextEditingController _controller =
       TextEditingController(text: widget.value);
   late final FocusNode _focusNode = FocusNode();
 
   @override
-  void didUpdateWidget(PositionField oldWidget) {
+  void didUpdateWidget(RoleTitleField oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.value != _controller.text && !_focusNode.hasFocus) {
       _controller.text = widget.value;
@@ -69,10 +71,11 @@ class _PositionFieldState extends ConsumerState<PositionField> {
           controller: controller,
           focusNode: focusNode,
           decoration: InputDecoration(
-            border: const OutlineInputBorder(),
-            isDense: true,
+            labelText: widget.labelText,
             hintText:
                 widget.hintText ?? 'Type or select from responsibility cards',
+            border: const OutlineInputBorder(),
+            isDense: true,
           ),
           onChanged: widget.onChanged,
         );

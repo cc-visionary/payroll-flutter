@@ -7,6 +7,8 @@ import '../../../app/status_colors.dart';
 import '../../../data/models/hiring_entity.dart';
 import '../../../data/repositories/hiring_entity_repository.dart';
 import '../../auth/profile_provider.dart';
+import '../../../widgets/employee_name_field.dart';
+import '../../../widgets/role_title_field.dart';
 
 class HiringEntitiesSettingsScreen extends ConsumerWidget {
   const HiringEntitiesSettingsScreen({super.key});
@@ -213,12 +215,9 @@ class _FormState extends ConsumerState<_EntityForm> {
       TextEditingController(text: widget.existing?.phoneNumber ?? '');
   late final _email =
       TextEditingController(text: widget.existing?.email ?? '');
-  late final _signatoryName = TextEditingController(
-      text: widget.existing?.legalSignatoryName ?? '');
-  late final _signatoryRole = TextEditingController(
-      text: widget.existing?.legalSignatoryRole ?? '');
-  late final _hrManager = TextEditingController(
-      text: widget.existing?.hrManagerName ?? '');
+  late String _signatoryName = widget.existing?.legalSignatoryName ?? '';
+  late String _signatoryRole = widget.existing?.legalSignatoryRole ?? '';
+  late String _hrManager = widget.existing?.hrManagerName ?? '';
   late bool _isActive = widget.existing?.isActive ?? true;
   bool _saving = false;
   String? _error;
@@ -240,10 +239,7 @@ class _FormState extends ConsumerState<_EntityForm> {
       _province,
       _zip,
       _phone,
-      _email,
-      _signatoryName,
-      _signatoryRole,
-      _hrManager
+      _email
     ]) {
       c.dispose();
     }
@@ -282,9 +278,12 @@ class _FormState extends ConsumerState<_EntityForm> {
             zipCode: t(_zip),
             phoneNumber: t(_phone),
             email: t(_email),
-            legalSignatoryName: t(_signatoryName),
-            legalSignatoryRole: t(_signatoryRole),
-            hrManagerName: t(_hrManager),
+            legalSignatoryName:
+                _signatoryName.trim().isEmpty ? null : _signatoryName.trim(),
+            legalSignatoryRole:
+                _signatoryRole.trim().isEmpty ? null : _signatoryRole.trim(),
+            hrManagerName:
+                _hrManager.trim().isEmpty ? null : _hrManager.trim(),
             isActive: _isActive,
           );
       widget.onSaved();
@@ -366,14 +365,26 @@ class _FormState extends ConsumerState<_EntityForm> {
                 const SizedBox(height: 16),
                 _sectionHeader(context, 'Document Defaults'),
                 _row([
-                  _text(_signatoryName, 'Legal Signatory Name',
-                      hint: 'e.g. Clinton Xu'),
-                  _text(_signatoryRole, 'Legal Signatory Role',
-                      hint: 'e.g. CEO'),
+                  EmployeeNameField(
+                    value: _signatoryName,
+                    labelText: 'Legal Signatory Name',
+                    hintText: 'e.g. Clinton Xu',
+                    onChanged: (v) => setState(() => _signatoryName = v),
+                  ),
+                  RoleTitleField(
+                    value: _signatoryRole,
+                    labelText: 'Legal Signatory Role',
+                    hintText: 'e.g. CEO',
+                    onChanged: (v) => setState(() => _signatoryRole = v),
+                  ),
                 ]),
                 _row([
-                  _text(_hrManager, 'HR Manager Name',
-                      hint: 'e.g. Brixter Del Mundo'),
+                  EmployeeNameField(
+                    value: _hrManager,
+                    labelText: 'HR Manager Name',
+                    hintText: 'e.g. Brixter Del Mundo',
+                    onChanged: (v) => setState(() => _hrManager = v),
+                  ),
                   const SizedBox.shrink(),
                 ]),
                 if (_error != null)
