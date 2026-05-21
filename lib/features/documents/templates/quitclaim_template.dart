@@ -10,7 +10,6 @@ import '../blocks/paragraph_block.dart';
 import '../blocks/spacer_block.dart';
 import '../blocks/title_block.dart';
 import '../../../core/pdf/interpolate.dart';
-import '../providers.dart';
 import 'document_template.dart';
 import 'quitclaim_inputs.dart';
 import 'quitclaim_validate.dart';
@@ -58,23 +57,12 @@ class QuitclaimTemplate extends DocumentTemplate<QuitclaimInputs> {
     final emp = ctx.employee;
     final co = ctx.company;
     if (emp == null) return emptyInputs();
-    // Prefer the latest SEPARATION employment_event; fall back to the
-    // Employee row's separationDate so freshly imported employees still
-    // surface a sensible Date Terminated.
-    Map<String, dynamic>? sepRow;
-    try {
-      sepRow = await ctx.ref.read(latestEmploymentEventProvider(
-              (employeeId: emp.id, eventType: 'SEPARATION'))
-          .future);
-    } catch (_) {
-      sepRow = null;
-    }
-    DateTime? toDate(Map<String, dynamic>? r) {
-      if (r == null) return null;
-      final v = r['event_date'] as String?;
-      return v == null ? null : DateTime.parse(v);
-    }
-
+    // Date Terminated comes straight off the Employee row, which is the
+    // source of truth (separationDate is set when a separation is
+    // confirmed). We do NOT query employment_events here — the event_type
+    // enum has no 'SEPARATION' member (it uses SEPARATION_CONFIRMED /
+    // SEPARATION_INITIATED), and the employee row already carries the
+    // authoritative date.
     return QuitclaimInputs(
       employeeId: emp.id,
       employeeFullName: emp.fullName,
@@ -83,7 +71,7 @@ class QuitclaimTemplate extends DocumentTemplate<QuitclaimInputs> {
       companyAddress: co == null ? null : _addressOf(co),
       companySignatoryName: co?.legalSignatoryName,
       companySignatoryRole: co?.legalSignatoryRole,
-      dateTerminated: toDate(sepRow) ?? emp.separationDate,
+      dateTerminated: emp.separationDate,
       dateSigned: DateTime.now(),
       finalPayAmount: Decimal.zero,
     );

@@ -188,47 +188,24 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
 
   Future<void> _onPickerEmployeeChanged(String newEmployeeId) async {
     final tpl = findTemplateById(widget.templateId);
-    if (tpl == null) {
-      // ignore: avoid_print
-      print('[autofill] template not found for id=${widget.templateId}');
-      return;
-    }
-    // ignore: avoid_print
-    print('[autofill] start: tpl=${tpl.id}, employeeId=$newEmployeeId');
+    if (tpl == null) return;
     try {
       final emp =
           await ref.read(documentEmployeeProvider(newEmployeeId).future);
-      // ignore: avoid_print
-      print('[autofill] emp fetched: id=${emp?.id}, fullName=${emp?.fullName}, '
-          'hiringEntityId=${emp?.hiringEntityId}, jobTitle=${emp?.jobTitle}, '
-          'hireDate=${emp?.hireDate}, separationDate=${emp?.separationDate}');
       final co = (emp == null || emp.hiringEntityId == null)
           ? null
           : await ref
               .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
-      // ignore: avoid_print
-      print('[autofill] co fetched: id=${co?.id}, name=${co?.name}, '
-          'hrManagerName=${co?.hrManagerName}');
       final ctx = AutofillContext(employee: emp, company: co, ref: ref);
       if (tpl is CoeTemplate) {
         final filled = await tpl.autofill(ctx);
-        // ignore: avoid_print
-        print('[autofill] CoeInputs filled: employeeId=${filled.employeeId}, '
-            'employeeFullName=${filled.employeeFullName}, '
-            'companyName=${filled.companyName}, position=${filled.position}, '
-            'dateStart=${filled.dateStart}, dateEnd=${filled.dateEnd}, '
-            'hrManagerName=${filled.hrManagerName}');
         if (!mounted) return;
         setState(() {
           _coe = filled;
           _autofillRev++;
         });
-        // ignore: avoid_print
-        print('[autofill] setState complete: _autofillRev=$_autofillRev');
       } else if (tpl is NteTemplate) {
         final filled = await tpl.autofill(ctx);
-        // ignore: avoid_print
-        print('[autofill] NteInputs filled: employeeId=${filled.employeeId}');
         if (!mounted) return;
         setState(() {
           _nte = filled;
@@ -236,8 +213,6 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         });
       } else if (tpl is NonRegTemplate) {
         final filled = await tpl.autofill(ctx);
-        // ignore: avoid_print
-        print('[autofill] NonRegInputs filled: employeeId=${filled.employeeId}');
         if (!mounted) return;
         setState(() {
           _nonReg = filled;
@@ -245,8 +220,6 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         });
       } else if (tpl is QuitclaimTemplate) {
         final filled = await tpl.autofill(ctx);
-        // ignore: avoid_print
-        print('[autofill] QuitclaimInputs filled: employeeId=${filled.employeeId}');
         if (!mounted) return;
         setState(() {
           _quitclaim = filled;
@@ -255,7 +228,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       }
     } catch (e, st) {
       // ignore: avoid_print
-      print('[autofill] FAILED for tpl=${tpl.id}, id=$newEmployeeId: $e\n$st');
+      print('Re-autofill failed for ${tpl.id}: $e\n$st');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

@@ -8,7 +8,6 @@ import '../blocks/paragraph_block.dart';
 import '../blocks/signature_block.dart';
 import '../blocks/spacer_block.dart';
 import '../blocks/title_block.dart';
-import '../providers.dart';
 import 'coe_gates.dart';
 import 'coe_inputs.dart';
 import 'coe_validate.dart';
@@ -48,18 +47,12 @@ class CoeTemplate extends DocumentTemplate<CoeInputs> {
     final emp = ctx.employee;
     if (emp == null) return emptyInputs();
     final co = ctx.company;
-    final hireRow = await ctx.ref.read(latestEmploymentEventProvider(
-            (employeeId: emp.id, eventType: 'HIRE'))
-        .future);
-    final sepRow = await ctx.ref.read(latestEmploymentEventProvider(
-            (employeeId: emp.id, eventType: 'SEPARATION'))
-        .future);
-    DateTime? toDate(Map<String, dynamic>? r) {
-      if (r == null) return null;
-      final v = r['event_date'] as String?;
-      return v == null ? null : DateTime.parse(v);
-    }
-
+    // Dates come straight off the Employee row, which is the source of
+    // truth (hireDate is set at onboarding; separationDate is set when a
+    // separation is confirmed). We do NOT query employment_events here —
+    // the event_type enum has no 'SEPARATION' member (it uses
+    // SEPARATION_CONFIRMED / SEPARATION_INITIATED), and the employee row
+    // already carries the authoritative dates.
     return CoeInputs(
       employeeId: emp.id,
       employeeFullName: emp.fullName,
@@ -67,13 +60,9 @@ class CoeTemplate extends DocumentTemplate<CoeInputs> {
       companyName: co?.name ?? '',
       companyAddress: co == null ? null : _addressOf(co),
       hrManagerName: co?.hrManagerName,
-      // Position pulled from Employee.jobTitle; HR can override if needed.
       position: emp.jobTitle ?? '',
-      // Prefer explicit employment_events rows; fall back to the values
-      // already on the Employee row so freshly imported employees don't
-      // surface as blank dates.
-      dateStart: toDate(hireRow) ?? emp.hireDate,
-      dateEnd: toDate(sepRow) ?? emp.separationDate,
+      dateStart: emp.hireDate,
+      dateEnd: emp.separationDate,
     );
   }
 
