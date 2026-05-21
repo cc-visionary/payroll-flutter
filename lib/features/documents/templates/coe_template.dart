@@ -2,8 +2,10 @@ import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
 import '../../../core/pdf/interpolate.dart';
+import '../brand_logo.dart';
 import '../blocks/block.dart';
 import '../blocks/company_header_block.dart';
+import '../blocks/logo_block.dart';
 import '../blocks/paragraph_block.dart';
 import '../blocks/signature_block.dart';
 import '../blocks/spacer_block.dart';
@@ -47,6 +49,10 @@ class CoeTemplate extends DocumentTemplate<CoeInputs> {
     final emp = ctx.employee;
     if (emp == null) return emptyInputs();
     final co = ctx.company;
+    final logo = await loadBrandLogoBytes(
+      companyName: co?.name,
+      code: co?.code,
+    );
     // Dates come straight off the Employee row, which is the source of
     // truth (hireDate is set at onboarding; separationDate is set when a
     // separation is confirmed). We do NOT query employment_events here —
@@ -63,6 +69,7 @@ class CoeTemplate extends DocumentTemplate<CoeInputs> {
       position: emp.jobTitle ?? '',
       dateStart: emp.hireDate,
       dateEnd: emp.separationDate,
+      logoBytes: logo,
     );
   }
 
@@ -83,6 +90,8 @@ class CoeTemplate extends DocumentTemplate<CoeInputs> {
   List<Block> build(CoeInputs i) {
     final fmt = DateFormat('MMMM d, yyyy');
     return [
+      if (i.logoBytes != null) LogoBlock(i.logoBytes!),
+      if (i.logoBytes != null) const SpacerBlock(12),
       CompanyHeaderBlock(name: i.companyName, address: i.companyAddress),
       const SpacerBlock(24),
       const TitleBlock('CERTIFICATE OF EMPLOYMENT'),

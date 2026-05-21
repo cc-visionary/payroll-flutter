@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'document_template.dart';
 
 class CoeInputs extends TemplateInputs {
@@ -10,6 +12,7 @@ class CoeInputs extends TemplateInputs {
   final String position;
   final DateTime? dateStart;
   final DateTime? dateEnd;
+  final Uint8List? logoBytes;
 
   CoeInputs({
     required this.employeeId,
@@ -21,6 +24,7 @@ class CoeInputs extends TemplateInputs {
     required this.position,
     this.dateStart,
     this.dateEnd,
+    this.logoBytes,
   });
 
   CoeInputs copyWith({
@@ -33,6 +37,7 @@ class CoeInputs extends TemplateInputs {
     String? position,
     DateTime? dateStart,
     DateTime? dateEnd,
+    Uint8List? logoBytes,
   }) =>
       CoeInputs(
         employeeId: employeeId ?? this.employeeId,
@@ -44,6 +49,7 @@ class CoeInputs extends TemplateInputs {
         position: position ?? this.position,
         dateStart: dateStart ?? this.dateStart,
         dateEnd: dateEnd ?? this.dateEnd,
+        logoBytes: logoBytes ?? this.logoBytes,
       );
 
   @override
