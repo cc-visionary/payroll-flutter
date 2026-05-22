@@ -4,8 +4,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/models/employee.dart';
 import '../../data/models/hiring_entity.dart';
+import '../../data/models/role_scorecard.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../data/repositories/hiring_entity_repository.dart';
+import '../../data/repositories/role_scorecard_repository.dart';
 import '../auth/profile_provider.dart';
 
 /// Single hiring entity by id, or null when soft-deleted / not found.
@@ -26,6 +28,14 @@ final hiringEntityByIdProvider =
 final documentEmployeeProvider =
     FutureProvider.family<Employee?, String>((ref, id) {
   return ref.watch(employeeRepositoryProvider).byId(id);
+});
+
+/// Single role scorecard by id (the employee's assigned scorecard), or
+/// null when none / not found. Used by the Employment Contract autofill
+/// to populate Annex A (responsibilities, KPIs, work hours, salary).
+final roleScorecardByIdProvider =
+    FutureProvider.family<RoleScorecard?, String>((ref, id) {
+  return ref.watch(roleScorecardRepositoryProvider).byId(id);
 });
 
 /// Latest event of [eventType] for [employeeId], or null when none
