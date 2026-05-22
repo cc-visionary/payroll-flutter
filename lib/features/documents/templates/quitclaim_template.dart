@@ -2,9 +2,11 @@ import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
+import '../brand_logo.dart';
 import '../blocks/block.dart';
 import '../blocks/company_header_block.dart';
 import '../blocks/key_value_block.dart';
+import '../blocks/logo_block.dart';
 import '../blocks/multi_signature_block.dart';
 import '../blocks/paragraph_block.dart';
 import '../blocks/spacer_block.dart';
@@ -57,6 +59,10 @@ class QuitclaimTemplate extends DocumentTemplate<QuitclaimInputs> {
     final emp = ctx.employee;
     final co = ctx.company;
     if (emp == null) return emptyInputs();
+    final logo = await loadBrandLogoBytes(
+      companyName: co?.name,
+      code: co?.code,
+    );
     // Date Terminated comes straight off the Employee row, which is the
     // source of truth (separationDate is set when a separation is
     // confirmed). We do NOT query employment_events here — the event_type
@@ -74,6 +80,7 @@ class QuitclaimTemplate extends DocumentTemplate<QuitclaimInputs> {
       dateTerminated: emp.separationDate,
       dateSigned: DateTime.now(),
       finalPayAmount: Decimal.zero,
+      logoBytes: logo,
     );
   }
 
@@ -89,6 +96,8 @@ class QuitclaimTemplate extends DocumentTemplate<QuitclaimInputs> {
     final dateFmt = DateFormat('MMMM d, yyyy');
     final amountStr = _formatPeso(i.finalPayAmount.toString());
     return [
+      if (i.logoBytes != null) LogoBlock(i.logoBytes!),
+      if (i.logoBytes != null) const SpacerBlock(12),
       CompanyHeaderBlock(name: i.companyName, address: i.companyAddress),
       const SpacerBlock(24),
       const TitleBlock('RELEASE, WAIVER, AND QUITCLAIM'),

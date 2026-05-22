@@ -2,9 +2,11 @@ import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
 import '../../../core/pdf/interpolate.dart';
+import '../brand_logo.dart';
 import '../blocks/block.dart';
 import '../blocks/bullet_list_block.dart';
 import '../blocks/letter_meta_block.dart';
+import '../blocks/logo_block.dart';
 import '../blocks/memo_acknowledgment_block.dart';
 import '../blocks/memo_header_block.dart';
 import '../blocks/paragraph_block.dart';
@@ -70,6 +72,10 @@ class NteTemplate extends DocumentTemplate<NteInputs> {
     if (emp == null) return emptyInputs();
     final co = ctx.company;
     final today = DateTime.now();
+    final logo = await loadBrandLogoBytes(
+      companyName: co?.name,
+      code: co?.code,
+    );
     return NteInputs(
       employeeId: emp.id,
       employeeFullName: emp.fullName,
@@ -86,6 +92,7 @@ class NteTemplate extends DocumentTemplate<NteInputs> {
       subjectSubtopic: '',
       charges: const [],
       applicableViolations: const [],
+      logoBytes: logo,
     );
   }
 
@@ -99,6 +106,8 @@ class NteTemplate extends DocumentTemplate<NteInputs> {
   List<Block> build(NteInputs i) {
     final fmt = DateFormat('MMMM d, yyyy');
     final blocks = <Block>[];
+    if (i.logoBytes != null) blocks.add(LogoBlock(i.logoBytes!));
+    if (i.logoBytes != null) blocks.add(const SpacerBlock(12));
     blocks.add(MemoHeaderBlock(
       titleText: 'NOTICE TO EXPLAIN',
       companyName: i.companyName,

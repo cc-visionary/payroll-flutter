@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_quill/quill_delta.dart';
 
 import 'document_template.dart';
@@ -24,6 +26,7 @@ class NteInputs extends TemplateInputs {
   final String subjectSubtopic;
   final List<NteCharge> charges;
   final List<String> applicableViolations;
+  final Uint8List? logoBytes;
 
   NteInputs({
     required this.employeeId,
@@ -41,6 +44,7 @@ class NteInputs extends TemplateInputs {
     required this.subjectSubtopic,
     required this.charges,
     required this.applicableViolations,
+    this.logoBytes,
   });
 
   String get finalSubject {
@@ -64,6 +68,7 @@ class NteInputs extends TemplateInputs {
     String? subjectSubtopic,
     List<NteCharge>? charges,
     List<String>? applicableViolations,
+    Uint8List? logoBytes,
   }) =>
       NteInputs(
         employeeId: employeeId ?? this.employeeId,
@@ -82,6 +87,7 @@ class NteInputs extends TemplateInputs {
         charges: charges ?? this.charges,
         applicableViolations:
             applicableViolations ?? this.applicableViolations,
+        logoBytes: logoBytes ?? this.logoBytes,
       );
 
   @override

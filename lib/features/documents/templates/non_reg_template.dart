@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
+import '../brand_logo.dart';
 import '../blocks/block.dart';
 import '../blocks/emphasis_paragraph_block.dart';
 import '../blocks/heading_block.dart';
 import '../blocks/labelled_bullet_list_block.dart';
 import '../blocks/letter_meta_block.dart';
+import '../blocks/logo_block.dart';
 import '../blocks/page_break_block.dart';
 import '../blocks/paragraph_block.dart';
 import '../blocks/section_heading_block.dart';
@@ -85,6 +87,10 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
     if (emp == null) return emptyInputs();
     final co = ctx.company;
     final today = DateTime.now();
+    final logo = await loadBrandLogoBytes(
+      companyName: co?.name,
+      code: co?.code,
+    );
     // Pull the latest HIRE event; fall back to employee.hireDate (already
     // on the Employee model) if no event row exists. Wrap in try/catch
     // so tests / dev environments without an initialized Supabase client
@@ -121,6 +127,7 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
       effectiveEndDate: probEnd,
       salutationName: emp.lastName,
       findings: const [],
+      logoBytes: logo,
     );
   }
 
@@ -135,6 +142,9 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
   List<Block> build(NonRegInputs i) {
     final fmt = DateFormat('MMMM d, yyyy');
     final blocks = <Block>[];
+
+    if (i.logoBytes != null) blocks.add(LogoBlock(i.logoBytes!));
+    if (i.logoBytes != null) blocks.add(const SpacerBlock(12));
 
     // 1-2. Meta + spacer.
     blocks.add(LetterMetaBlock(

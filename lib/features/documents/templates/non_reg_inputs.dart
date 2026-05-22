@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'document_template.dart';
 
 class SubFinding {
@@ -36,6 +38,7 @@ class NonRegInputs extends TemplateInputs {
   final String noteOnScope;
   final List<FindingSection> findings;
   final String witnessName;
+  final Uint8List? logoBytes;
 
   NonRegInputs({
     required this.employeeId,
@@ -54,6 +57,7 @@ class NonRegInputs extends TemplateInputs {
     this.noteOnScope = '',
     required this.findings,
     this.witnessName = '',
+    this.logoBytes,
   });
 
   NonRegInputs copyWith({
@@ -73,6 +77,7 @@ class NonRegInputs extends TemplateInputs {
     String? noteOnScope,
     List<FindingSection>? findings,
     String? witnessName,
+    Uint8List? logoBytes,
   }) =>
       NonRegInputs(
         employeeId: employeeId ?? this.employeeId,
@@ -91,6 +96,7 @@ class NonRegInputs extends TemplateInputs {
         noteOnScope: noteOnScope ?? this.noteOnScope,
         findings: findings ?? this.findings,
         witnessName: witnessName ?? this.witnessName,
+        logoBytes: logoBytes ?? this.logoBytes,
       );
 
   @override

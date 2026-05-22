@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:decimal/decimal.dart';
 
 import 'document_template.dart';
@@ -13,6 +15,7 @@ class QuitclaimInputs extends TemplateInputs {
   final DateTime? dateTerminated;
   final DateTime dateSigned;
   final Decimal finalPayAmount;
+  final Uint8List? logoBytes;
 
   QuitclaimInputs({
     required this.employeeId,
@@ -25,6 +28,7 @@ class QuitclaimInputs extends TemplateInputs {
     this.dateTerminated,
     required this.dateSigned,
     required this.finalPayAmount,
+    this.logoBytes,
   });
 
   QuitclaimInputs copyWith({
@@ -38,6 +42,7 @@ class QuitclaimInputs extends TemplateInputs {
     Object? dateTerminated = _undef,
     DateTime? dateSigned,
     Decimal? finalPayAmount,
+    Object? logoBytes = _undef,
   }) {
     return QuitclaimInputs(
       employeeId: employeeId ?? this.employeeId,
@@ -56,6 +61,9 @@ class QuitclaimInputs extends TemplateInputs {
           : dateTerminated as DateTime?,
       dateSigned: dateSigned ?? this.dateSigned,
       finalPayAmount: finalPayAmount ?? this.finalPayAmount,
+      logoBytes: identical(logoBytes, _undef)
+          ? this.logoBytes
+          : logoBytes as Uint8List?,
     );
   }
 
