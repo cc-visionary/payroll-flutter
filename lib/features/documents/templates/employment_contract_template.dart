@@ -635,12 +635,12 @@ class EmploymentContractTemplate
       SignatoryParty(
         name: i.employerSignatoryName,
         role: i.employerSignatoryRole,
-        date: i.dateEntered,
+        date: null,
       ),
       SignatoryParty(
         name: i.employeeFullName,
         role: i.position,
-        date: i.dateEntered,
+        date: null,
       ),
     ]));
 
@@ -652,12 +652,12 @@ class EmploymentContractTemplate
       SignatoryParty(
         name: i.witness1Name,
         role: i.witness1Role,
-        date: i.dateEntered,
+        date: null,
       ),
       SignatoryParty(
         name: i.witness2Name,
         role: i.witness2Role,
-        date: i.dateEntered,
+        date: null,
       ),
     ]));
 

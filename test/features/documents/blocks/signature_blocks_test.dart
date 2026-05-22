@@ -23,6 +23,16 @@ void main() {
     expect(b.signatories.length, 2);
   });
 
+  test('MultiSignatureBlock accepts null date and renders without throwing', () {
+    final theme = PdfTheme.testStub();
+    const party = SignatoryParty(name: 'X', role: 'Y', date: null);
+    expect(party.date, isNull);
+    expect(
+      () => const MultiSignatureBlock([party]).toPdf(theme),
+      returnsNormally,
+    );
+  });
+
   test('ReceiptBlock holds field list', () {
     const b = ReceiptBlock([
       ReceiptField(label: 'Received by', caption: '(Name & Signature)'),

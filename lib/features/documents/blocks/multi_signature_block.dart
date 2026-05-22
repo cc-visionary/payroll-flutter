@@ -7,8 +7,8 @@ import 'block.dart';
 class SignatoryParty {
   final String? name;
   final String? role;
-  final DateTime date;
-  const SignatoryParty({this.name, this.role, required this.date});
+  final DateTime? date;
+  const SignatoryParty({this.name, this.role, this.date});
 }
 
 class MultiSignatureBlock extends Block {
@@ -47,13 +47,14 @@ class MultiSignatureBlock extends Block {
                   color: theme.textColor,
                 ),
               ),
-            pw.Text(
-              'Date: ${fmt.format(s.date)}',
-              style: pw.TextStyle(
-                fontSize: theme.bodySize,
-                color: theme.textColor,
+            if (s.date != null)
+              pw.Text(
+                'Date: ${fmt.format(s.date!)}',
+                style: pw.TextStyle(
+                  fontSize: theme.bodySize,
+                  color: theme.textColor,
+                ),
               ),
-            ),
           ],
         );
     return pw.Wrap(
