@@ -25,9 +25,9 @@ void main() {
     expect(i.responsibilities, isEmpty);
   });
 
-  test('build returns empty until implemented', () {
+  test('build produces a non-empty block tree', () {
     const t = EmploymentContractTemplate();
-    expect(t.build(t.emptyInputs()), isEmpty);
+    expect(t.build(t.emptyInputs()), isNotEmpty);
   });
 
   testWidgets('autofill with employee + company copies basic fields',

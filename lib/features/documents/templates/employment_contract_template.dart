@@ -3,9 +3,23 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
+import '../../../core/pdf/interpolate.dart';
 import '../../../data/models/role_scorecard.dart';
 
 import '../blocks/block.dart';
+import '../blocks/bullet_list_block.dart';
+import '../blocks/emphasis_paragraph_block.dart';
+import '../blocks/heading_block.dart';
+import '../blocks/lettered_list_block.dart';
+import '../blocks/logo_block.dart';
+import '../blocks/multi_signature_block.dart';
+import '../blocks/numbered_list_block.dart';
+import '../blocks/page_break_block.dart';
+import '../blocks/paragraph_block.dart';
+import '../blocks/party_block.dart';
+import '../blocks/section_heading_block.dart';
+import '../blocks/spacer_block.dart';
+import '../blocks/title_block.dart';
 import '../brand_logo.dart';
 import '../providers.dart';
 import 'document_template.dart';
@@ -473,7 +487,227 @@ class EmploymentContractTemplate
       validateEmploymentContract(inputs);
 
   @override
-  List<Block> build(EmploymentContractInputs i) => const [];
+  List<Block> build(EmploymentContractInputs i) {
+    final fmt = DateFormat('MMMM d, yyyy');
+    String dateOrDash(DateTime? d) => d == null ? '—' : fmt.format(d);
+
+    final blocks = <Block>[];
+
+    // 1. Brand logo (optional).
+    if (i.logoBytes != null) {
+      blocks.add(LogoBlock(i.logoBytes!));
+      blocks.add(const SpacerBlock(12));
+    }
+
+    // 2-3. Title.
+    blocks.add(const TitleBlock('EMPLOYMENT CONTRACT', centered: true));
+    blocks.add(const SpacerBlock(16));
+
+    // 4-5. Preamble intro (date + place).
+    blocks.add(ParagraphBlock(interpolate(
+      _preambleIntro,
+      {'dateEntered': fmt.format(i.dateEntered), 'place': i.place},
+      lenient: true,
+    )));
+    blocks.add(const SpacerBlock(12));
+
+    // 6. EMPLOYER party — bold company name, italic address, normal-weight
+    // representative role/name, with the fixed connector fragments between.
+    blocks.add(PartyBlock(spans: [
+      EmphasisSpan(i.companyName, bold: true),
+      const EmphasisSpan(_employerPartyPrefix),
+      EmphasisSpan(i.companyAddress, italic: true),
+      const EmphasisSpan(_employerPartyMid),
+      EmphasisSpan('${i.representativeRole}, ${i.representativeName}'),
+      const EmphasisSpan(_employerPartySuffix),
+    ]));
+    blocks.add(const SpacerBlock(12));
+
+    // 8-9. Centered "- and -" connector.
+    blocks.add(const TitleBlock('- and -', centered: true));
+    blocks.add(const SpacerBlock(12));
+
+    // 10-11. EMPLOYEE party — bold name, italic address.
+    blocks.add(PartyBlock(spans: [
+      EmphasisSpan(i.employeeFullName, bold: true),
+      const EmphasisSpan(_employeePartyPrefix),
+      EmphasisSpan(i.employeeAddress, italic: true),
+      const EmphasisSpan(_employeePartySuffix),
+    ]));
+    blocks.add(const SpacerBlock(24));
+
+    // 12-13. WITNESSETH recitals.
+    blocks.add(const TitleBlock('WITNESSETH THAT:', centered: true));
+    blocks.add(const SpacerBlock(8));
+    blocks.add(NumberedListBlock([
+      interpolate(_recital1, {'industry': i.industry}, lenient: true),
+      _recital2,
+      interpolate(_recital3, {'position': i.position}, lenient: true),
+    ]));
+    blocks.add(const SpacerBlock(8));
+    blocks.add(const ParagraphBlock(_nowTherefore));
+
+    // 17. The 17 numbered clauses.
+    void section(int n, List<Block> body) {
+      blocks.add(const SpacerBlock(12));
+      blocks.add(SectionHeadingBlock(number: n, title: _sectionTitles[n - 1]));
+      blocks.addAll(body);
+    }
+
+    section(1, const [ParagraphBlock(_s1ProbationaryEmployment)]);
+    section(2, [
+      ParagraphBlock(
+          interpolate(_s2JobTitle, {'position': i.position}, lenient: true)),
+    ]);
+    section(3, [
+      ParagraphBlock(interpolate(
+        _s3PeriodP1,
+        {
+          'probationStart': dateOrDash(i.probationStart),
+          'probationEnd': dateOrDash(i.probationEnd),
+        },
+        lenient: true,
+      )),
+      const SpacerBlock(8),
+      const ParagraphBlock(_s3PeriodP2),
+    ]);
+    section(4, const [ParagraphBlock(_s4Evaluation)]);
+    section(5, [
+      ParagraphBlock(interpolate(
+          _s5CompensationP1, {'monthlySalary': i.monthlySalary},
+          lenient: true)),
+      const SpacerBlock(6),
+      const ParagraphBlock(_s5CompensationP2),
+      const SpacerBlock(6),
+      const ParagraphBlock(_s5CompensationP3),
+    ]);
+    section(6, [
+      ParagraphBlock(interpolate(
+        _s6WorkHours,
+        {
+          'workHoursPerDay': '${i.workHoursPerDay}',
+          'workDaysPerWeek': i.workDaysPerWeek,
+        },
+        lenient: true,
+      )),
+    ]);
+    section(7, const [ParagraphBlock(_s7Assignment)]);
+    section(8, const [ParagraphBlock(_s8Medical)]);
+    section(9, const [
+      ParagraphBlock(_s9RulesP1),
+      SpacerBlock(6),
+      ParagraphBlock(_s9RulesP2),
+    ]);
+    section(10, const [
+      ParagraphBlock(_s10DeductionsIntro),
+      BulletListBlock(_s10DeductionsBullets),
+      ParagraphBlock(_s10DeductionsClose),
+    ]);
+    section(11, const [ParagraphBlock(_s11Disciplinary)]);
+    section(12, [
+      ParagraphBlock(interpolate(
+          _s12NonCompeteIntro, {'nonCompeteMonths': '${i.nonCompeteMonths}'},
+          lenient: true)),
+      const BulletListBlock(_s12NonCompeteBullets),
+      const ParagraphBlock(_s12NonCompeteP2),
+      const ParagraphBlock(_s12NonCompeteP3),
+    ]);
+    section(13, const [
+      ParagraphBlock(_s13TerminationIntro),
+      LetteredListBlock(_s13TerminationGrounds),
+      ParagraphBlock(_s13TerminationClose),
+    ]);
+    section(14, const [ParagraphBlock(_s14FinalPay)]);
+    section(15, const [ParagraphBlock(_s15Confidentiality)]);
+    section(16, const [ParagraphBlock(_s16Separability)]);
+    section(17, const [ParagraphBlock(_s17EntireAgreement)]);
+
+    // 18-19. Witness clause.
+    blocks.add(const SpacerBlock(24));
+    blocks.add(const ParagraphBlock(_witnessClause));
+
+    // 20-23. Employer signature line + signatories.
+    blocks.add(const SpacerBlock(24));
+    blocks.add(ParagraphBlock(i.companyName));
+    blocks.add(const ParagraphBlock('By:'));
+    blocks.add(const SpacerBlock(40));
+    blocks.add(MultiSignatureBlock([
+      SignatoryParty(
+        name: i.employerSignatoryName,
+        role: i.employerSignatoryRole,
+        date: i.dateEntered,
+      ),
+      SignatoryParty(
+        name: i.employeeFullName,
+        role: i.position,
+        date: i.dateEntered,
+      ),
+    ]));
+
+    // 24-27. Witnesses.
+    blocks.add(const SpacerBlock(24));
+    blocks.add(const ParagraphBlock('SIGNED IN THE PRESENCE OF:'));
+    blocks.add(const SpacerBlock(40));
+    blocks.add(MultiSignatureBlock([
+      SignatoryParty(
+        name: i.witness1Name,
+        role: i.witness1Role,
+        date: i.dateEntered,
+      ),
+      SignatoryParty(
+        name: i.witness2Name,
+        role: i.witness2Role,
+        date: i.dateEntered,
+      ),
+    ]));
+
+    // 28. Page break before Annex A.
+    blocks.add(const PageBreakBlock());
+
+    // 29-31. Annex A header + position title.
+    blocks.add(const TitleBlock(_annexAHeader));
+    blocks.add(const SpacerBlock(12));
+    blocks.add(EmphasisParagraphBlock(spans: [
+      const EmphasisSpan('Position Title: ', bold: true),
+      EmphasisSpan(i.position),
+    ]));
+
+    // 32. Mission statement (optional).
+    if (i.missionStatement.isNotEmpty) {
+      blocks.add(const SpacerBlock(8));
+      blocks.add(ParagraphBlock(i.missionStatement));
+    }
+
+    // 33-34. Duties and Responsibilities. Each area renders as a bold
+    // label (EmphasisParagraphBlock) followed by a bullet list of tasks —
+    // cleaner than LabelledBulletListBlock's "label: body" colon format.
+    blocks.add(const SpacerBlock(12));
+    blocks.add(const HeadingBlock('Duties and Responsibilities'));
+    for (final r in i.responsibilities) {
+      blocks.add(EmphasisParagraphBlock(spans: [
+        EmphasisSpan(r.area, bold: true),
+      ]));
+      blocks.add(BulletListBlock(r.tasks));
+      blocks.add(const SpacerBlock(6));
+    }
+
+    // 35. Key Performance Indicators (optional).
+    if (i.kpis.isNotEmpty) {
+      blocks.add(const SpacerBlock(12));
+      blocks.add(const HeadingBlock('Key Performance Indicators'));
+      blocks.add(BulletListBlock(
+        [for (final k in i.kpis) '${k.metric} — ${k.frequency}'],
+      ));
+    }
+
+    // 36. Work Hours.
+    blocks.add(const SpacerBlock(12));
+    blocks.add(const HeadingBlock('Work Hours'));
+    blocks.add(ParagraphBlock(
+        '${i.workHoursPerDay} hours per day, ${i.workDaysPerWeek}.'));
+
+    return blocks;
+  }
 }
 
 /// Joins the individual nullable address parts into a single

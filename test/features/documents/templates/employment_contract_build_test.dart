@@ -1,0 +1,144 @@
+import 'dart:typed_data';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:payroll_flutter/features/documents/blocks/emphasis_paragraph_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/lettered_list_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/logo_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/multi_signature_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/page_break_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/section_heading_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/title_block.dart';
+import 'package:payroll_flutter/features/documents/templates/employment_contract_inputs.dart';
+import 'package:payroll_flutter/features/documents/templates/employment_contract_template.dart';
+
+void main() {
+  // Section titles in canonical §1..§17 order — mirror of the template's
+  // private `_sectionTitles`.
+  const sectionTitles = <String>[
+    'PROBATIONARY EMPLOYMENT',
+    'JOB TITLE AND DESCRIPTION',
+    'PERIOD OF PROBATIONARY EMPLOYMENT',
+    'PROBATIONARY EVALUATION',
+    'COMPENSATION',
+    'WORK HOURS',
+    'ASSIGNMENT OF TASKS',
+    'MEDICAL/DRUG TESTS',
+    'COMPANY RULES AND REGULATIONS',
+    'DEDUCTIONS FOR COMPANY-INCURRED COSTS',
+    'DISCIPLINARY MEASURES',
+    'NON-COMPETE AGREEMENT',
+    'TERMINATION OF EMPLOYMENT',
+    'FINAL PAY',
+    'CONFIDENTIALITY',
+    'SEPARABILITY CLAUSE',
+    'ENTIRE AGREEMENT',
+  ];
+
+  EmploymentContractInputs seed({Uint8List? logoBytes}) =>
+      EmploymentContractInputs(
+        employeeId: 'e1',
+        employeeFullName: 'Jamaica Vidal',
+        employeeAddress: '123 Mabini St, Binondo, Manila',
+        companyId: 'c1',
+        companyName: 'LUXIUM TRADING CO.',
+        companyAddress: '456 Quintin Paredes, Binondo, Manila',
+        representativeName: 'Brixter Del Mundo',
+        representativeRole: 'People Manager',
+        place: 'Binondo, Metro Manila, Philippines',
+        dateEntered: DateTime(2025, 12, 3),
+        industry: 'Retail Industry',
+        position: 'HR Assistant',
+        probationStart: DateTime(2025, 6, 9),
+        probationEnd: DateTime(2025, 12, 6),
+        monthlySalary: '17,000',
+        workHoursPerDay: 8,
+        workDaysPerWeek: 'Monday to Saturday',
+        nonCompeteMonths: 24,
+        employerSignatoryName: 'Brixter Del Mundo',
+        employerSignatoryRole: 'People Manager',
+        witness1Name: 'Christopher Lim',
+        witness1Role: 'COO',
+        witness2Name: 'Clinton Xu',
+        witness2Role: 'CEO',
+        missionStatement: 'Support HR operations end to end.',
+        responsibilities: const [
+          ContractResponsibility(
+            area: 'Recruitment',
+            tasks: ['Post job openings', 'Screen applicants'],
+          ),
+          ContractResponsibility(
+            area: 'Records',
+            tasks: ['Maintain 201 files'],
+          ),
+        ],
+        kpis: const [
+          ContractKpi(metric: 'Time to fill', frequency: 'Monthly'),
+        ],
+        logoBytes: logoBytes,
+      );
+
+  const t = EmploymentContractTemplate();
+
+  test('first block is TitleBlock when no logo', () {
+    final blocks = t.build(seed());
+    expect(blocks.first, isA<TitleBlock>());
+    expect((blocks.first as TitleBlock).text, 'EMPLOYMENT CONTRACT');
+  });
+
+  test('first block is LogoBlock when logoBytes set', () {
+    final blocks = t.build(seed(logoBytes: Uint8List.fromList([1, 2, 3])));
+    expect(blocks.first, isA<LogoBlock>());
+  });
+
+  test('exactly 17 SectionHeadingBlocks, numbered 1..17 in order with '
+      'matching titles', () {
+    final blocks = t.build(seed());
+    final sections = blocks.whereType<SectionHeadingBlock>().toList();
+    expect(sections.length, 17);
+    for (var n = 0; n < 17; n++) {
+      expect(sections[n].number, n + 1);
+      expect(sections[n].title, sectionTitles[n]);
+    }
+  });
+
+  test('exactly one PageBreakBlock', () {
+    final blocks = t.build(seed());
+    expect(blocks.whereType<PageBreakBlock>().length, 1);
+  });
+
+  test('a LetteredListBlock is present (§13 termination grounds)', () {
+    final blocks = t.build(seed());
+    final lettered = blocks.whereType<LetteredListBlock>().toList();
+    expect(lettered.length, 1);
+    expect(lettered.first.items.length, 6);
+  });
+
+  test('Annex A TitleBlock appears after the PageBreakBlock', () {
+    final blocks = t.build(seed());
+    final breakIdx = blocks.indexWhere((b) => b is PageBreakBlock);
+    expect(breakIdx, greaterThanOrEqualTo(0));
+    final after = blocks.sublist(breakIdx + 1);
+    final annex = after.whereType<TitleBlock>().toList();
+    expect(annex, isNotEmpty);
+    expect(annex.first.text, startsWith('Annex A'));
+  });
+
+  test('responsibilities produce blocks (area labels appear)', () {
+    final blocks = t.build(seed());
+    final emphasisTexts = blocks
+        .whereType<EmphasisParagraphBlock>()
+        .expand((b) => b.spans)
+        .map((s) => s.text)
+        .toList();
+    expect(emphasisTexts, contains('Recruitment'));
+    expect(emphasisTexts, contains('Records'));
+  });
+
+  test('two MultiSignatureBlocks (signatories + witnesses)', () {
+    final blocks = t.build(seed());
+    final sigs = blocks.whereType<MultiSignatureBlock>().toList();
+    expect(sigs.length, 2);
+    expect(sigs[0].signatories.length, 2);
+    expect(sigs[1].signatories.length, 2);
+  });
+}
