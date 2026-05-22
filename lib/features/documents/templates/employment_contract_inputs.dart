@@ -14,6 +14,10 @@ class ContractKpi {
   const ContractKpi({required this.metric, required this.frequency});
 }
 
+/// Sentinel for `copyWith` so nullable fields can be explicitly cleared
+/// (passing `null`) vs. left unchanged (omitted).
+const Object _unset = Object();
+
 class EmploymentContractInputs extends TemplateInputs {
   // Parties
   final String employeeId;
@@ -93,8 +97,8 @@ class EmploymentContractInputs extends TemplateInputs {
     DateTime? dateEntered,
     String? industry,
     String? position,
-    DateTime? probationStart,
-    DateTime? probationEnd,
+    Object? probationStart = _unset,
+    Object? probationEnd = _unset,
     String? monthlySalary,
     int? workHoursPerDay,
     String? workDaysPerWeek,
@@ -123,8 +127,12 @@ class EmploymentContractInputs extends TemplateInputs {
         dateEntered: dateEntered ?? this.dateEntered,
         industry: industry ?? this.industry,
         position: position ?? this.position,
-        probationStart: probationStart ?? this.probationStart,
-        probationEnd: probationEnd ?? this.probationEnd,
+        probationStart: identical(probationStart, _unset)
+            ? this.probationStart
+            : probationStart as DateTime?,
+        probationEnd: identical(probationEnd, _unset)
+            ? this.probationEnd
+            : probationEnd as DateTime?,
         monthlySalary: monthlySalary ?? this.monthlySalary,
         workHoursPerDay: workHoursPerDay ?? this.workHoursPerDay,
         workDaysPerWeek: workDaysPerWeek ?? this.workDaysPerWeek,
