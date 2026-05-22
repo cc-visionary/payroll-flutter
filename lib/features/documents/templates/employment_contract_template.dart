@@ -100,7 +100,7 @@ const String _s4Evaluation =
 // §5 COMPENSATION — three paragraphs
 const String _s5CompensationP1 =
     'The EMPLOYEE will be paid a basic salary of PHP {monthlySalary} per '
-    'month, Philippine Currency payable in two installments, once on the '
+    '{salaryPeriod}, Philippine Currency payable in two installments, once on the '
     "15th and at the end of the month. The EMPLOYEE's salary will be paid "
     'either through ATM, in cash, by a bank check, or by a bank or postal '
     "transfer, from which shall be deducted, where applicable, the "
@@ -418,6 +418,17 @@ class EmploymentContractTemplate
         ? ''
         : NumberFormat('#,##0', 'en_US').format(salary.toDouble());
 
+    String periodFromWageType(String? wt) {
+      switch ((wt ?? '').toUpperCase()) {
+        case 'DAILY':
+          return 'day';
+        case 'HOURLY':
+          return 'hour';
+        default:
+          return 'month';
+      }
+    }
+
     return EmploymentContractInputs(
       employeeId: emp.id,
       employeeFullName: emp.fullName,
@@ -446,6 +457,7 @@ class EmploymentContractTemplate
       probationStart: probStart,
       probationEnd: probEnd,
       monthlySalary: monthlySalary,
+      salaryPeriod: periodFromWageType(scorecard?.wageType),
       workHoursPerDay: scorecard?.workHoursPerDay ?? 8,
       workDaysPerWeek: scorecard?.workDaysPerWeek ?? 'Monday to Saturday',
       nonCompeteMonths: 24,
@@ -557,7 +569,8 @@ class EmploymentContractTemplate
     section(4, const [ParagraphBlock(_s4Evaluation)]);
     section(5, [
       ParagraphBlock(interpolate(
-          _s5CompensationP1, {'monthlySalary': i.monthlySalary},
+          _s5CompensationP1,
+          {'monthlySalary': i.monthlySalary, 'salaryPeriod': i.salaryPeriod},
           lenient: true)),
       const SpacerBlock(6),
       const ParagraphBlock(_s5CompensationP2),

@@ -36,6 +36,7 @@ class EmploymentContractInputs extends TemplateInputs {
   final DateTime? probationStart;
   final DateTime? probationEnd;
   final String monthlySalary;
+  final String salaryPeriod;
   final int workHoursPerDay;
   final String workDaysPerWeek;
   final int nonCompeteMonths;
@@ -69,6 +70,7 @@ class EmploymentContractInputs extends TemplateInputs {
     this.probationStart,
     this.probationEnd,
     required this.monthlySalary,
+    this.salaryPeriod = 'month',
     required this.workHoursPerDay,
     required this.workDaysPerWeek,
     required this.nonCompeteMonths,
@@ -100,6 +102,7 @@ class EmploymentContractInputs extends TemplateInputs {
     Object? probationStart = _unset,
     Object? probationEnd = _unset,
     String? monthlySalary,
+    String? salaryPeriod,
     int? workHoursPerDay,
     String? workDaysPerWeek,
     int? nonCompeteMonths,
@@ -134,6 +137,7 @@ class EmploymentContractInputs extends TemplateInputs {
             ? this.probationEnd
             : probationEnd as DateTime?,
         monthlySalary: monthlySalary ?? this.monthlySalary,
+        salaryPeriod: salaryPeriod ?? this.salaryPeriod,
         workHoursPerDay: workHoursPerDay ?? this.workHoursPerDay,
         workDaysPerWeek: workDaysPerWeek ?? this.workDaysPerWeek,
         nonCompeteMonths: nonCompeteMonths ?? this.nonCompeteMonths,

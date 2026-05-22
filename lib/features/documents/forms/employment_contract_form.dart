@@ -188,7 +188,7 @@ class _EmploymentContractFormState
             onChanged: (d) => _set(_i.copyWith(probationEnd: d)),
           ),
           const SizedBox(height: 16),
-          _label('Monthly Salary (PHP)'),
+          _label('Salary (PHP)'),
           const SizedBox(height: 4),
           TextFormField(
             initialValue: _i.monthlySalary,
@@ -198,6 +198,25 @@ class _EmploymentContractFormState
               isDense: true,
             ),
             onChanged: (v) => _set(_i.copyWith(monthlySalary: v)),
+          ),
+          const SizedBox(height: 16),
+          _label('Salary Period'),
+          const SizedBox(height: 4),
+          DropdownButtonFormField<String>(
+            initialValue: _i.salaryPeriod,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: const [
+              DropdownMenuItem(value: 'month', child: Text('Per month')),
+              DropdownMenuItem(value: 'day', child: Text('Per day')),
+              DropdownMenuItem(value: 'hour', child: Text('Per hour')),
+            ],
+            onChanged: (v) {
+              if (v != null) _set(_i.copyWith(salaryPeriod: v));
+            },
           ),
           const SizedBox(height: 16),
           _label('Work Hours per Day'),
