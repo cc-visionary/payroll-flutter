@@ -19,4 +19,25 @@ void main() {
     expect(block.spans.length, 3);
     expect(block.spans[1].bold, true);
   });
+
+  test('EmphasisSpan italic defaults false; bold-only still works', () {
+    const a = EmphasisSpan('x');
+    const b = EmphasisSpan('y', bold: true);
+    const c = EmphasisSpan('z', italic: true);
+    expect(a.italic, false);
+    expect(a.bold, false);
+    expect(b.bold, true);
+    expect(c.italic, true);
+  });
+
+  test('EmphasisParagraphBlock renders with italic span without throwing', () {
+    final theme = PdfTheme.testStub();
+    expect(
+      () => const EmphasisParagraphBlock(spans: [
+        EmphasisSpan('plain '),
+        EmphasisSpan('italic', italic: true),
+      ]).toPdf(theme),
+      returnsNormally,
+    );
+  });
 }

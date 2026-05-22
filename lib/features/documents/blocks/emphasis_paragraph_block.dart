@@ -5,7 +5,8 @@ import 'block.dart';
 class EmphasisSpan {
   final String text;
   final bool bold;
-  const EmphasisSpan(this.text, {this.bold = false});
+  final bool italic;
+  const EmphasisSpan(this.text, {this.bold = false, this.italic = false});
 }
 
 /// Paragraph with embedded bold spans, e.g. mid-paragraph emphasis on a
@@ -31,6 +32,8 @@ class EmphasisParagraphBlock extends Block {
               style: pw.TextStyle(
                 fontWeight:
                     s.bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+                fontStyle:
+                    s.italic ? pw.FontStyle.italic : pw.FontStyle.normal,
               ),
             ),
         ],
