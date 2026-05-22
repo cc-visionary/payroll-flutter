@@ -5,6 +5,7 @@ import '../inputs/annex_a_editor.dart';
 import '../inputs/company_picker.dart';
 import '../inputs/date_field.dart';
 import '../inputs/employee_picker.dart';
+import '../providers.dart';
 import '../templates/employment_contract_inputs.dart';
 import '../../../widgets/employee_name_field.dart';
 import '../../../widgets/role_title_field.dart';
@@ -43,6 +44,42 @@ class _EmploymentContractFormState
     widget.onChanged(n);
   }
 
+  Future<void> _onCompanyChanged(String id) async {
+    // Optimistic: set the id immediately so the picker reflects the choice.
+    _set(_i.copyWith(companyId: id));
+    try {
+      final co = await ref.read(hiringEntityByIdProvider(id).future);
+      if (co == null || !mounted) return;
+      final address = <String?>[
+        co.addressLine1,
+        co.addressLine2,
+        [co.city, co.province, co.zipCode]
+            .where((s) => s != null && s.isNotEmpty)
+            .join(', '),
+      ].where((s) => s != null && s.isNotEmpty).cast<String>()
+          .join(' · ');
+      final place = [co.city, co.province, 'Philippines']
+          .where((s) => s != null && s.isNotEmpty)
+          .cast<String>()
+          .join(', ');
+      final repRole = (co.legalSignatoryRole?.isNotEmpty == true)
+          ? co.legalSignatoryRole!
+          : 'People Manager';
+      final repName = co.hrManagerName ?? '';
+      _set(_i.copyWith(
+        companyName: co.name,
+        companyAddress: address,
+        place: place,
+        representativeName: repName,
+        representativeRole: repRole,
+        employerSignatoryName: repName,
+        employerSignatoryRole: repRole,
+      ));
+    } catch (_) {
+      // Best-effort; leave companyId set, user can fill manually.
+    }
+  }
+
   Widget _label(String s) =>
       Text(s, style: const TextStyle(fontWeight: FontWeight.w600));
 
@@ -77,7 +114,7 @@ class _EmploymentContractFormState
             selectedId: _i.companyId.isEmpty ? null : _i.companyId,
             locked: false,
             onChanged: (id) {
-              if (id != null) _set(_i.copyWith(companyId: id));
+              if (id != null) _onCompanyChanged(id);
             },
           ),
           const SizedBox(height: 16),
