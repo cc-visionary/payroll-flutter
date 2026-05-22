@@ -145,3 +145,64 @@ final finalPayBreakdownProvider =
     thirteenthMonthAvailable: thirteenthMonthAvailable,
   );
 });
+
+// --- Company-wide documents registry --------------------------------------
+
+/// One row of the company-wide documents registry. Maps a non-deleted
+/// `employee_documents` row with the owning employee's resolved name.
+class DocumentRegistryEntry {
+  final String id;
+  final String employeeId;
+  final String employeeName;
+  final String documentType;
+  final String title;
+  final String status;
+  final DateTime? createdAt;
+  const DocumentRegistryEntry({
+    required this.id,
+    required this.employeeId,
+    required this.employeeName,
+    required this.documentType,
+    required this.title,
+    required this.status,
+    required this.createdAt,
+  });
+}
+
+/// All non-deleted employee_documents across the company, newest first,
+/// with the employee's display name resolved via the embedded join.
+final allDocumentsProvider =
+    FutureProvider.autoDispose<List<DocumentRegistryEntry>>((ref) async {
+  final client = Supabase.instance.client;
+  final rows = await client
+      .from('employee_documents')
+      .select(
+          'id, employee_id, document_type, title, status, created_at, '
+          'employees!inner(first_name, middle_name, last_name)')
+      .isFilter('deleted_at', null)
+      .order('created_at', ascending: false);
+  final list = (rows as List<dynamic>).cast<Map<String, dynamic>>();
+  String nameOf(Map<String, dynamic> r) {
+    final e = r['employees'] as Map<String, dynamic>?;
+    if (e == null) return '';
+    return [e['first_name'], e['middle_name'], e['last_name']]
+        .where((s) => s != null && (s as String).trim().isNotEmpty)
+        .join(' ');
+  }
+
+  return [
+    for (final r in list)
+      DocumentRegistryEntry(
+        id: r['id'] as String,
+        employeeId: r['employee_id'] as String,
+        employeeName: nameOf(r),
+        documentType: (r['document_type'] as String?) ?? '',
+        title: (r['title'] as String?) ??
+            (r['document_type'] as String? ?? 'Document'),
+        status: (r['status'] as String?) ?? 'ISSUED',
+        createdAt: r['created_at'] == null
+            ? null
+            : DateTime.tryParse(r['created_at'] as String),
+      ),
+  ];
+});

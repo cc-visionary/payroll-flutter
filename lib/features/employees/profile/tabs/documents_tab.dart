@@ -97,28 +97,45 @@ class _DocumentsTabState extends ConsumerState<DocumentsTab> {
         if (canManage) const SizedBox(height: 16),
         _Card(
           title: 'Documents',
-          child: async.when(
-            loading: () =>
-                const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Text('Error: $e',
-                style: const TextStyle(color: Colors.red)),
-            data: (rows) => rows.isEmpty
-                ? Text(
-                    'No documents on file',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (final r in rows)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _DocRow(row: r),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              async.when(
+                loading: () =>
+                    const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Text('Error: $e',
+                    style: const TextStyle(color: Colors.red)),
+                data: (rows) => rows.isEmpty
+                    ? Text(
+                        'No documents on file',
+                        style: TextStyle(
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                    ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final r in rows)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: _DocRow(row: r),
+                            ),
+                        ],
+                      ),
+              ),
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => context.go(
+                    '/documents?employeeId=${widget.employee.id}',
                   ),
+                  icon: const Icon(Icons.open_in_new, size: 16),
+                  label: const Text('View in Documents hub'),
+                ),
+              ),
+            ],
           ),
         ),
       ],

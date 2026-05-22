@@ -150,7 +150,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/assets', builder: (c, s) => const AssetsScreen()),
           GoRoute(path: '/compliance', builder: (c, s) => const ComplianceScreen()),
           GoRoute(path: '/workflows', builder: (c, s) => const WorkflowsScreen()),
-          GoRoute(path: '/documents', builder: (c, s) => const DocumentsScreen()),
+          GoRoute(
+            path: '/documents',
+            builder: (c, s) =>
+                DocumentsScreen(employeeId: s.uri.queryParameters['employeeId']),
+          ),
           GoRoute(
             path: '/documents/generate/:templateId',
             builder: (c, s) => GenerateScreen(
