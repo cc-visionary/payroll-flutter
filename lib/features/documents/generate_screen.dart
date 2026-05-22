@@ -10,6 +10,7 @@ import '../../core/pdf/pdf_preview_scaffold.dart';
 import '../../core/pdf/pdf_theme.dart';
 import '../../data/repositories/audit_repository.dart';
 import 'forms/coe_form.dart';
+import 'forms/employment_contract_form.dart';
 import 'forms/non_reg_form.dart';
 import 'forms/nte_form.dart';
 import 'forms/quitclaim_form.dart';
@@ -18,6 +19,8 @@ import 'providers.dart';
 import 'templates/coe_inputs.dart';
 import 'templates/coe_template.dart';
 import 'templates/document_template.dart';
+import 'templates/employment_contract_inputs.dart';
+import 'templates/employment_contract_template.dart';
 import 'templates/non_reg_inputs.dart';
 import 'templates/non_reg_template.dart';
 import 'templates/nte_inputs.dart';
@@ -44,6 +47,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
   CoeInputs? _coe;
   NteInputs? _nte;
   NonRegInputs? _nonReg;
+  EmploymentContractInputs? _employmentContract;
   bool _autofillDone = false;
   String? _autofillError;
   // Monotonically incrementing key suffix bumped on every successful
@@ -146,6 +150,29 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         });
         return;
       }
+      if (tpl is EmploymentContractTemplate) {
+        if (eId == null) {
+          setState(() {
+            _employmentContract = tpl.emptyInputs();
+            _autofillDone = true;
+            _autofillRev++;
+          });
+          return;
+        }
+        final emp = await ref.read(documentEmployeeProvider(eId).future);
+        final co = (emp == null || emp.hiringEntityId == null)
+            ? null
+            : await ref
+                .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+        final ctx = AutofillContext(employee: emp, company: co, ref: ref);
+        final filled = await tpl.autofill(ctx);
+        setState(() {
+          _employmentContract = filled;
+          _autofillDone = true;
+          _autofillRev++;
+        });
+        return;
+      }
       if (tpl is! QuitclaimTemplate) {
         setState(() => _autofillDone = true);
         return;
@@ -216,6 +243,13 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         if (!mounted) return;
         setState(() {
           _nonReg = filled;
+          _autofillRev++;
+        });
+      } else if (tpl is EmploymentContractTemplate) {
+        final filled = await tpl.autofill(ctx);
+        if (!mounted) return;
+        setState(() {
+          _employmentContract = filled;
           _autofillRev++;
         });
       } else if (tpl is QuitclaimTemplate) {
@@ -328,6 +362,15 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         initial: _nonReg!,
         employeeLocked: widget.employeeId != null,
         onChanged: (next) => setState(() => _nonReg = next),
+        onEmployeeChanged: _onPickerEmployeeChanged,
+      );
+    }
+    if (tpl is EmploymentContractTemplate && _employmentContract != null) {
+      return EmploymentContractForm(
+        key: ValueKey('employment_contract-$_autofillRev'),
+        initial: _employmentContract!,
+        employeeLocked: widget.employeeId != null,
+        onChanged: (next) => setState(() => _employmentContract = next),
         onEmployeeChanged: _onPickerEmployeeChanged,
       );
     }
@@ -474,6 +517,42 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
             entityType: 'document_template_pdf',
             metadata: {
               'template_id': 'non_reg',
+              'employee_id':
+                  inputs.employeeId.isEmpty ? null : inputs.employeeId,
+              'file_name': filename,
+              'action': action,
+            },
+          );
+        },
+      );
+    }
+    if (tpl is EmploymentContractTemplate && _employmentContract != null) {
+      final inputs = _employmentContract!;
+      final errors = tpl.validate(inputs);
+      final filename = filenameForDocument(
+        templateId: 'employment_contract',
+        employeeNumber: null,
+        employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
+        date: inputs.dateEntered,
+      );
+      final who = inputs.employeeFullName.trim().isNotEmpty
+          ? inputs.employeeFullName.trim()
+          : (inputs.employeeId.isEmpty
+              ? '(unknown employee)'
+              : inputs.employeeId);
+      return _previewWithBanner(
+        errors,
+        filename,
+        (format) async {
+          final theme = await PdfTheme.defaults();
+          return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
+        },
+        onExported: (action) {
+          ref.read(auditRepositoryProvider).logExport(
+            description: 'Employment Contract PDF $action: $who',
+            entityType: 'document_template_pdf',
+            metadata: {
+              'template_id': 'employment_contract',
               'employee_id':
                   inputs.employeeId.isEmpty ? null : inputs.employeeId,
               'file_name': filename,

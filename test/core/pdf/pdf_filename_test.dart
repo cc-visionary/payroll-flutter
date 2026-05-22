@@ -51,6 +51,18 @@ void main() {
       );
     });
 
+    test('employment_contract template uses EmploymentContract prefix', () {
+      expect(
+        filenameForDocument(
+          templateId: 'employment_contract',
+          employeeNumber: 'EMP-004',
+          employeeId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+          date: DateTime(2026, 5, 22),
+        ),
+        'EmploymentContract_EMP-004_20260522.pdf',
+      );
+    });
+
     test('unknown template id passes through verbatim', () {
       expect(
         filenameForDocument(
