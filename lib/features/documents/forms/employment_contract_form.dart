@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../inputs/annex_a_editor.dart';
 import '../inputs/company_picker.dart';
@@ -7,6 +8,8 @@ import '../inputs/date_field.dart';
 import '../inputs/employee_picker.dart';
 import '../providers.dart';
 import '../templates/employment_contract_inputs.dart';
+import '../../../data/models/role_scorecard.dart';
+import '../../../data/repositories/role_scorecard_repository.dart';
 import '../../../widgets/employee_name_field.dart';
 import '../../../widgets/role_title_field.dart';
 
@@ -77,6 +80,53 @@ class _EmploymentContractFormState
       ));
     } catch (_) {
       // Best-effort; leave companyId set, user can fill manually.
+    }
+  }
+
+  Future<void> _onPositionChanged(String position) async {
+    // Always update the typed/selected position immediately.
+    _set(_i.copyWith(position: position));
+    final q = position.trim().toLowerCase();
+    if (q.isEmpty) return;
+    try {
+      final cards = await ref.read(roleScorecardListProvider.future);
+      RoleScorecard? match;
+      for (final c in cards) {
+        if (c.jobTitle.trim().toLowerCase() == q) {
+          match = c;
+          break;
+        }
+      }
+      if (match == null || !mounted) return;
+      final salary = match.baseSalary;
+      _set(_i.copyWith(
+        missionStatement: match.missionStatement,
+        responsibilities: match.responsibilities
+            .map((r) => ContractResponsibility(area: r.area, tasks: r.tasks))
+            .toList(),
+        kpis: match.kpis
+            .map((k) => ContractKpi(metric: k.metric, frequency: k.frequency))
+            .toList(),
+        workHoursPerDay: match.workHoursPerDay,
+        workDaysPerWeek: match.workDaysPerWeek,
+        monthlySalary: salary == null
+            ? _i.monthlySalary
+            : NumberFormat('#,##0', 'en_US').format(salary.toDouble()),
+        salaryPeriod: _periodFromWageType(match.wageType),
+      ));
+    } catch (_) {
+      // Best-effort: leave the position set, derived fields unchanged.
+    }
+  }
+
+  String _periodFromWageType(String? wt) {
+    switch ((wt ?? '').toUpperCase()) {
+      case 'DAILY':
+        return 'day';
+      case 'HOURLY':
+        return 'hour';
+      default:
+        return 'month';
     }
   }
 
@@ -159,7 +209,7 @@ class _EmploymentContractFormState
           const SizedBox(height: 4),
           RoleTitleField(
             value: _i.position,
-            onChanged: (v) => _set(_i.copyWith(position: v)),
+            onChanged: _onPositionChanged,
           ),
           const SizedBox(height: 16),
           _label('Date Entered'),
