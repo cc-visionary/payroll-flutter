@@ -11,16 +11,17 @@ class TitleBlock extends Block {
 
   @override
   pw.Widget toPdf(PdfTheme theme) {
-    return pw.Container(
-      alignment: centered ? pw.Alignment.center : pw.Alignment.centerLeft,
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(
-          fontSize: theme.titleSize,
-          fontWeight: pw.FontWeight.bold,
-          color: theme.textColor,
-        ),
-      ),
+    final style = pw.TextStyle(
+      fontSize: theme.titleSize,
+      fontWeight: pw.FontWeight.bold,
+      color: theme.textColor,
     );
+    if (centered) {
+      return pw.SizedBox(
+        width: double.infinity,
+        child: pw.Text(text, textAlign: pw.TextAlign.center, style: style),
+      );
+    }
+    return pw.Text(text, style: style);
   }
 }

@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
@@ -11,7 +9,6 @@ import '../blocks/bullet_list_block.dart';
 import '../blocks/emphasis_paragraph_block.dart';
 import '../blocks/heading_block.dart';
 import '../blocks/lettered_list_block.dart';
-import '../blocks/logo_block.dart';
 import '../blocks/multi_signature_block.dart';
 import '../blocks/numbered_list_block.dart';
 import '../blocks/page_break_block.dart';
@@ -20,7 +17,6 @@ import '../blocks/party_block.dart';
 import '../blocks/section_heading_block.dart';
 import '../blocks/spacer_block.dart';
 import '../blocks/title_block.dart';
-import '../brand_logo.dart';
 import '../providers.dart';
 import 'document_template.dart';
 import 'employment_contract_inputs.dart';
@@ -422,13 +418,6 @@ class EmploymentContractTemplate
         ? ''
         : NumberFormat('#,##0', 'en_US').format(salary.toDouble());
 
-    Uint8List? logo;
-    try {
-      logo = await loadBrandLogoBytes(companyName: co?.name, code: co?.code);
-    } catch (_) {
-      logo = null;
-    }
-
     return EmploymentContractInputs(
       employeeId: emp.id,
       employeeFullName: emp.fullName,
@@ -475,7 +464,7 @@ class EmploymentContractTemplate
               .map((k) =>
                   ContractKpi(metric: k.metric, frequency: k.frequency))
               .toList(),
-      logoBytes: logo,
+      logoBytes: null,
     );
   }
 
@@ -492,12 +481,6 @@ class EmploymentContractTemplate
     String dateOrDash(DateTime? d) => d == null ? '—' : fmt.format(d);
 
     final blocks = <Block>[];
-
-    // 1. Brand logo (optional).
-    if (i.logoBytes != null) {
-      blocks.add(LogoBlock(i.logoBytes!));
-      blocks.add(const SpacerBlock(12));
-    }
 
     // 2-3. Title.
     blocks.add(const TitleBlock('EMPLOYMENT CONTRACT', centered: true));

@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/features/documents/blocks/emphasis_paragraph_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/lettered_list_block.dart';
-import 'package:payroll_flutter/features/documents/blocks/logo_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/multi_signature_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/page_break_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/section_heading_block.dart';
@@ -79,15 +78,16 @@ void main() {
 
   const t = EmploymentContractTemplate();
 
-  test('first block is TitleBlock when no logo', () {
+  test('first block is the centered TitleBlock', () {
     final blocks = t.build(seed());
     expect(blocks.first, isA<TitleBlock>());
     expect((blocks.first as TitleBlock).text, 'EMPLOYMENT CONTRACT');
   });
 
-  test('first block is LogoBlock when logoBytes set', () {
+  test('EC ignores logoBytes — first block is still the TitleBlock', () {
     final blocks = t.build(seed(logoBytes: Uint8List.fromList([1, 2, 3])));
-    expect(blocks.first, isA<LogoBlock>());
+    expect(blocks.first, isA<TitleBlock>());
+    expect((blocks.first as TitleBlock).text, 'EMPLOYMENT CONTRACT');
   });
 
   test('exactly 17 SectionHeadingBlocks, numbered 1..17 in order with '
