@@ -27,6 +27,7 @@ import '../features/audit/audit_log_screen.dart';
 import '../features/auth/profile_provider.dart';
 import '../features/compensation/compensation_screen.dart';
 import '../features/compliance/compliance_screen.dart';
+import '../features/documents/bulk/bulk_generate_screen.dart';
 import '../features/documents/documents_screen.dart';
 import '../features/documents/generate_screen.dart';
 import '../features/hiring/hiring_screen.dart';
@@ -154,6 +155,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/documents',
             builder: (c, s) =>
                 DocumentsScreen(employeeId: s.uri.queryParameters['employeeId']),
+          ),
+          GoRoute(
+            path: '/documents/bulk',
+            builder: (c, s) => const BulkGenerateScreen(),
           ),
           GoRoute(
             path: '/documents/generate/:templateId',

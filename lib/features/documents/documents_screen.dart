@@ -35,9 +35,20 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
-        Text(
-          'Generate a Document',
-          style: Theme.of(context).textTheme.headlineSmall,
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Generate a Document',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+            ),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.layers_outlined, size: 18),
+              label: const Text('Bulk Generate'),
+              onPressed: () => context.go('/documents/bulk'),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         Text(
