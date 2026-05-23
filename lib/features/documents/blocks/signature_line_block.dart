@@ -7,7 +7,11 @@ import 'block.dart';
 class SignatoryLine {
   final String? name;
   final String? role;
-  const SignatoryLine({this.name, this.role});
+
+  /// Optional caption rendered BOLD above the signature line, e.g.
+  /// "For the Company" / "Recipient".
+  final String? header;
+  const SignatoryLine({this.name, this.role, this.header});
 }
 
 /// Signature block in the "sign above the printed name" format: an empty
@@ -19,22 +23,40 @@ class SignatureLineBlock extends Block {
   final List<SignatoryLine> signatories;
   final bool row;
   final double lineWidth;
+
+  /// When true, appends a "Date: ____" line beneath each column.
+  final bool showDate;
   const SignatureLineBlock(
     this.signatories, {
     this.row = false,
     this.lineWidth = 240,
+    this.showDate = false,
   });
 
   pw.Widget _one(PdfTheme theme, SignatoryLine s) {
     final hasName = s.name != null && s.name!.trim().isNotEmpty;
     final hasRole = s.role != null && s.role!.trim().isNotEmpty;
+    final hasHeader = s.header != null && s.header!.trim().isNotEmpty;
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       mainAxisSize: pw.MainAxisSize.min,
       children: [
+        if (hasHeader) ...[
+          pw.Text(
+            s.header!,
+            style: pw.TextStyle(
+              fontSize: theme.bodySize,
+              fontWeight: pw.FontWeight.bold,
+              color: theme.textColor,
+            ),
+          ),
+          pw.SizedBox(height: 24),
+        ],
         // Empty signature space with a bottom rule (the signature line).
+        // In a row each column is constrained by its Expanded, so fill the
+        // available width; stacked, use the fixed [lineWidth].
         pw.Container(
-          width: lineWidth,
+          width: row ? double.infinity : lineWidth,
           decoration: const pw.BoxDecoration(
             border: pw.Border(
               bottom: pw.BorderSide(color: PdfColors.black, width: 0.7),
@@ -60,6 +82,16 @@ class SignatureLineBlock extends Block {
               color: theme.textColor,
             ),
           ),
+        if (showDate) ...[
+          pw.SizedBox(height: 6),
+          pw.Text(
+            'Date: _______________',
+            style: pw.TextStyle(
+              fontSize: theme.bodySize,
+              color: theme.textColor,
+            ),
+          ),
+        ],
       ],
     );
   }

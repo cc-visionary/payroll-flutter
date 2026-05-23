@@ -17,4 +17,19 @@ void main() {
     expect(() => const SignatureLineBlock([SignatoryLine(name: 'X', role: 'Y')]).toPdf(theme), returnsNormally);
     expect(() => const SignatureLineBlock([SignatoryLine(), SignatoryLine()], row: true).toPdf(theme), returnsNormally);
   });
+
+  test('renders header + showDate without throwing', () {
+    final theme = PdfTheme.testStub();
+    const b = SignatureLineBlock(
+      [
+        SignatoryLine(header: 'X', name: 'A', role: 'CEO'),
+        SignatoryLine(header: 'Y', name: 'B', role: 'Recipient'),
+      ],
+      row: true,
+      showDate: true,
+    );
+    expect(b.showDate, true);
+    expect(b.signatories.first.header, 'X');
+    expect(() => b.toPdf(theme), returnsNormally);
+  });
 }

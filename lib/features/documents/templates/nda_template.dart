@@ -484,29 +484,27 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
     blocks.add(const SpacerBlock(24));
     blocks.add(const ParagraphBlock(_s16WitnessClause));
 
-    // Two-column signature block. "For the Company" / "Recipient" column
-    // headers render as a single bold paragraph row with wide spacing between
-    // the two labels (SignatureLineBlock always draws an underline rule, so it
-    // can't double as a header). The signature lines (name + role under each)
-    // follow via SignatureLineBlock(row: true). A "Date:" line per side is
-    // appended as a plain paragraph row beneath.
+    // Two-column signature block. Header ("For the Company" / "Recipient"),
+    // signature line, name, role, and "Date:" line all live inside a single
+    // SignatureLineBlock so each column is one aligned stack — the columns
+    // share the same Expanded width and line up exactly.
     blocks.add(const SpacerBlock(24));
-    blocks.add(const EmphasisParagraphBlock(spans: [
-      EmphasisSpan('For the Company', bold: true),
-      EmphasisSpan('                                        '),
-      EmphasisSpan('Recipient', bold: true),
-    ]));
-    blocks.add(const SpacerBlock(12));
-    blocks.add(SignatureLineBlock([
-      SignatoryLine(
-          name: i.authorizedSignatoryName, role: i.authorizedSignatoryRole),
-      SignatoryLine(
-          name: i.employeeFullName, role: 'Signature over Printed Name'),
-    ], row: true));
-    blocks.add(const SpacerBlock(8));
-    blocks.add(const ParagraphBlock(
-        'Date: _____________                                   '
-        'Date: _____________'));
+    blocks.add(SignatureLineBlock(
+      [
+        SignatoryLine(
+          header: 'For the Company',
+          name: i.authorizedSignatoryName,
+          role: i.authorizedSignatoryRole,
+        ),
+        SignatoryLine(
+          header: 'Recipient',
+          name: i.employeeFullName,
+          role: 'Signature over Printed Name',
+        ),
+      ],
+      row: true,
+      showDate: true,
+    ));
 
     return blocks;
   }
