@@ -7,6 +7,7 @@ import '../blocks/emphasis_paragraph_block.dart';
 import '../blocks/heading_block.dart';
 import '../blocks/lettered_list_block.dart';
 import '../blocks/paragraph_block.dart';
+import '../blocks/party_block.dart';
 import '../blocks/section_heading_block.dart';
 import '../blocks/signature_line_block.dart';
 import '../blocks/spacer_block.dart';
@@ -312,7 +313,7 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
     blocks.add(SectionHeadingBlock(number: 1, title: _sectionTitles[0]));
     blocks.add(const ParagraphBlock(_s1Intro));
     blocks.add(const SpacerBlock(6));
-    blocks.add(EmphasisParagraphBlock(spans: [
+    blocks.add(PartyBlock(spans: [
       const EmphasisSpan('Employer:  ', bold: true),
       EmphasisSpan(i.companyName, bold: true),
       EmphasisSpan(
@@ -322,15 +323,15 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
       const EmphasisSpan(').'),
     ]));
     blocks.add(const SpacerBlock(6));
-    blocks.add(EmphasisParagraphBlock(spans: [
+    blocks.add(PartyBlock(spans: [
       const EmphasisSpan('Name: ', bold: true),
       EmphasisSpan(i.employeeFullName),
     ]));
-    blocks.add(EmphasisParagraphBlock(spans: [
+    blocks.add(PartyBlock(spans: [
       const EmphasisSpan('Position/Role: ', bold: true),
       EmphasisSpan(i.employeePosition),
     ]));
-    blocks.add(EmphasisParagraphBlock(spans: [
+    blocks.add(PartyBlock(spans: [
       const EmphasisSpan('Home Address: ', bold: true),
       EmphasisSpan(i.employeeHomeAddress),
       const EmphasisSpan(' ('),
@@ -338,7 +339,7 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
       const EmphasisSpan(').'),
     ]));
     blocks.add(const SpacerBlock(6));
-    blocks.add(EmphasisParagraphBlock(spans: [
+    blocks.add(PartyBlock(spans: [
       const EmphasisSpan('Effective Date: ', bold: true),
       EmphasisSpan(effective),
       const EmphasisSpan(' (Start Date of Employment)'),
