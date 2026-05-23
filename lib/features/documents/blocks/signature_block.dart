@@ -31,6 +31,7 @@ class SignatureBlock extends Block {
             name ?? '',
             style: pw.TextStyle(
               fontSize: theme.bodySize,
+              fontWeight: pw.FontWeight.bold,
               color: theme.textColor,
             ),
           ),

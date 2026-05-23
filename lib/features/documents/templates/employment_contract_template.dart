@@ -10,7 +10,6 @@ import '../blocks/emphasis_paragraph_block.dart';
 import '../blocks/heading_block.dart';
 import '../blocks/lettered_list_block.dart';
 import '../blocks/multi_signature_block.dart';
-import '../blocks/numbered_list_block.dart';
 import '../blocks/page_break_block.dart';
 import '../blocks/paragraph_block.dart';
 import '../blocks/party_block.dart';
@@ -318,6 +317,32 @@ const List<String> _sectionTitles = <String>[
   'ENTIRE AGREEMENT',
 ];
 
+/// Splits [template] on each `{key}` in [vars]; the key's value renders
+/// bold, surrounding text normal. Unknown placeholders (not in [vars]) are
+/// left as literal `{key}`. Returns spans for an [EmphasisParagraphBlock].
+List<EmphasisSpan> _boldValueSpans(String template, Map<String, String> vars) {
+  final spans = <EmphasisSpan>[];
+  final re = RegExp(r'\{(\w+)\}');
+  var last = 0;
+  for (final m in re.allMatches(template)) {
+    if (m.start > last) {
+      spans.add(EmphasisSpan(template.substring(last, m.start)));
+    }
+    final key = m.group(1)!;
+    final val = vars[key];
+    if (val != null) {
+      spans.add(EmphasisSpan(val, bold: true));
+    } else {
+      spans.add(EmphasisSpan(m.group(0)!)); // leave unknown placeholder literal
+    }
+    last = m.end;
+  }
+  if (last < template.length) {
+    spans.add(EmphasisSpan(template.substring(last)));
+  }
+  return spans;
+}
+
 class EmploymentContractTemplate
     extends DocumentTemplate<EmploymentContractInputs> {
   const EmploymentContractTemplate();
@@ -534,10 +559,19 @@ class EmploymentContractTemplate
     // 12-13. WITNESSETH recitals.
     blocks.add(const TitleBlock('WITNESSETH THAT:', centered: true));
     blocks.add(const SpacerBlock(8));
-    blocks.add(NumberedListBlock([
-      interpolate(_recital1, {'industry': i.industry}, lenient: true),
-      _recital2,
-      interpolate(_recital3, {'position': i.position}, lenient: true),
+    blocks.add(EmphasisParagraphBlock(spans: [
+      const EmphasisSpan('1.   '),
+      ..._boldValueSpans(_recital1, {'industry': i.industry}),
+    ]));
+    blocks.add(const SpacerBlock(4));
+    blocks.add(EmphasisParagraphBlock(spans: [
+      const EmphasisSpan('2.   '),
+      EmphasisSpan(_recital2),
+    ]));
+    blocks.add(const SpacerBlock(4));
+    blocks.add(EmphasisParagraphBlock(spans: [
+      const EmphasisSpan('3.   '),
+      ..._boldValueSpans(_recital3, {'position': i.position}),
     ]));
     blocks.add(const SpacerBlock(8));
     blocks.add(const ParagraphBlock(_nowTherefore));
@@ -551,27 +585,25 @@ class EmploymentContractTemplate
 
     section(1, const [ParagraphBlock(_s1ProbationaryEmployment)]);
     section(2, [
-      ParagraphBlock(
-          interpolate(_s2JobTitle, {'position': i.position}, lenient: true)),
+      EmphasisParagraphBlock(
+          spans: _boldValueSpans(_s2JobTitle, {'position': i.position})),
     ]);
     section(3, [
-      ParagraphBlock(interpolate(
-        _s3PeriodP1,
-        {
-          'probationStart': dateOrDash(i.probationStart),
-          'probationEnd': dateOrDash(i.probationEnd),
-        },
-        lenient: true,
-      )),
+      EmphasisParagraphBlock(
+          spans: _boldValueSpans(_s3PeriodP1, {
+        'probationStart': dateOrDash(i.probationStart),
+        'probationEnd': dateOrDash(i.probationEnd),
+      })),
       const SpacerBlock(8),
       const ParagraphBlock(_s3PeriodP2),
     ]);
     section(4, const [ParagraphBlock(_s4Evaluation)]);
+    final s5 = interpolate(
+        _s5CompensationP1, {'salaryPeriod': i.salaryPeriod},
+        lenient: true);
     section(5, [
-      ParagraphBlock(interpolate(
-          _s5CompensationP1,
-          {'monthlySalary': i.monthlySalary, 'salaryPeriod': i.salaryPeriod},
-          lenient: true)),
+      EmphasisParagraphBlock(
+          spans: _boldValueSpans(s5, {'monthlySalary': i.monthlySalary})),
       const SpacerBlock(6),
       const ParagraphBlock(_s5CompensationP2),
       const SpacerBlock(6),
@@ -601,9 +633,9 @@ class EmploymentContractTemplate
     ]);
     section(11, const [ParagraphBlock(_s11Disciplinary)]);
     section(12, [
-      ParagraphBlock(interpolate(
-          _s12NonCompeteIntro, {'nonCompeteMonths': '${i.nonCompeteMonths}'},
-          lenient: true)),
+      EmphasisParagraphBlock(
+          spans: _boldValueSpans(_s12NonCompeteIntro,
+              {'nonCompeteMonths': '${i.nonCompeteMonths}'})),
       const BulletListBlock(_s12NonCompeteBullets),
       const ParagraphBlock(_s12NonCompeteP2),
       const ParagraphBlock(_s12NonCompeteP3),
@@ -665,7 +697,7 @@ class EmploymentContractTemplate
     blocks.add(const SpacerBlock(12));
     blocks.add(EmphasisParagraphBlock(spans: [
       const EmphasisSpan('Position Title: ', bold: true),
-      EmphasisSpan(i.position),
+      EmphasisSpan(i.position, bold: true),
     ]));
 
     // 32. Mission statement (optional).

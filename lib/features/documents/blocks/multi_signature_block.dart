@@ -33,6 +33,7 @@ class MultiSignatureBlock extends Block {
                 s.name ?? '',
                 style: pw.TextStyle(
                   fontSize: theme.bodySize,
+                  fontWeight: pw.FontWeight.bold,
                   color: theme.textColor,
                 ),
               ),
