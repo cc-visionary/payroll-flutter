@@ -17,6 +17,7 @@ class PdfTheme {
   final bool showPageNumbers;
   final double footerFontSize;
   final pw.EdgeInsets footerMargin;
+  final double footerHeight;
 
   const PdfTheme({
     required this.fontTheme,
@@ -29,24 +30,34 @@ class PdfTheme {
     required this.showPageNumbers,
     required this.footerFontSize,
     required this.footerMargin,
+    required this.footerHeight,
   });
 
-  /// Default theme used by document templates. Page format A4, 0.75 inch
-  /// margins, Inter Light body / SemiBold bold, page numbers always on.
+  /// Default theme used by document templates. Page format A4, Inter Light
+  /// body / SemiBold bold, page numbers always on.
+  ///
+  /// Margins: top/left/right are 0.75 inch (54pt). The bottom margin is 0;
+  /// the bottom 0.75 inch of whitespace is instead supplied by a
+  /// fixed-height footer band (see [footerHeight]). `pw.MultiPage` computes
+  /// the content's bottom boundary as `margin.bottom + footerHeight`, so
+  /// `0 + 54 = 54pt` makes the content-to-edge bottom exactly 0.75 inch,
+  /// matching the other three sides, while the page number sits inside that
+  /// bottom margin band.
   ///
   /// 0.75 inch in PDF points is 54 (1in = 72pt).
   static Future<PdfTheme> defaults() async {
     return PdfTheme(
       fontTheme: await loadInterTheme(),
       pageFormat: PdfPageFormat.a4,
-      pageMargin: const pw.EdgeInsets.all(54),
+      pageMargin: const pw.EdgeInsets.fromLTRB(54, 54, 54, 0),
       titleSize: 22,
       headingSize: 14,
       bodySize: 11,
       textColor: PdfColors.black,
       showPageNumbers: true,
       footerFontSize: 9,
-      footerMargin: const pw.EdgeInsets.only(bottom: 18),
+      footerMargin: const pw.EdgeInsets.only(bottom: 22),
+      footerHeight: 54,
     );
   }
 
@@ -62,14 +73,15 @@ class PdfTheme {
         boldItalic: pw.Font.helveticaBoldOblique(),
       ),
       pageFormat: PdfPageFormat.a4,
-      pageMargin: const pw.EdgeInsets.all(54),
+      pageMargin: const pw.EdgeInsets.fromLTRB(54, 54, 54, 0),
       titleSize: 22,
       headingSize: 14,
       bodySize: 11,
       textColor: PdfColors.black,
       showPageNumbers: true,
       footerFontSize: 9,
-      footerMargin: const pw.EdgeInsets.only(bottom: 18),
+      footerMargin: const pw.EdgeInsets.only(bottom: 22),
+      footerHeight: 54,
     );
   }
 }

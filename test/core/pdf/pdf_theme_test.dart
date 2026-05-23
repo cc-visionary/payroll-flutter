@@ -10,6 +10,12 @@ void main() {
       // 0.75in margin in points: 0.75 * 72 = 54
       expect(theme.pageMargin.left, closeTo(54, 0.1));
       expect(theme.pageMargin.top, closeTo(54, 0.1));
+      expect(theme.pageMargin.right, closeTo(54, 0.1));
+      // Bottom page margin is 0; the bottom 0.75in is supplied by the
+      // fixed-height footer band so MultiPage's content-to-edge bottom
+      // (margin.bottom + footerHeight = 0 + 54) equals 0.75in.
+      expect(theme.pageMargin.bottom, closeTo(0, 0.1));
+      expect(theme.footerHeight, closeTo(54, 0.1));
     });
 
     test('default sizes match spec', () async {
