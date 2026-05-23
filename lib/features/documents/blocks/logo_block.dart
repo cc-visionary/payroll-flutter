@@ -11,7 +11,7 @@ import 'block.dart';
 class LogoBlock extends Block {
   final Uint8List bytes;
   final double height;
-  const LogoBlock(this.bytes, {this.height = 56});
+  const LogoBlock(this.bytes, {this.height = 90});
 
   @override
   pw.Widget toPdf(PdfTheme theme) {
