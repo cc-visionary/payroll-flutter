@@ -15,6 +15,8 @@ class QuillField extends StatefulWidget {
 
 class _QuillFieldState extends State<QuillField> {
   late final QuillController _controller;
+  final FocusNode _focusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -31,6 +33,8 @@ class _QuillFieldState extends State<QuillField> {
   @override
   void dispose() {
     _controller.dispose();
+    _focusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -76,8 +80,10 @@ class _QuillFieldState extends State<QuillField> {
           ),
           SizedBox(
             height: 180,
-            child: QuillEditor.basic(
+            child: QuillEditor(
               controller: _controller,
+              focusNode: _focusNode,
+              scrollController: _scrollController,
               config: const QuillEditorConfig(
                 padding: EdgeInsets.all(8),
                 placeholder: 'Describe the charge…',
