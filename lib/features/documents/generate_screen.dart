@@ -11,6 +11,7 @@ import '../../core/pdf/pdf_theme.dart';
 import '../../data/repositories/audit_repository.dart';
 import 'forms/coe_form.dart';
 import 'forms/employment_contract_form.dart';
+import 'forms/liability_waiver_form.dart';
 import 'forms/nda_form.dart';
 import 'forms/non_reg_form.dart';
 import 'forms/nte_form.dart';
@@ -22,6 +23,8 @@ import 'templates/coe_template.dart';
 import 'templates/document_template.dart';
 import 'templates/employment_contract_inputs.dart';
 import 'templates/employment_contract_template.dart';
+import 'templates/liability_waiver_inputs.dart';
+import 'templates/liability_waiver_template.dart';
 import 'templates/nda_inputs.dart';
 import 'templates/nda_template.dart';
 import 'templates/non_reg_inputs.dart';
@@ -52,6 +55,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
   NonRegInputs? _nonReg;
   EmploymentContractInputs? _employmentContract;
   NdaInputs? _nda;
+  LiabilityWaiverInputs? _liabilityWaiver;
   bool _autofillDone = false;
   String? _autofillError;
   bool _dirty = false;
@@ -201,6 +205,29 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         });
         return;
       }
+      if (tpl is LiabilityWaiverTemplate) {
+        if (eId == null) {
+          setState(() {
+            _liabilityWaiver = tpl.emptyInputs();
+            _autofillDone = true;
+            _autofillRev++;
+          });
+          return;
+        }
+        final emp = await ref.read(documentEmployeeProvider(eId).future);
+        final co = (emp == null || emp.hiringEntityId == null)
+            ? null
+            : await ref
+                .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+        final ctx = AutofillContext(employee: emp, company: co, ref: ref);
+        final filled = await tpl.autofill(ctx);
+        setState(() {
+          _liabilityWaiver = filled;
+          _autofillDone = true;
+          _autofillRev++;
+        });
+        return;
+      }
       if (tpl is! QuitclaimTemplate) {
         setState(() => _autofillDone = true);
         return;
@@ -289,6 +316,14 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         if (!mounted) return;
         setState(() {
           _nda = filled;
+          _autofillRev++;
+          _dirty = true;
+        });
+      } else if (tpl is LiabilityWaiverTemplate) {
+        final filled = await tpl.autofill(ctx);
+        if (!mounted) return;
+        setState(() {
+          _liabilityWaiver = filled;
           _autofillRev++;
           _dirty = true;
         });
@@ -493,6 +528,18 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         employeeLocked: widget.employeeId != null,
         onChanged: (next) => setState(() {
           _nda = next;
+          _dirty = true;
+        }),
+        onEmployeeChanged: _onPickerEmployeeChanged,
+      );
+    }
+    if (tpl is LiabilityWaiverTemplate && _liabilityWaiver != null) {
+      return LiabilityWaiverForm(
+        key: ValueKey('liability_waiver-$_autofillRev'),
+        initial: _liabilityWaiver!,
+        employeeLocked: widget.employeeId != null,
+        onChanged: (next) => setState(() {
+          _liabilityWaiver = next;
           _dirty = true;
         }),
         onEmployeeChanged: _onPickerEmployeeChanged,
@@ -713,6 +760,42 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
             entityType: 'document_template_pdf',
             metadata: {
               'template_id': 'nda',
+              'employee_id':
+                  inputs.employeeId.isEmpty ? null : inputs.employeeId,
+              'file_name': filename,
+              'action': action,
+            },
+          );
+        },
+      );
+    }
+    if (tpl is LiabilityWaiverTemplate && _liabilityWaiver != null) {
+      final inputs = _liabilityWaiver!;
+      final errors = tpl.validate(inputs);
+      final filename = filenameForDocument(
+        templateId: 'liability_waiver',
+        employeeNumber: null,
+        employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
+        date: inputs.dateSigned,
+      );
+      final who = inputs.employeeFullName.trim().isNotEmpty
+          ? inputs.employeeFullName.trim()
+          : (inputs.employeeId.isEmpty
+              ? '(unknown employee)'
+              : inputs.employeeId);
+      return _previewWithBanner(
+        errors,
+        filename,
+        (format) async {
+          final theme = await PdfTheme.defaults();
+          return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
+        },
+        onExported: (action) {
+          ref.read(auditRepositoryProvider).logExport(
+            description: 'Liability Waiver PDF $action: $who',
+            entityType: 'document_template_pdf',
+            metadata: {
+              'template_id': 'liability_waiver',
               'employee_id':
                   inputs.employeeId.isEmpty ? null : inputs.employeeId,
               'file_name': filename,

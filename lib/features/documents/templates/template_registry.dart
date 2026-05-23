@@ -1,6 +1,7 @@
 import 'coe_template.dart';
 import 'document_template.dart';
 import 'employment_contract_template.dart';
+import 'liability_waiver_template.dart';
 import 'nda_template.dart';
 import 'non_reg_template.dart';
 import 'nte_template.dart';
@@ -14,6 +15,7 @@ const List<DocumentTemplate> kTemplates = [
   NonRegTemplate(),
   EmploymentContractTemplate(),
   NdaTemplate(),
+  LiabilityWaiverTemplate(),
 ];
 
 DocumentTemplate? findTemplateById(String id) {

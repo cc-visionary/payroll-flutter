@@ -75,6 +75,18 @@ void main() {
       );
     });
 
+    test('liability_waiver template uses LiabilityWaiver prefix', () {
+      expect(
+        filenameForDocument(
+          templateId: 'liability_waiver',
+          employeeNumber: 'EMP-006',
+          employeeId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+          date: DateTime(2026, 5, 23),
+        ),
+        'LiabilityWaiver_EMP-006_20260523.pdf',
+      );
+    });
+
     test('unknown template id passes through verbatim', () {
       expect(
         filenameForDocument(
