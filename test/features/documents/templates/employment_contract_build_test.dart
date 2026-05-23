@@ -101,9 +101,22 @@ void main() {
     }
   });
 
-  test('exactly one PageBreakBlock', () {
+  test('exactly two PageBreakBlocks (Annex A + Annex B)', () {
     final blocks = t.build(seed());
-    expect(blocks.whereType<PageBreakBlock>().length, 1);
+    expect(blocks.whereType<PageBreakBlock>().length, 2);
+  });
+
+  test('Annex B TitleBlock appears after the second PageBreakBlock', () {
+    final blocks = t.build(seed());
+    final breaks = <int>[];
+    for (var idx = 0; idx < blocks.length; idx++) {
+      if (blocks[idx] is PageBreakBlock) breaks.add(idx);
+    }
+    expect(breaks.length, 2);
+    final after = blocks.sublist(breaks[1] + 1);
+    final titles = after.whereType<TitleBlock>().toList();
+    expect(titles, isNotEmpty);
+    expect(titles.first.text, startsWith('Annex B'));
   });
 
   test('a LetteredListBlock is present (§13 termination grounds)', () {

@@ -8,6 +8,7 @@ import '../blocks/block.dart';
 import '../blocks/bullet_list_block.dart';
 import '../blocks/emphasis_paragraph_block.dart';
 import '../blocks/heading_block.dart';
+import '../blocks/labelled_bullet_list_block.dart';
 import '../blocks/lettered_list_block.dart';
 import '../blocks/multi_signature_block.dart';
 import '../blocks/page_break_block.dart';
@@ -295,6 +296,60 @@ const String _witnessClause =
 
 const String _annexAHeader =
     'Annex A: Duties, Responsibilities, and Work Hours';
+
+// Annex B — canonical/boilerplate "Standards for Regularization" lifted
+// verbatim from the source PDF. These are generic standards (same for every
+// role), so they are fixed const text rather than derived from the scorecard.
+const _annexBHeader = 'Annex B: Standards for Regularization';
+
+const _annexBPerfIntro =
+    "The EMPLOYEE's performance during the probationary period will be "
+    'evaluated based on the following criteria:';
+// Each entry: bold lead label + body, rendered as a LabelledBulletListBlock.
+// (label, body) pairs:
+const _annexBPerfStandards = <List<String>>[
+  ['Quality of Work',
+      'Produces accurate, reliable, and high-quality outputs that meet deadlines.'],
+  ['Productivity',
+      'Efficiently completes tasks within the required time frame and maintains consistent output.'],
+  ['Adaptability',
+      'Quickly learns and applies new skills, and adjusts to changes in tasks or priorities.'],
+  ['Initiative and Problem-Solving',
+      'Proactively addresses challenges and suggests improvements.'],
+  ['Teamwork and Communication',
+      'Collaborates effectively and maintains professional communication.'],
+];
+
+const _annexBBehavioral = <List<String>>[
+  ['Punctuality and Attendance',
+      'Reports to work on time and follows attendance policies.'],
+  ['Compliance with Company Policies',
+      "Adheres to the EMPLOYER's rules and confidentiality standards."],
+  ['Professionalism',
+      'Maintains a positive attitude, appropriate appearance, and professional demeanor.'],
+];
+
+const _annexBTechnical =
+    'The EMPLOYEE must demonstrate the necessary role-specific skills and '
+    'knowledge to perform their job effectively.';
+
+const _annexBEvaluation = <List<String>>[
+  ['Frequency',
+      'The EMPLOYEE will be evaluated at least twice during the probationary period.'],
+  ['Criteria',
+      'The evaluation will be based on the above performance and behavioral standards.'],
+  ['Feedback and Improvement',
+      'Areas for improvement will be discussed, with possible training or mentorship.'],
+  ['Final Decision',
+      'Regularization will depend on overall performance and meeting expectations.'],
+];
+
+const _annexBConsequencesIntro =
+    'Failure to meet these standards may result in:';
+const _annexBConsequences = <String>[
+  'Termination of probationary employment.',
+  'Additional probationary measures if necessary.',
+];
 
 // Section titles in order (§1..§17), for EC9 to pair with SectionHeadingBlock.
 const List<String> _sectionTitles = <String>[
@@ -740,6 +795,49 @@ class EmploymentContractTemplate
     blocks.add(const HeadingBlock('Work Hours'));
     blocks.add(ParagraphBlock(
         '${i.workHoursPerDay} hours per day, ${i.workDaysPerWeek}.'));
+
+    // 37. Annex B — Standards for Regularization (canonical boilerplate).
+    // Starts on its own page after Annex A.
+    blocks.add(const PageBreakBlock());
+    blocks.add(const TitleBlock(_annexBHeader));
+    blocks.add(const SpacerBlock(12));
+
+    // B.1 Performance Standards.
+    blocks.add(const HeadingBlock('1. Performance Standards'));
+    blocks.add(const ParagraphBlock(_annexBPerfIntro));
+    blocks.add(const SpacerBlock(4));
+    blocks.add(LabelledBulletListBlock(items: [
+      for (final pair in _annexBPerfStandards)
+        LabelledBulletItem(leadBold: pair[0], body: pair[1]),
+    ]));
+
+    // B.2 Behavioral Standards.
+    blocks.add(const SpacerBlock(10));
+    blocks.add(const HeadingBlock('2. Behavioral Standards'));
+    blocks.add(LabelledBulletListBlock(items: [
+      for (final pair in _annexBBehavioral)
+        LabelledBulletItem(leadBold: pair[0], body: pair[1]),
+    ]));
+
+    // B.3 Technical Competencies.
+    blocks.add(const SpacerBlock(10));
+    blocks.add(const HeadingBlock('3. Technical Competencies'));
+    blocks.add(const ParagraphBlock(_annexBTechnical));
+
+    // B.4 Evaluation Process.
+    blocks.add(const SpacerBlock(10));
+    blocks.add(const HeadingBlock('4. Evaluation Process'));
+    blocks.add(LabelledBulletListBlock(items: [
+      for (final pair in _annexBEvaluation)
+        LabelledBulletItem(leadBold: pair[0], body: pair[1]),
+    ]));
+
+    // B.5 Consequences of Non-Compliance.
+    blocks.add(const SpacerBlock(10));
+    blocks.add(const HeadingBlock('5. Consequences of Non-Compliance'));
+    blocks.add(const ParagraphBlock(_annexBConsequencesIntro));
+    blocks.add(const SpacerBlock(4));
+    blocks.add(const BulletListBlock(_annexBConsequences));
 
     return blocks;
   }
