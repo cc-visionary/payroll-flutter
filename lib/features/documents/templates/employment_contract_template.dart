@@ -10,11 +10,11 @@ import '../blocks/emphasis_paragraph_block.dart';
 import '../blocks/heading_block.dart';
 import '../blocks/labelled_bullet_list_block.dart';
 import '../blocks/lettered_list_block.dart';
-import '../blocks/multi_signature_block.dart';
 import '../blocks/page_break_block.dart';
 import '../blocks/paragraph_block.dart';
 import '../blocks/party_block.dart';
 import '../blocks/section_heading_block.dart';
+import '../blocks/signature_line_block.dart';
 import '../blocks/spacer_block.dart';
 import '../blocks/title_block.dart';
 import '../providers.dart';
@@ -720,36 +720,27 @@ class EmploymentContractTemplate
     blocks.add(const SpacerBlock(24));
     blocks.add(ParagraphBlock(i.companyName));
     blocks.add(const ParagraphBlock('By:'));
-    blocks.add(const SpacerBlock(40));
-    blocks.add(MultiSignatureBlock([
-      SignatoryParty(
+    blocks.add(const SpacerBlock(12));
+    // Employer + employee stacked, each with signature line + name + bold role.
+    blocks.add(SignatureLineBlock([
+      SignatoryLine(
         name: i.employerSignatoryName,
         role: i.employerSignatoryRole,
-        date: null,
       ),
-      SignatoryParty(
-        name: i.employeeFullName,
-        role: i.position,
-        date: null,
-      ),
+      SignatoryLine(name: i.employeeFullName, role: i.position),
     ]));
 
-    // 24-27. Witnesses.
+    // 24-27. Witnesses — two side by side, blank lines when names are empty.
     blocks.add(const SpacerBlock(24));
     blocks.add(const ParagraphBlock('SIGNED IN THE PRESENCE OF:'));
-    blocks.add(const SpacerBlock(40));
-    blocks.add(MultiSignatureBlock([
-      SignatoryParty(
-        name: i.witness1Name,
-        role: i.witness1Role,
-        date: null,
-      ),
-      SignatoryParty(
-        name: i.witness2Name,
-        role: i.witness2Role,
-        date: null,
-      ),
-    ]));
+    blocks.add(const SpacerBlock(12));
+    blocks.add(SignatureLineBlock(
+      [
+        SignatoryLine(name: i.witness1Name, role: i.witness1Role),
+        SignatoryLine(name: i.witness2Name, role: i.witness2Role),
+      ],
+      row: true,
+    ));
 
     // 28. Page break before Annex A.
     blocks.add(const PageBreakBlock());

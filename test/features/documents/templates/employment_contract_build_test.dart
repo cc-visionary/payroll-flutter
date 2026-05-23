@@ -5,6 +5,7 @@ import 'package:payroll_flutter/features/documents/blocks/emphasis_paragraph_blo
 import 'package:payroll_flutter/features/documents/blocks/lettered_list_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/multi_signature_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/page_break_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/signature_line_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/section_heading_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/title_block.dart';
 import 'package:payroll_flutter/features/documents/templates/employment_contract_inputs.dart';
@@ -147,11 +148,17 @@ void main() {
     expect(emphasisTexts, contains('Records'));
   });
 
-  test('two MultiSignatureBlocks (signatories + witnesses)', () {
+  test('two SignatureLineBlocks (stacked parties + row of witnesses), '
+      'no MultiSignatureBlocks', () {
     final blocks = t.build(seed());
-    final sigs = blocks.whereType<MultiSignatureBlock>().toList();
+    expect(blocks.whereType<MultiSignatureBlock>(), isEmpty);
+    final sigs = blocks.whereType<SignatureLineBlock>().toList();
     expect(sigs.length, 2);
+    // Employer + employee, stacked.
     expect(sigs[0].signatories.length, 2);
+    expect(sigs[0].row, false);
+    // Two witnesses, side by side.
     expect(sigs[1].signatories.length, 2);
+    expect(sigs[1].row, true);
   });
 }
