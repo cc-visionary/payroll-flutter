@@ -19,8 +19,8 @@ void main() {
     expect(i.authorizedSignatoryRole, 'Authorized Signatory');
   });
 
-  test('build is a stub returning an empty block tree', () {
+  test('build returns a non-empty block tree', () {
     const t = NdaTemplate();
-    expect(t.build(t.emptyInputs()), isEmpty);
+    expect(t.build(t.emptyInputs()), isNotEmpty);
   });
 }
