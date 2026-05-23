@@ -31,22 +31,22 @@ class PdfTheme {
     required this.footerMargin,
   });
 
-  /// Default theme used by document templates. Page format A4, 25mm
+  /// Default theme used by document templates. Page format A4, 0.75 inch
   /// margins, Inter Light body / SemiBold bold, page numbers always on.
   ///
-  /// 25mm in PDF points is ~70.87 (1in = 72pt, 25.4mm = 1in).
+  /// 0.75 inch in PDF points is 54 (1in = 72pt).
   static Future<PdfTheme> defaults() async {
     return PdfTheme(
       fontTheme: await loadInterTheme(),
       pageFormat: PdfPageFormat.a4,
-      pageMargin: const pw.EdgeInsets.all(70.866),
+      pageMargin: const pw.EdgeInsets.all(54),
       titleSize: 22,
       headingSize: 14,
       bodySize: 11,
       textColor: PdfColors.black,
       showPageNumbers: true,
       footerFontSize: 9,
-      footerMargin: const pw.EdgeInsets.only(bottom: 34),
+      footerMargin: const pw.EdgeInsets.only(bottom: 18),
     );
   }
 
@@ -62,14 +62,14 @@ class PdfTheme {
         boldItalic: pw.Font.helveticaBoldOblique(),
       ),
       pageFormat: PdfPageFormat.a4,
-      pageMargin: const pw.EdgeInsets.all(70.866),
+      pageMargin: const pw.EdgeInsets.all(54),
       titleSize: 22,
       headingSize: 14,
       bodySize: 11,
       textColor: PdfColors.black,
       showPageNumbers: true,
       footerFontSize: 9,
-      footerMargin: const pw.EdgeInsets.only(bottom: 34),
+      footerMargin: const pw.EdgeInsets.only(bottom: 18),
     );
   }
 }

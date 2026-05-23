@@ -4,12 +4,12 @@ import 'package:payroll_flutter/core/pdf/pdf_theme.dart';
 
 void main() {
   group('PdfTheme.defaults', () {
-    test('uses A4 page format and 25mm margin', () async {
+    test('uses A4 page format and 0.75in margin', () async {
       final theme = await PdfTheme.defaults();
       expect(theme.pageFormat, PdfPageFormat.a4);
-      // 25mm margin in points: 25 * (72/25.4) ≈ 70.866
-      expect(theme.pageMargin.left, closeTo(70.86, 0.1));
-      expect(theme.pageMargin.top, closeTo(70.86, 0.1));
+      // 0.75in margin in points: 0.75 * 72 = 54
+      expect(theme.pageMargin.left, closeTo(54, 0.1));
+      expect(theme.pageMargin.top, closeTo(54, 0.1));
     });
 
     test('default sizes match spec', () async {
