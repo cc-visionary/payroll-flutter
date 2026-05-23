@@ -125,7 +125,9 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
       probationaryStart: probStart,
       probationaryEnd: probEnd,
       effectiveEndDate: probEnd,
-      salutationName: emp.lastName,
+      salutationName: emp.honorific.isEmpty
+          ? emp.lastName
+          : '${emp.honorific} ${emp.lastName}',
       findings: const [],
       logoBytes: logo,
     );

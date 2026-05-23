@@ -15,6 +15,7 @@ class NteInputs extends TemplateInputs {
   final String employeeFullName;
   final String employeeFirstName;
   final String employeeLastName;
+  final String employeeHonorific;
   final String employeePosition;
   final String employeeDepartment;
   final String companyId;
@@ -33,6 +34,7 @@ class NteInputs extends TemplateInputs {
     required this.employeeFullName,
     required this.employeeFirstName,
     required this.employeeLastName,
+    this.employeeHonorific = '',
     required this.employeePosition,
     required this.employeeDepartment,
     required this.companyId,
@@ -57,6 +59,7 @@ class NteInputs extends TemplateInputs {
     String? employeeFullName,
     String? employeeFirstName,
     String? employeeLastName,
+    String? employeeHonorific,
     String? employeePosition,
     String? employeeDepartment,
     String? companyId,
@@ -75,6 +78,7 @@ class NteInputs extends TemplateInputs {
         employeeFullName: employeeFullName ?? this.employeeFullName,
         employeeFirstName: employeeFirstName ?? this.employeeFirstName,
         employeeLastName: employeeLastName ?? this.employeeLastName,
+        employeeHonorific: employeeHonorific ?? this.employeeHonorific,
         employeePosition: employeePosition ?? this.employeePosition,
         employeeDepartment: employeeDepartment ?? this.employeeDepartment,
         companyId: companyId ?? this.companyId,

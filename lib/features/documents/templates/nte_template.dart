@@ -81,6 +81,7 @@ class NteTemplate extends DocumentTemplate<NteInputs> {
       employeeFullName: emp.fullName,
       employeeFirstName: emp.firstName,
       employeeLastName: emp.lastName,
+      employeeHonorific: emp.honorific,
       employeePosition: emp.jobTitle ?? '',
       employeeDepartment: '',
       companyId: co?.id ?? '',
@@ -125,8 +126,9 @@ class NteTemplate extends DocumentTemplate<NteInputs> {
         subtitle: 'HR Manager',
       ),
       subject: i.finalSubject,
-      salutation:
-          i.employeeLastName.isEmpty ? null : 'Mr./Ms. ${i.employeeLastName}',
+      salutation: i.employeeLastName.isEmpty
+          ? null
+          : '${i.employeeHonorific.isEmpty ? 'Mr./Ms.' : i.employeeHonorific} ${i.employeeLastName}',
     ));
     blocks.add(const SpacerBlock(16));
     blocks.add(const ParagraphBlock(_nteIntroText));

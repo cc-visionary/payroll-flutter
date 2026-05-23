@@ -28,6 +28,7 @@ class Employee {
   final String? workEmail;
   final String? mobileNumber;
   final DateTime? birthDate;
+  final String? gender;
   final String? addressLine1;
   final String? addressLine2;
   final String? city;
@@ -74,6 +75,7 @@ class Employee {
     this.workEmail,
     this.mobileNumber,
     this.birthDate,
+    this.gender,
     this.addressLine1,
     this.addressLine2,
     this.city,
@@ -100,6 +102,16 @@ class Employee {
   String get fullName => [firstName, middleName, lastName]
       .where((s) => s != null && s.isNotEmpty)
       .join(' ');
+
+  /// 'Mr.' for male, 'Ms.' for female, or '' when unknown. Tolerant of
+  /// free-text gender values ('Male'/'M'/'MALE' → Mr.; 'Female'/'F' → Ms.).
+  String get honorific {
+    final g = (gender ?? '').trim().toLowerCase();
+    if (g.isEmpty) return '';
+    if (g.startsWith('f')) return 'Ms.'; // female / f
+    if (g.startsWith('m')) return 'Mr.'; // male / m
+    return '';
+  }
 
   factory Employee.fromRow(Map<String, dynamic> r) => Employee(
         id: r['id'] as String,
@@ -128,6 +140,7 @@ class Employee {
         birthDate: r['birth_date'] == null
             ? null
             : DateTime.parse(r['birth_date'] as String),
+        gender: r['gender'] as String?,
         addressLine1: r['present_address_line1'] as String?,
         addressLine2: r['present_address_line2'] as String?,
         city: r['present_city'] as String?,
