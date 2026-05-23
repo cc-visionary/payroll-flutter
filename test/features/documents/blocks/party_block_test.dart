@@ -12,7 +12,7 @@ void main() {
       EmphasisSpan('908 Alvarado St', italic: true),
     ]);
     expect(block.spans.length, 3);
-    expect(block.leftIndent, 110);
+    expect(block.horizontalIndent, 70);
     expect(() => block.toPdf(theme), returnsNormally);
   });
 }

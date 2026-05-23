@@ -3,19 +3,20 @@ import '../../../core/pdf/pdf_theme.dart';
 import 'block.dart';
 import 'emphasis_paragraph_block.dart';
 
-/// A left-indented party description used in the Employment Contract
+/// A horizontally-centered party description used in the Employment Contract
 /// preamble (EMPLOYER / EMPLOYEE blocks). Renders [spans] (supporting
-/// bold party name + italic address) inside a left-indented container to
-/// match the source contract's block-quote layout.
+/// bold party name + italic address) inside a symmetrically-indented
+/// container so the block sits centered on the page, balancing the
+/// centered title and "WITNESSETH THAT:" line.
 class PartyBlock extends Block {
   final List<EmphasisSpan> spans;
-  final double leftIndent;
-  const PartyBlock({required this.spans, this.leftIndent = 110});
+  final double horizontalIndent;
+  const PartyBlock({required this.spans, this.horizontalIndent = 70});
 
   @override
   pw.Widget toPdf(PdfTheme theme) {
     return pw.Padding(
-      padding: pw.EdgeInsets.only(left: leftIndent),
+      padding: pw.EdgeInsets.symmetric(horizontal: horizontalIndent),
       child: pw.RichText(
         text: pw.TextSpan(
           style: pw.TextStyle(
