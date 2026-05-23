@@ -329,6 +329,12 @@ class _EmploymentContractFormState
           EmployeeNameField(
             value: _i.witness1Name,
             onChanged: (v) => _set(_i.copyWith(witness1Name: v)),
+            exclude: [
+              _i.employeeFullName,
+              _i.employerSignatoryName,
+              _i.representativeName,
+              _i.witness2Name,
+            ],
           ),
           const SizedBox(height: 16),
           _label('Witness 1 Role'),
@@ -343,6 +349,12 @@ class _EmploymentContractFormState
           EmployeeNameField(
             value: _i.witness2Name,
             onChanged: (v) => _set(_i.copyWith(witness2Name: v)),
+            exclude: [
+              _i.employeeFullName,
+              _i.employerSignatoryName,
+              _i.representativeName,
+              _i.witness1Name,
+            ],
           ),
           const SizedBox(height: 16),
           _label('Witness 2 Role'),

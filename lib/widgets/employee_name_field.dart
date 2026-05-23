@@ -15,12 +15,14 @@ class EmployeeNameField extends ConsumerStatefulWidget {
   final ValueChanged<String> onChanged;
   final String? hintText;
   final String? labelText;
+  final List<String> exclude;
   const EmployeeNameField({
     super.key,
     required this.value,
     required this.onChanged,
     this.hintText,
     this.labelText,
+    this.exclude = const [],
   });
 
   @override
@@ -53,9 +55,13 @@ class _EmployeeNameFieldState extends ConsumerState<EmployeeNameField> {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(employeeListProvider(const EmployeeListQuery()));
+    final excludeLc = widget.exclude
+        .map((e) => e.trim().toLowerCase())
+        .where((e) => e.isNotEmpty)
+        .toSet();
     final names = async.asData?.value
             .map((e) => e.fullName)
-            .where((n) => n.isNotEmpty)
+            .where((n) => n.isNotEmpty && !excludeLc.contains(n.toLowerCase()))
             .toList() ??
         const <String>[];
 
