@@ -2,43 +2,40 @@ import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
-import '../brand_logo.dart';
 import '../blocks/block.dart';
-import '../blocks/company_header_block.dart';
-import '../blocks/key_value_block.dart';
-import '../blocks/logo_block.dart';
-import '../blocks/multi_signature_block.dart';
+import '../blocks/centered_signature_block.dart';
+import '../blocks/emphasis_paragraph_block.dart';
 import '../blocks/paragraph_block.dart';
 import '../blocks/spacer_block.dart';
 import '../blocks/title_block.dart';
-import '../../../core/pdf/interpolate.dart';
 import 'document_template.dart';
 import 'quitclaim_inputs.dart';
 import 'quitclaim_validate.dart';
 
-// PLACEHOLDER — engineer MUST replace with canonical wording from
-// [06] LUXIUM/[02] HR/[02] Employee Records/JAM/ Quitclaim source PDF
-// before Phase 8 Task 40 ships. Confirm with the user.
-const String _quitclaimBodyText =
-    'I, {employeeFullName}, of legal age, hereby acknowledge receipt from '
-    '{companyName} of the sum of ₱ {finalPayAmount} representing my final '
-    'pay. In consideration of the foregoing, I hereby release, waive, and '
-    'forever discharge {companyName}, its officers, directors, '
-    'shareholders, agents, and employees from any and all claims, demands, '
-    'damages, actions, causes of action, or suits of any kind whatsoever, '
-    'whether in law or equity, which I now have or may hereafter have '
-    'arising out of my employment with {companyName} or its termination.';
+const _qcPara2 =
+    'I hereby declare that I have no further claims whatsoever against my '
+    'employer, its President, members of the Board, officers or any of its '
+    'staff and that I hereby release and forever discharge all of them from '
+    'any and all claims, demands, cause of action of whatever nature arising '
+    'out of my employment with the latter;';
+const _qcPara4 =
+    'As such, I finally make manifest that I have no further claim(s) or '
+    'cause of action against my employer nor against any person(s) connected '
+    'with the administration and operation of the latter and forever release '
+    'the latter from any and all liability.';
+const _qcSubscribed =
+    'SIGNED IN THE PRESENCE OF: _______________________   SUBSCRIBED AND '
+    'SWORN to before me, _____________ at Manila City.';
 
 class QuitclaimTemplate extends DocumentTemplate<QuitclaimInputs> {
   const QuitclaimTemplate();
-
   @override
   String get id => 'quitclaim';
   @override
   String get name => 'Quitclaim';
   @override
   String get description =>
-      'Release, waiver, and quitclaim issued at separation.';
+      'Notarized release and quitclaim signed at separation.';
   @override
   IconData get icon => Icons.assignment_turned_in_outlined;
   @override
@@ -50,8 +47,8 @@ class QuitclaimTemplate extends DocumentTemplate<QuitclaimInputs> {
         employeeFullName: '',
         companyId: '',
         companyName: '',
-        dateSigned: DateTime.now(),
         finalPayAmount: Decimal.zero,
+        dateSigned: DateTime.now(),
       );
 
   @override
@@ -59,103 +56,98 @@ class QuitclaimTemplate extends DocumentTemplate<QuitclaimInputs> {
     final emp = ctx.employee;
     final co = ctx.company;
     if (emp == null) return emptyInputs();
-    final logo = await loadBrandLogoBytes(
-      companyName: co?.name,
-      code: co?.code,
-    );
-    // Date Terminated comes straight off the Employee row, which is the
-    // source of truth (separationDate is set when a separation is
-    // confirmed). We do NOT query employment_events here — the event_type
-    // enum has no 'SEPARATION' member (it uses SEPARATION_CONFIRMED /
-    // SEPARATION_INITIATED), and the employee row already carries the
-    // authoritative date.
     return QuitclaimInputs(
       employeeId: emp.id,
       employeeFullName: emp.fullName,
+      employeeAddress: _composeAddress(emp.addressLine1, emp.addressLine2,
+          emp.city, emp.province, emp.zipCode),
+      civilStatus: 'single',
       companyId: co?.id ?? '',
       companyName: co?.name ?? '',
-      companyAddress: co == null ? null : _addressOf(co),
-      companySignatoryName: co?.legalSignatoryName,
-      companySignatoryRole: co?.legalSignatoryRole,
+      finalPayAmount: Decimal.zero,
       dateTerminated: emp.separationDate,
       dateSigned: DateTime.now(),
-      finalPayAmount: Decimal.zero,
-      logoBytes: logo,
+      placeSigned: co == null
+          ? ''
+          : _composeAddress(co.addressLine1, co.addressLine2, co.city,
+              co.province, co.zipCode),
     );
   }
 
   @override
   List<Gate> gates(AutofillContext ctx) => const [];
-
   @override
   List<ValidationError> validate(QuitclaimInputs inputs) =>
       validateQuitclaim(inputs);
 
   @override
   List<Block> build(QuitclaimInputs i) {
-    final dateFmt = DateFormat('MMMM d, yyyy');
-    final amountStr = _formatPeso(i.finalPayAmount.toString());
+    final fmt = DateFormat('MMMM d, yyyy');
+    final amount = _formatPeso(i.finalPayAmount.toString());
     return [
-      if (i.logoBytes != null) LogoBlock(i.logoBytes!),
-      if (i.logoBytes != null) const SpacerBlock(12),
-      CompanyHeaderBlock(name: i.companyName, address: i.companyAddress),
-      const SpacerBlock(24),
-      const TitleBlock('RELEASE, WAIVER, AND QUITCLAIM'),
+      const TitleBlock('QUITCLAIM AND RELEASE', centered: true),
       const SpacerBlock(16),
-      KeyValueBlock([
-        KeyValueRow('Full Name', i.employeeFullName),
-        KeyValueRow('Final Pay', '₱ $amountStr'),
-        KeyValueRow('Company', i.companyName),
-        KeyValueRow(
-          'Date Terminated',
-          i.dateTerminated == null ? '—' : dateFmt.format(i.dateTerminated!),
-        ),
-        KeyValueRow('Date Signed', dateFmt.format(i.dateSigned)),
+      EmphasisParagraphBlock(spans: [
+        const EmphasisSpan('I, '),
+        EmphasisSpan(i.employeeFullName, bold: true),
+        EmphasisSpan(', of legal age, ${i.civilStatus} and residing at '),
+        EmphasisSpan(i.employeeAddress, italic: true),
+        const EmphasisSpan(', for and in consideration of the amount of '),
+        EmphasisSpan('₱$amount', bold: true),
+        const EmphasisSpan(' (Sum of Last Pay) paid to me by '),
+        EmphasisSpan(i.companyName, bold: true),
+        const EmphasisSpan(
+            ' and receipt of which is hereby acknowledged to my full and '
+            'complete satisfaction, do hereby release and forever discharge '
+            'said Company, its officers and stockholders from any and all '
+            'claims arising out of and in connection with my dismissal.'),
       ]),
-      const SpacerBlock(16),
+      const SpacerBlock(8),
+      const ParagraphBlock(_qcPara2),
+      const SpacerBlock(8),
+      EmphasisParagraphBlock(spans: [
+        const EmphasisSpan(
+            'I acknowledge that my separation from the Company is due to my '
+            'failure to qualify as a regular employee in accordance with the '
+            'reasonable standards made known to me at the time of my '
+            'engagement. I accept the results of the evaluation and the '
+            'termination of my probationary employment effective '),
+        EmphasisSpan(
+            i.dateTerminated == null ? '—' : fmt.format(i.dateTerminated!),
+            bold: true),
+        const EmphasisSpan('.'),
+      ]),
+      const SpacerBlock(8),
+      const ParagraphBlock(_qcPara4),
+      const SpacerBlock(8),
       ParagraphBlock(
-        interpolate(
-          _quitclaimBodyText,
-          {
-            'employeeFullName': i.employeeFullName,
-            'finalPayAmount': amountStr,
-            'companyName': i.companyName,
-          },
-          lenient: true,
-        ),
-      ),
-      const SpacerBlock(48),
-      MultiSignatureBlock([
-        SignatoryParty(
-          name: i.employeeFullName,
-          role: 'Employee',
-          date: i.dateSigned,
-        ),
-        SignatoryParty(
-          name: i.companySignatoryName,
-          role: i.companySignatoryRole == null
-              ? 'For ${i.companyName}'
-              : '${i.companySignatoryRole} — ${i.companyName}',
-          date: i.dateSigned,
-        ),
-      ]),
+          'IN WITNESS WHEREOF, I have hereunto signed these presents this '
+          '${fmt.format(i.dateSigned)} at ${i.placeSigned}.'),
+      const SpacerBlock(40),
+      const CenteredSignatureBlock('Name and signature of Employee'),
+      const SpacerBlock(16),
+      const ParagraphBlock(_qcSubscribed),
+      const SpacerBlock(32),
+      const ParagraphBlock('Doc. No. _____;'),
+      const ParagraphBlock('Page No._____;'),
+      const ParagraphBlock('Book No.______;'),
+      const ParagraphBlock('Series of 20___.'),
     ];
   }
 }
 
-String _addressOf(dynamic co) {
-  final parts = [
-    co.addressLine1,
-    co.addressLine2,
-    [co.city, co.province, co.zipCode]
-        .where((s) => s != null && (s as String).isNotEmpty)
-        .join(', '),
-  ].where((s) => s != null && (s as String).isNotEmpty).cast<String>().toList();
-  return parts.join(' · ');
+String _composeAddress(
+    String? l1, String? l2, String? city, String? prov, String? zip) {
+  final tail = [city, prov, zip]
+      .where((s) => s != null && s.isNotEmpty)
+      .join(', ');
+  return [l1, l2, tail]
+      .where((s) => s != null && s.isNotEmpty)
+      .cast<String>()
+      .join(', ');
 }
 
 String _formatPeso(String amount) {
-  // Format with grouping commas + 2 decimal places.
   final parts = amount.split('.');
   final intPart = parts[0];
   final fracPart = parts.length > 1 ? parts[1] : '00';

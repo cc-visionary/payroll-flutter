@@ -7,14 +7,14 @@ void main() {
   QuitclaimInputs valid() => QuitclaimInputs(
         employeeId: 'emp-1',
         employeeFullName: 'Donald Xu',
+        employeeAddress: '123 Mabini St, Manila',
+        civilStatus: 'single',
         companyId: 'co-1',
         companyName: 'LUXIUM TRADING CO.',
-        companyAddress: 'Manila',
-        companySignatoryName: 'Clinton Xu',
-        companySignatoryRole: 'CEO',
+        finalPayAmount: Decimal.parse('47250.00'),
         dateTerminated: DateTime(2026, 4, 30),
         dateSigned: DateTime(2026, 5, 5),
-        finalPayAmount: Decimal.parse('47250.00'),
+        placeSigned: 'Manila City',
       );
 
   test('valid inputs produce no errors', () {
@@ -23,33 +23,38 @@ void main() {
 
   test('missing employee flagged', () {
     final i = valid().copyWith(employeeId: '');
-    expect(
-      validateQuitclaim(i).any((e) => e.field == 'employee'),
-      true,
-    );
+    expect(validateQuitclaim(i).any((e) => e.field == 'employee'), true);
   });
 
-  test('missing signatory flagged', () {
-    final i = valid().copyWith(companySignatoryName: null);
+  test('missing company flagged', () {
+    final i = valid().copyWith(companyId: '');
+    expect(validateQuitclaim(i).any((e) => e.field == 'company'), true);
+  });
+
+  test('missing employee address flagged', () {
+    final i = valid().copyWith(employeeAddress: '   ');
     expect(
-      validateQuitclaim(i).any((e) => e.field == 'signatoryName'),
-      true,
-    );
+        validateQuitclaim(i).any((e) => e.field == 'employeeAddress'), true);
+  });
+
+  test('missing civil status flagged', () {
+    final i = valid().copyWith(civilStatus: '');
+    expect(validateQuitclaim(i).any((e) => e.field == 'civilStatus'), true);
+  });
+
+  test('missing place signed flagged', () {
+    final i = valid().copyWith(placeSigned: '');
+    expect(validateQuitclaim(i).any((e) => e.field == 'placeSigned'), true);
   });
 
   test('finalPayAmount must be > 0', () {
     final i = valid().copyWith(finalPayAmount: Decimal.zero);
     expect(
-      validateQuitclaim(i).any((e) => e.field == 'finalPayAmount'),
-      true,
-    );
+        validateQuitclaim(i).any((e) => e.field == 'finalPayAmount'), true);
   });
 
   test('dateSigned before dateTerminated flagged', () {
     final i = valid().copyWith(dateSigned: DateTime(2026, 4, 1));
-    expect(
-      validateQuitclaim(i).any((e) => e.field == 'dateSigned'),
-      true,
-    );
+    expect(validateQuitclaim(i).any((e) => e.field == 'dateSigned'), true);
   });
 }

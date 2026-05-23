@@ -1,71 +1,57 @@
-import 'dart:typed_data';
-
 import 'package:decimal/decimal.dart';
-
 import 'document_template.dart';
 
 class QuitclaimInputs extends TemplateInputs {
   final String employeeId;
   final String employeeFullName;
+  final String employeeAddress;
+  final String civilStatus;      // e.g. 'single', 'married'
   final String companyId;
   final String companyName;
-  final String? companyAddress;
-  final String? companySignatoryName;
-  final String? companySignatoryRole;
+  final Decimal finalPayAmount;
   final DateTime? dateTerminated;
   final DateTime dateSigned;
-  final Decimal finalPayAmount;
-  final Uint8List? logoBytes;
+  final String placeSigned;      // where the document is signed (company address)
 
   QuitclaimInputs({
     required this.employeeId,
     required this.employeeFullName,
+    this.employeeAddress = '',
+    this.civilStatus = 'single',
     required this.companyId,
     required this.companyName,
-    this.companyAddress,
-    this.companySignatoryName,
-    this.companySignatoryRole,
+    required this.finalPayAmount,
     this.dateTerminated,
     required this.dateSigned,
-    required this.finalPayAmount,
-    this.logoBytes,
+    this.placeSigned = '',
   });
 
   QuitclaimInputs copyWith({
     String? employeeId,
     String? employeeFullName,
+    String? employeeAddress,
+    String? civilStatus,
     String? companyId,
     String? companyName,
-    String? companyAddress,
-    Object? companySignatoryName = _undef,
-    Object? companySignatoryRole = _undef,
+    Decimal? finalPayAmount,
     Object? dateTerminated = _undef,
     DateTime? dateSigned,
-    Decimal? finalPayAmount,
-    Object? logoBytes = _undef,
-  }) {
-    return QuitclaimInputs(
-      employeeId: employeeId ?? this.employeeId,
-      employeeFullName: employeeFullName ?? this.employeeFullName,
-      companyId: companyId ?? this.companyId,
-      companyName: companyName ?? this.companyName,
-      companyAddress: companyAddress ?? this.companyAddress,
-      companySignatoryName: identical(companySignatoryName, _undef)
-          ? this.companySignatoryName
-          : companySignatoryName as String?,
-      companySignatoryRole: identical(companySignatoryRole, _undef)
-          ? this.companySignatoryRole
-          : companySignatoryRole as String?,
-      dateTerminated: identical(dateTerminated, _undef)
-          ? this.dateTerminated
-          : dateTerminated as DateTime?,
-      dateSigned: dateSigned ?? this.dateSigned,
-      finalPayAmount: finalPayAmount ?? this.finalPayAmount,
-      logoBytes: identical(logoBytes, _undef)
-          ? this.logoBytes
-          : logoBytes as Uint8List?,
-    );
-  }
+    String? placeSigned,
+  }) =>
+      QuitclaimInputs(
+        employeeId: employeeId ?? this.employeeId,
+        employeeFullName: employeeFullName ?? this.employeeFullName,
+        employeeAddress: employeeAddress ?? this.employeeAddress,
+        civilStatus: civilStatus ?? this.civilStatus,
+        companyId: companyId ?? this.companyId,
+        companyName: companyName ?? this.companyName,
+        finalPayAmount: finalPayAmount ?? this.finalPayAmount,
+        dateTerminated: identical(dateTerminated, _undef)
+            ? this.dateTerminated
+            : dateTerminated as DateTime?,
+        dateSigned: dateSigned ?? this.dateSigned,
+        placeSigned: placeSigned ?? this.placeSigned,
+      );
 
   @override
   Map<String, dynamic> toDebugMap() => {

@@ -8,8 +8,6 @@ import '../inputs/employee_picker.dart';
 import '../providers.dart';
 import '../templates/quitclaim_inputs.dart';
 import '../templates/quitclaim_validate.dart';
-import '../../../widgets/employee_name_field.dart';
-import '../../../widgets/role_title_field.dart';
 
 class QuitclaimForm extends ConsumerStatefulWidget {
   final QuitclaimInputs initial;
@@ -43,12 +41,46 @@ class _QuitclaimFormState extends ConsumerState<QuitclaimForm> {
     widget.onChanged(next);
   }
 
+  Future<void> _onCompanyChanged(String id) async {
+    _set(_i.copyWith(companyId: id));
+    try {
+      final co = await ref.read(hiringEntityByIdProvider(id).future);
+      if (co == null || !mounted) return;
+      final addr = [
+        co.addressLine1,
+        co.addressLine2,
+        [co.city, co.province, co.zipCode]
+            .where((s) => s != null && s.isNotEmpty)
+            .join(', '),
+      ]
+          .where((s) => s != null && s.isNotEmpty)
+          .cast<String>()
+          .join(', ');
+      _set(_i.copyWith(companyName: co.name, placeSigned: addr));
+    } catch (_) {}
+  }
+
   String? _errFor(String field) {
     for (final e in validateQuitclaim(_i)) {
       if (e.field == field) return e.message;
     }
     return null;
   }
+
+  Widget _error(String field) {
+    final msg = _errFor(field);
+    if (msg == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        msg,
+        style: const TextStyle(color: Colors.red, fontSize: 12),
+      ),
+    );
+  }
+
+  Widget _label(String s) =>
+      Text(s, style: const TextStyle(fontWeight: FontWeight.w600));
 
   @override
   Widget build(BuildContext context) {
@@ -62,127 +94,99 @@ class _QuitclaimFormState extends ConsumerState<QuitclaimForm> {
         primary: false,
         padding: const EdgeInsets.all(16),
         children: [
-          const Text('Employee', style: TextStyle(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 4),
-        EmployeePicker(
-          selectedId: _i.employeeId.isEmpty ? null : _i.employeeId,
-          locked: widget.employeeLocked,
-          includeArchived: true,
-          onChanged: (id) {
-            if (id != null) {
-              // Optimistic local update so validation passes immediately
-              // while the parent's async autofill is still running.
-              _set(_i.copyWith(employeeId: id));
-              widget.onEmployeeChanged(id);
-            }
-          },
-        ),
-        if (_errFor('employee') != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              _errFor('employee')!,
-              style: const TextStyle(color: Colors.red, fontSize: 12),
+          _label('Employee'),
+          const SizedBox(height: 4),
+          EmployeePicker(
+            selectedId: _i.employeeId.isEmpty ? null : _i.employeeId,
+            locked: widget.employeeLocked,
+            includeArchived: true,
+            onChanged: (id) {
+              if (id != null) {
+                // Optimistic local update so validation passes immediately
+                // while the parent's async autofill is still running.
+                _set(_i.copyWith(employeeId: id));
+                widget.onEmployeeChanged(id);
+              }
+            },
+          ),
+          _error('employee'),
+          const SizedBox(height: 16),
+          _label('Company'),
+          const SizedBox(height: 4),
+          CompanyPicker(
+            selectedId: _i.companyId.isEmpty ? null : _i.companyId,
+            locked: false,
+            onChanged: (id) {
+              if (id != null) _onCompanyChanged(id);
+            },
+          ),
+          _error('company'),
+          const SizedBox(height: 16),
+          _label('Employee Address'),
+          const SizedBox(height: 4),
+          TextFormField(
+            initialValue: _i.employeeAddress,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              isDense: true,
             ),
+            onChanged: (v) => _set(_i.copyWith(employeeAddress: v)),
           ),
-        const SizedBox(height: 16),
-        const Text('Company', style: TextStyle(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 4),
-        CompanyPicker(
-          selectedId: _i.companyId.isEmpty ? null : _i.companyId,
-          locked: false,
-          onChanged: (id) {
-            if (id != null) _set(_i.copyWith(companyId: id));
-          },
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'Date Terminated',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 4),
-        DateField(
-          value: _i.dateTerminated,
-          locked: false,
-          onChanged: (d) => _set(_i.copyWith(dateTerminated: d)),
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'Date Signed',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 4),
-        DateField(
-          value: _i.dateSigned,
-          locked: false,
-          onChanged: (d) {
-            if (d != null) _set(_i.copyWith(dateSigned: d));
-          },
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'Final Pay Amount',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 4),
-        AmountWithBreakdown(
-          value: _i.finalPayAmount,
-          breakdown: breakdown,
-          locked: false,
-          onChanged: (d) => _set(_i.copyWith(finalPayAmount: d)),
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'Signatory Name',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 4),
-        EmployeeNameField(
-          value: _i.companySignatoryName ?? '',
-          hintText: 'Type or select an employee',
-          onChanged: (v) => _set(
-            _i.copyWith(companySignatoryName: v.trim().isEmpty ? null : v),
-          ),
-        ),
-        if (_errFor('signatoryName') != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              _errFor('signatoryName')!,
-              style: const TextStyle(color: Colors.red, fontSize: 12),
+          _error('employeeAddress'),
+          const SizedBox(height: 16),
+          _label('Civil Status'),
+          const SizedBox(height: 4),
+          TextFormField(
+            initialValue: _i.civilStatus,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              isDense: true,
+              hintText: 'e.g. single, married',
             ),
+            onChanged: (v) => _set(_i.copyWith(civilStatus: v)),
           ),
-        const SizedBox(height: 16),
-        const Text(
-          'Signatory Role',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 4),
-        RoleTitleField(
-          value: _i.companySignatoryRole ?? '',
-          hintText: 'e.g. CEO',
-          onChanged: (v) => _set(
-            _i.copyWith(companySignatoryRole: v.trim().isEmpty ? null : v),
+          _error('civilStatus'),
+          const SizedBox(height: 16),
+          _label('Final Pay Amount'),
+          const SizedBox(height: 4),
+          AmountWithBreakdown(
+            value: _i.finalPayAmount,
+            breakdown: breakdown,
+            locked: false,
+            onChanged: (d) => _set(_i.copyWith(finalPayAmount: d)),
           ),
-        ),
-        if (_errFor('signatoryRole') != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              _errFor('signatoryRole')!,
-              style: const TextStyle(color: Colors.red, fontSize: 12),
+          _error('finalPayAmount'),
+          const SizedBox(height: 16),
+          _label('Date Terminated'),
+          const SizedBox(height: 4),
+          DateField(
+            value: _i.dateTerminated,
+            locked: false,
+            onChanged: (d) => _set(_i.copyWith(dateTerminated: d)),
+          ),
+          const SizedBox(height: 16),
+          _label('Date Signed'),
+          const SizedBox(height: 4),
+          DateField(
+            value: _i.dateSigned,
+            locked: false,
+            onChanged: (d) {
+              if (d != null) _set(_i.copyWith(dateSigned: d));
+            },
+          ),
+          _error('dateSigned'),
+          const SizedBox(height: 16),
+          _label('Place Signed'),
+          const SizedBox(height: 4),
+          TextFormField(
+            initialValue: _i.placeSigned,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              isDense: true,
             ),
+            onChanged: (v) => _set(_i.copyWith(placeSigned: v)),
           ),
-        const SizedBox(height: 16),
-        if (_i.companySignatoryName == null ||
-            _i.companySignatoryName!.isEmpty)
-          const Padding(
-            padding: EdgeInsets.only(top: 4),
-            child: Text(
-              'Set a signatory in Settings → Hiring Entities to skip this next time.',
-              style: TextStyle(color: Colors.orange, fontSize: 12),
-            ),
-          ),
+          _error('placeSigned'),
         ],
       ),
     );
