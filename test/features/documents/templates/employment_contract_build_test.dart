@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/features/documents/blocks/emphasis_paragraph_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/heading_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/lettered_list_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/multi_signature_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/page_break_block.dart';
@@ -137,15 +138,38 @@ void main() {
     expect(annex.first.text, startsWith('Annex A'));
   });
 
-  test('responsibilities produce blocks (area labels appear)', () {
+  test('responsibilities produce numbered area labels', () {
     final blocks = t.build(seed());
     final emphasisTexts = blocks
         .whereType<EmphasisParagraphBlock>()
         .expand((b) => b.spans)
         .map((s) => s.text)
         .toList();
-    expect(emphasisTexts, contains('Recruitment'));
-    expect(emphasisTexts, contains('Records'));
+    // Area labels are now numbered inside EmphasisParagraphBlock spans.
+    expect(emphasisTexts, contains('1. Recruitment'));
+    expect(emphasisTexts, contains('2. Records'));
+  });
+
+  test('Annex A has Training and Development, Work Hours, and Performance '
+      'Evaluation headings', () {
+    final blocks = t.build(seed());
+    final headings =
+        blocks.whereType<HeadingBlock>().map((b) => b.text).toList();
+    expect(headings, contains('Duties and Responsibilities'));
+    expect(headings, contains('Training and Development'));
+    expect(headings, contains('Work Hours'));
+    expect(headings, contains('Performance Evaluation'));
+  });
+
+  test('Annex A Performance Evaluation includes an Evaluation Timeline', () {
+    final blocks = t.build(seed());
+    final emphasisTexts = blocks
+        .whereType<EmphasisParagraphBlock>()
+        .expand((b) => b.spans)
+        .map((s) => s.text)
+        .toList();
+    expect(emphasisTexts, contains('Evaluation Timeline'));
+    expect(emphasisTexts, contains('Key Performance Indicators (KPIs)'));
   });
 
   test('two SignatureLineBlocks (stacked parties + row of witnesses), '

@@ -10,6 +10,7 @@ import '../blocks/emphasis_paragraph_block.dart';
 import '../blocks/heading_block.dart';
 import '../blocks/labelled_bullet_list_block.dart';
 import '../blocks/lettered_list_block.dart';
+import '../blocks/numbered_list_block.dart';
 import '../blocks/page_break_block.dart';
 import '../blocks/paragraph_block.dart';
 import '../blocks/party_block.dart';
@@ -296,6 +297,29 @@ const String _witnessClause =
 
 const String _annexAHeader =
     'Annex A: Duties, Responsibilities, and Work Hours';
+
+// Canonical Annex A boilerplate lifted verbatim from the source PDF. These
+// sections (Training and Development, Evaluation Timeline) are generic — the
+// same for every contract — so they are fixed text rather than scorecard-
+// derived. The representative-role bullet is built inline at build time so the
+// role can be interpolated.
+const String _annexATrainingBullet1 =
+    "The EMPLOYEE will undergo training on the Company's standard operating "
+    'procedures, internal systems and tools, and onboarding orientation '
+    'within the first month of employment.';
+
+const List<String> _annexAEvaluationTimeline = <String>[
+  'End of the 1st Month: Focus on initial performance, onboarding progress, '
+      'and understanding of responsibilities; provide feedback on early work '
+      'quality, punctuality, and adherence to company policies.',
+  'End of the 3rd Month: Assess progress and improvements based on '
+      'first-month feedback; evaluate consistency in meeting KPIs and '
+      'collaboration with the team; identify areas requiring further '
+      'improvement.',
+  'End of the 6th Month: Conduct a comprehensive review of performance '
+      'throughout the probationary period; decide on regularization based on '
+      "the employee's ability to meet expectations, targets, and standards.",
+];
 
 // Annex B — canonical/boilerplate "Standards for Regularization" lifted
 // verbatim from the source PDF. These are generic standards (same for every
@@ -759,33 +783,80 @@ class EmploymentContractTemplate
       blocks.add(ParagraphBlock(i.missionStatement));
     }
 
-    // 33-34. Duties and Responsibilities. Each area renders as a bold
-    // label (EmphasisParagraphBlock) followed by a bullet list of tasks —
-    // cleaner than LabelledBulletListBlock's "label: body" colon format.
+    // 33. Duties and Responsibilities. Each scorecard area renders as a bold
+    // NUMBERED label (EmphasisParagraphBlock) followed by a bullet list of
+    // tasks — matching the source's numbered duty areas + nested sub-bullets.
     blocks.add(const SpacerBlock(12));
     blocks.add(const HeadingBlock('Duties and Responsibilities'));
-    for (final r in i.responsibilities) {
+    blocks.add(EmphasisParagraphBlock(spans: [
+      const EmphasisSpan(
+          'The EMPLOYEE, in their role as '),
+      EmphasisSpan(i.position, bold: true),
+      const EmphasisSpan(
+          ', shall perform the following duties and responsibilities:'),
+    ]));
+    blocks.add(const SpacerBlock(4));
+    for (var idx = 0; idx < i.responsibilities.length; idx++) {
+      final r = i.responsibilities[idx];
       blocks.add(EmphasisParagraphBlock(spans: [
-        EmphasisSpan(r.area, bold: true),
+        EmphasisSpan('${idx + 1}. ${r.area}', bold: true),
       ]));
       blocks.add(BulletListBlock(r.tasks));
-      blocks.add(const SpacerBlock(6));
+      blocks.add(const SpacerBlock(4));
     }
 
-    // 35. Key Performance Indicators (optional).
+    // 34. Training and Development (canonical boilerplate; representative role
+    // interpolated). Falls back to "HR Manager" when no role is set.
+    final repRole =
+        i.representativeRole.isEmpty ? 'HR Manager' : i.representativeRole;
+    blocks.add(const SpacerBlock(8));
+    blocks.add(const HeadingBlock('Training and Development'));
+    blocks.add(BulletListBlock([
+      _annexATrainingBullet1,
+      'The $repRole will oversee the training process and provide '
+          'performance guidance.',
+    ]));
+
+    // 35. Work Hours — structured Flexibility + Overtime, with the daily-hours
+    // and work-days values rendered bold.
+    blocks.add(const SpacerBlock(8));
+    blocks.add(const HeadingBlock('Work Hours'));
+    blocks.add(EmphasisParagraphBlock(spans: [
+      const EmphasisSpan('Flexibility: ', bold: true),
+      const EmphasisSpan('The EMPLOYEE is expected to render '),
+      EmphasisSpan('${i.workHoursPerDay} hours per day', bold: true),
+      EmphasisSpan(', ${i.workDaysPerWeek}. Subject to company policy and '
+          'operational requirements, the schedule may be flexible provided '
+          'the required daily hours are completed each day.'),
+    ]));
+    blocks.add(const SpacerBlock(4));
+    blocks.add(const EmphasisParagraphBlock(spans: [
+      EmphasisSpan('Overtime: ', bold: true),
+      EmphasisSpan('The EMPLOYEE may be required to render overtime work '
+          'beyond their regular hours upon the '),
+      EmphasisSpan('request of the EMPLOYER', bold: true),
+      EmphasisSpan(' and in compliance with Philippine labor laws. Any '
+          'overtime work must have prior approval from the EMPLOYER or the '
+          'immediate supervisor to qualify for compensation.'),
+    ]));
+
+    // 36. Performance Evaluation — scorecard KPIs (optional) + canonical
+    // Evaluation Timeline (1st/3rd/6th month).
+    blocks.add(const SpacerBlock(8));
+    blocks.add(const HeadingBlock('Performance Evaluation'));
     if (i.kpis.isNotEmpty) {
-      blocks.add(const SpacerBlock(12));
-      blocks.add(const HeadingBlock('Key Performance Indicators'));
+      blocks.add(const EmphasisParagraphBlock(spans: [
+        EmphasisSpan('Key Performance Indicators (KPIs)', bold: true),
+      ]));
       blocks.add(BulletListBlock(
         [for (final k in i.kpis) '${k.metric} — ${k.frequency}'],
       ));
+      blocks.add(const SpacerBlock(4));
     }
-
-    // 36. Work Hours.
-    blocks.add(const SpacerBlock(12));
-    blocks.add(const HeadingBlock('Work Hours'));
-    blocks.add(ParagraphBlock(
-        '${i.workHoursPerDay} hours per day, ${i.workDaysPerWeek}.'));
+    blocks.add(const EmphasisParagraphBlock(spans: [
+      EmphasisSpan('Evaluation Timeline', bold: true),
+    ]));
+    blocks.add(const NumberedListBlock(_annexAEvaluationTimeline));
 
     // 37. Annex B — Standards for Regularization (canonical boilerplate).
     // Starts on its own page after Annex A.
