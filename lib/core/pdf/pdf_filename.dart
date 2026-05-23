@@ -31,6 +31,8 @@ String _prefixFor(String templateId) {
       return 'NonReg';
     case 'employment_contract':
       return 'EmploymentContract';
+    case 'nda':
+      return 'NDA';
     default:
       return templateId;
   }

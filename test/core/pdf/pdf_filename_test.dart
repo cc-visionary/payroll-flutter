@@ -63,6 +63,18 @@ void main() {
       );
     });
 
+    test('nda template uses NDA prefix', () {
+      expect(
+        filenameForDocument(
+          templateId: 'nda',
+          employeeNumber: 'EMP-005',
+          employeeId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+          date: DateTime(2026, 5, 23),
+        ),
+        'NDA_EMP-005_20260523.pdf',
+      );
+    });
+
     test('unknown template id passes through verbatim', () {
       expect(
         filenameForDocument(

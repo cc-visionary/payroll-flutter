@@ -11,6 +11,7 @@ import '../../core/pdf/pdf_theme.dart';
 import '../../data/repositories/audit_repository.dart';
 import 'forms/coe_form.dart';
 import 'forms/employment_contract_form.dart';
+import 'forms/nda_form.dart';
 import 'forms/non_reg_form.dart';
 import 'forms/nte_form.dart';
 import 'forms/quitclaim_form.dart';
@@ -21,6 +22,8 @@ import 'templates/coe_template.dart';
 import 'templates/document_template.dart';
 import 'templates/employment_contract_inputs.dart';
 import 'templates/employment_contract_template.dart';
+import 'templates/nda_inputs.dart';
+import 'templates/nda_template.dart';
 import 'templates/non_reg_inputs.dart';
 import 'templates/non_reg_template.dart';
 import 'templates/nte_inputs.dart';
@@ -48,6 +51,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
   NteInputs? _nte;
   NonRegInputs? _nonReg;
   EmploymentContractInputs? _employmentContract;
+  NdaInputs? _nda;
   bool _autofillDone = false;
   String? _autofillError;
   bool _dirty = false;
@@ -174,6 +178,29 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         });
         return;
       }
+      if (tpl is NdaTemplate) {
+        if (eId == null) {
+          setState(() {
+            _nda = tpl.emptyInputs();
+            _autofillDone = true;
+            _autofillRev++;
+          });
+          return;
+        }
+        final emp = await ref.read(documentEmployeeProvider(eId).future);
+        final co = (emp == null || emp.hiringEntityId == null)
+            ? null
+            : await ref
+                .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+        final ctx = AutofillContext(employee: emp, company: co, ref: ref);
+        final filled = await tpl.autofill(ctx);
+        setState(() {
+          _nda = filled;
+          _autofillDone = true;
+          _autofillRev++;
+        });
+        return;
+      }
       if (tpl is! QuitclaimTemplate) {
         setState(() => _autofillDone = true);
         return;
@@ -254,6 +281,14 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         if (!mounted) return;
         setState(() {
           _employmentContract = filled;
+          _autofillRev++;
+          _dirty = true;
+        });
+      } else if (tpl is NdaTemplate) {
+        final filled = await tpl.autofill(ctx);
+        if (!mounted) return;
+        setState(() {
+          _nda = filled;
           _autofillRev++;
           _dirty = true;
         });
@@ -451,6 +486,18 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         onEmployeeChanged: _onPickerEmployeeChanged,
       );
     }
+    if (tpl is NdaTemplate && _nda != null) {
+      return NdaForm(
+        key: ValueKey('nda-$_autofillRev'),
+        initial: _nda!,
+        employeeLocked: widget.employeeId != null,
+        onChanged: (next) => setState(() {
+          _nda = next;
+          _dirty = true;
+        }),
+        onEmployeeChanged: _onPickerEmployeeChanged,
+      );
+    }
     return const Center(child: Text('Form not implemented'));
   }
 
@@ -630,6 +677,42 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
             entityType: 'document_template_pdf',
             metadata: {
               'template_id': 'employment_contract',
+              'employee_id':
+                  inputs.employeeId.isEmpty ? null : inputs.employeeId,
+              'file_name': filename,
+              'action': action,
+            },
+          );
+        },
+      );
+    }
+    if (tpl is NdaTemplate && _nda != null) {
+      final inputs = _nda!;
+      final errors = tpl.validate(inputs);
+      final filename = filenameForDocument(
+        templateId: 'nda',
+        employeeNumber: null,
+        employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
+        date: inputs.effectiveDate ?? DateTime.now(),
+      );
+      final who = inputs.employeeFullName.trim().isNotEmpty
+          ? inputs.employeeFullName.trim()
+          : (inputs.employeeId.isEmpty
+              ? '(unknown employee)'
+              : inputs.employeeId);
+      return _previewWithBanner(
+        errors,
+        filename,
+        (format) async {
+          final theme = await PdfTheme.defaults();
+          return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
+        },
+        onExported: (action) {
+          ref.read(auditRepositoryProvider).logExport(
+            description: 'NDA PDF $action: $who',
+            entityType: 'document_template_pdf',
+            metadata: {
+              'template_id': 'nda',
               'employee_id':
                   inputs.employeeId.isEmpty ? null : inputs.employeeId,
               'file_name': filename,
