@@ -50,6 +50,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
   EmploymentContractInputs? _employmentContract;
   bool _autofillDone = false;
   String? _autofillError;
+  bool _dirty = false;
   // Monotonically incrementing key suffix bumped on every successful
   // autofill (initial mount + every picker-driven re-autofill). The form
   // widget's ValueKey uses this so it remounts cleanly when autofill
@@ -230,6 +231,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         setState(() {
           _coe = filled;
           _autofillRev++;
+          _dirty = true;
         });
       } else if (tpl is NteTemplate) {
         final filled = await tpl.autofill(ctx);
@@ -237,6 +239,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         setState(() {
           _nte = filled;
           _autofillRev++;
+          _dirty = true;
         });
       } else if (tpl is NonRegTemplate) {
         final filled = await tpl.autofill(ctx);
@@ -244,6 +247,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         setState(() {
           _nonReg = filled;
           _autofillRev++;
+          _dirty = true;
         });
       } else if (tpl is EmploymentContractTemplate) {
         final filled = await tpl.autofill(ctx);
@@ -251,6 +255,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         setState(() {
           _employmentContract = filled;
           _autofillRev++;
+          _dirty = true;
         });
       } else if (tpl is QuitclaimTemplate) {
         final filled = await tpl.autofill(ctx);
@@ -258,6 +263,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         setState(() {
           _quitclaim = filled;
           _autofillRev++;
+          _dirty = true;
         });
       }
     } catch (e, st) {
@@ -269,6 +275,34 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
             content: Text('Could not refresh fields for new employee: $e')),
       );
     }
+  }
+
+  Future<void> _attemptLeave() async {
+    if (!_dirty) {
+      if (mounted) context.go('/documents');
+      return;
+    }
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Discard changes?'),
+        content: const Text(
+          'You have unsaved changes in this document. If you leave now, '
+          'your changes will not be saved.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep editing'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+    if (discard == true && mounted) context.go('/documents');
   }
 
   @override
@@ -294,13 +328,27 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
     }
     if (!_autofillDone) {
       return Scaffold(
-        appBar: AppBar(title: Text(tpl.name)),
+        appBar: AppBar(
+          title: Text(tpl.name),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back to documents',
+            onPressed: () => context.go('/documents'),
+          ),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
     if (_autofillError != null) {
       return Scaffold(
-        appBar: AppBar(title: Text(tpl.name)),
+        appBar: AppBar(
+          title: Text(tpl.name),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back to documents',
+            onPressed: () => context.go('/documents'),
+          ),
+        ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -313,17 +361,31 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         ),
       );
     }
-    return Scaffold(
-      appBar: AppBar(title: Text(tpl.name)),
-      body: Row(
-        children: [
-          SizedBox(
-            width: 480,
-            child: _formFor(tpl),
+    return PopScope(
+      canPop: !_dirty,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _attemptLeave();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(tpl.name),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back to documents',
+            onPressed: _attemptLeave,
           ),
-          const VerticalDivider(width: 1),
-          Expanded(child: _previewFor(tpl)),
-        ],
+        ),
+        body: Row(
+          children: [
+            SizedBox(
+              width: 480,
+              child: _formFor(tpl),
+            ),
+            const VerticalDivider(width: 1),
+            Expanded(child: _previewFor(tpl)),
+          ],
+        ),
       ),
     );
   }
@@ -334,7 +396,10 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         key: ValueKey('quitclaim-$_autofillRev'),
         initial: _quitclaim!,
         employeeLocked: widget.employeeId != null,
-        onChanged: (next) => setState(() => _quitclaim = next),
+        onChanged: (next) => setState(() {
+          _quitclaim = next;
+          _dirty = true;
+        }),
         onEmployeeChanged: _onPickerEmployeeChanged,
       );
     }
@@ -343,7 +408,10 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         key: ValueKey('coe-$_autofillRev'),
         initial: _coe!,
         employeeLocked: widget.employeeId != null,
-        onChanged: (next) => setState(() => _coe = next),
+        onChanged: (next) => setState(() {
+          _coe = next;
+          _dirty = true;
+        }),
         onEmployeeChanged: _onPickerEmployeeChanged,
       );
     }
@@ -352,7 +420,10 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         key: ValueKey('nte-$_autofillRev'),
         initial: _nte!,
         employeeLocked: widget.employeeId != null,
-        onChanged: (next) => setState(() => _nte = next),
+        onChanged: (next) => setState(() {
+          _nte = next;
+          _dirty = true;
+        }),
         onEmployeeChanged: _onPickerEmployeeChanged,
       );
     }
@@ -361,7 +432,10 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         key: ValueKey('non_reg-$_autofillRev'),
         initial: _nonReg!,
         employeeLocked: widget.employeeId != null,
-        onChanged: (next) => setState(() => _nonReg = next),
+        onChanged: (next) => setState(() {
+          _nonReg = next;
+          _dirty = true;
+        }),
         onEmployeeChanged: _onPickerEmployeeChanged,
       );
     }
@@ -370,7 +444,10 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         key: ValueKey('employment_contract-$_autofillRev'),
         initial: _employmentContract!,
         employeeLocked: widget.employeeId != null,
-        onChanged: (next) => setState(() => _employmentContract = next),
+        onChanged: (next) => setState(() {
+          _employmentContract = next;
+          _dirty = true;
+        }),
         onEmployeeChanged: _onPickerEmployeeChanged,
       );
     }
