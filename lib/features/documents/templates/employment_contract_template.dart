@@ -437,6 +437,8 @@ class EmploymentContractTemplate
   IconData get icon => Icons.assignment_outlined;
   @override
   int get version => 1;
+  @override
+  bool get supportsBulk => true;
 
   @override
   EmploymentContractInputs emptyInputs() {

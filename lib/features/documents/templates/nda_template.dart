@@ -245,6 +245,8 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
   IconData get icon => Icons.lock_outline;
   @override
   int get version => 1;
+  @override
+  bool get supportsBulk => true;
 
   @override
   NdaInputs emptyInputs() => NdaInputs(

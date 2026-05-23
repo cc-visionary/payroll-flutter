@@ -50,6 +50,8 @@ class LiabilityWaiverTemplate
   IconData get icon => Icons.health_and_safety_outlined;
   @override
   int get version => 1;
+  @override
+  bool get supportsBulk => true;
 
   @override
   LiabilityWaiverInputs emptyInputs() => LiabilityWaiverInputs(

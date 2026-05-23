@@ -52,6 +52,11 @@ abstract class DocumentTemplate<I extends TemplateInputs> {
   IconData get icon;
   int get version;
 
+  /// Whether this template can be generated for many employees at once via
+  /// the bulk-generate flow. Only fully-autofill templates (no unique
+  /// per-employee manual input) opt in by overriding to `true`.
+  bool get supportsBulk => false;
+
   I emptyInputs();
   Future<I> autofill(AutofillContext ctx);
   List<Gate> gates(AutofillContext ctx);

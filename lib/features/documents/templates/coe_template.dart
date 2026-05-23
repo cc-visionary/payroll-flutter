@@ -27,6 +27,8 @@ class CoeTemplate extends DocumentTemplate<CoeInputs> {
   IconData get icon => Icons.workspace_premium_outlined;
   @override
   int get version => 1;
+  @override
+  bool get supportsBulk => true;
 
   @override
   CoeInputs emptyInputs() => CoeInputs(
