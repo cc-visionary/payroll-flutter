@@ -11,12 +11,17 @@ import 'block.dart';
 class LogoBlock extends Block {
   final Uint8List bytes;
   final double height;
-  const LogoBlock(this.bytes, {this.height = 90});
+  final pw.Alignment alignment;
+  const LogoBlock(
+    this.bytes, {
+    this.height = 90,
+    this.alignment = pw.Alignment.centerLeft,
+  });
 
   @override
   pw.Widget toPdf(PdfTheme theme) {
     return pw.Container(
-      alignment: pw.Alignment.centerLeft,
+      alignment: alignment,
       child: pw.Image(
         pw.MemoryImage(bytes),
         height: height,

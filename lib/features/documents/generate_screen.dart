@@ -500,7 +500,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         templateId: 'coe',
         employeeNumber: null,
         employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
-        date: DateTime.now(),
+        date: inputs.dateIssued,
       );
       final who = inputs.employeeFullName.trim().isNotEmpty
           ? inputs.employeeFullName.trim()

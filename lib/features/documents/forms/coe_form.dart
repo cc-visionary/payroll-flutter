@@ -130,6 +130,33 @@ class _CoeFormState extends ConsumerState<CoeForm> {
             style: TextStyle(color: Colors.orange, fontSize: 12),
           ),
         ),
+      const SizedBox(height: 16),
+      _label('Place of Issuance'),
+      const SizedBox(height: 4),
+      TextFormField(
+        initialValue: _i.place,
+        decoration: const InputDecoration(
+          hintText: 'e.g. Makati City',
+          isDense: true,
+        ),
+        onChanged: (v) => _set(_i.copyWith(place: v)),
+      ),
+      if (_err('place') != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(_err('place')!,
+              style: const TextStyle(color: Colors.red, fontSize: 12)),
+        ),
+      const SizedBox(height: 16),
+      _label('Date Issued'),
+      const SizedBox(height: 4),
+      DateField(
+        value: _i.dateIssued,
+        locked: false,
+        onChanged: (d) {
+          if (d != null) _set(_i.copyWith(dateIssued: d));
+        },
+      ),
         ],
       ),
     );

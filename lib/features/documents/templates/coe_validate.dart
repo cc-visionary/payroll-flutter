@@ -30,5 +30,8 @@ List<ValidationError> validateCoe(CoeInputs i) {
     errs.add(const ValidationError(
         'hrManagerName', 'HR manager name is required.'));
   }
+  if (i.place.trim().isEmpty) {
+    errs.add(const ValidationError('place', 'Place of issuance is required.'));
+  }
   return errs;
 }

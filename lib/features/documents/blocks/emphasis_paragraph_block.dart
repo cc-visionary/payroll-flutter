@@ -14,12 +14,16 @@ class EmphasisSpan {
 /// callout.
 class EmphasisParagraphBlock extends Block {
   final List<EmphasisSpan> spans;
-  const EmphasisParagraphBlock({required this.spans});
+  final pw.TextAlign align;
+  const EmphasisParagraphBlock({
+    required this.spans,
+    this.align = pw.TextAlign.justify,
+  });
 
   @override
   pw.Widget toPdf(PdfTheme theme) {
     return pw.RichText(
-      textAlign: pw.TextAlign.justify,
+      textAlign: align,
       text: pw.TextSpan(
         style: pw.TextStyle(
           fontSize: theme.bodySize,
