@@ -12,7 +12,7 @@ class BulletListBlock extends Block {
         children: [
           for (final item in items)
             pw.Padding(
-              padding: const pw.EdgeInsets.only(bottom: 4),
+              padding: const pw.EdgeInsets.only(bottom: 2),
               child: pw.Bullet(
                 text: item,
                 style: pw.TextStyle(

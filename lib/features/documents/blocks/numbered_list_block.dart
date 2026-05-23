@@ -13,7 +13,7 @@ class NumberedListBlock extends Block {
       children: [
         for (var i = 0; i < items.length; i++)
           pw.Padding(
-            padding: const pw.EdgeInsets.only(bottom: 4),
+            padding: const pw.EdgeInsets.only(bottom: 2),
             child: pw.Row(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [

@@ -14,7 +14,7 @@ class ParagraphBlock extends Block {
         style: pw.TextStyle(
           fontSize: theme.bodySize,
           color: theme.textColor,
-          lineSpacing: 1.5,
+          lineSpacing: 1.0,
         ),
       );
 }

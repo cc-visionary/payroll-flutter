@@ -24,7 +24,7 @@ class EmphasisParagraphBlock extends Block {
         style: pw.TextStyle(
           fontSize: theme.bodySize,
           color: theme.textColor,
-          lineSpacing: 1.5,
+          lineSpacing: 1.0,
         ),
         children: [
           for (final s in spans)

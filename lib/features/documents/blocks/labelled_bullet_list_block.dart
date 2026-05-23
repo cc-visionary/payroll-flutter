@@ -44,7 +44,7 @@ class LabelledBulletListBlock extends Block {
     final glyph = nested ? '○' : '•';
     final indent = nested ? 36.0 : 12.0;
     return pw.Padding(
-      padding: pw.EdgeInsets.only(left: indent, bottom: 6),
+      padding: pw.EdgeInsets.only(left: indent, bottom: 2),
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [

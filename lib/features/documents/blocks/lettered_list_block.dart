@@ -22,7 +22,7 @@ class LetteredListBlock extends Block {
       children: [
         for (var i = 0; i < items.length; i++)
           pw.Padding(
-            padding: const pw.EdgeInsets.only(left: 12, bottom: 6),
+            padding: const pw.EdgeInsets.only(left: 12, bottom: 2),
             child: pw.Row(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
