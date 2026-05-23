@@ -578,7 +578,7 @@ class EmploymentContractTemplate
 
     // 17. The 17 numbered clauses.
     void section(int n, List<Block> body) {
-      blocks.add(const SpacerBlock(12));
+      blocks.add(const SpacerBlock(10));
       blocks.add(SectionHeadingBlock(number: n, title: _sectionTitles[n - 1]));
       blocks.addAll(body);
     }
@@ -594,7 +594,7 @@ class EmploymentContractTemplate
         'probationStart': dateOrDash(i.probationStart),
         'probationEnd': dateOrDash(i.probationEnd),
       })),
-      const SpacerBlock(8),
+      const SpacerBlock(6),
       const ParagraphBlock(_s3PeriodP2),
     ]);
     section(4, const [ParagraphBlock(_s4Evaluation)]);
@@ -628,7 +628,9 @@ class EmploymentContractTemplate
     ]);
     section(10, const [
       ParagraphBlock(_s10DeductionsIntro),
+      SpacerBlock(4),
       BulletListBlock(_s10DeductionsBullets),
+      SpacerBlock(4),
       ParagraphBlock(_s10DeductionsClose),
     ]);
     section(11, const [ParagraphBlock(_s11Disciplinary)]);
@@ -636,13 +638,18 @@ class EmploymentContractTemplate
       EmphasisParagraphBlock(
           spans: _boldValueSpans(_s12NonCompeteIntro,
               {'nonCompeteMonths': '${i.nonCompeteMonths}'})),
+      const SpacerBlock(4),
       const BulletListBlock(_s12NonCompeteBullets),
+      const SpacerBlock(4),
       const ParagraphBlock(_s12NonCompeteP2),
+      const SpacerBlock(6),
       const ParagraphBlock(_s12NonCompeteP3),
     ]);
     section(13, const [
       ParagraphBlock(_s13TerminationIntro),
+      SpacerBlock(4),
       LetteredListBlock(_s13TerminationGrounds),
+      SpacerBlock(4),
       ParagraphBlock(_s13TerminationClose),
     ]);
     section(14, const [ParagraphBlock(_s14FinalPay)]);

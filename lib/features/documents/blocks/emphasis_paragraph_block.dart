@@ -19,11 +19,12 @@ class EmphasisParagraphBlock extends Block {
   @override
   pw.Widget toPdf(PdfTheme theme) {
     return pw.RichText(
+      textAlign: pw.TextAlign.justify,
       text: pw.TextSpan(
         style: pw.TextStyle(
           fontSize: theme.bodySize,
           color: theme.textColor,
-          lineSpacing: 2,
+          lineSpacing: 1.5,
         ),
         children: [
           for (final s in spans)
