@@ -8,7 +8,9 @@ List<ValidationError> validateEmploymentContract(
     if (empty) errs.add(ValidationError(field, msg));
   }
 
-  req(i.employeeId?.isEmpty ?? true, 'employee', 'Select an employee.');
+  if (i.applicantId == null) {
+    req(i.employeeId?.isEmpty ?? true, 'employee', 'Select an employee.');
+  }
   req(i.companyId.isEmpty, 'company', 'Select a hiring entity.');
   req(i.employeeFullName.trim().isEmpty, 'employeeFullName',
       'Employee name is required.');

@@ -278,10 +278,8 @@ class _ApplicantFormScreenState extends ConsumerState<ApplicantFormScreen> {
 
   Future<void> _autofillSalaryFromScorecard(String scorecardId) async {
     final cards = ref.read(roleScorecardListProvider).asData?.value ?? const [];
-    final card = cards.firstWhere(
-      (c) => c.id == scorecardId,
-      orElse: () => cards.first,
-    );
+    final card = cards.where((c) => c.id == scorecardId).firstOrNull;
+    if (card == null) return;
     if (card.baseSalary != null && _salaryMin.text.trim().isEmpty) {
       _salaryMin.text = card.baseSalary!.toString();
     }
