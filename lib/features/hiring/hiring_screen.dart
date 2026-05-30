@@ -59,11 +59,9 @@ class _HiringScreenState extends ConsumerState<HiringScreen> {
             onEntityChanged: (id) => setState(() => _entityId = id),
           ),
           Expanded(
-            child: _KanbanBody(
-              search: _search,
-              roleId: _roleId,
-              entityId: _entityId,
-            ),
+            child: isMobile(context)
+                ? _StackedList(search: _search, roleId: _roleId, entityId: _entityId)
+                : _KanbanBody(search: _search, roleId: _roleId, entityId: _entityId),
           ),
         ],
       ),
@@ -188,6 +186,61 @@ class _KanbanColumn extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _StackedList extends ConsumerWidget {
+  final String search;
+  final String? roleId;
+  final String? entityId;
+  const _StackedList({required this.search, required this.roleId, required this.entityId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final query = ApplicantListQuery(
+      search: search.trim().isEmpty ? null : search,
+      roleScorecardId: roleId,
+      hiringEntityId: entityId,
+    );
+    final asyncList = ref.watch(applicantListProvider(query));
+    final scorecards = ref.watch(roleScorecardListProvider).asData?.value ?? const [];
+    final entities = ref.watch(hiringEntityListProvider).asData?.value ?? const [];
+    final jobById = {for (final s in scorecards) s.id: s.jobTitle};
+    final entityById = {for (final e in entities) e.id: e.name};
+    return asyncList.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.red))),
+      data: (applicants) {
+        final ordered = [..._kPipelineColumns, ..._kTerminalColumns];
+        final grouped = <String, List<Applicant>>{};
+        for (final a in applicants) {
+          grouped.putIfAbsent(a.status, () => []).add(a);
+        }
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            for (final status in ordered)
+              if ((grouped[status] ?? const []).isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(status,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.4,
+                      )),
+                ),
+                for (final a in grouped[status]!)
+                  ApplicantCard(
+                    applicant: a,
+                    jobTitle: a.roleScorecardId == null ? null : jobById[a.roleScorecardId!],
+                    entityName: a.hiringEntityId == null ? null : entityById[a.hiringEntityId!],
+                  ),
+              ],
+          ],
+        );
+      },
     );
   }
 }
