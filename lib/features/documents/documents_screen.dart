@@ -247,6 +247,7 @@ class _TemplateCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: 280,
+      height: 164,
       child: Card(
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
