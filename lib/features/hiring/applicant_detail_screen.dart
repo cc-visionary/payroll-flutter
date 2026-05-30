@@ -226,25 +226,29 @@ class _StatusActionsBar extends ConsumerWidget {
 
 Future<String?> _basicReasonPrompt(BuildContext context, String label) async {
   final ctl = TextEditingController();
-  return showDialog<String>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(label),
-      content: TextField(
-        controller: ctl,
-        decoration: InputDecoration(labelText: label),
-        maxLines: 3,
+  try {
+    return await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(label),
+        content: TextField(
+          controller: ctl,
+          decoration: InputDecoration(labelText: label),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(null),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(ctl.text.trim()),
+            child: const Text('Confirm'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(ctx).pop(null),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(ctx).pop(ctl.text.trim()),
-          child: const Text('Confirm'),
-        ),
-      ],
-    ),
-  );
+    );
+  } finally {
+    ctl.dispose();
+  }
 }
