@@ -8,11 +8,24 @@ import '../blocks/block.dart';
 /// Read-only context handed to a template's autofill / gates methods.
 /// `ref` is provided so a template can pull from any Riverpod provider
 /// (employment events, payslip aggregates, etc.).
+///
+/// Exactly one of [employee] or [applicantId] should be set when the template
+/// supports both modes (e.g. EmploymentContractTemplate). Templates that only
+/// know about employees can ignore [applicantId].
 class AutofillContext {
   final Employee? employee;
   final HiringEntity? company;
   final WidgetRef ref;
-  const AutofillContext({this.employee, this.company, required this.ref});
+  /// Set when generating a document for a hiring applicant rather than an
+  /// existing employee. The template is responsible for reading the Applicant
+  /// from [applicantByIdProvider] using this id.
+  final String? applicantId;
+  const AutofillContext({
+    this.employee,
+    this.company,
+    required this.ref,
+    this.applicantId,
+  });
 }
 
 /// Hard block surfaced at the picker step. A non-empty list from

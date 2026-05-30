@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/pdf/interpolate.dart';
 import '../../../data/models/role_scorecard.dart';
+import '../../../data/repositories/applicant_repository.dart';
 
 import '../blocks/block.dart';
 import '../blocks/bullet_list_block.dart';
@@ -19,6 +20,7 @@ import '../blocks/signature_line_block.dart';
 import '../blocks/spacer_block.dart';
 import '../blocks/title_block.dart';
 import '../providers.dart';
+import 'contract_person.dart';
 import 'document_template.dart';
 import 'employment_contract_inputs.dart';
 import 'employment_contract_validate.dart';
@@ -469,6 +471,133 @@ class EmploymentContractTemplate
 
   @override
   Future<EmploymentContractInputs> autofill(AutofillContext ctx) async {
+    // ---------------------------------------------------------------
+    // Shared helpers — used by both branches.
+    // ---------------------------------------------------------------
+    String periodFromWageType(String? wt) {
+      switch ((wt ?? '').toUpperCase()) {
+        case 'DAILY':
+          return 'day';
+        case 'HOURLY':
+          return 'hour';
+        default:
+          return 'month';
+      }
+    }
+
+    Future<RoleScorecard?> readScorecard(String? id) async {
+      if (id == null || id.isEmpty) return null;
+      try {
+        return await ctx.ref.read(roleScorecardByIdProvider(id).future);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    // ---------------------------------------------------------------
+    // APPLICANT MODE — generate a pre-filled offer / contract for a
+    // hiring candidate. Probation dates are intentionally left null
+    // (the form user supplies them; the applicant has no hireDate yet).
+    // Address and gender are also blank — captured at conversion time.
+    // ---------------------------------------------------------------
+    if (ctx.applicantId != null) {
+      final applicant = await ctx.ref
+          .read(applicantByIdProvider(ctx.applicantId!).future);
+      if (applicant == null) return emptyInputs();
+
+      final person = ContractPerson.fromApplicant(applicant);
+
+      RoleScorecard? scorecard;
+      try {
+        scorecard = await readScorecard(person.roleScorecardId);
+      } catch (_) {
+        scorecard = null;
+      }
+
+      // Hiring entity — prefer the applicant's own hiringEntityId (set
+      // at sourcing / screening time). Fall back to ctx.company when
+      // the caller has already resolved it (e.g. from a picker).
+      String? entityId = person.hiringEntityId;
+      final entity = (entityId != null && entityId.isNotEmpty)
+          ? await () async {
+              try {
+                return await ctx.ref
+                    .read(hiringEntityByIdProvider(entityId).future);
+              } catch (_) {
+                return null;
+              }
+            }()
+          : ctx.company;
+
+      final repName = entity?.hrManagerName ?? ctx.company?.hrManagerName ?? '';
+      final repRole = (entity?.legalSignatoryRole?.isNotEmpty == true)
+          ? entity!.legalSignatoryRole!
+          : (ctx.company?.legalSignatoryRole?.isNotEmpty == true)
+              ? ctx.company!.legalSignatoryRole!
+              : 'People Manager';
+
+      final place = <String?>[
+        entity?.city ?? ctx.company?.city,
+        entity?.province ?? ctx.company?.province,
+        'Philippines',
+      ].where((s) => s != null && s.isNotEmpty).cast<String>().join(', ');
+
+      // Salary: prefer scorecard baseSalary; fall back to applicant's
+      // expected_salary_max (the "hint" value on ContractPerson).
+      final salarySource = scorecard?.baseSalary ?? person.salaryHint;
+      final monthlySalary = salarySource == null
+          ? ''
+          : NumberFormat('#,##0', 'en_US').format(salarySource.toDouble());
+
+      return EmploymentContractInputs(
+        applicantId: applicant.id,
+        employeeFullName: person.fullName,
+        // Applicants have no address in the schema today — left blank.
+        employeeAddress: '',
+        companyId: entity?.id ?? ctx.company?.id ?? '',
+        companyName: entity?.name ?? ctx.company?.name ?? '',
+        companyAddress: _composeAddress(
+          entity?.addressLine1 ?? ctx.company?.addressLine1,
+          entity?.addressLine2 ?? ctx.company?.addressLine2,
+          entity?.city ?? ctx.company?.city,
+          entity?.province ?? ctx.company?.province,
+          entity?.zipCode ?? ctx.company?.zipCode,
+        ),
+        representativeName: repName,
+        representativeRole: repRole,
+        place: place,
+        dateEntered: DateTime.now(),
+        industry: 'Retail Industry',
+        position: scorecard?.jobTitle ?? '',
+        // probationStart / probationEnd intentionally omitted (null) —
+        // the applicant has no hireDate; the user fills them in.
+        monthlySalary: monthlySalary,
+        salaryPeriod: periodFromWageType(scorecard?.wageType),
+        workHoursPerDay: scorecard?.workHoursPerDay ?? 8,
+        workDaysPerWeek: scorecard?.workDaysPerWeek ?? 'Monday to Saturday',
+        nonCompeteMonths: 24,
+        employerSignatoryName: repName,
+        employerSignatoryRole: repRole,
+        missionStatement: scorecard?.missionStatement ?? '',
+        responsibilities: scorecard == null
+            ? const []
+            : scorecard.responsibilities
+                .map((r) =>
+                    ContractResponsibility(area: r.area, tasks: r.tasks))
+                .toList(),
+        kpis: scorecard == null
+            ? const []
+            : scorecard.kpis
+                .map((k) =>
+                    ContractKpi(metric: k.metric, frequency: k.frequency))
+                .toList(),
+        logoBytes: null,
+      );
+    }
+
+    // ---------------------------------------------------------------
+    // EMPLOYEE MODE — existing behaviour, unchanged.
+    // ---------------------------------------------------------------
     final emp = ctx.employee;
     if (emp == null) return emptyInputs();
     final co = ctx.company;
@@ -523,17 +652,6 @@ class EmploymentContractTemplate
     final monthlySalary = salary == null
         ? ''
         : NumberFormat('#,##0', 'en_US').format(salary.toDouble());
-
-    String periodFromWageType(String? wt) {
-      switch ((wt ?? '').toUpperCase()) {
-        case 'DAILY':
-          return 'day';
-        case 'HOURLY':
-          return 'hour';
-        default:
-          return 'month';
-      }
-    }
 
     return EmploymentContractInputs(
       employeeId: emp.id,
