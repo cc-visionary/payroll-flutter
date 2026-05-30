@@ -8,6 +8,7 @@ import '../../data/repositories/applicant_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../../data/repositories/hiring_entity_repository.dart';
 import 'applicant_status.dart';
+import 'offer_letter_action.dart';
 import 'widgets/reject_dialog.dart';
 import 'widgets/withdraw_dialog.dart';
 
@@ -93,7 +94,28 @@ class _Body extends ConsumerWidget {
                     style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
             ]),
             const SizedBox(height: 16),
-            _StatusActionsBar(a: a),
+            // Actions area: status transitions + offer letter. Wrap reflows
+            // the two clusters onto separate lines on narrow screens instead
+            // of overflowing.
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _StatusActionsBar(a: a),
+                FilledButton.icon(
+                  onPressed: a.roleScorecardId == null
+                      ? null
+                      : () => showOfferLetterPreview(
+                            context,
+                            applicant: a,
+                            ref: ref,
+                          ),
+                  icon: const Icon(Icons.picture_as_pdf_outlined),
+                  label: const Text('Generate Offer Letter'),
+                ),
+              ],
+            ),
             const SizedBox(height: 24),
             // Actions row — Status dropdown + Generate Offer + Convert all land in Tasks 17–19, 24, 26.
             _DetailField('Email', a.email),
