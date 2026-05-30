@@ -95,6 +95,33 @@ class _Body extends ConsumerWidget {
                     style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
             ]),
             const SizedBox(height: 16),
+            if (a.convertedToEmployeeId != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle_outline,
+                        color: Colors.green, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Hired on ${a.convertedAt?.toIso8601String().substring(0, 10) ?? '—'}',
+                      style: const TextStyle(color: Colors.green),
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: () =>
+                          context.go('/employees/${a.convertedToEmployeeId}'),
+                      child: const Text('View employee →'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             // Actions area: status transitions + offer letter. Wrap reflows
             // the two clusters onto separate lines on narrow screens instead
             // of overflowing.
