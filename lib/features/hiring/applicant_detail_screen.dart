@@ -8,6 +8,7 @@ import '../../data/repositories/applicant_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../../data/repositories/hiring_entity_repository.dart';
 import 'applicant_status.dart';
+import 'convert_action.dart';
 import 'offer_letter_action.dart';
 import 'widgets/reject_dialog.dart';
 import 'widgets/withdraw_dialog.dart';
@@ -113,6 +114,13 @@ class _Body extends ConsumerWidget {
                           ),
                   icon: const Icon(Icons.picture_as_pdf_outlined),
                   label: const Text('Generate Offer Letter'),
+                ),
+                FilledButton.icon(
+                  onPressed: a.status == 'OFFER_ACCEPTED'
+                      ? () => convertApplicantToEmployee(context, ref, a)
+                      : null,
+                  icon: const Icon(Icons.person_add_alt_outlined),
+                  label: const Text('Convert to Employee'),
                 ),
               ],
             ),
