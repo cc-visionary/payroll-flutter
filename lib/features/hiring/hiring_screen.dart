@@ -11,20 +11,26 @@ import '../../data/repositories/hiring_entity_repository.dart';
 import '../auth/profile_provider.dart';
 import 'widgets/applicant_card.dart';
 
-class HiringScreen extends ConsumerWidget {
+class HiringScreen extends ConsumerStatefulWidget {
   const HiringScreen({super.key});
+  @override
+  ConsumerState<HiringScreen> createState() => _HiringScreenState();
+}
+
+class _HiringScreenState extends ConsumerState<HiringScreen> {
+  String _search = '';
+  String? _roleId;
+  String? _entityId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final profile = ref.watch(userProfileProvider).asData?.value;
     final canManage = profile?.isHrOrAdmin ?? false;
     if (!canManage) {
       return Scaffold(
         drawer: isMobile(context) ? const AppDrawer() : null,
         appBar: AppBar(title: const Text('Hiring')),
-        body: const Center(
-          child: Text('You do not have permission to view applicants.'),
-        ),
+        body: const Center(child: Text('You do not have permission to view applicants.')),
       );
     }
     return Scaffold(
@@ -42,7 +48,25 @@ class HiringScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: _KanbanBody(),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _TopFilters(
+            onSearchChanged: (s) => setState(() => _search = s),
+            roleId: _roleId,
+            onRoleChanged: (id) => setState(() => _roleId = id),
+            entityId: _entityId,
+            onEntityChanged: (id) => setState(() => _entityId = id),
+          ),
+          Expanded(
+            child: _KanbanBody(
+              search: _search,
+              roleId: _roleId,
+              entityId: _entityId,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -59,9 +83,19 @@ const _kPipelineColumns = <String>[
 const _kTerminalColumns = <String>['REJECTED', 'WITHDRAWN'];
 
 class _KanbanBody extends ConsumerWidget {
+  final String search;
+  final String? roleId;
+  final String? entityId;
+  const _KanbanBody({required this.search, required this.roleId, required this.entityId});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncList = ref.watch(applicantListProvider(const ApplicantListQuery()));
+    final query = ApplicantListQuery(
+      search: search.trim().isEmpty ? null : search,
+      roleScorecardId: roleId,
+      hiringEntityId: entityId,
+    );
+    final asyncList = ref.watch(applicantListProvider(query));
     final asyncScorecards = ref.watch(roleScorecardListProvider);
     final asyncEntities = ref.watch(hiringEntityListProvider);
     return asyncList.when(
@@ -152,6 +186,69 @@ class _KanbanColumn extends StatelessWidget {
               jobTitle: a.roleScorecardId == null ? null : jobById[a.roleScorecardId!],
               entityName: a.hiringEntityId == null ? null : entityById[a.hiringEntityId!],
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TopFilters extends ConsumerWidget {
+  final ValueChanged<String> onSearchChanged;
+  final String? roleId;
+  final ValueChanged<String?> onRoleChanged;
+  final String? entityId;
+  final ValueChanged<String?> onEntityChanged;
+  const _TopFilters({
+    required this.onSearchChanged,
+    required this.roleId,
+    required this.onRoleChanged,
+    required this.entityId,
+    required this.onEntityChanged,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scorecards = ref.watch(roleScorecardListProvider).asData?.value ?? const [];
+    final entities = ref.watch(hiringEntityListProvider).asData?.value ?? const [];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          SizedBox(
+            width: 260,
+            child: TextField(
+              decoration: const InputDecoration(
+                isDense: true,
+                prefixIcon: Icon(Icons.search, size: 18),
+                hintText: 'Search name or email',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: onSearchChanged,
+            ),
+          ),
+          DropdownButton<String?>(
+            value: roleId,
+            hint: const Text('All roles'),
+            items: [
+              const DropdownMenuItem<String?>(value: null, child: Text('All roles')),
+              for (final s in scorecards)
+                DropdownMenuItem<String?>(value: s.id, child: Text(s.jobTitle)),
+            ],
+            onChanged: onRoleChanged,
+          ),
+          DropdownButton<String?>(
+            value: entityId,
+            hint: const Text('All brands'),
+            items: [
+              const DropdownMenuItem<String?>(value: null, child: Text('All brands')),
+              for (final e in entities)
+                DropdownMenuItem<String?>(value: e.id, child: Text(e.name)),
+            ],
+            onChanged: onEntityChanged,
+          ),
         ],
       ),
     );
