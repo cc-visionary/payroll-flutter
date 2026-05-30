@@ -98,3 +98,49 @@ class Applicant {
       .cast<String>()
       .join(' ');
 }
+
+extension ApplicantFromRow on Applicant {
+  static Applicant fromRow(Map<String, dynamic> r) {
+    Decimal? dec(Object? v) => v == null ? null : Decimal.parse(v.toString());
+    DateTime? dt(Object? v) => v == null ? null : DateTime.parse(v as String);
+    return Applicant(
+      id: r['id'] as String,
+      companyId: r['company_id'] as String,
+      firstName: r['first_name'] as String,
+      middleName: r['middle_name'] as String?,
+      lastName: r['last_name'] as String,
+      suffix: r['suffix'] as String?,
+      email: r['email'] as String,
+      phoneNumber: r['phone_number'] as String?,
+      mobileNumber: r['mobile_number'] as String?,
+      roleScorecardId: r['role_scorecard_id'] as String?,
+      customJobTitle: r['custom_job_title'] as String?,
+      departmentId: r['department_id'] as String?,
+      hiringEntityId: r['hiring_entity_id'] as String?,
+      source: r['source'] as String?,
+      referredById: r['referred_by_id'] as String?,
+      linkedinUrl: r['linkedin_url'] as String?,
+      portfolioUrl: r['portfolio_url'] as String?,
+      resumePath: r['resume_path'] as String?,
+      resumeFileName: r['resume_file_name'] as String?,
+      coverLetterPath: r['cover_letter_path'] as String?,
+      offerLetterPath: r['offer_letter_path'] as String?,
+      expectedSalaryMin: dec(r['expected_salary_min']),
+      expectedSalaryMax: dec(r['expected_salary_max']),
+      expectedStartDate: dt(r['expected_start_date']),
+      status: r['status'] as String,
+      statusChangedAt: dt(r['status_changed_at'])!,
+      statusChangedById: r['status_changed_by_id'] as String?,
+      notes: r['notes'] as String?,
+      rejectionReason: r['rejection_reason'] as String?,
+      withdrawalReason: r['withdrawal_reason'] as String?,
+      convertedToEmployeeId: r['converted_to_employee_id'] as String?,
+      convertedAt: dt(r['converted_at']),
+      appliedAt: dt(r['applied_at'])!,
+      createdById: r['created_by_id'] as String?,
+      createdAt: dt(r['created_at'])!,
+      updatedAt: dt(r['updated_at'])!,
+      deletedAt: dt(r['deleted_at']),
+    );
+  }
+}
