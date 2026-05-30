@@ -703,14 +703,14 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       final filename = filenameForDocument(
         templateId: 'employment_contract',
         employeeNumber: null,
-        employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
+        employeeId: (inputs.employeeId?.isEmpty ?? true) ? '00000000' : inputs.employeeId!,
         date: inputs.dateEntered,
       );
       final who = inputs.employeeFullName.trim().isNotEmpty
           ? inputs.employeeFullName.trim()
-          : (inputs.employeeId.isEmpty
+          : ((inputs.employeeId?.isEmpty ?? true)
               ? '(unknown employee)'
-              : inputs.employeeId);
+              : inputs.employeeId!);
       return _previewWithBanner(
         errors,
         filename,
@@ -725,7 +725,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
             metadata: {
               'template_id': 'employment_contract',
               'employee_id':
-                  inputs.employeeId.isEmpty ? null : inputs.employeeId,
+                  (inputs.employeeId?.isEmpty ?? true) ? null : inputs.employeeId,
               'file_name': filename,
               'action': action,
             },

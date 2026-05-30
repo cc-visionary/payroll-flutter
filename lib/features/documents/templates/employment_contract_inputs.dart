@@ -20,7 +20,10 @@ const Object _unset = Object();
 
 class EmploymentContractInputs extends TemplateInputs {
   // Parties
-  final String employeeId;
+  // Exactly one of these must be populated. Applicant-mode generates an
+  // offer letter; Employee-mode generates the regularization contract.
+  final String? employeeId;
+  final String? applicantId;
   final String employeeFullName;
   final String employeeAddress;
   final String companyId;
@@ -55,7 +58,8 @@ class EmploymentContractInputs extends TemplateInputs {
   final Uint8List? logoBytes;
 
   EmploymentContractInputs({
-    required this.employeeId,
+    this.employeeId,
+    this.applicantId,
     required this.employeeFullName,
     required this.employeeAddress,
     required this.companyId,
@@ -84,10 +88,14 @@ class EmploymentContractInputs extends TemplateInputs {
     this.responsibilities = const [],
     this.kpis = const [],
     this.logoBytes,
-  });
+  }) : assert(
+          (employeeId == null) != (applicantId == null),
+          'Exactly one of employeeId or applicantId must be set',
+        );
 
   EmploymentContractInputs copyWith({
-    String? employeeId,
+    Object? employeeId = _unset,
+    Object? applicantId = _unset,
     String? employeeFullName,
     String? employeeAddress,
     String? companyId,
@@ -118,7 +126,12 @@ class EmploymentContractInputs extends TemplateInputs {
     Uint8List? logoBytes,
   }) =>
       EmploymentContractInputs(
-        employeeId: employeeId ?? this.employeeId,
+        employeeId: identical(employeeId, _unset)
+            ? this.employeeId
+            : employeeId as String?,
+        applicantId: identical(applicantId, _unset)
+            ? this.applicantId
+            : applicantId as String?,
         employeeFullName: employeeFullName ?? this.employeeFullName,
         employeeAddress: employeeAddress ?? this.employeeAddress,
         companyId: companyId ?? this.companyId,
@@ -158,6 +171,7 @@ class EmploymentContractInputs extends TemplateInputs {
   @override
   Map<String, dynamic> toDebugMap() => {
         'employeeId': employeeId,
+        'applicantId': applicantId,
         'companyId': companyId,
         'position': position,
         'responsibilityCount': responsibilities.length,

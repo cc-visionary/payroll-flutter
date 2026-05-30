@@ -145,7 +145,7 @@ class _EmploymentContractFormState
           _label('Employee'),
           const SizedBox(height: 4),
           EmployeePicker(
-            selectedId: _i.employeeId.isEmpty ? null : _i.employeeId,
+            selectedId: (_i.employeeId?.isEmpty ?? true) ? null : _i.employeeId,
             locked: widget.employeeLocked,
             includeArchived: false,
             onChanged: (id) {
