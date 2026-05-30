@@ -14,12 +14,59 @@ import '../../data/repositories/role_scorecard_repository.dart';
 import '../auth/profile_provider.dart';
 import '../payroll/constants.dart';
 
+/// A subset of Applicant fields the EmployeeFormScreen can prefill from on
+/// conversion. Keeping this as a separate value object (rather than coupling
+/// the EmployeeFormScreen to the Applicant model directly) keeps the form
+/// independent of the hiring feature.
+class ApplicantSeed {
+  final String firstName;
+  final String? middleName;
+  final String lastName;
+  final String? suffix;
+  final String email;
+  final String? phoneNumber;
+  final String? mobileNumber;
+  final String? roleScorecardId;
+  final String? hiringEntityId;
+  final String? departmentId;
+  final String? referredById;
+  final DateTime? expectedStartDate;
+  final String? offerSalary; // expected_salary_max as a Decimal string
+  const ApplicantSeed({
+    required this.firstName,
+    this.middleName,
+    required this.lastName,
+    this.suffix,
+    required this.email,
+    this.phoneNumber,
+    this.mobileNumber,
+    this.roleScorecardId,
+    this.hiringEntityId,
+    this.departmentId,
+    this.referredById,
+    this.expectedStartDate,
+    this.offerSalary,
+  });
+}
+
 /// Create/edit form for an Employee.
 /// - /employees/new    → create
 /// - /employees/:id    → edit existing
 class EmployeeFormScreen extends ConsumerStatefulWidget {
   final String? employeeId;
-  const EmployeeFormScreen({super.key, this.employeeId});
+
+  /// When non-null, the form opens in "create from applicant" mode: fields
+  /// are prefilled from the applicant and, on save, the caller is given the
+  /// new employee id so it can call `applicantRepository.markConverted`.
+  final ApplicantSeed? applicantSeed;
+  final ValueChanged<String>? onCreatedFromApplicant;
+
+  const EmployeeFormScreen({
+    super.key,
+    this.employeeId,
+    this.applicantSeed,
+    this.onCreatedFromApplicant,
+  });
 
   @override
   ConsumerState<EmployeeFormScreen> createState() => _EmployeeFormScreenState();
@@ -98,7 +145,27 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
     super.initState();
     if (_isEdit) {
       Future.microtask(_loadExisting);
+    } else if (widget.applicantSeed != null) {
+      _applyApplicantSeed(widget.applicantSeed!);
     }
+  }
+
+  void _applyApplicantSeed(ApplicantSeed s) {
+    _firstName.text = s.firstName;
+    _middleName.text = s.middleName ?? '';
+    _lastName.text = s.lastName;
+    // Note: the form has no suffix or personal phone field — only work email
+    // and mobile. Map accordingly.
+    _workEmail.text = s.email;
+    _mobile.text = s.mobileNumber ?? s.phoneNumber ?? '';
+    _roleScorecardId = s.roleScorecardId;
+    _hireDate = s.expectedStartDate ?? DateTime.now();
+    // hiringEntityId, departmentId, and referredById are not direct form
+    // fields — they are derived from the role scorecard or stored on the
+    // applicant record. HR can set them after save if needed.
+    // offerSalary: intentionally not applied to declaredWageOverride here;
+    // that is a statutory/tax-calc field (SUPER_ADMIN only). HR can fill it
+    // manually after conversion if the negotiated salary differs.
   }
 
   Future<void> _loadExisting() async {
@@ -287,6 +354,14 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
             pagibigEligibilityOverride:
                 pagibigOverrideDirty ? _pagibigEligibilityOverride : null,
           );
+      // Notify the hiring flow on a successful CREATE (not update) so it can
+      // mark the applicant as converted. Only fires when an ApplicantSeed was
+      // provided — never fires on edit.
+      if (_existing == null &&
+          widget.applicantSeed != null &&
+          widget.onCreatedFromApplicant != null) {
+        widget.onCreatedFromApplicant!(saved.id);
+      }
       // Record a SEPARATION_CONFIRMED timeline event when:
       //   - status transitions from ACTIVE → non-ACTIVE, or
       //   - the employee is already separated and the separation date moves.
