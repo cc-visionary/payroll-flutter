@@ -40,6 +40,12 @@ class _ApplicantFormScreenState extends ConsumerState<ApplicantFormScreen> {
   String? _referredById;
   final _linkedin = TextEditingController();
   final _portfolio = TextEditingController();
+  // Offer
+  final _salaryMin = TextEditingController();
+  final _salaryMax = TextEditingController();
+  DateTime? _expectedStartDate;
+  // Notes
+  final _notes = TextEditingController();
 
   @override
   void initState() {
@@ -59,6 +65,9 @@ class _ApplicantFormScreenState extends ConsumerState<ApplicantFormScreen> {
     _source.dispose();
     _linkedin.dispose();
     _portfolio.dispose();
+    _salaryMin.dispose();
+    _salaryMax.dispose();
+    _notes.dispose();
     super.dispose();
   }
 
@@ -83,6 +92,10 @@ class _ApplicantFormScreenState extends ConsumerState<ApplicantFormScreen> {
       _referredById = a.referredById;
       _linkedin.text = a.linkedinUrl ?? '';
       _portfolio.text = a.portfolioUrl ?? '';
+      _salaryMin.text = a.expectedSalaryMin?.toString() ?? '';
+      _salaryMax.text = a.expectedSalaryMax?.toString() ?? '';
+      _expectedStartDate = a.expectedStartDate;
+      _notes.text = a.notes ?? '';
     }
     setState(() {
       _seed = a;
@@ -178,7 +191,10 @@ class _ApplicantFormScreenState extends ConsumerState<ApplicantFormScreen> {
               const _SectionLabel('Role *'),
               _RoleScorecardPicker(
                 value: _roleScorecardId,
-                onChanged: (id) => setState(() => _roleScorecardId = id),
+                onChanged: (id) {
+                  setState(() => _roleScorecardId = id);
+                  if (id != null) _autofillSalaryFromScorecard(id);
+                },
               ),
               const SizedBox(height: 12),
               _HiringEntityPicker(
@@ -200,12 +216,126 @@ class _ApplicantFormScreenState extends ConsumerState<ApplicantFormScreen> {
                 controller: _portfolio,
                 decoration: const InputDecoration(labelText: 'Portfolio URL'),
               ),
-              // Offer + Notes + Save land in Task 15.
+              const SizedBox(height: 24),
+              const _SectionLabel('Offer'),
+              Row(children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _salaryMin,
+                    decoration: const InputDecoration(
+                      labelText: 'Expected salary min (PHP)',
+                      hintText: 'Auto-fills from scorecard baseSalary',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: _salaryMax,
+                    decoration: const InputDecoration(
+                      labelText: 'Expected salary max (PHP)',
+                      hintText: 'Auto-fills from scorecard baseSalary',
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 12),
+              _DatePickerField(
+                label: 'Expected start date',
+                value: _expectedStartDate,
+                onChanged: (d) => setState(() => _expectedStartDate = d),
+              ),
+              const SizedBox(height: 24),
+              const _SectionLabel('Notes'),
+              TextFormField(
+                controller: _notes,
+                maxLines: 4,
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => context.go('/hiring'),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton(
+                    onPressed: _saving ? null : _save,
+                    child: Text(_saving ? 'Saving…' : 'Save'),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _autofillSalaryFromScorecard(String scorecardId) async {
+    final cards = ref.read(roleScorecardListProvider).asData?.value ?? const [];
+    final card = cards.firstWhere(
+      (c) => c.id == scorecardId,
+      orElse: () => cards.first,
+    );
+    if (card.baseSalary != null && _salaryMin.text.trim().isEmpty) {
+      _salaryMin.text = card.baseSalary!.toString();
+    }
+    if (card.baseSalary != null && _salaryMax.text.trim().isEmpty) {
+      _salaryMax.text = card.baseSalary!.toString();
+    }
+  }
+
+  Future<void> _save() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (_roleScorecardId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pick a Role Scorecard before saving.')),
+      );
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      final profile = ref.read(userProfileProvider).asData!.value!;
+      final repo = ref.read(applicantRepositoryProvider);
+      final id = await repo.upsert(
+        id: widget.applicantId,
+        companyId: profile.companyId,
+        firstName: _firstName.text.trim(),
+        middleName: _middleName.text.trim().isEmpty ? null : _middleName.text.trim(),
+        lastName: _lastName.text.trim(),
+        suffix: _suffix.text.trim().isEmpty ? null : _suffix.text.trim(),
+        email: _email.text.trim(),
+        phoneNumber: _phone.text.trim().isEmpty ? null : _phone.text.trim(),
+        mobileNumber: _mobile.text.trim().isEmpty ? null : _mobile.text.trim(),
+        roleScorecardId: _roleScorecardId!,
+        departmentId: _departmentId,
+        hiringEntityId: _hiringEntityId,
+        source: _source.text.trim().isEmpty ? null : _source.text.trim(),
+        referredById: _referredById,
+        linkedinUrl: _linkedin.text.trim().isEmpty ? null : _linkedin.text.trim(),
+        portfolioUrl: _portfolio.text.trim().isEmpty ? null : _portfolio.text.trim(),
+        expectedSalaryMin: _salaryMin.text.trim().isEmpty ? null : _salaryMin.text.trim(),
+        expectedSalaryMax: _salaryMax.text.trim().isEmpty ? null : _salaryMax.text.trim(),
+        expectedStartDate: _expectedStartDate,
+        status: _seed?.status ?? 'NEW',
+        notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
+        setByUserId: profile.userId,
+      );
+      if (!mounted) return;
+      ref.invalidate(applicantListProvider);
+      ref.invalidate(applicantsCountByStatusProvider);
+      context.go('/hiring/$id');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Save failed: $e')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 }
 
@@ -265,6 +395,51 @@ class _HiringEntityPicker extends ConsumerWidget {
           DropdownMenuItem<String?>(value: e.id, child: Text(e.name)),
       ],
       onChanged: onChanged,
+    );
+  }
+}
+
+class _DatePickerField extends StatelessWidget {
+  final String label;
+  final DateTime? value;
+  final ValueChanged<DateTime?> onChanged;
+  const _DatePickerField({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+  @override
+  Widget build(BuildContext context) {
+    return InputDecorator(
+      decoration: InputDecoration(labelText: label),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              value == null
+                  ? 'Pick a date'
+                  : value!.toIso8601String().substring(0, 10),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.calendar_today_outlined, size: 18),
+            onPressed: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: value ?? DateTime.now(),
+                firstDate: DateTime(2020),
+                lastDate: DateTime(2100),
+              );
+              if (picked != null) onChanged(picked);
+            },
+          ),
+          if (value != null)
+            IconButton(
+              icon: const Icon(Icons.clear, size: 18),
+              onPressed: () => onChanged(null),
+            ),
+        ],
+      ),
     );
   }
 }
