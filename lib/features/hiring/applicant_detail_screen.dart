@@ -52,18 +52,14 @@ class _Body extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scorecards = ref.watch(roleScorecardListProvider).asData?.value ?? const [];
     final entities = ref.watch(hiringEntityListProvider).asData?.value ?? const [];
-    final jobTitle = a.roleScorecardId == null
+    final scorecard = a.roleScorecardId == null
         ? null
-        : scorecards.firstWhere(
-            (s) => s.id == a.roleScorecardId,
-            orElse: () => scorecards.first,
-          ).jobTitle;
-    final entityName = a.hiringEntityId == null
+        : scorecards.where((s) => s.id == a.roleScorecardId).firstOrNull;
+    final jobTitle = scorecard?.jobTitle;
+    final entity = a.hiringEntityId == null
         ? null
-        : entities.firstWhere(
-            (e) => e.id == a.hiringEntityId,
-            orElse: () => entities.first,
-          ).name;
+        : entities.where((e) => e.id == a.hiringEntityId).firstOrNull;
+    final entityName = entity?.name;
     return Scaffold(
       appBar: AppBar(
         title: Text(a.fullName),
