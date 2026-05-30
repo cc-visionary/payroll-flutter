@@ -651,6 +651,12 @@ class PayrollComputeService {
       isBenefitsEligible: true,
       isOtEligible: row['is_ot_eligible'] as bool? ?? true,
       isNdEligible: row['is_nd_eligible'] as bool? ?? true,
+      sssEligibilityOverride:
+          (row['sss_eligibility_override'] as bool?) ?? false,
+      philhealthEligibilityOverride:
+          (row['philhealth_eligibility_override'] as bool?) ?? false,
+      pagibigEligibilityOverride:
+          (row['pagibig_eligibility_override'] as bool?) ?? false,
       riceSubsidy: Decimal.zero,
       clothingAllowance: Decimal.zero,
       laundryAllowance: Decimal.zero,

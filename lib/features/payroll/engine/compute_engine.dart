@@ -304,13 +304,30 @@ ComputedPayslip computeEmployeePayslip(
   Decimal pagibigEr = Decimal.zero;
   Decimal currentPeriodTaxable = Decimal.zero;
 
-  final isStatutoryEligible = isEligibleForStatutory(
+  // Base eligibility: the default regularization-date gate. This is what the
+  // withholding-tax block keys off (overrides are per-benefit and do NOT
+  // affect tax).
+  final isStatutoryEligibleBase = isEligibleForStatutory(
     regularization,
     payPeriod,
     profile.isBenefitsEligible,
   );
 
-  if (isStatutoryEligible) {
+  // Per-benefit gating: each statutory benefit fires when the base gate
+  // passes OR the per-benefit override is explicitly set. Admin can
+  // force-enrol an employee in SSS independently of PhilHealth and Pag-IBIG.
+  final sssEligible =
+      isStatutoryEligibleBase || profile.sssEligibilityOverride;
+  final philhealthEligible =
+      isStatutoryEligibleBase || profile.philhealthEligibilityOverride;
+  final pagibigEligible =
+      isStatutoryEligibleBase || profile.pagibigEligibilityOverride;
+
+  // Tax block uses base eligibility unchanged — overrides are per statutory
+  // BENEFIT, not tax. Kept as a separate name to make that contract obvious.
+  final isStatutoryEligible = isStatutoryEligibleBase;
+
+  if (sssEligible || philhealthEligible || pagibigEligible) {
     final sssTable = ruleset.sssTable ?? SSS_TABLE;
     final philhealthTable = ruleset.philhealthTable ?? PHILHEALTH_TABLE;
     final pagibigTable = ruleset.pagibigTable ?? PAGIBIG_TABLE;
@@ -335,20 +352,29 @@ ComputedPayslip computeEmployeePayslip(
       monthlyGross = statutoryDailyRate * _fromInt(26);
     }
 
-    final sssLines = generateSSSLines(monthlyGross, sssTable, periodsPerMonth);
-    lines.add(sssLines.eeLine);
-    sssEe = sssLines.eeLine.amount;
-    sssEr = sssLines.erLine.amount;
+    if (sssEligible) {
+      final sssLines =
+          generateSSSLines(monthlyGross, sssTable, periodsPerMonth);
+      lines.add(sssLines.eeLine);
+      sssEe = sssLines.eeLine.amount;
+      sssEr = sssLines.erLine.amount;
+    }
 
-    final philhealthLines = generatePhilHealthLines(monthlyGross, philhealthTable, periodsPerMonth);
-    lines.add(philhealthLines.eeLine);
-    philhealthEe = philhealthLines.eeLine.amount;
-    philhealthEr = philhealthLines.erLine.amount;
+    if (philhealthEligible) {
+      final philhealthLines =
+          generatePhilHealthLines(monthlyGross, philhealthTable, periodsPerMonth);
+      lines.add(philhealthLines.eeLine);
+      philhealthEe = philhealthLines.eeLine.amount;
+      philhealthEr = philhealthLines.erLine.amount;
+    }
 
-    final pagibigLines = generatePagIBIGLines(monthlyGross, pagibigTable, periodsPerMonth);
-    lines.add(pagibigLines.eeLine);
-    pagibigEe = pagibigLines.eeLine.amount;
-    pagibigEr = pagibigLines.erLine.amount;
+    if (pagibigEligible) {
+      final pagibigLines =
+          generatePagIBIGLines(monthlyGross, pagibigTable, periodsPerMonth);
+      lines.add(pagibigLines.eeLine);
+      pagibigEe = pagibigLines.eeLine.amount;
+      pagibigEr = pagibigLines.erLine.amount;
+    }
   }
 
   // 14. Withholding tax

@@ -77,6 +77,16 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
   DateTime? _origDeclaredWageEffectiveAt;
   String? _origDeclaredWageReason;
 
+  // Per-benefit eligibility overrides. `false` = use the default
+  // regularization-date gate; `true` = force-enrol this employee in the
+  // named benefit even while still probationary.
+  bool _sssEligibilityOverride = false;
+  bool _philhealthEligibilityOverride = false;
+  bool _pagibigEligibilityOverride = false;
+  bool _origSssEligibilityOverride = false;
+  bool _origPhilhealthEligibilityOverride = false;
+  bool _origPagibigEligibilityOverride = false;
+
   bool _loading = false;
   String? _error;
   Employee? _existing;
@@ -152,6 +162,12 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       _origDeclaredWageEffectiveAt = e.declaredWageEffectiveAt;
       _declaredWageReason.text = e.declaredWageReason ?? '';
       _origDeclaredWageReason = e.declaredWageReason;
+      _sssEligibilityOverride = e.sssEligibilityOverride;
+      _origSssEligibilityOverride = e.sssEligibilityOverride;
+      _philhealthEligibilityOverride = e.philhealthEligibilityOverride;
+      _origPhilhealthEligibilityOverride = e.philhealthEligibilityOverride;
+      _pagibigEligibilityOverride = e.pagibigEligibilityOverride;
+      _origPagibigEligibilityOverride = e.pagibigEligibilityOverride;
       setState(() {});
     } finally {
       setState(() => _loading = false);
@@ -175,6 +191,15 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
             _declaredWageType != (_origDeclaredWageType ?? 'MONTHLY') ||
             _declaredWageEffectiveAt != _origDeclaredWageEffectiveAt ||
             _declaredWageReason.text.trim() != (_origDeclaredWageReason ?? ''));
+    // Per-benefit eligibility-override dirty flags. Admin-tier only — gated by
+    // the same `isHrOrAdmin` check used for the rest of this section.
+    final canEditBenefitOverrides = profile.isHrOrAdmin;
+    final sssOverrideDirty = canEditBenefitOverrides &&
+        _sssEligibilityOverride != _origSssEligibilityOverride;
+    final philhealthOverrideDirty = canEditBenefitOverrides &&
+        _philhealthEligibilityOverride != _origPhilhealthEligibilityOverride;
+    final pagibigOverrideDirty = canEditBenefitOverrides &&
+        _pagibigEligibilityOverride != _origPagibigEligibilityOverride;
 
     if (wageDirty) {
       final confirmed = await showDialog<bool>(
@@ -254,6 +279,13 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                 _paymentSourceAccount == null ? null : 'BANK_TRANSFER',
             writeStatutoryEntity: statutoryEntityDirty,
             statutoryEntityId: _statutoryEntityId,
+            sssEligibilityOverride:
+                sssOverrideDirty ? _sssEligibilityOverride : null,
+            philhealthEligibilityOverride: philhealthOverrideDirty
+                ? _philhealthEligibilityOverride
+                : null,
+            pagibigEligibilityOverride:
+                pagibigOverrideDirty ? _pagibigEligibilityOverride : null,
           );
       // Record a SEPARATION_CONFIRMED timeline event when:
       //   - status transitions from ACTIVE → non-ACTIVE, or
@@ -999,6 +1031,53 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
+            ),
+            const Divider(height: 32),
+            Row(children: const [
+              Icon(Icons.health_and_safety_outlined, size: 18),
+              SizedBox(width: 8),
+              Text('Benefit eligibility overrides',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+            ]),
+            const SizedBox(height: 4),
+            const Text(
+              'Force-enrol this employee in a specific statutory benefit even '
+              'while still probationary. Leave off to use the default '
+              'regularization-date rule.',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Turning these on starts contributions immediately for the next '
+              'payroll run.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: const Text('Force-enrol SSS'),
+              value: _sssEligibilityOverride,
+              onChanged: (v) => setState(() => _sssEligibilityOverride = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: const Text('Force-enrol PhilHealth'),
+              value: _philhealthEligibilityOverride,
+              onChanged: (v) =>
+                  setState(() => _philhealthEligibilityOverride = v),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: const Text('Force-enrol Pag-IBIG'),
+              value: _pagibigEligibilityOverride,
+              onChanged: (v) =>
+                  setState(() => _pagibigEligibilityOverride = v),
             ),
           ],
         ),

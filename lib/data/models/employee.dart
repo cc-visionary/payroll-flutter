@@ -38,6 +38,14 @@ class Employee {
   final bool isOtEligible;
   final bool isNdEligible;
   final bool isHolidayPayEligible;
+  /// Per-benefit statutory eligibility overrides. When `false` (default) the
+  /// employee falls under the standard regularization-date gate. When `true`,
+  /// the named benefit is force-enrolled even while still probationary. Each
+  /// flag is independent — admin/HR turns them on per-benefit when starting
+  /// contributions partway through probation.
+  final bool sssEligibilityOverride;
+  final bool philhealthEligibilityOverride;
+  final bool pagibigEligibilityOverride;
   final Decimal? declaredWageOverride;
   final String? declaredWageType;
   final DateTime? declaredWageEffectiveAt;
@@ -85,6 +93,9 @@ class Employee {
     required this.isOtEligible,
     required this.isNdEligible,
     required this.isHolidayPayEligible,
+    this.sssEligibilityOverride = false,
+    this.philhealthEligibilityOverride = false,
+    this.pagibigEligibilityOverride = false,
     this.declaredWageOverride,
     this.declaredWageType,
     this.declaredWageEffectiveAt,
@@ -150,6 +161,12 @@ class Employee {
         isOtEligible: r['is_ot_eligible'] as bool? ?? true,
         isNdEligible: r['is_nd_eligible'] as bool? ?? true,
         isHolidayPayEligible: r['is_holiday_pay_eligible'] as bool? ?? true,
+        sssEligibilityOverride:
+            (r['sss_eligibility_override'] as bool?) ?? false,
+        philhealthEligibilityOverride:
+            (r['philhealth_eligibility_override'] as bool?) ?? false,
+        pagibigEligibilityOverride:
+            (r['pagibig_eligibility_override'] as bool?) ?? false,
         declaredWageOverride: r['declared_wage_override'] == null
             ? null
             : Decimal.parse(r['declared_wage_override'].toString()),

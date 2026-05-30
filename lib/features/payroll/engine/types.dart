@@ -65,6 +65,16 @@ class PayProfileInput {
   final bool isOtEligible;
   final bool isNdEligible;
 
+  /// Per-benefit eligibility overrides. When `true`, the named statutory
+  /// benefit is force-enrolled for this employee even if the base
+  /// regularization gate (`isBenefitsEligible` + regularization date)
+  /// would otherwise exclude them. Each override is independent — they
+  /// do NOT affect the withholding-tax block, which always gates on the
+  /// base eligibility.
+  final bool sssEligibilityOverride;
+  final bool philhealthEligibilityOverride;
+  final bool pagibigEligibilityOverride;
+
   final Decimal riceSubsidy;
   final Decimal clothingAllowance;
   final Decimal laundryAllowance;
@@ -83,6 +93,9 @@ class PayProfileInput {
     required this.isBenefitsEligible,
     required this.isOtEligible,
     required this.isNdEligible,
+    this.sssEligibilityOverride = false,
+    this.philhealthEligibilityOverride = false,
+    this.pagibigEligibilityOverride = false,
     required this.riceSubsidy,
     required this.clothingAllowance,
     required this.laundryAllowance,

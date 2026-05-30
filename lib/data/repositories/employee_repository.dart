@@ -127,6 +127,13 @@ class EmployeeRepository {
     // is meaningful here (clears the override / inherits brand allocation).
     bool writeStatutoryEntity = false,
     String? statutoryEntityId,
+    // Per-benefit eligibility overrides. Only written when non-null so callers
+    // without permission don't accidentally reset them. `true` force-enrols
+    // the employee in the named benefit even while still probationary;
+    // `false` returns to the default regularization-date gate.
+    bool? sssEligibilityOverride,
+    bool? philhealthEligibilityOverride,
+    bool? pagibigEligibilityOverride,
   }) async {
     final payload = <String, dynamic>{
       if (id != null) 'id': id,
@@ -174,6 +181,15 @@ class EmployeeRepository {
     }
     if (writeStatutoryEntity) {
       payload['statutory_entity_id'] = statutoryEntityId;
+    }
+    if (sssEligibilityOverride != null) {
+      payload['sss_eligibility_override'] = sssEligibilityOverride;
+    }
+    if (philhealthEligibilityOverride != null) {
+      payload['philhealth_eligibility_override'] = philhealthEligibilityOverride;
+    }
+    if (pagibigEligibilityOverride != null) {
+      payload['pagibig_eligibility_override'] = pagibigEligibilityOverride;
     }
     Map<String, dynamic> row;
     if (id == null) {
