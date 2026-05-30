@@ -229,14 +229,24 @@ class _RunActions extends ConsumerWidget {
         final allApproved = total > 0 && approved == total;
 
         return Wrap(
-          spacing: 8,
+          spacing: 4,
           runSpacing: 4,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Text('$approved/$total approved',
-                style: Theme.of(context).textTheme.bodySmall),
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Text('$approved/$total approved',
+                  style: Theme.of(context).textTheme.bodySmall),
+            ),
+            // Secondary actions render as icon buttons with tooltips that
+            // surface the count — the "$approved/$total approved" label
+            // above already conveys progress, so labels-on-buttons are
+            // redundant and overflow the narrow Actions column.
             if (draft > 0)
-              OutlinedButton(
+              IconButton(
+                tooltip: 'Send $draft for approval',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.send_outlined, size: 18),
                 onPressed: () async {
                   final messenger = ScaffoldMessenger.of(context);
                   try {
@@ -275,31 +285,37 @@ class _RunActions extends ConsumerWidget {
                     ));
                   }
                 },
-                child: Text('Send ($draft)'),
               ),
             if (pending > 0)
-              OutlinedButton(
+              IconButton(
+                tooltip: 'Refresh — $pending pending',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.refresh, size: 18),
                 onPressed: () {
                   ref.invalidate(payslipApprovalCountsProvider(run.id));
                 },
-                child: Text('Refresh ($pending)'),
               ),
             if (pending > 0)
-              TextButton(
+              IconButton(
+                tooltip: 'Recall sent approvals',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.undo, size: 18),
                 onPressed: () async {
                   await repo.recallPayslipApprovals(run.id);
                   ref.invalidate(payslipApprovalCountsProvider(run.id));
                 },
-                child: const Text('Unsend'),
               ),
-            FilledButton(
-              onPressed: allApproved
-                  ? () async {
-                      await repo.updateStatus(run.id, 'RELEASED');
-                      ref.invalidate(payrollRunsProvider);
-                    }
-                  : null,
-              child: const Text('Release'),
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: FilledButton(
+                onPressed: allApproved
+                    ? () async {
+                        await repo.updateStatus(run.id, 'RELEASED');
+                        ref.invalidate(payrollRunsProvider);
+                      }
+                    : null,
+                child: const Text('Release'),
+              ),
             ),
           ],
         );
