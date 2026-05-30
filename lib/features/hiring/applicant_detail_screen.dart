@@ -9,6 +9,7 @@ import '../../data/repositories/role_scorecard_repository.dart';
 import '../../data/repositories/hiring_entity_repository.dart';
 import 'applicant_status.dart';
 import 'widgets/reject_dialog.dart';
+import 'widgets/withdraw_dialog.dart';
 
 class ApplicantDetailScreen extends ConsumerWidget {
   final String applicantId;
@@ -180,8 +181,8 @@ class _StatusActionsBar extends ConsumerWidget {
     if (reasonField != null) {
       if (target == 'REJECTED') {
         reason = await showRejectDialog(context, a.fullName);
-      } else {
-        reason = await _basicReasonPrompt(context, reasonField);
+      } else if (target == 'WITHDRAWN') {
+        reason = await showWithdrawDialog(context, a.fullName);
       }
       if (reason == null) return;
     }
@@ -224,34 +225,5 @@ class _StatusActionsBar extends ConsumerWidget {
         SnackBar(content: Text('Status change failed: $e')),
       );
     }
-  }
-}
-
-Future<String?> _basicReasonPrompt(BuildContext context, String label) async {
-  final ctl = TextEditingController();
-  try {
-    return await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(label),
-        content: TextField(
-          controller: ctl,
-          decoration: InputDecoration(labelText: label),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(null),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(ctl.text.trim()),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
-    );
-  } finally {
-    ctl.dispose();
   }
 }
