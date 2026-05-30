@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/pdf/pdf_filename.dart';
 import '../../../core/pdf/pdf_theme.dart';
 import '../blocks/block.dart';
-import '../blocks/page_break_block.dart';
 import '../pdf/pdf_builder.dart';
 import '../providers.dart';
 import '../templates/document_template.dart';
@@ -55,7 +54,7 @@ Future<BulkGenerateResult> bulkGenerate({
 }) async {
   final files = <BulkFile>[];
   final skipped = <BulkSkip>[];
-  final combined = <Block>[];
+  final perEmployeeBlocks = <List<Block>>[];
   final today = DateTime.now();
 
   for (final id in employeeIds) {
@@ -101,8 +100,7 @@ Future<BulkGenerateResult> bulkGenerate({
     }
 
     final blocks = template.build(inputs);
-    if (combined.isNotEmpty) combined.add(const PageBreakBlock());
-    combined.addAll(blocks);
+    perEmployeeBlocks.add(blocks);
 
     final bytes = await buildDocumentPdf(blocks: blocks, theme: theme);
     final name = filenameForDocument(
@@ -114,7 +112,16 @@ Future<BulkGenerateResult> bulkGenerate({
     files.add(BulkFile(name, bytes));
   }
 
-  final combinedPdf = await buildDocumentPdf(blocks: combined, theme: theme);
+  // Use a per-employee MultiPage so each employee's "Page X of Y" footer
+  // resets independently (Mark = "Page 1 of 1", Brixter = "Page 1 of 1")
+  // instead of running continuously across the batch. Falls back to an
+  // empty document when no employees produced output.
+  final combinedPdf = perEmployeeBlocks.isEmpty
+      ? await buildDocumentPdf(blocks: const [], theme: theme)
+      : await buildMultiEmployeePdf(
+          employees: perEmployeeBlocks,
+          theme: theme,
+        );
 
   return BulkGenerateResult(
     combinedPdf: combinedPdf,
