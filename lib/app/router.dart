@@ -32,6 +32,7 @@ import '../features/documents/documents_screen.dart';
 import '../features/documents/generate_screen.dart';
 import '../features/hiring/hiring_screen.dart';
 import '../features/hiring/applicant_form_screen.dart';
+import '../features/hiring/applicant_detail_screen.dart';
 import '../features/offboarding/offboarding_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/org_chart/org_chart_screen.dart';
@@ -144,6 +145,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/adjuncts', builder: (c, s) => const AdjunctsScreen()),
           GoRoute(path: '/hiring', builder: (c, s) => const HiringScreen()),
           GoRoute(path: '/hiring/new', builder: (c, s) => const ApplicantFormScreen()),
+          GoRoute(
+            path: '/hiring/:id',
+            builder: (c, s) => ApplicantDetailScreen(applicantId: s.pathParameters['id']!),
+          ),
           GoRoute(
             path: '/hiring/:id/edit',
             builder: (c, s) => ApplicantFormScreen(applicantId: s.pathParameters['id']),
