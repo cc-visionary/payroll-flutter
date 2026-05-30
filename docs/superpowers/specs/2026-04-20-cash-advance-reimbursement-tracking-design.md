@@ -1,7 +1,7 @@
 # Cash Advance & Reimbursement Tracking + Employee Page Polish
 
 **Date:** 2026-04-20
-**Status:** Draft (pending user review)
+**Status:** Implemented (verified 2026-05-30 — all 7 pieces shipped; key commits: e244573 reimbursement skip, 45def49 CA skip, 3e81319 rich Financials card)
 
 ## Summary
 
