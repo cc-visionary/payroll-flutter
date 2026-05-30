@@ -47,6 +47,21 @@ class _ApplicantFormScreenState extends ConsumerState<ApplicantFormScreen> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _firstName.dispose();
+    _middleName.dispose();
+    _lastName.dispose();
+    _suffix.dispose();
+    _email.dispose();
+    _phone.dispose();
+    _mobile.dispose();
+    _source.dispose();
+    _linkedin.dispose();
+    _portfolio.dispose();
+    super.dispose();
+  }
+
   Future<void> _load() async {
     if (widget.applicantId == null) {
       setState(() => _loading = false);
