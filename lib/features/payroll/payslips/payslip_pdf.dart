@@ -900,7 +900,15 @@ pw.TableRow _attendanceRow(
           color: clockOutColor,
           bold: clockOutColor != null),
       _cell(minsText, cellStyle, align: pw.TextAlign.right),
-      _statusCell(row.status, row.holidayName, cellStyle),
+      _statusCell(
+        _effectivePdfStatus(
+          status: row.status,
+          dayType: row.dayType,
+          worked: r?.actualTimeIn != null,
+        ),
+        row.holidayName,
+        cellStyle,
+      ),
       _cell(
         deduction > 0 ? deduction.toStringAsFixed(3) : '-',
         cellStyle,
@@ -978,6 +986,29 @@ pw.Widget _statusCell(
       ],
     ),
   );
+}
+
+/// Resolve the status string the pill should display. Mirrors the in-app
+/// `classifyAttendance` priority: a non-working holiday outranks the raw
+/// 'ABSENT' from the attendance record so the PDF doesn't say "Absent" on
+/// an unworked Regular/Special Holiday. Worked holidays keep 'PRESENT' so
+/// the reader sees the employee showed up — the holiday name still
+/// appears below the pill regardless.
+String _effectivePdfStatus({
+  required String status,
+  required String dayType,
+  required bool worked,
+}) {
+  final s = status.toUpperCase();
+  final d = dayType.toUpperCase();
+  if (s.contains('LEAVE') || d.contains('LEAVE')) return 'ON_LEAVE';
+  if (!worked) {
+    if (d == 'REGULAR_HOLIDAY') return 'REGULAR_HOLIDAY';
+    if (d == 'SPECIAL_HOLIDAY') return 'SPECIAL_HOLIDAY';
+    if (d == 'SPECIAL_WORKING') return 'SPECIAL_WORKING';
+    if (d == 'REST_DAY') return 'REST_DAY';
+  }
+  return s;
 }
 
 /// (human label, background tint, foreground text) per status. Colors are
