@@ -18,6 +18,27 @@ Brixter manages every candidate in Lark threads + an ad-hoc spreadsheet, then re
 
 …all sitting dormant. This spec wires it together.
 
+## Integration principle — reuse, do not duplicate
+
+**Hard rule (user-stated):** every entity the applicant touches is the SAME entity the employee will touch. No parallel tables, no copies of role/department/entity data, no separate "applicant role" or "applicant company" notion.
+
+| Entity | Lives in | Used by applicant via | Carried into employee as | Re-used downstream by |
+|---|---|---|---|---|
+| Role Scorecard | `role_scorecards` table | `applicants.role_scorecard_id` (hard-gated) | `employees.role_scorecard_id` (same FK value) | Employment Contract template (autofill: job_title, baseSalary, responsibilities, KPIs, work hours); Performance MVP (review the role the employee was hired into) |
+| Hiring Entity | `hiring_entities` table | `applicants.hiring_entity_id` | `employees.hiring_entity_id` (same FK value) | Every document template (signatory, address, brand) |
+| Department | `departments` table | `applicants.department_id` | `employees.department_id` (same FK value) | Org chart, reports |
+| Referrer | `employees` table | `applicants.referred_by_id` | (kept on the applicant; not copied to employee) | Future: referral-bonus payroll adjustments |
+| Expected start date | `applicants.expected_start_date` | applicant form | becomes `employees.hireDate` on conversion | All hire-anniversary logic |
+| Offer salary (negotiated) | `applicants.expected_salary_max` | applicant form, defaults from `RoleScorecard.baseSalary` | becomes `employees.declaredWageOverride` if it differs from the scorecard's base | Payroll engine (statutory override path already exists) |
+
+**Concrete consequences applied throughout this spec:**
+
+1. The applicant form's "expected salary" field auto-defaults from `RoleScorecard.baseSalary` when the scorecard is picked — Brixter only changes it if the offer differs from the standard. This keeps the scorecard as the source of truth.
+2. The offer letter renders against the SAME `RoleScorecard` + `HiringEntity` records the Employment Contract uses today. No second template, no second autofill path — just a thin `ContractPerson` adapter that lets the existing template's `autofill(ctx)` source the person identity (name, gender, address) from an Applicant instead of an Employee. Scorecard + entity wiring is unchanged.
+3. On conversion to Employee, FK values are **transferred verbatim** (`applicants.role_scorecard_id → employees.role_scorecard_id`, etc.) — never re-keyed, never copied into a denormalized field.
+4. When Performance MVP lands (Weeks 5-6), reviews read `employees.role_scorecard_id` — which traces straight back to the scorecard chosen on the applicant. The review is against the role the candidate originally applied for. Zero re-modelling.
+5. When Workflows MVP lands (Weeks 3-4), the `OFFER_ACCEPTED → HIRING workflow_instance` reads the SAME `applicants` row to find the role/entity/department for downstream steps (IT setup, equipment, day-1 onboarding). No copies into `workflow_instances.context jsonb`.
+
 ## Decisions locked from brainstorm
 
 1. **Build order**: Hiring → Workflows → Performance (data recommendation).
@@ -105,7 +126,7 @@ Mirrors `employee_form_screen.dart` section structure:
   - Hiring Entity picker
   - Department (optional)
 - **Sourcing**: source (free text or chip from common values: Lark Careers, Referral, LinkedIn, Walk-in, Other), referred_by employee picker (when source = Referral), linkedin_url, portfolio_url
-- **Offer**: expected_salary_min, expected_salary_max, expected_start_date
+- **Offer**: expected_salary_min, expected_salary_max, expected_start_date. **When the Role Scorecard is selected (or changed), both salary fields auto-default to `RoleScorecard.baseSalary`** — Brixter only overrides if the offer differs from the standard. The scorecard remains the source of truth for "what this role pays"; the applicant fields record the actual negotiation outcome.
 - **Status**: NEW for new applicants (initial); edit form shows current status as read-only here — status changes happen on the detail screen, not in the edit form, to enforce the status-transition rules
 - **Notes**: text area
 
@@ -168,15 +189,15 @@ Refactor `EmploymentContractInputs.employeeId` to also accept `applicantId` (one
 **Side benefit**: this refactor also unblocks generating the Employment Contract for any future "render contract from a candidate-like shape" need (e.g. NDA-at-offer-time, contractor agreement templates).
 
 ### 8. Convert to Employee — `lib/features/hiring/convert_action.dart`
-Triggered on OFFER_ACCEPTED applicants. Opens existing `EmployeeFormScreen` in "new employee" mode with these fields pre-filled from the applicant:
+Triggered on OFFER_ACCEPTED applicants. Opens existing `EmployeeFormScreen` in "new employee" mode with these fields pre-filled from the applicant. **FK columns transfer verbatim — same id values, no re-keying, no denormalized copies** (per the integration principle above):
 
 - name parts (first / middle / last / suffix)
 - email, phone_number, mobile_number
-- role_scorecard_id
-- hiring_entity_id, department_id
-- referred_by_id
+- **`role_scorecard_id`** — same FK value (the employee will be reviewed against this same scorecard in Performance, render their Employment Contract from it, etc.)
+- **`hiring_entity_id`, `department_id`** — same FK values
+- referred_by_id (kept on the applicant; not copied)
 - `hireDate = expected_start_date ?? today`
-- `declaredWageOverride` left empty (HR fills final on conversion)
+- `declaredWageOverride`: if `expected_salary_max ≠ RoleScorecard.baseSalary`, prefill with the negotiated offer (the override is exactly the BIR-declared salary, which is what we just negotiated). If equal, leave empty (the scorecard's baseSalary applies by default).
 
 On save (existing flow returns the new employeeId): call `applicantRepository.markConverted(applicantId, employeeId)`. Snackbar: "Hired — converted to {Employee#}". Navigate back to `/hiring/:id` showing the now-HIRED status with a "View employee" link to `/employees/:id`.
 
