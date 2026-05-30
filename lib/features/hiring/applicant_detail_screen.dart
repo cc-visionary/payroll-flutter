@@ -8,6 +8,7 @@ import '../../data/repositories/applicant_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../../data/repositories/hiring_entity_repository.dart';
 import 'applicant_status.dart';
+import 'widgets/reject_dialog.dart';
 
 class ApplicantDetailScreen extends ConsumerWidget {
   final String applicantId;
@@ -177,9 +178,11 @@ class _StatusActionsBar extends ConsumerWidget {
     final reasonField = requiresReason(target: target);
     String? reason;
     if (reasonField != null) {
-      // Reason dialogs land in Task 18 (REJECTED) and Task 19 (WITHDRAWN).
-      // For now, prompt with a basic AlertDialog so the transition still works.
-      reason = await _basicReasonPrompt(context, reasonField);
+      if (target == 'REJECTED') {
+        reason = await showRejectDialog(context, a.fullName);
+      } else {
+        reason = await _basicReasonPrompt(context, reasonField);
+      }
       if (reason == null) return;
     }
     final profile = ref.read(userProfileProvider).asData!.value!;
