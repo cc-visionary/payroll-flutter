@@ -25,3 +25,34 @@ String? requiresReason({required String target}) {
     default:           return null;
   }
 }
+
+class IllegalTransition implements Exception {
+  final String from;
+  final String to;
+  IllegalTransition(this.from, this.to);
+  @override
+  String toString() => 'Illegal applicant status transition: $from → $to';
+}
+
+class MissingReason implements Exception {
+  final String reasonField;
+  MissingReason(this.reasonField);
+  @override
+  String toString() => 'Status change requires $reasonField.';
+}
+
+/// Throws on disallowed transition or missing reason. Use BEFORE writing to DB.
+void validateTransition({
+  required String from,
+  required String to,
+  required String? reason,
+}) {
+  if (from == to) return;
+  if (!canTransition(from: from, to: to)) {
+    throw IllegalTransition(from, to);
+  }
+  final reasonField = requiresReason(target: to);
+  if (reasonField != null && (reason == null || reason.trim().isEmpty)) {
+    throw MissingReason(reasonField);
+  }
+}

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../features/hiring/applicant_status.dart';
 import '../models/applicant.dart';
 
 /// Filter parameters for the applicants list. Mirrors EmployeeListQuery
@@ -96,6 +97,93 @@ class ApplicantRepository {
       out[s] = (out[s] ?? 0) + 1;
     }
     return out;
+  }
+
+  /// Create or update an applicant. When [status] differs from the persisted
+  /// row, validates the transition (throws IllegalTransition / MissingReason)
+  /// and stamps status_changed_at = now() + status_changed_by_id.
+  ///
+  /// FK columns (role_scorecard_id, hiring_entity_id, department_id,
+  /// referred_by_id) carry the SAME id values from the form — never copy
+  /// the referenced record's data into a denormalized field on the
+  /// applicant row. Source-of-truth stays on the referenced table.
+  Future<String> upsert({
+    String? id,
+    required String companyId,
+    required String firstName,
+    String? middleName,
+    required String lastName,
+    String? suffix,
+    required String email,
+    String? phoneNumber,
+    String? mobileNumber,
+    required String roleScorecardId,    // hard-gated at form layer
+    String? departmentId,
+    String? hiringEntityId,
+    String? source,
+    String? referredById,
+    String? linkedinUrl,
+    String? portfolioUrl,
+    String? expectedSalaryMin,          // Decimal string or null
+    String? expectedSalaryMax,
+    DateTime? expectedStartDate,
+    required String status,
+    String? rejectionReason,
+    String? withdrawalReason,
+    String? notes,
+    required String setByUserId,
+  }) async {
+    // Look up prior status to detect change.
+    String? priorStatus;
+    if (id != null) {
+      final prior = await _client.from('applicants').select('status').eq('id', id).maybeSingle();
+      priorStatus = prior?['status'] as String?;
+    }
+
+    final isCreate = id == null;
+    final statusChanged = isCreate || (priorStatus != null && priorStatus != status);
+    if (statusChanged && !isCreate) {
+      final reason = status == 'REJECTED'
+          ? rejectionReason
+          : status == 'WITHDRAWN'
+              ? withdrawalReason
+              : null;
+      validateTransition(from: priorStatus!, to: status, reason: reason);
+    }
+
+    final payload = <String, dynamic>{
+      'company_id': companyId,
+      'first_name': firstName,
+      'middle_name': middleName,
+      'last_name': lastName,
+      'suffix': suffix,
+      'email': email,
+      'phone_number': phoneNumber,
+      'mobile_number': mobileNumber,
+      'role_scorecard_id': roleScorecardId,
+      'department_id': departmentId,
+      'hiring_entity_id': hiringEntityId,
+      'source': source,
+      'referred_by_id': referredById,
+      'linkedin_url': linkedinUrl,
+      'portfolio_url': portfolioUrl,
+      'expected_salary_min': expectedSalaryMin,
+      'expected_salary_max': expectedSalaryMax,
+      'expected_start_date': expectedStartDate?.toIso8601String().substring(0, 10),
+      'status': status,
+      'rejection_reason': rejectionReason,
+      'withdrawal_reason': withdrawalReason,
+      'notes': notes,
+      if (statusChanged) 'status_changed_at': DateTime.now().toIso8601String(),
+      if (statusChanged) 'status_changed_by_id': setByUserId,
+      if (isCreate) 'created_by_id': setByUserId,
+    };
+    if (id != null) {
+      await _client.from('applicants').update(payload).eq('id', id);
+      return id;
+    }
+    final inserted = await _client.from('applicants').insert(payload).select('id').single();
+    return inserted['id'] as String;
   }
 }
 
