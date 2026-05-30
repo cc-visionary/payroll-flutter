@@ -13,6 +13,7 @@ import '../../data/repositories/company_settings_repository.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../auth/profile_provider.dart';
+import '../lark/lark_repository.dart';
 import '../../widgets/syncing_dialog.dart';
 import '../../data/repositories/shift_template_repository.dart';
 import '../../data/models/shift_template.dart';
@@ -83,22 +84,48 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     if (picked == null) return;
 
     final messenger = ScaffoldMessenger.of(context);
+    final lark = ref.read(larkRepositoryProvider);
     try {
       final fromIso = picked.start.toIso8601String().substring(0, 10);
       final toIso = picked.end.toIso8601String().substring(0, 10);
-      final res = await runWithSyncingDialog(
+      // Sync attendance + leave approvals + reimbursement approvals together
+      // for the same range — they all flow from Lark approvals and HR expects
+      // one button to pull the whole bundle.
+      final results = await runWithSyncingDialog(
         context,
-        'Attendance ($fromIso → $toIso)',
-        () => Supabase.instance.client.functions.invoke(
-          'sync-lark-attendance',
-          body: {'company_id': companyId, 'from': fromIso, 'to': toIso},
-        ),
+        'Lark sync ($fromIso → $toIso)',
+        () async {
+          final attRes = await Supabase.instance.client.functions.invoke(
+            'sync-lark-attendance',
+            body: {'company_id': companyId, 'from': fromIso, 'to': toIso},
+          );
+          final leavesAndReimbs = await Future.wait([
+            lark.syncLeaves(companyId, from: picked.start, to: picked.end),
+            lark.syncReimbursements(companyId,
+                from: picked.start, to: picked.end),
+          ]);
+          return (
+            attendance: attRes,
+            leaves: leavesAndReimbs[0],
+            reimbursements: leavesAndReimbs[1],
+          );
+        },
       );
-      final data = (res.data as Map?) ?? {};
+
+      final att = (results.attendance.data as Map?) ?? const {};
+      final attLine = att['ok'] == true
+          ? 'Attendance: +${att['created']} ~${att['updated']} skipped ${att['skipped']}'
+          : 'Attendance error: ${att['error'] ?? 'unknown'}';
+      String summaryLine(String label, LarkSyncResult r) =>
+          '$label: +${r.created} ~${r.updated} skipped ${r.skipped}'
+          '${r.errors.isNotEmpty ? ' (${r.errors.length} errors)' : ''}';
       messenger.showSnackBar(SnackBar(
-        content: Text(data['ok'] == true
-            ? 'Sync done — created ${data['created']}, updated ${data['updated']}, skipped ${data['skipped']}'
-            : 'Sync error: ${data['error'] ?? 'unknown'}'),
+        content: Text([
+          attLine,
+          summaryLine('Leaves', results.leaves),
+          summaryLine('Reimbursements', results.reimbursements),
+        ].join('  •  ')),
+        duration: const Duration(seconds: 6),
       ));
       ref.invalidate(attendanceListProvider);
     } catch (e) {
