@@ -185,6 +185,30 @@ class ApplicantRepository {
     final inserted = await _client.from('applicants').insert(payload).select('id').single();
     return inserted['id'] as String;
   }
+
+  /// Atomically stamp `converted_to_employee_id`, `converted_at = now()`,
+  /// and `status = 'HIRED'` on the applicant. Called from the convert flow
+  /// AFTER the new Employee row commits. Uses an update that constrains on
+  /// the prior status to avoid clobbering a record already marked HIRED
+  /// (idempotency).
+  ///
+  /// Note: we transfer the FK value verbatim — never a denormalized copy.
+  Future<void> markConverted({
+    required String applicantId,
+    required String employeeId,
+  }) async {
+    final now = DateTime.now().toIso8601String();
+    await _client
+        .from('applicants')
+        .update({
+          'converted_to_employee_id': employeeId,
+          'converted_at': now,
+          'status': 'HIRED',
+          'status_changed_at': now,
+        })
+        .eq('id', applicantId)
+        .eq('status', 'OFFER_ACCEPTED'); // idempotent guard
+  }
 }
 
 final applicantRepositoryProvider =
