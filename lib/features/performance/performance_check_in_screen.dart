@@ -98,7 +98,7 @@ class _Body extends ConsumerWidget {
             const SizedBox(height: 24),
             _ManagerReviewSection(c: c),
             const SizedBox(height: 24),
-            const Text('Status Actions land in Task 21.'),
+            _StatusActions(c: c),
           ],
         ),
       ),
@@ -775,5 +775,61 @@ class _ManagerReviewSectionState extends ConsumerState<_ManagerReviewSection> {
         ),
       ),
     );
+  }
+}
+
+class _StatusActions extends ConsumerWidget {
+  final PerformanceCheckIn c;
+  const _StatusActions({required this.c});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(userProfileProvider).asData!.value!;
+    final isSelf = profile.employeeId == c.employeeId;
+    final isReviewer = profile.userId == c.reviewerId;
+    final canManage = profile.isHrOrAdmin || isReviewer;
+
+    final buttons = <Widget>[];
+    if (c.status == 'DRAFT' && (isSelf || profile.isHrOrAdmin)) {
+      buttons.add(FilledButton(
+        onPressed: () => _transition(context, ref, 'SUBMITTED'),
+        child: const Text('Submit for review'),
+      ));
+    }
+    if (c.status == 'SUBMITTED' && canManage) {
+      buttons.add(FilledButton.tonal(
+        onPressed: () => _transition(context, ref, 'UNDER_REVIEW'),
+        child: const Text('Start review'),
+      ));
+    }
+    if (c.status == 'UNDER_REVIEW' && canManage) {
+      buttons.add(FilledButton(
+        onPressed: () => _transition(context, ref, 'COMPLETED'),
+        child: const Text('Mark complete'),
+      ));
+    }
+    if (profile.isHrOrAdmin && c.status != 'COMPLETED' && c.status != 'SKIPPED') {
+      buttons.add(OutlinedButton(
+        onPressed: () => _transition(context, ref, 'SKIPPED'),
+        child: const Text('Skip cycle'),
+      ));
+    }
+    if (buttons.isEmpty) return const SizedBox.shrink();
+    return Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.end, children: buttons);
+  }
+
+  Future<void> _transition(BuildContext context, WidgetRef ref, String target) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(performanceRepositoryProvider).updateCheckIn(
+            checkInId: c.id,
+            status: target,
+          );
+      ref.invalidate(performanceCheckInByIdProvider(c.id));
+      ref.invalidate(performanceCheckInListProvider);
+      messenger.showSnackBar(SnackBar(content: Text('Status → $target')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Transition failed: $e')));
+    }
   }
 }
