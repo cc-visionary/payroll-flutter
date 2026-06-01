@@ -35,6 +35,7 @@ import '../features/hiring/applicant_form_screen.dart';
 import '../features/hiring/applicant_detail_screen.dart';
 import '../features/org_chart/org_chart_screen.dart';
 import '../features/performance/performance_screen.dart';
+import '../features/performance/performance_check_in_screen.dart';
 import '../features/workflows/workflows_screen.dart';
 import '../features/workflows/workflow_detail_screen.dart';
 import '../features/workforce_planning/workforce_planning_screen.dart';
@@ -155,6 +156,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/org-chart', builder: (c, s) => const OrgChartScreen()),
           GoRoute(path: '/workforce-planning', builder: (c, s) => const WorkforcePlanningScreen()),
           GoRoute(path: '/performance', builder: (c, s) => const PerformanceScreen()),
+          GoRoute(
+            path: '/performance/:id',
+            builder: (c, s) => PerformanceCheckInScreen(checkInId: s.pathParameters['id']!),
+          ),
           GoRoute(path: '/compensation', builder: (c, s) => const CompensationScreen()),
           GoRoute(path: '/assets', builder: (c, s) => const AssetsScreen()),
           GoRoute(path: '/compliance', builder: (c, s) => const ComplianceScreen()),
