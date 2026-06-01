@@ -41,10 +41,7 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
             onStatusesChanged: (s) => setState(() => _statuses = s),
             onTypesChanged: (t) => setState(() => _types = t),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: _HintBanner(),
-          ),
+          const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: _HintBanner()),
           Expanded(
             child: _WorkflowsTable(statuses: _statuses, types: _types),
           ),
@@ -163,12 +160,18 @@ class _WorkflowsTable extends ConsumerWidget {
     );
     final async = ref.watch(workflowListProvider(q));
     final employees =
-        ref.watch(employeeListProvider(const EmployeeListQuery(includeArchived: true))).asData?.value ?? const [];
+        ref
+            .watch(employeeListProvider(const EmployeeListQuery(includeArchived: true)))
+            .asData
+            ?.value ??
+        const [];
     final empNameById = {for (final e in employees) e.id: e.fullName};
 
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.red))),
+      error: (e, _) => Center(
+        child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
+      ),
       data: (rows) {
         if (rows.isEmpty) {
           return const Center(child: Text('No workflows match the current filters.'));
