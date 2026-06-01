@@ -15,7 +15,7 @@ import 'widgets/profile_header.dart';
 
 /// Read-first employee profile screen (view, not edit).
 /// Matches the UI in the provided screenshots: back link, name header with
-/// status chips + action buttons, four info cards, then seven tabs.
+/// status chips + action buttons, four info cards, then eight tabs.
 class _ProfileTabBarDelegate extends SliverPersistentHeaderDelegate {
   final Widget child;
   _ProfileTabBarDelegate({required this.child});
