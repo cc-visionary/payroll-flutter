@@ -38,6 +38,7 @@ import '../features/onboarding/onboarding_screen.dart';
 import '../features/org_chart/org_chart_screen.dart';
 import '../features/performance/performance_screen.dart';
 import '../features/workflows/workflows_screen.dart';
+import '../features/workflows/workflow_detail_screen.dart';
 import '../features/workforce_planning/workforce_planning_screen.dart';
 import '../features/auth/session_provider.dart';
 import 'shell.dart';
@@ -162,6 +163,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/assets', builder: (c, s) => const AssetsScreen()),
           GoRoute(path: '/compliance', builder: (c, s) => const ComplianceScreen()),
           GoRoute(path: '/workflows', builder: (c, s) => const WorkflowsScreen()),
+          GoRoute(
+            path: '/workflows/:id',
+            builder: (c, s) =>
+                WorkflowDetailScreen(instanceId: s.pathParameters['id']!),
+          ),
           GoRoute(
             path: '/documents',
             builder: (c, s) =>
