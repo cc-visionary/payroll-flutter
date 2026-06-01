@@ -153,6 +153,95 @@ class WorkflowRepository {
     }
     return instanceId;
   }
+
+  Future<void> markStepInProgress(String stepId) async {
+    await _client
+        .from('workflow_steps')
+        .update({'status': 'IN_PROGRESS'})
+        .eq('id', stepId);
+  }
+
+  Future<void> markStepCompleted({
+    required String stepId,
+    required String completedById,
+    String? remarks,
+    Map<String, dynamic>? outputData,
+    String? generatedDocumentId,
+  }) async {
+    final payload = <String, dynamic>{
+      'status': 'COMPLETED',
+      'completed_by_id': completedById,
+      'completed_at': DateTime.now().toIso8601String(),
+      if (remarks != null) ...{'remarks': remarks},
+      if (outputData != null) ...{'output_data': outputData},
+      if (generatedDocumentId != null) ...{'generated_document_id': generatedDocumentId},
+    };
+    await _client.from('workflow_steps').update(payload).eq('id', stepId);
+  }
+
+  Future<void> markStepSkipped({
+    required String stepId,
+    required String completedById,
+    String? remarks,
+  }) async {
+    await _client.from('workflow_steps').update({
+      'status': 'SKIPPED',
+      'completed_by_id': completedById,
+      'completed_at': DateTime.now().toIso8601String(),
+      if (remarks != null) ...{'remarks': remarks},
+    }).eq('id', stepId);
+  }
+
+  Future<void> markStepRejected({
+    required String stepId,
+    required String completedById,
+    required String remarks,
+  }) async {
+    await _client.from('workflow_steps').update({
+      'status': 'REJECTED',
+      'completed_by_id': completedById,
+      'completed_at': DateTime.now().toIso8601String(),
+      'remarks': remarks,
+    }).eq('id', stepId);
+  }
+
+  /// If every step on the instance is COMPLETED or SKIPPED, flip the instance
+  /// status to COMPLETED + stamp completed_at. Called after every step status
+  /// change. No-op if any step is still PENDING/IN_PROGRESS, or if the instance
+  /// is already COMPLETED/CANCELLED.
+  Future<void> maybeCompleteInstance(String instanceId) async {
+    final stepRows = await _client
+        .from('workflow_steps')
+        .select('status')
+        .eq('workflow_instance_id', instanceId);
+    final statuses = [
+      for (final r in (stepRows as List))
+        (r as Map<String, dynamic>)['status'] as String,
+    ];
+    if (statuses.isEmpty) return;
+    final allDone = statuses.every((s) => s == 'COMPLETED' || s == 'SKIPPED');
+    if (!allDone) return;
+    await _client.from('workflow_instances').update({
+      'status': 'COMPLETED',
+      'completed_at': DateTime.now().toIso8601String(),
+    })
+    .eq('id', instanceId)
+    .inFilter('status', ['DRAFT', 'IN_PROGRESS']);  // idempotent — don't re-complete
+  }
+
+  Future<void> cancelInstance({
+    required String instanceId,
+    required String cancelReason,
+    required String cancelledById,
+  }) async {
+    await _client.from('workflow_instances').update({
+      'status': 'CANCELLED',
+      'cancelled_at': DateTime.now().toIso8601String(),
+      'cancel_reason': cancelReason,
+    })
+    .eq('id', instanceId)
+    .inFilter('status', ['DRAFT', 'IN_PROGRESS']);  // idempotent
+  }
 }
 
 final workflowRepositoryProvider =
