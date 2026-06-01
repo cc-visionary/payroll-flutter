@@ -94,7 +94,9 @@ class _Body extends ConsumerWidget {
             const SizedBox(height: 24),
             _GoalsSection(c: c),
             const SizedBox(height: 24),
-            const Text('Skill Ratings, Manager Review, and Status Actions land in Tasks 19–21.'),
+            _SkillsSection(c: c),
+            const SizedBox(height: 24),
+            const Text('Manager Review and Status Actions land in Tasks 20–21.'),
           ],
         ),
       ),
@@ -392,5 +394,233 @@ class _GoalRowState extends ConsumerState<_GoalRow> {
     if (ok != true) return;
     await ref.read(performanceRepositoryProvider).deleteGoal(widget.goal.id as String);
     ref.invalidate(checkInGoalsProvider(widget.goal.checkInId as String));
+  }
+}
+
+class _SkillsSection extends ConsumerWidget {
+  final PerformanceCheckIn c;
+  const _SkillsSection({required this.c});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final skills = ref.watch(skillRatingsProvider(c.id));
+    final profile = ref.watch(userProfileProvider).asData!.value!;
+    final isSelf = profile.employeeId == c.employeeId;
+    final isReviewer = profile.userId == c.reviewerId;
+    final canManage = profile.isHrOrAdmin || isReviewer;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(children: [
+              const Text('Skill Ratings',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.4)),
+              const Spacer(),
+              if (canManage)
+                TextButton.icon(
+                  onPressed: () => _addSkill(context, ref),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add skill'),
+                ),
+            ]),
+            const SizedBox(height: 4),
+            Text(
+              'KPI skills auto-seeded from the role scorecard at check-in creation. '
+              'HR can add ad-hoc competencies (behavioral, technical, etc.).',
+              style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 12),
+            skills.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Text('Error: $e', style: const TextStyle(color: Colors.red)),
+              data: (rows) {
+                if (rows.isEmpty) {
+                  return const Text('No skills tracked yet.');
+                }
+                return Column(
+                  children: [
+                    for (final s in rows)
+                      _SkillRow(
+                        skill: s,
+                        canEditSelf: isSelf && c.status == 'DRAFT',
+                        canEditManager: canManage && c.status != 'COMPLETED' && c.status != 'SKIPPED',
+                      ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addSkill(BuildContext context, WidgetRef ref) async {
+    final nameCtl = TextEditingController();
+    final categoryCtl = TextEditingController(text: 'BEHAVIORAL');
+    try {
+      final result = await showDialog<({String category, String name})>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Add skill'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: categoryCtl,
+                decoration: const InputDecoration(labelText: 'Category (e.g. BEHAVIORAL, TECHNICAL)'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: nameCtl,
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'Skill name'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(null),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final name = nameCtl.text.trim();
+                final cat = categoryCtl.text.trim();
+                if (name.isEmpty || cat.isEmpty) return;
+                Navigator.of(ctx).pop((category: cat, name: name));
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      );
+      if (result == null) return;
+      await ref.read(performanceRepositoryProvider).addSkill(
+            checkInId: c.id,
+            skillCategory: result.category,
+            skillName: result.name,
+          );
+      ref.invalidate(skillRatingsProvider(c.id));
+    } finally {
+      nameCtl.dispose();
+      categoryCtl.dispose();
+    }
+  }
+}
+
+class _SkillRow extends ConsumerStatefulWidget {
+  final dynamic skill;
+  final bool canEditSelf;
+  final bool canEditManager;
+  const _SkillRow({
+    required this.skill,
+    required this.canEditSelf,
+    required this.canEditManager,
+  });
+  @override
+  ConsumerState<_SkillRow> createState() => _SkillRowState();
+}
+
+class _SkillRowState extends ConsumerState<_SkillRow> {
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.skill;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Chip(label: Text(s.skillCategory as String)),
+                const SizedBox(width: 8),
+                Expanded(child: Text(s.skillName as String,
+                    style: const TextStyle(fontWeight: FontWeight.w600))),
+                if (widget.canEditManager && (s.skillCategory as String) != 'KPI')
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    tooltip: 'Remove skill',
+                    onPressed: () => _delete(context),
+                  ),
+              ]),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(
+                  child: _RatingPicker(
+                    label: 'Self',
+                    value: s.selfRating as int?,
+                    enabled: widget.canEditSelf,
+                    onChanged: (v) => _update(selfRating: v),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _RatingPicker(
+                    label: 'Manager',
+                    value: s.managerRating as int?,
+                    enabled: widget.canEditManager,
+                    onChanged: (v) => _update(managerRating: v),
+                  ),
+                ),
+              ]),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _update({int? selfRating, int? managerRating}) async {
+    await ref.read(performanceRepositoryProvider).updateSkill(
+          skillId: widget.skill.id as String,
+          selfRating: selfRating,
+          managerRating: managerRating,
+        );
+    ref.invalidate(skillRatingsProvider(widget.skill.checkInId as String));
+  }
+
+  Future<void> _delete(BuildContext context) async {
+    await ref.read(performanceRepositoryProvider).deleteSkill(widget.skill.id as String);
+    ref.invalidate(skillRatingsProvider(widget.skill.checkInId as String));
+  }
+}
+
+class _RatingPicker extends StatelessWidget {
+  final String label;
+  final int? value;
+  final bool enabled;
+  final ValueChanged<int> onChanged;
+  const _RatingPicker({
+    required this.label,
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+  });
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        const SizedBox(height: 4),
+        Row(children: [
+          for (var i = 1; i <= 5; i++)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: ChoiceChip(
+                label: Text('$i'),
+                selected: value == i,
+                onSelected: enabled ? (_) => onChanged(i) : null,
+              ),
+            ),
+        ]),
+      ],
+    );
   }
 }
