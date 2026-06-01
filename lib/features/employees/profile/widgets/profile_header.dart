@@ -8,7 +8,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../data/models/employee.dart';
 import '../../../../data/repositories/employee_repository.dart';
 import '../../../../data/repositories/role_scorecard_repository.dart';
+import '../../../../data/repositories/workflow_repository.dart';
 import '../../../auth/profile_provider.dart';
+import '../../../workflows/seeders.dart';
 import '../providers.dart';
 import 'info_card.dart';
 
@@ -327,8 +329,10 @@ class ProfileHeader extends ConsumerWidget {
         .single();
     final eventId = eventRow['id'] as String;
 
-    // 3) Queue document placeholders (DRAFT) — actual file generation lands
-    //    when the templating service is wired up.
+    // 3) Queue document placeholders (DRAFT) + insert a SEPARATION workflow
+    //    so HR has a single "what's in-flight" inbox. The workflow_steps link
+    //    to the placeholder rows via input_data + generated_document_id; the
+    //    actual PDF rendering happens via "Generate now" on /workflows/:id.
     if (result.documents.isNotEmpty) {
       final docs = [
         for (final type in result.documents)
@@ -342,7 +346,31 @@ class ProfileHeader extends ConsumerWidget {
             if (actorId != null) 'uploaded_by_id': actorId,
           },
       ];
-      await client.from('employee_documents').insert(docs);
+      // Insert with .select() so we get the new ids back to link the workflow steps.
+      final insertedDocs = await client
+          .from('employee_documents')
+          .insert(docs)
+          .select('id, document_type');
+      final docIdByType = <String, String>{
+        for (final d in (insertedDocs as List))
+          (d as Map<String, dynamic>)['document_type'] as String:
+              d['id'] as String,
+      };
+      if (actorId != null) {
+        final seed = seedSeparationWorkflow(
+          companyId: employee.companyId,
+          employeeId: employee.id,
+          employeeFullName: employee.fullName,
+          documentTypes: result.documents,
+          eventId: eventId,
+          docIdByType: docIdByType,
+          initiatedById: actorId,
+        );
+        await container
+            .read(workflowRepositoryProvider)
+            .insertWithSteps(instance: seed.instance, steps: seed.steps);
+        container.invalidate(workflowListProvider);
+      }
     }
 
     container.invalidate(employeeByIdProvider(employee.id));
