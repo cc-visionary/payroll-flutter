@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../features/performance/check_in_status.dart';
 import '../models/check_in_period.dart';
 import '../models/check_in_goal.dart';
 import '../models/performance_check_in.dart';
@@ -289,6 +290,145 @@ class PerformanceRepository {
     if (toInsert.isNotEmpty) {
       await _client.from('skill_ratings').insert(toInsert);
     }
+  }
+
+  /// Partial update of check-in fields. When `status` is set and differs from
+  /// the prior value, validates the transition and stamps submitted_at /
+  /// reviewed_at as appropriate.
+  Future<void> updateCheckIn({
+    required String checkInId,
+    String? status,
+    String? accomplishments,
+    String? challenges,
+    String? learnings,
+    String? supportNeeded,
+    String? managerFeedback,
+    String? strengths,
+    String? areasForImprovement,
+    int? overallRating,
+    String? overallComments,
+  }) async {
+    final payload = <String, dynamic>{};
+    if (accomplishments case final a?) payload['accomplishments'] = a;
+    if (challenges case final c?) payload['challenges'] = c;
+    if (learnings case final l?) payload['learnings'] = l;
+    if (supportNeeded case final s?) payload['support_needed'] = s;
+    if (managerFeedback case final m?) payload['manager_feedback'] = m;
+    if (strengths case final s?) payload['strengths'] = s;
+    if (areasForImprovement case final a?) payload['areas_for_improvement'] = a;
+    if (overallRating case final r?) payload['overall_rating'] = r;
+    if (overallComments case final c?) payload['overall_comments'] = c;
+
+    if (status != null) {
+      final prior = await _client
+          .from('performance_check_ins')
+          .select('status')
+          .eq('id', checkInId)
+          .maybeSingle();
+      final priorStatus = prior?['status'] as String?;
+      if (priorStatus != null && priorStatus != status) {
+        validateCheckInTransition(from: priorStatus, to: status);
+      }
+      payload['status'] = status;
+      final now = DateTime.now().toIso8601String();
+      if (status == 'SUBMITTED') payload['submitted_at'] = now;
+      if (status == 'COMPLETED') payload['reviewed_at'] = now;
+    }
+
+    if (payload.isEmpty) return;
+    await _client.from('performance_check_ins').update(payload).eq('id', checkInId);
+  }
+
+  Future<String> addGoal({
+    required String checkInId,
+    required String goalType,
+    required String title,
+    String? description,
+    DateTime? targetDate,
+  }) async {
+    final iso = targetDate?.toIso8601String().substring(0, 10);
+    final row = await _client
+        .from('check_in_goals')
+        .insert({
+          'check_in_id': checkInId,
+          'goal_type': goalType,
+          'title': title,
+          'description': description,
+          'target_date': iso,
+          'progress': 0,
+          'status': 'IN_PROGRESS',
+          'carry_forward': false,
+        })
+        .select('id')
+        .single();
+    return row['id'] as String;
+  }
+
+  Future<void> updateGoal({
+    required String goalId,
+    String? title,
+    String? description,
+    DateTime? targetDate,
+    int? progress,
+    String? status,
+    String? selfAssessment,
+    String? managerAssessment,
+    int? rating,
+    bool? carryForward,
+  }) async {
+    final payload = <String, dynamic>{};
+    if (title case final t?) payload['title'] = t;
+    if (description case final d?) payload['description'] = d;
+    if (targetDate case final t?) payload['target_date'] = t.toIso8601String().substring(0, 10);
+    if (progress case final p?) payload['progress'] = p;
+    if (status case final s?) payload['status'] = s;
+    if (selfAssessment case final s?) payload['self_assessment'] = s;
+    if (managerAssessment case final m?) payload['manager_assessment'] = m;
+    if (rating case final r?) payload['rating'] = r;
+    if (carryForward case final c?) payload['carry_forward'] = c;
+    if (payload.isEmpty) return;
+    await _client.from('check_in_goals').update(payload).eq('id', goalId);
+  }
+
+  Future<void> deleteGoal(String goalId) async {
+    await _client.from('check_in_goals').delete().eq('id', goalId);
+  }
+
+  Future<String> addSkill({
+    required String checkInId,
+    required String skillCategory,
+    required String skillName,
+  }) async {
+    final row = await _client
+        .from('skill_ratings')
+        .insert({
+          'check_in_id': checkInId,
+          'skill_category': skillCategory,
+          'skill_name': skillName,
+        })
+        .select('id')
+        .single();
+    return row['id'] as String;
+  }
+
+  Future<void> updateSkill({
+    required String skillId,
+    int? selfRating,
+    int? managerRating,
+    String? comments,
+    String? developmentPlan,
+  }) async {
+    final payload = <String, dynamic>{};
+    if (selfRating case final s?) payload['self_rating'] = s;
+    if (managerRating case final m?) payload['manager_rating'] = m;
+    if (comments case final c?) payload['comments'] = c;
+    if (developmentPlan case final d?) payload['development_plan'] = d;
+    if (payload.isEmpty) return;
+    await _client.from('skill_ratings').update(payload).eq('id', skillId);
+  }
+
+  Future<void> deleteSkill(String skillId) async {
+    await _client.from('skill_ratings').delete().eq('id', skillId);
   }
 
   /// Private clone of the pure helper so this file doesn't depend on the
