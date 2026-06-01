@@ -136,8 +136,7 @@ final _groups = <_NavGroup>[
       badgeCountProvider: (ref) =>
           ref.watch(pendingStatutoryPayablesCountProvider),
     ),
-    _NavItem('Workflows', Icons.alt_route_outlined, '/workflows', _always,
-        comingSoon: true),
+    _NavItem('Workflows', Icons.alt_route_outlined, '/workflows', _always),
     _NavItem('Documents', Icons.description_outlined, '/documents', _always),
   ]),
   _NavGroup('System', [
