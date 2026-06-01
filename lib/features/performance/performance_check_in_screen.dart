@@ -96,7 +96,9 @@ class _Body extends ConsumerWidget {
             const SizedBox(height: 24),
             _SkillsSection(c: c),
             const SizedBox(height: 24),
-            const Text('Manager Review and Status Actions land in Tasks 20–21.'),
+            _ManagerReviewSection(c: c),
+            const SizedBox(height: 24),
+            const Text('Status Actions land in Task 21.'),
           ],
         ),
       ),
@@ -621,6 +623,157 @@ class _RatingPicker extends StatelessWidget {
             ),
         ]),
       ],
+    );
+  }
+}
+
+class _ManagerReviewSection extends ConsumerStatefulWidget {
+  final PerformanceCheckIn c;
+  const _ManagerReviewSection({required this.c});
+  @override
+  ConsumerState<_ManagerReviewSection> createState() => _ManagerReviewSectionState();
+}
+
+class _ManagerReviewSectionState extends ConsumerState<_ManagerReviewSection> {
+  late final TextEditingController _feedback;
+  late final TextEditingController _strengths;
+  late final TextEditingController _areas;
+  late final TextEditingController _overallComments;
+  int? _overallRating;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _feedback = TextEditingController(text: widget.c.managerFeedback ?? '');
+    _strengths = TextEditingController(text: widget.c.strengths ?? '');
+    _areas = TextEditingController(text: widget.c.areasForImprovement ?? '');
+    _overallComments = TextEditingController(text: widget.c.overallComments ?? '');
+    _overallRating = widget.c.overallRating;
+  }
+
+  @override
+  void dispose() {
+    _feedback.dispose();
+    _strengths.dispose();
+    _areas.dispose();
+    _overallComments.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      await ref.read(performanceRepositoryProvider).updateCheckIn(
+            checkInId: widget.c.id,
+            managerFeedback: _feedback.text,
+            strengths: _strengths.text,
+            areasForImprovement: _areas.text,
+            overallRating: _overallRating,
+            overallComments: _overallComments.text,
+          );
+      ref.invalidate(performanceCheckInByIdProvider(widget.c.id));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Manager review saved.')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Save failed: $e')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = ref.watch(userProfileProvider).asData!.value!;
+    final isReviewer = profile.userId == widget.c.reviewerId;
+    final canEdit = (profile.isHrOrAdmin || isReviewer) &&
+        widget.c.status != 'COMPLETED' && widget.c.status != 'SKIPPED' &&
+        widget.c.status != 'DRAFT';
+    final isCompleted = widget.c.status == 'COMPLETED';
+    final isSelf = profile.employeeId == widget.c.employeeId;
+    if (isSelf && !isCompleted) {
+      return const SizedBox.shrink();
+    }
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Manager Review',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.4)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _feedback,
+              readOnly: !canEdit,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Manager feedback',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _strengths,
+              readOnly: !canEdit,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Strengths',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _areas,
+              readOnly: !canEdit,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Areas for improvement',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text('Overall rating',
+                style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            const SizedBox(height: 4),
+            Row(children: [
+              for (var i = 1; i <= 5; i++)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: ChoiceChip(
+                    label: Text('$i'),
+                    selected: _overallRating == i,
+                    onSelected: canEdit ? (_) => setState(() => _overallRating = i) : null,
+                  ),
+                ),
+            ]),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _overallComments,
+              readOnly: !canEdit,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Overall comments',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            if (canEdit) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton(
+                  onPressed: _saving ? null : _save,
+                  child: Text(_saving ? 'Saving…' : 'Save manager review'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
