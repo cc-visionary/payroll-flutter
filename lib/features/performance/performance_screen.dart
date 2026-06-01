@@ -1,24 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../widgets/coming_soon_screen.dart';
+import '../../app/breakpoints.dart';
+import '../../app/shell.dart';
+import '../auth/profile_provider.dart';
 
-class PerformanceScreen extends StatelessWidget {
+class PerformanceScreen extends ConsumerWidget {
   const PerformanceScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const ComingSoonScreen(
-      title: 'Performance',
-      icon: Icons.stacked_line_chart_outlined,
-      tagline:
-          'Goals, reviews, and 1:1s in one place. Tie performance cycles to the outcomes on each Responsibility Card so reviews reflect the role, not vibes.',
-      plannedFeatures: [
-        'Quarterly goals / OKRs per employee with progress tracking',
-        'Review cycles (self, manager, peer) scored against Responsibility Card outcomes',
-        'Recurring 1:1 agendas with shared notes and action items',
-        'Calibration view across teams to reduce rating drift',
-        'Feedback history feeding promotion and comp decisions',
-      ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(userProfileProvider).asData?.value;
+    if (profile == null) {
+      return Scaffold(
+        drawer: isMobile(context) ? const AppDrawer() : null,
+        appBar: AppBar(title: const Text('Performance')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    return Scaffold(
+      drawer: isMobile(context) ? const AppDrawer() : null,
+      appBar: AppBar(title: const Text('Performance')),
+      body: const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: Text('Performance list lands in Task 15.')),
+      ),
     );
   }
 }

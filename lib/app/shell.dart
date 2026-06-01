@@ -102,9 +102,7 @@ final _groups = <_NavGroup>[
     _NavItem('Workforce Planning', Icons.insights_outlined,
         '/workforce-planning', _hrOrAdmin,
         comingSoon: true),
-    _NavItem('Performance', Icons.stacked_line_chart_outlined, '/performance',
-        _always,
-        comingSoon: true),
+    _NavItem('Performance', Icons.stacked_line_chart_outlined, '/performance', _always),
   ]),
   _NavGroup('Time & Pay', [
     _NavItem('Attendance', Icons.schedule_outlined, '/attendance', _always),
