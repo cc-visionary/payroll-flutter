@@ -141,7 +141,7 @@ class _StepsTimeline extends StatelessWidget {
                         Text(s.name,
                             style: const TextStyle(fontWeight: FontWeight.w600)),
                         if (s.description != null) ...[
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 4),
                           Text(s.description!,
                               style: TextStyle(
                                 fontSize: 12,
@@ -150,7 +150,7 @@ class _StepsTimeline extends StatelessWidget {
                                     .onSurfaceVariant,
                               )),
                         ],
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Row(children: [
                           Chip(label: Text(s.status)),
                           const SizedBox(width: 8),
