@@ -92,8 +92,9 @@ class _Body extends ConsumerWidget {
             const SizedBox(height: 24),
             _SelfReviewSection(c: c),
             const SizedBox(height: 24),
-            // Goals + Skill Ratings + Manager Review + Status Actions land in Tasks 18–21.
-            const Text('Goals, Skill Ratings, Manager Review, and Status Actions land in Tasks 18–21.'),
+            _GoalsSection(c: c),
+            const SizedBox(height: 24),
+            const Text('Skill Ratings, Manager Review, and Status Actions land in Tasks 19–21.'),
           ],
         ),
       ),
@@ -222,5 +223,174 @@ class _SelfReviewSectionState extends ConsumerState<_SelfReviewSection> {
         ),
       ),
     );
+  }
+}
+
+class _GoalsSection extends ConsumerWidget {
+  final PerformanceCheckIn c;
+  const _GoalsSection({required this.c});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final goals = ref.watch(checkInGoalsProvider(c.id));
+    final profile = ref.watch(userProfileProvider).asData!.value!;
+    final canEditAll = profile.isHrOrAdmin || profile.userId == c.reviewerId;
+    final canEditSelf = profile.employeeId == c.employeeId && c.status == 'DRAFT';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(children: [
+              const Text('Goals',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.4)),
+              const Spacer(),
+              if (canEditAll || canEditSelf)
+                TextButton.icon(
+                  onPressed: () => _addGoal(context, ref),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add goal'),
+                ),
+            ]),
+            const SizedBox(height: 12),
+            goals.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Text('Error: $e', style: const TextStyle(color: Colors.red)),
+              data: (rows) {
+                if (rows.isEmpty) {
+                  return const Text('No goals set yet.');
+                }
+                return Column(
+                  children: [
+                    for (final g in rows)
+                      _GoalRow(
+                        goal: g,
+                        canEditAll: canEditAll,
+                        canEditSelf: canEditSelf,
+                      ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addGoal(BuildContext context, WidgetRef ref) async {
+    final ctl = TextEditingController();
+    try {
+      final title = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Add goal'),
+          content: TextField(
+            controller: ctl,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Goal title'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(null),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                if (ctl.text.trim().isEmpty) return;
+                Navigator.of(ctx).pop(ctl.text.trim());
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        ),
+      );
+      if (title == null) return;
+      await ref.read(performanceRepositoryProvider).addGoal(
+            checkInId: c.id,
+            goalType: 'PERFORMANCE',
+            title: title,
+          );
+      ref.invalidate(checkInGoalsProvider(c.id));
+    } finally {
+      ctl.dispose();
+    }
+  }
+}
+
+class _GoalRow extends ConsumerStatefulWidget {
+  final dynamic goal;
+  final bool canEditAll;
+  final bool canEditSelf;
+  const _GoalRow({required this.goal, required this.canEditAll, required this.canEditSelf});
+  @override
+  ConsumerState<_GoalRow> createState() => _GoalRowState();
+}
+
+class _GoalRowState extends ConsumerState<_GoalRow> {
+  @override
+  Widget build(BuildContext context) {
+    final g = widget.goal;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Expanded(child: Text(g.title as String,
+                    style: const TextStyle(fontWeight: FontWeight.w600))),
+                Chip(label: Text(g.goalType as String)),
+                const SizedBox(width: 8),
+                Chip(label: Text(g.status as String)),
+                if (widget.canEditAll)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    tooltip: 'Delete goal',
+                    onPressed: () => _delete(context),
+                  ),
+              ]),
+              const SizedBox(height: 8),
+              Text('Progress: ${g.progress}%',
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              if (g.description != null && (g.description as String).isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(g.description as String,
+                    style: const TextStyle(fontSize: 13)),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _delete(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete this goal?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await ref.read(performanceRepositoryProvider).deleteGoal(widget.goal.id as String);
+    ref.invalidate(checkInGoalsProvider(widget.goal.checkInId as String));
   }
 }
