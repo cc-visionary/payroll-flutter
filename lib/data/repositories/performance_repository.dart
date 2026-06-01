@@ -210,6 +210,37 @@ class PerformanceRepository {
     return ids;
   }
 
+  /// Idempotent. Returns the check-in id for (period, employee). Inserts a
+  /// new DRAFT row if none exists, defaulting `reviewer_id` to the employee's
+  /// manager (if provided). Does NOT seed skill_ratings — call
+  /// `seedSkillRatingsForCheckIn` separately.
+  Future<String> ensureCheckInForEmployeeInPeriod({
+    required String periodId,
+    required String employeeId,
+    String? reviewerId,
+  }) async {
+    final existing = await _client
+        .from('performance_check_ins')
+        .select('id')
+        .eq('period_id', periodId)
+        .eq('employee_id', employeeId)
+        .maybeSingle();
+    if (existing != null) {
+      return (existing as Map<String, dynamic>)['id'] as String;
+    }
+    final inserted = await _client
+        .from('performance_check_ins')
+        .insert({
+          'period_id': periodId,
+          'employee_id': employeeId,
+          'reviewer_id': reviewerId,
+          'status': 'DRAFT',
+        })
+        .select('id')
+        .single();
+    return (inserted as Map<String, dynamic>)['id'] as String;
+  }
+
   /// Private clone of the pure helper so this file doesn't depend on the
   /// features layer (model files are in lib/data/, repositories should not
   /// depend on lib/features/). Inlined intentionally.
