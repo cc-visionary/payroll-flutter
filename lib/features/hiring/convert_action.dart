@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/applicant.dart';
 import '../../data/repositories/applicant_repository.dart';
+import '../../data/repositories/workflow_repository.dart';
+import '../auth/profile_provider.dart';
 import '../employees/employee_form_screen.dart';
+import '../workflows/seeders.dart';
 
 /// Push the EmployeeFormScreen in prefilled mode. On successful create,
 /// atomically stamp converted_to_employee_id + flip status to HIRED on the
@@ -41,6 +44,24 @@ Future<void> convertApplicantToEmployee(
             ref.invalidate(applicantByIdProvider(a.id));
             ref.invalidate(applicantListProvider);
             ref.invalidate(applicantsCountByStatusProvider);
+
+            // Insert a HIRING workflow so onboarding work is tracked in /workflows.
+            final profile = ref.read(userProfileProvider).asData?.value;
+            if (profile != null) {
+              final seed = seedHiringWorkflow(
+                companyId: a.companyId,
+                employeeId: employeeId,
+                employeeFullName: a.fullName,
+                applicantId: a.id,
+                initiatedById: profile.userId,
+              );
+              await ref.read(workflowRepositoryProvider).insertWithSteps(
+                    instance: seed.instance,
+                    steps: seed.steps,
+                  );
+              ref.invalidate(workflowListProvider);
+            }
+
             if (context.mounted) {
               messenger.showSnackBar(SnackBar(
                 content: Text('Hired — ${a.fullName} converted to employee.'),
