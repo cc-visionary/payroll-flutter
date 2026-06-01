@@ -183,7 +183,7 @@ class _StepsTimeline extends StatelessWidget {
                                     .onSurfaceVariant,
                               )),
                         ],
-                        // Action buttons land in Task 12.
+                        _StepActions(workflow: workflow, step: s),
                       ],
                     ),
                   ),
@@ -193,5 +193,157 @@ class _StepsTimeline extends StatelessWidget {
           ),
       ],
     );
+  }
+}
+
+class _StepActions extends ConsumerWidget {
+  final WorkflowInstance workflow;
+  final WorkflowStep step;
+  const _StepActions({required this.workflow, required this.step});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isOpen = step.status == 'PENDING' || step.status == 'IN_PROGRESS';
+    final isTerminal = workflow.status == 'COMPLETED' || workflow.status == 'CANCELLED';
+    if (!isOpen || isTerminal) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Wrap(spacing: 8, children: [
+        if (step.stepType == 'DOCUMENT_GENERATION')
+          FilledButton.icon(
+            onPressed: () => _generateNow(context, ref),
+            icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+            label: const Text('Generate now'),
+          ),
+        if (step.stepType != 'DOCUMENT_GENERATION' && step.stepType != 'APPROVAL')
+          FilledButton.tonal(
+            onPressed: () => _markComplete(context, ref),
+            child: const Text('Mark complete'),
+          ),
+        if (step.stepType == 'APPROVAL') ...[
+          FilledButton.tonal(
+            onPressed: () => _approve(context, ref),
+            child: const Text('Approve'),
+          ),
+          OutlinedButton(
+            onPressed: () => _reject(context, ref),
+            child: const Text('Reject'),
+          ),
+        ],
+        TextButton(
+          onPressed: () => _skip(context, ref),
+          child: const Text('Skip'),
+        ),
+      ]),
+    );
+  }
+
+  Future<void> _generateNow(BuildContext context, WidgetRef ref) async {
+    final templateId = step.inputData?['template_id'] as String?;
+    if (templateId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Step has no template_id; cannot generate.')),
+      );
+      return;
+    }
+    await ref.read(workflowRepositoryProvider).markStepInProgress(step.id);
+    ref.invalidate(workflowStepsProvider(workflow.id));
+    if (!context.mounted) return;
+    context.go('/documents/generate/$templateId?employeeId=${workflow.employeeId}');
+  }
+
+  Future<void> _markComplete(BuildContext context, WidgetRef ref) async {
+    final remarks = await _remarksDialog(context, 'Mark step complete?', 'Remarks (optional)');
+    if (remarks == null) return;
+    final profile = ref.read(userProfileProvider).asData!.value!;
+    await ref.read(workflowRepositoryProvider).markStepCompleted(
+          stepId: step.id,
+          completedById: profile.userId,
+          remarks: remarks.trim().isEmpty ? null : remarks.trim(),
+          generatedDocumentId: step.stepType == 'DOCUMENT_GENERATION' ? step.generatedDocumentId : null,
+        );
+    await ref.read(workflowRepositoryProvider).maybeCompleteInstance(workflow.id);
+    ref.invalidate(workflowStepsProvider(workflow.id));
+    ref.invalidate(workflowByIdProvider(workflow.id));
+    ref.invalidate(workflowListProvider);
+  }
+
+  Future<void> _approve(BuildContext context, WidgetRef ref) async {
+    final remarks = await _remarksDialog(context, 'Approve this step?', 'Approval remarks (optional)');
+    if (remarks == null) return;
+    final profile = ref.read(userProfileProvider).asData!.value!;
+    await ref.read(workflowRepositoryProvider).markStepCompleted(
+          stepId: step.id,
+          completedById: profile.userId,
+          remarks: remarks.trim().isEmpty ? null : remarks.trim(),
+        );
+    await ref.read(workflowRepositoryProvider).maybeCompleteInstance(workflow.id);
+    ref.invalidate(workflowStepsProvider(workflow.id));
+    ref.invalidate(workflowByIdProvider(workflow.id));
+  }
+
+  Future<void> _reject(BuildContext context, WidgetRef ref) async {
+    final remarks = await _remarksDialog(context, 'Reject this step?', 'Rejection reason (required)', requireNonEmpty: true);
+    if (remarks == null) return;
+    final profile = ref.read(userProfileProvider).asData!.value!;
+    await ref.read(workflowRepositoryProvider).markStepRejected(
+          stepId: step.id,
+          completedById: profile.userId,
+          remarks: remarks.trim(),
+        );
+    ref.invalidate(workflowStepsProvider(workflow.id));
+  }
+
+  Future<void> _skip(BuildContext context, WidgetRef ref) async {
+    final remarks = await _remarksDialog(context, 'Skip this step?', 'Skip reason (optional)');
+    if (remarks == null) return;
+    final profile = ref.read(userProfileProvider).asData!.value!;
+    await ref.read(workflowRepositoryProvider).markStepSkipped(
+          stepId: step.id,
+          completedById: profile.userId,
+          remarks: remarks.trim().isEmpty ? null : remarks.trim(),
+        );
+    await ref.read(workflowRepositoryProvider).maybeCompleteInstance(workflow.id);
+    ref.invalidate(workflowStepsProvider(workflow.id));
+    ref.invalidate(workflowByIdProvider(workflow.id));
+  }
+}
+
+Future<String?> _remarksDialog(
+  BuildContext context,
+  String title,
+  String label, {
+  bool requireNonEmpty = false,
+}) async {
+  final ctl = TextEditingController();
+  try {
+    return await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: ctl,
+          autofocus: true,
+          maxLines: 3,
+          decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(null),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (requireNonEmpty && ctl.text.trim().isEmpty) return;
+              Navigator.of(ctx).pop(ctl.text);
+            },
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+  } finally {
+    ctl.dispose();
   }
 }
