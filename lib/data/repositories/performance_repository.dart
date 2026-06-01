@@ -241,6 +241,56 @@ class PerformanceRepository {
     return inserted['id'] as String;
   }
 
+  /// Auto-seed skill_ratings from the employee's RoleScorecard KPIs. Reads
+  /// the scorecard's `kpis` jsonb array; each KPI.metric becomes a skill_name
+  /// row with skill_category='KPI'. Idempotent via the (check_in_id,
+  /// skill_category, skill_name) unique constraint — already-seeded rows
+  /// stay untouched.
+  ///
+  /// Snapshotted at this moment: subsequent KPI edits do NOT propagate to
+  /// existing check-ins. This is intentional (historical record stability).
+  Future<void> seedSkillRatingsForCheckIn({
+    required String checkInId,
+    required String? roleScorecardId,
+  }) async {
+    if (roleScorecardId == null) return;
+    final scorecard = await _client
+        .from('role_scorecards')
+        .select('kpis')
+        .eq('id', roleScorecardId)
+        .maybeSingle();
+    if (scorecard == null) return;
+    final rawKpis = scorecard['kpis'];
+    if (rawKpis is! List) return;
+
+    // Read existing skill_names to avoid PK violations on the unique constraint.
+    final existing = await _client
+        .from('skill_ratings')
+        .select('skill_name')
+        .eq('check_in_id', checkInId)
+        .eq('skill_category', 'KPI');
+    final existingNames = <String>{
+      for (final r in (existing as List))
+        ((r as Map<String, dynamic>)['skill_name'] as String?) ?? '',
+    };
+
+    final toInsert = <Map<String, dynamic>>[];
+    for (final k in rawKpis) {
+      if (k is! Map) continue;
+      final metric = k['metric'] as String?;
+      if (metric == null || metric.isEmpty) continue;
+      if (existingNames.contains(metric)) continue;
+      toInsert.add({
+        'check_in_id': checkInId,
+        'skill_category': 'KPI',
+        'skill_name': metric,
+      });
+    }
+    if (toInsert.isNotEmpty) {
+      await _client.from('skill_ratings').insert(toInsert);
+    }
+  }
+
   /// Private clone of the pure helper so this file doesn't depend on the
   /// features layer (model files are in lib/data/, repositories should not
   /// depend on lib/features/). Inlined intentionally.
