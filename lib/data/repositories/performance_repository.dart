@@ -101,6 +101,49 @@ class PerformanceRepository {
         .map((r) => SkillRatingFromRow.fromRow(r as Map<String, dynamic>))
         .toList();
   }
+
+  /// Idempotent. Returns the period id for the current calendar quarter.
+  /// If a row with the same (company_id, name, target_employee_id=null)
+  /// already exists, returns its id without creating a duplicate.
+  Future<String> ensureQuarterlyPeriodForCurrentQuarter({
+    required String companyId,
+    required DateTime now,
+  }) async {
+    final quarter = ((now.month - 1) ~/ 3) + 1;
+    final startMonth = (quarter - 1) * 3 + 1;
+    final start = DateTime.utc(now.year, startMonth, 1);
+    final endMonthStart = DateTime.utc(now.year, startMonth + 3, 1);
+    final end = endMonthStart.subtract(const Duration(days: 1));
+    final due = end.add(const Duration(days: 15));
+    final name = '${now.year} Q$quarter';
+
+    final existing = await _client
+        .from('check_in_periods')
+        .select('id')
+        .eq('company_id', companyId)
+        .eq('name', name)
+        .isFilter('target_employee_id', null)
+        .maybeSingle();
+    if (existing != null) {
+      return existing['id'] as String;
+    }
+
+    String iso(DateTime d) => d.toIso8601String().substring(0, 10);
+    final inserted = await _client
+        .from('check_in_periods')
+        .insert({
+          'company_id': companyId,
+          'name': name,
+          'period_type': 'QUARTERLY',
+          'start_date': iso(start),
+          'end_date': iso(end),
+          'due_date': iso(due),
+          'is_active': true,
+        })
+        .select('id')
+        .single();
+    return inserted['id'] as String;
+  }
 }
 
 final performanceRepositoryProvider = Provider<PerformanceRepository>(
