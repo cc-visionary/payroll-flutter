@@ -144,6 +144,91 @@ class PerformanceRepository {
         .single();
     return inserted['id'] as String;
   }
+
+  /// For each probationary milestone (1M / 3M / 5M from hire_date) that has
+  /// passed (milestone date ≤ now), ensure a per-employee period exists.
+  /// Returns the list of period ids (one per applicable milestone).
+  ///
+  /// Idempotent — uses the (company_id, name, target_employee_id) unique
+  /// constraint to avoid duplicates.
+  Future<List<String>> ensureProbationaryPeriodsForEmployee({
+    required String companyId,
+    required String employeeId,
+    required String employeeFullName,
+    required DateTime hireDate,
+    required DateTime now,
+  }) async {
+    final ids = <String>[];
+    const milestones = <(int months, String type, String label)>[
+      (1, 'PROBATION_1M', '1M'),
+      (3, 'PROBATION_3M', '3M'),
+      (5, 'PROBATION_5M', '5M'),
+    ];
+
+    String iso(DateTime d) => d.toIso8601String().substring(0, 10);
+
+    for (final (months, type, label) in milestones) {
+      final milestoneDate = _addMonths(hireDate, months);
+      if (milestoneDate.isAfter(now)) continue; // milestone not yet reached
+
+      final name = 'Probation $label — $employeeFullName';
+
+      final existing = await _client
+          .from('check_in_periods')
+          .select('id')
+          .eq('company_id', companyId)
+          .eq('name', name)
+          .eq('target_employee_id', employeeId)
+          .maybeSingle();
+      if (existing != null) {
+        ids.add(existing['id'] as String);
+        continue;
+      }
+
+      // Window: opens 14 days before milestone, ends at milestone,
+      // due 7 days after.
+      final start = milestoneDate.subtract(const Duration(days: 14));
+      final end = milestoneDate;
+      final due = milestoneDate.add(const Duration(days: 7));
+
+      final inserted = await _client
+          .from('check_in_periods')
+          .insert({
+            'company_id': companyId,
+            'name': name,
+            'period_type': type,
+            'start_date': iso(start),
+            'end_date': iso(end),
+            'due_date': iso(due),
+            'is_active': true,
+            'target_employee_id': employeeId,
+          })
+          .select('id')
+          .single();
+      ids.add(inserted['id'] as String);
+    }
+    return ids;
+  }
+
+  /// Private clone of the pure helper so this file doesn't depend on the
+  /// features layer (model files are in lib/data/, repositories should not
+  /// depend on lib/features/). Inlined intentionally.
+  DateTime _addMonths(DateTime d, int months) {
+    var year = d.year;
+    var month = d.month + months;
+    while (month > 12) {
+      month -= 12;
+      year += 1;
+    }
+    while (month < 1) {
+      month += 12;
+      year -= 1;
+    }
+    final lastDayOfTarget =
+        DateTime.utc(year, month + 1, 1).subtract(const Duration(days: 1)).day;
+    final day = d.day > lastDayOfTarget ? lastDayOfTarget : d.day;
+    return DateTime.utc(year, month, day);
+  }
 }
 
 final performanceRepositoryProvider = Provider<PerformanceRepository>(
