@@ -9,6 +9,7 @@ import 'tabs/financials_tab.dart';
 import 'tabs/payslips_tab.dart';
 import 'tabs/profile_tab.dart';
 import 'tabs/role_tab.dart';
+import 'tabs/performance_tab.dart';
 import 'tabs/timeline_tab.dart';
 import 'widgets/profile_header.dart';
 
@@ -53,7 +54,7 @@ class EmployeeProfileScreen extends ConsumerWidget {
           }
           final hPad = isMobile(context) ? 16.0 : 24.0;
           return DefaultTabController(
-            length: 7,
+            length: 8,
             child: NestedScrollView(
               headerSliverBuilder: (context, _) => [
                 SliverPadding(
@@ -95,6 +96,7 @@ class EmployeeProfileScreen extends ConsumerWidget {
                               Tab(text: 'Financials'),
                               Tab(text: 'Timeline'),
                               Tab(text: 'Documents'),
+                              Tab(text: 'Performance'),
                             ],
                           ),
                           const Divider(height: 1),
@@ -123,6 +125,7 @@ class EmployeeProfileScreen extends ConsumerWidget {
                       FinancialsTab(employee: employee),
                       TimelineTab(employee: employee),
                       DocumentsTab(employee: employee),
+                      PerformanceTab(employeeId: employee.id),
                     ],
                   ),
                 ),
