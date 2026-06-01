@@ -226,7 +226,7 @@ class PerformanceRepository {
         .eq('employee_id', employeeId)
         .maybeSingle();
     if (existing != null) {
-      return (existing as Map<String, dynamic>)['id'] as String;
+      return existing['id'] as String;
     }
     final inserted = await _client
         .from('performance_check_ins')
@@ -238,7 +238,7 @@ class PerformanceRepository {
         })
         .select('id')
         .single();
-    return (inserted as Map<String, dynamic>)['id'] as String;
+    return inserted['id'] as String;
   }
 
   /// Private clone of the pure helper so this file doesn't depend on the
