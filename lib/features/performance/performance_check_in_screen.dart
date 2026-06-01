@@ -90,8 +90,134 @@ class _Body extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 24),
-            // Sections land in Tasks 17–21.
-            const Text('Self-review, Goals, Skill Ratings, Manager Review, and Status Actions land in Tasks 17–21.'),
+            _SelfReviewSection(c: c),
+            const SizedBox(height: 24),
+            // Goals + Skill Ratings + Manager Review + Status Actions land in Tasks 18–21.
+            const Text('Goals, Skill Ratings, Manager Review, and Status Actions land in Tasks 18–21.'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SelfReviewSection extends ConsumerStatefulWidget {
+  final PerformanceCheckIn c;
+  const _SelfReviewSection({required this.c});
+  @override
+  ConsumerState<_SelfReviewSection> createState() => _SelfReviewSectionState();
+}
+
+class _SelfReviewSectionState extends ConsumerState<_SelfReviewSection> {
+  late final TextEditingController _accomplishments;
+  late final TextEditingController _challenges;
+  late final TextEditingController _learnings;
+  late final TextEditingController _supportNeeded;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _accomplishments = TextEditingController(text: widget.c.accomplishments ?? '');
+    _challenges = TextEditingController(text: widget.c.challenges ?? '');
+    _learnings = TextEditingController(text: widget.c.learnings ?? '');
+    _supportNeeded = TextEditingController(text: widget.c.supportNeeded ?? '');
+  }
+
+  @override
+  void dispose() {
+    _accomplishments.dispose();
+    _challenges.dispose();
+    _learnings.dispose();
+    _supportNeeded.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      await ref.read(performanceRepositoryProvider).updateCheckIn(
+            checkInId: widget.c.id,
+            accomplishments: _accomplishments.text,
+            challenges: _challenges.text,
+            learnings: _learnings.text,
+            supportNeeded: _supportNeeded.text,
+          );
+      ref.invalidate(performanceCheckInByIdProvider(widget.c.id));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Self-review saved.')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Save failed: $e')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final readOnly = widget.c.status != 'DRAFT';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Self-review',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.4)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _accomplishments,
+              readOnly: readOnly,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Accomplishments',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _challenges,
+              readOnly: readOnly,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Challenges',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _learnings,
+              readOnly: readOnly,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Learnings',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _supportNeeded,
+              readOnly: readOnly,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Support needed',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            if (!readOnly) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton(
+                  onPressed: _saving ? null : _save,
+                  child: Text(_saving ? 'Saving…' : 'Save self-review'),
+                ),
+              ),
+            ],
           ],
         ),
       ),
