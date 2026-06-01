@@ -33,8 +33,6 @@ import '../features/documents/generate_screen.dart';
 import '../features/hiring/hiring_screen.dart';
 import '../features/hiring/applicant_form_screen.dart';
 import '../features/hiring/applicant_detail_screen.dart';
-import '../features/offboarding/offboarding_screen.dart';
-import '../features/onboarding/onboarding_screen.dart';
 import '../features/org_chart/org_chart_screen.dart';
 import '../features/performance/performance_screen.dart';
 import '../features/workflows/workflows_screen.dart';
@@ -154,8 +152,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/hiring/:id/edit',
             builder: (c, s) => ApplicantFormScreen(applicantId: s.pathParameters['id']),
           ),
-          GoRoute(path: '/onboarding', builder: (c, s) => const OnboardingScreen()),
-          GoRoute(path: '/offboarding', builder: (c, s) => const OffboardingScreen()),
           GoRoute(path: '/org-chart', builder: (c, s) => const OrgChartScreen()),
           GoRoute(path: '/workforce-planning', builder: (c, s) => const WorkforcePlanningScreen()),
           GoRoute(path: '/performance', builder: (c, s) => const PerformanceScreen()),

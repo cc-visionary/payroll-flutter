@@ -93,10 +93,6 @@ final _groups = <_NavGroup>[
   _NavGroup('People', [
     _NavItem('Employees', Icons.people_outline, '/employees', _always),
     _NavItem('Hiring', Icons.person_search_outlined, '/hiring', _always),
-    _NavItem('Onboarding', Icons.rocket_launch_outlined, '/onboarding', _always,
-        comingSoon: true),
-    _NavItem('Offboarding', Icons.logout_outlined, '/offboarding', _always,
-        comingSoon: true),
     _NavItem('Org Chart', Icons.account_tree_outlined, '/org-chart', _always,
         comingSoon: true),
   ]),
