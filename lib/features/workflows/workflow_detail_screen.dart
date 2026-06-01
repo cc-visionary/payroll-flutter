@@ -343,6 +343,7 @@ class _StepActions extends ConsumerWidget {
     await ref.read(workflowRepositoryProvider).maybeCompleteInstance(workflow.id);
     ref.invalidate(workflowStepsProvider(workflow.id));
     ref.invalidate(workflowByIdProvider(workflow.id));
+    ref.invalidate(workflowListProvider);
   }
 
   Future<void> _reject(BuildContext context, WidgetRef ref) async {
@@ -355,6 +356,8 @@ class _StepActions extends ConsumerWidget {
           remarks: remarks.trim(),
         );
     ref.invalidate(workflowStepsProvider(workflow.id));
+    ref.invalidate(workflowByIdProvider(workflow.id));
+    ref.invalidate(workflowListProvider);
   }
 
   Future<void> _skip(BuildContext context, WidgetRef ref) async {
