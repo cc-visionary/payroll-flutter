@@ -152,11 +152,9 @@ class _Body extends ConsumerWidget {
   Future<void> _cancelWorkflow(BuildContext context, WidgetRef ref) async {
     final reason = await _remarksDialog(context, 'Cancel this workflow?', 'Cancellation reason (required)', requireNonEmpty: true);
     if (reason == null) return;
-    final profile = ref.read(userProfileProvider).asData!.value!;
     await ref.read(workflowRepositoryProvider).cancelInstance(
           instanceId: w.id,
           cancelReason: reason.trim(),
-          cancelledById: profile.userId,
         );
     ref.invalidate(workflowByIdProvider(w.id));
     ref.invalidate(workflowListProvider);
@@ -372,6 +370,7 @@ class _StepActions extends ConsumerWidget {
     await ref.read(workflowRepositoryProvider).maybeCompleteInstance(workflow.id);
     ref.invalidate(workflowStepsProvider(workflow.id));
     ref.invalidate(workflowByIdProvider(workflow.id));
+    ref.invalidate(workflowListProvider);
   }
 }
 

@@ -232,8 +232,10 @@ class WorkflowRepository {
   Future<void> cancelInstance({
     required String instanceId,
     required String cancelReason,
-    required String cancelledById,
   }) async {
+    // Note: `workflow_instances` schema has no cancelled_by_id column.
+    // If/when audit-trail granularity is needed, add the column via
+    // migration + a setByUserId param here (mirroring the step lifecycle).
     await _client.from('workflow_instances').update({
       'status': 'CANCELLED',
       'cancelled_at': DateTime.now().toIso8601String(),
