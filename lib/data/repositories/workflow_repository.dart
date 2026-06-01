@@ -115,8 +115,8 @@ class WorkflowRepository {
   /// Insert one workflow_instance + N workflow_steps. Two sequential calls —
   /// Supabase Dart client doesn't expose multi-statement transactions, so this
   /// is best-effort atomic. If steps insert fails, the orphan instance is left
-  /// in DRAFT and surfaces in the UI for manual cancel/cleanup. Acceptable for
-  /// MVP given low-concurrency single-handler usage.
+  /// in IN_PROGRESS (with no steps) and surfaces in the UI for manual cancel.
+  /// Acceptable for MVP given low-concurrency single-handler usage.
   Future<String> insertWithSteps({
     required WorkflowInstanceInput instance,
     required List<WorkflowStepInput> steps,
