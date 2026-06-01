@@ -68,6 +68,44 @@ class _Body extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (w.status == 'COMPLETED') ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.green.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Workflow completed ${w.completedAt?.toIso8601String().substring(0, 10) ?? ''}',
+                    style: const TextStyle(color: Colors.green),
+                  ),
+                ]),
+              ),
+            ],
+            if (w.status == 'CANCELLED') ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(children: [
+                  Icon(Icons.cancel_outlined, color: Theme.of(context).colorScheme.error, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Cancelled${w.cancelReason != null ? ' — ${w.cancelReason}' : ''}',
+                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    ),
+                  ),
+                ]),
+              ),
+            ],
             Row(children: [
               Chip(label: Text(w.workflowType)),
               const SizedBox(width: 8),
@@ -94,10 +132,34 @@ class _Body extends ConsumerWidget {
               data: (steps) =>
                   _StepsTimeline(workflow: w, steps: steps),
             ),
+            if (w.status == 'IN_PROGRESS' || w.status == 'DRAFT') ...[
+              const SizedBox(height: 32),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  onPressed: () => _cancelWorkflow(context, ref),
+                  icon: Icon(Icons.cancel_outlined, color: Theme.of(context).colorScheme.error, size: 18),
+                  label: Text('Cancel workflow', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _cancelWorkflow(BuildContext context, WidgetRef ref) async {
+    final reason = await _remarksDialog(context, 'Cancel this workflow?', 'Cancellation reason (required)', requireNonEmpty: true);
+    if (reason == null) return;
+    final profile = ref.read(userProfileProvider).asData!.value!;
+    await ref.read(workflowRepositoryProvider).cancelInstance(
+          instanceId: w.id,
+          cancelReason: reason.trim(),
+          cancelledById: profile.userId,
+        );
+    ref.invalidate(workflowByIdProvider(w.id));
+    ref.invalidate(workflowListProvider);
   }
 }
 
