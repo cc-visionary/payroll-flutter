@@ -74,3 +74,41 @@ WorkflowSeed seedSeparationWorkflow({
     steps: steps,
   );
 }
+
+/// Build a HIRING workflow with 4 default onboarding steps. Each step is a
+/// STATUS_UPDATE that HR manually marks complete as the onboarding work
+/// happens. Schema supports per-step assignment via `assigned_to_id` — v1
+/// leaves it null (implicitly assigned to whoever initiated the workflow).
+WorkflowSeed seedHiringWorkflow({
+  required String companyId,
+  required String employeeId,
+  required String employeeFullName,
+  required String applicantId,
+  required String initiatedById,
+}) {
+  const onboardingSteps = <String>[
+    'IT account & email setup',
+    'Equipment provisioning (laptop, peripherals)',
+    'Day-1 orientation completed',
+    '30-day check-in completed',
+  ];
+  final steps = <WorkflowStepInput>[
+    for (var i = 0; i < onboardingSteps.length; i++)
+      WorkflowStepInput(
+        stepIndex: i,
+        stepType: 'STATUS_UPDATE',
+        name: onboardingSteps[i],
+      ),
+  ];
+  return WorkflowSeed(
+    instance: WorkflowInstanceInput(
+      companyId: companyId,
+      employeeId: employeeId,
+      workflowType: 'HIRING',
+      title: 'Hiring — $employeeFullName',
+      context: {'applicant_id': applicantId},
+      initiatedById: initiatedById,
+    ),
+    steps: steps,
+  );
+}

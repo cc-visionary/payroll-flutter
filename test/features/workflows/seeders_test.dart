@@ -40,4 +40,24 @@ void main() {
     );
     expect(seed.steps, isEmpty);
   });
+
+  test('seedHiringWorkflow produces 4 default STATUS_UPDATE onboarding steps', () {
+    final seed = seedHiringWorkflow(
+      companyId: 'c1',
+      employeeId: 'e1',
+      employeeFullName: 'Juan Cruz',
+      applicantId: 'a1',
+      initiatedById: 'u1',
+    );
+    expect(seed.instance.workflowType, 'HIRING');
+    expect(seed.instance.title, 'Hiring — Juan Cruz');
+    expect(seed.instance.context['applicant_id'], 'a1');
+    expect(seed.steps.length, 4);
+    expect(seed.steps[0].stepType, 'STATUS_UPDATE');
+    expect(seed.steps[0].name, contains('IT account'));
+    expect(seed.steps[3].name, contains('30-day'));
+    for (var i = 0; i < seed.steps.length; i++) {
+      expect(seed.steps[i].stepIndex, i);
+    }
+  });
 }
