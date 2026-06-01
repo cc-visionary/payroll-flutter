@@ -295,6 +295,12 @@ class PerformanceRepository {
   /// Partial update of check-in fields. When `status` is set and differs from
   /// the prior value, validates the transition and stamps submitted_at /
   /// reviewed_at as appropriate.
+  ///
+  /// Self-review fields (accomplishments, challenges, learnings, supportNeeded)
+  /// are write-locked once the check-in leaves DRAFT status. The UI also gates
+  /// this; the repository layer enforces it server-side as a defence-in-depth
+  /// guard so a manager calling the API directly cannot overwrite a submitted
+  /// employee self-review.
   Future<void> updateCheckIn({
     required String checkInId,
     String? status,
@@ -308,24 +314,44 @@ class PerformanceRepository {
     int? overallRating,
     String? overallComments,
   }) async {
-    final payload = <String, dynamic>{};
-    if (accomplishments case final a?) payload['accomplishments'] = a;
-    if (challenges case final c?) payload['challenges'] = c;
-    if (learnings case final l?) payload['learnings'] = l;
-    if (supportNeeded case final s?) payload['support_needed'] = s;
-    if (managerFeedback case final m?) payload['manager_feedback'] = m;
-    if (strengths case final s?) payload['strengths'] = s;
-    if (areasForImprovement case final a?) payload['areas_for_improvement'] = a;
-    if (overallRating case final r?) payload['overall_rating'] = r;
-    if (overallComments case final c?) payload['overall_comments'] = c;
+    // Self-review fields are write-locked once status leaves DRAFT, regardless
+    // of caller role. Fetch the prior status whenever any self-review field is
+    // being set OR when we're about to transition status. Repository-level
+    // guard (UI also gates this; trust both).
+    final touchesSelfReview = accomplishments != null ||
+        challenges != null ||
+        learnings != null ||
+        supportNeeded != null;
 
-    if (status != null) {
+    String? priorStatus;
+    if (status != null || touchesSelfReview) {
       final prior = await _client
           .from('performance_check_ins')
           .select('status')
           .eq('id', checkInId)
           .maybeSingle();
-      final priorStatus = prior?['status'] as String?;
+      priorStatus = prior?['status'] as String?;
+    }
+
+    final payload = <String, dynamic>{};
+
+    // Self-review fields — only when prior status is DRAFT (or there is no
+    // prior row yet, but that shouldn't happen on an update).
+    final allowSelfReviewWrite = priorStatus == null || priorStatus == 'DRAFT';
+    if (allowSelfReviewWrite) {
+      if (accomplishments != null) payload['accomplishments'] = accomplishments;
+      if (challenges != null) payload['challenges'] = challenges;
+      if (learnings != null) payload['learnings'] = learnings;
+      if (supportNeeded != null) payload['support_needed'] = supportNeeded;
+    }
+    // Manager fields — always writable; UI gates by role + status.
+    if (managerFeedback != null) payload['manager_feedback'] = managerFeedback;
+    if (strengths != null) payload['strengths'] = strengths;
+    if (areasForImprovement != null) payload['areas_for_improvement'] = areasForImprovement;
+    if (overallRating != null) payload['overall_rating'] = overallRating;
+    if (overallComments != null) payload['overall_comments'] = overallComments;
+
+    if (status != null) {
       if (priorStatus != null && priorStatus != status) {
         validateCheckInTransition(from: priorStatus, to: status);
       }
