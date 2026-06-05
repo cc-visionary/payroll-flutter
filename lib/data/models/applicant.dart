@@ -25,6 +25,7 @@ class Applicant {
   // Sourcing
   final String? source;
   final String? referredById;
+  final String? listingId;
   final String? linkedinUrl;
   final String? portfolioUrl;
   // Files (deferred to v2)
@@ -69,6 +70,7 @@ class Applicant {
     this.hiringEntityId,
     this.source,
     this.referredById,
+    this.listingId,
     this.linkedinUrl,
     this.portfolioUrl,
     this.resumePath,
@@ -93,10 +95,12 @@ class Applicant {
     this.deletedAt,
   });
 
-  String get fullName => [firstName, middleName, lastName, suffix]
-      .where((s) => s != null && s.isNotEmpty)
-      .cast<String>()
-      .join(' ');
+  String get fullName => [
+    firstName,
+    middleName,
+    lastName,
+    suffix,
+  ].where((s) => s != null && s.isNotEmpty).cast<String>().join(' ');
 }
 
 extension ApplicantFromRow on Applicant {
@@ -119,6 +123,7 @@ extension ApplicantFromRow on Applicant {
       hiringEntityId: r['hiring_entity_id'] as String?,
       source: r['source'] as String?,
       referredById: r['referred_by_id'] as String?,
+      listingId: r['listing_id'] as String?,
       linkedinUrl: r['linkedin_url'] as String?,
       portfolioUrl: r['portfolio_url'] as String?,
       resumePath: r['resume_path'] as String?,

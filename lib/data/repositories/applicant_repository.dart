@@ -7,16 +7,25 @@ import '../models/applicant.dart';
 /// Filter parameters for the applicants list. Mirrors EmployeeListQuery
 /// (lib/data/repositories/employee_repository.dart:208) for consistency.
 class ApplicantListQuery {
-  final String? search;          // name/email substring (case-insensitive)
-  final List<String>? statuses;  // null = all statuses
+  final String? search;
+  final List<String>? statuses;
   final String? roleScorecardId;
   final String? hiringEntityId;
-  final bool includeArchived;    // include soft-deleted (deleted_at not null)
+
+  /// When non-null, scope to applicants with `listing_id = <this value>`.
+  final String? listingId;
+
+  /// When true, scope to applicants whose `listing_id IS NULL` (Talent Pool).
+  /// Mutually exclusive with `listingId` — if both are set, listingId wins.
+  final bool listingIsExplicitlyNull;
+  final bool includeArchived;
   const ApplicantListQuery({
     this.search,
     this.statuses,
     this.roleScorecardId,
     this.hiringEntityId,
+    this.listingId,
+    this.listingIsExplicitlyNull = false,
     this.includeArchived = false,
   });
 
@@ -28,16 +37,20 @@ class ApplicantListQuery {
           _eq(statuses, other.statuses) &&
           roleScorecardId == other.roleScorecardId &&
           hiringEntityId == other.hiringEntityId &&
+          listingId == other.listingId &&
+          listingIsExplicitlyNull == other.listingIsExplicitlyNull &&
           includeArchived == other.includeArchived;
 
   @override
   int get hashCode => Object.hash(
-        search,
-        Object.hashAll(statuses ?? const []),
-        roleScorecardId,
-        hiringEntityId,
-        includeArchived,
-      );
+    search,
+    Object.hashAll(statuses ?? const []),
+    roleScorecardId,
+    hiringEntityId,
+    listingId,
+    listingIsExplicitlyNull,
+    includeArchived,
+  );
 
   static bool _eq(List<String>? a, List<String>? b) {
     if (a == null && b == null) return true;
@@ -68,9 +81,16 @@ class ApplicantRepository {
     if (q.hiringEntityId != null) {
       builder = builder.eq('hiring_entity_id', q.hiringEntityId!);
     }
+    if (q.listingId != null) {
+      builder = builder.eq('listing_id', q.listingId!);
+    } else if (q.listingIsExplicitlyNull) {
+      builder = builder.isFilter('listing_id', null);
+    }
     if (q.search != null && q.search!.trim().isNotEmpty) {
       final s = '%${q.search!.trim()}%';
-      builder = builder.or('first_name.ilike.$s,last_name.ilike.$s,email.ilike.$s');
+      builder = builder.or(
+        'first_name.ilike.$s,last_name.ilike.$s,email.ilike.$s',
+      );
     }
     final rows = await builder.order('applied_at', ascending: false);
     return (rows as List)
@@ -79,7 +99,11 @@ class ApplicantRepository {
   }
 
   Future<Applicant?> byId(String id) async {
-    final row = await _client.from('applicants').select('*').eq('id', id).maybeSingle();
+    final row = await _client
+        .from('applicants')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
     if (row == null) return null;
     return ApplicantFromRow.fromRow(row);
   }
@@ -117,14 +141,15 @@ class ApplicantRepository {
     required String email,
     String? phoneNumber,
     String? mobileNumber,
-    required String roleScorecardId,    // hard-gated at form layer
+    required String roleScorecardId, // hard-gated at form layer
     String? departmentId,
     String? hiringEntityId,
     String? source,
     String? referredById,
+    String? listingId, // null = Talent Pool
     String? linkedinUrl,
     String? portfolioUrl,
-    String? expectedSalaryMin,          // Decimal string or null
+    String? expectedSalaryMin, // Decimal string or null
     String? expectedSalaryMax,
     DateTime? expectedStartDate,
     required String status,
@@ -136,18 +161,23 @@ class ApplicantRepository {
     // Look up prior status to detect change.
     String? priorStatus;
     if (id != null) {
-      final prior = await _client.from('applicants').select('status').eq('id', id).maybeSingle();
+      final prior = await _client
+          .from('applicants')
+          .select('status')
+          .eq('id', id)
+          .maybeSingle();
       priorStatus = prior?['status'] as String?;
     }
 
     final isCreate = id == null;
-    final statusChanged = isCreate || (priorStatus != null && priorStatus != status);
+    final statusChanged =
+        isCreate || (priorStatus != null && priorStatus != status);
     if (statusChanged && !isCreate) {
       final reason = status == 'REJECTED'
           ? rejectionReason
           : status == 'WITHDRAWN'
-              ? withdrawalReason
-              : null;
+          ? withdrawalReason
+          : null;
       validateTransition(from: priorStatus!, to: status, reason: reason);
     }
 
@@ -165,11 +195,15 @@ class ApplicantRepository {
       'hiring_entity_id': hiringEntityId,
       'source': source,
       'referred_by_id': referredById,
+      'listing_id': listingId,
       'linkedin_url': linkedinUrl,
       'portfolio_url': portfolioUrl,
       'expected_salary_min': expectedSalaryMin,
       'expected_salary_max': expectedSalaryMax,
-      'expected_start_date': expectedStartDate?.toIso8601String().substring(0, 10),
+      'expected_start_date': expectedStartDate?.toIso8601String().substring(
+        0,
+        10,
+      ),
       'status': status,
       'rejection_reason': rejectionReason,
       'withdrawal_reason': withdrawalReason,
@@ -182,7 +216,11 @@ class ApplicantRepository {
       await _client.from('applicants').update(payload).eq('id', id);
       return id;
     }
-    final inserted = await _client.from('applicants').insert(payload).select('id').single();
+    final inserted = await _client
+        .from('applicants')
+        .insert(payload)
+        .select('id')
+        .single();
     return inserted['id'] as String;
   }
 
@@ -211,17 +249,19 @@ class ApplicantRepository {
   }
 }
 
-final applicantRepositoryProvider =
-    Provider<ApplicantRepository>((ref) => ApplicantRepository(Supabase.instance.client));
+final applicantRepositoryProvider = Provider<ApplicantRepository>(
+  (ref) => ApplicantRepository(Supabase.instance.client),
+);
 
 final applicantListProvider =
-    FutureProvider.family<List<Applicant>, ApplicantListQuery>((ref, q) =>
-        ref.read(applicantRepositoryProvider).list(q));
+    FutureProvider.family<List<Applicant>, ApplicantListQuery>(
+      (ref, q) => ref.read(applicantRepositoryProvider).list(q),
+    );
 
-final applicantByIdProvider =
-    FutureProvider.family<Applicant?, String>((ref, id) =>
-        ref.read(applicantRepositoryProvider).byId(id));
+final applicantByIdProvider = FutureProvider.family<Applicant?, String>(
+  (ref, id) => ref.read(applicantRepositoryProvider).byId(id),
+);
 
-final applicantsCountByStatusProvider =
-    FutureProvider<Map<String, int>>((ref) =>
-        ref.read(applicantRepositoryProvider).countByStatus());
+final applicantsCountByStatusProvider = FutureProvider<Map<String, int>>(
+  (ref) => ref.read(applicantRepositoryProvider).countByStatus(),
+);
