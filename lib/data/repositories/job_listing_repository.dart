@@ -140,3 +140,64 @@ final jobListingListProvider =
 final jobListingByIdProvider = FutureProvider.family<JobListing?, String>(
   (ref, id) => ref.read(jobListingRepositoryProvider).byId(id),
 );
+
+enum ListingEffectiveStatus { open, filled, paused, closed }
+
+extension ListingEffectiveStatusX on ListingEffectiveStatus {
+  String get label => switch (this) {
+    ListingEffectiveStatus.open => 'Open',
+    ListingEffectiveStatus.filled => 'Filled',
+    ListingEffectiveStatus.paused => 'Paused',
+    ListingEffectiveStatus.closed => 'Closed',
+  };
+}
+
+/// Pure derivation — used by both the live provider and tests.
+ListingEffectiveStatus deriveEffectiveStatus({
+  required String status,
+  required int filled,
+  required int target,
+}) {
+  if (status == 'PAUSED') return ListingEffectiveStatus.paused;
+  if (status == 'CLOSED') return ListingEffectiveStatus.closed;
+  return filled >= target
+      ? ListingEffectiveStatus.filled
+      : ListingEffectiveStatus.open;
+}
+
+/// Live filled count: number of active, non-archived employees whose
+/// (role_scorecard_id, hiring_entity_id) matches the listing.
+final listingFilledCountProvider = FutureProvider.family<int, String>((
+  ref,
+  listingId,
+) async {
+  final listing = await ref.watch(jobListingByIdProvider(listingId).future);
+  if (listing == null) return 0;
+  final rows = await Supabase.instance.client
+      .from('employees')
+      .select('id')
+      .eq('role_scorecard_id', listing.roleScorecardId)
+      .eq('hiring_entity_id', listing.hiringEntityId)
+      .eq('employment_status', 'ACTIVE')
+      .isFilter('deleted_at', null);
+  return (rows as List).length;
+});
+
+/// Effective status: composes the persisted `status` with the derived
+/// filled count.
+final listingEffectiveStatusProvider =
+    FutureProvider.family<ListingEffectiveStatus, String>((
+      ref,
+      listingId,
+    ) async {
+      final listing = await ref.watch(jobListingByIdProvider(listingId).future);
+      if (listing == null) return ListingEffectiveStatus.closed;
+      final filled = await ref.watch(
+        listingFilledCountProvider(listingId).future,
+      );
+      return deriveEffectiveStatus(
+        status: listing.status,
+        filled: filled,
+        target: listing.targetHeadcount,
+      );
+    });
