@@ -261,6 +261,7 @@ final ntesByEmployeeProvider =
           .select('id, title, created_at')
           .eq('employee_id', employeeId)
           .eq('document_type', 'NTE')
+          .isFilter('deleted_at', null)
           .order('created_at', ascending: false);
       return (rows as List)
           .map(
