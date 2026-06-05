@@ -1,0 +1,111 @@
+import 'document_template.dart';
+
+enum NodDecision {
+  reprimand,
+  writtenWarning,
+  suspension,
+  termination,
+  noAction,
+}
+
+extension NodDecisionX on NodDecision {
+  String get label => switch (this) {
+    NodDecision.reprimand => 'Reprimand',
+    NodDecision.writtenWarning => 'Written Warning',
+    NodDecision.suspension => 'Suspension',
+    NodDecision.termination => 'Termination',
+    NodDecision.noAction => 'No Action',
+  };
+}
+
+class NodInputs extends TemplateInputs {
+  final String employeeId;
+  final String employeeFullName;
+  final String employeePosition;
+  final String employeeGender;
+  final String companyId;
+  final String companyName;
+  final String companyAddress;
+  final String hrManagerName;
+
+  final String? linkedNteDocumentId;
+  final DateTime? nteDate;
+  final String charges;
+  final String employeeResponseSummary;
+  final String findings;
+
+  final NodDecision decision;
+  final int suspensionDays;
+  final DateTime effectiveDate;
+  final DateTime issueDate;
+
+  NodInputs({
+    required this.employeeId,
+    required this.employeeFullName,
+    this.employeePosition = '',
+    this.employeeGender = '',
+    required this.companyId,
+    required this.companyName,
+    this.companyAddress = '',
+    this.hrManagerName = '',
+    this.linkedNteDocumentId,
+    this.nteDate,
+    this.charges = '',
+    this.employeeResponseSummary = '',
+    this.findings = '',
+    this.decision = NodDecision.writtenWarning,
+    this.suspensionDays = 0,
+    required this.effectiveDate,
+    required this.issueDate,
+  });
+
+  NodInputs copyWith({
+    String? employeeId,
+    String? employeeFullName,
+    String? employeePosition,
+    String? employeeGender,
+    String? companyId,
+    String? companyName,
+    String? companyAddress,
+    String? hrManagerName,
+    Object? linkedNteDocumentId = _undef,
+    Object? nteDate = _undef,
+    String? charges,
+    String? employeeResponseSummary,
+    String? findings,
+    NodDecision? decision,
+    int? suspensionDays,
+    DateTime? effectiveDate,
+    DateTime? issueDate,
+  }) => NodInputs(
+    employeeId: employeeId ?? this.employeeId,
+    employeeFullName: employeeFullName ?? this.employeeFullName,
+    employeePosition: employeePosition ?? this.employeePosition,
+    employeeGender: employeeGender ?? this.employeeGender,
+    companyId: companyId ?? this.companyId,
+    companyName: companyName ?? this.companyName,
+    companyAddress: companyAddress ?? this.companyAddress,
+    hrManagerName: hrManagerName ?? this.hrManagerName,
+    linkedNteDocumentId: identical(linkedNteDocumentId, _undef)
+        ? this.linkedNteDocumentId
+        : linkedNteDocumentId as String?,
+    nteDate: identical(nteDate, _undef) ? this.nteDate : nteDate as DateTime?,
+    charges: charges ?? this.charges,
+    employeeResponseSummary:
+        employeeResponseSummary ?? this.employeeResponseSummary,
+    findings: findings ?? this.findings,
+    decision: decision ?? this.decision,
+    suspensionDays: suspensionDays ?? this.suspensionDays,
+    effectiveDate: effectiveDate ?? this.effectiveDate,
+    issueDate: issueDate ?? this.issueDate,
+  );
+
+  @override
+  Map<String, dynamic> toDebugMap() => {
+    'employeeId': employeeId,
+    'decision': decision.name,
+    'linkedNte': linkedNteDocumentId,
+  };
+}
+
+const _undef = Object();
