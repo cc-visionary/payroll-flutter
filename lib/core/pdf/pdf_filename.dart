@@ -13,7 +13,8 @@ String filenameForDocument({
 }) {
   final prefix = _prefixFor(templateId);
   final id = employeeNumber ?? employeeId.substring(0, 8).toUpperCase();
-  final ymd = '${date.year.toString().padLeft(4, '0')}'
+  final ymd =
+      '${date.year.toString().padLeft(4, '0')}'
       '${date.month.toString().padLeft(2, '0')}'
       '${date.day.toString().padLeft(2, '0')}';
   return '${prefix}_${id}_$ymd.pdf';
@@ -35,6 +36,16 @@ String _prefixFor(String templateId) {
       return 'NDA';
     case 'liability_waiver':
       return 'LiabilityWaiver';
+    case 'final_pay':
+      return 'FinalPay';
+    case 'salary_adjustment':
+      return 'SalaryAdjustment';
+    case 'nod':
+      return 'NOD';
+    case 'regularization':
+      return 'Regularization';
+    case 'resignation_acceptance':
+      return 'ResignationAcceptance';
     default:
       return templateId;
   }

@@ -11,11 +11,16 @@ import '../../core/pdf/pdf_theme.dart';
 import '../../data/repositories/audit_repository.dart';
 import 'forms/coe_form.dart';
 import 'forms/employment_contract_form.dart';
+import 'forms/final_pay_form.dart';
 import 'forms/liability_waiver_form.dart';
 import 'forms/nda_form.dart';
+import 'forms/nod_form.dart';
 import 'forms/non_reg_form.dart';
 import 'forms/nte_form.dart';
 import 'forms/quitclaim_form.dart';
+import 'forms/regularization_form.dart';
+import 'forms/resignation_acceptance_form.dart';
+import 'forms/salary_adjustment_form.dart';
 import 'pdf/pdf_builder.dart';
 import 'providers.dart';
 import 'templates/coe_inputs.dart';
@@ -23,26 +28,32 @@ import 'templates/coe_template.dart';
 import 'templates/document_template.dart';
 import 'templates/employment_contract_inputs.dart';
 import 'templates/employment_contract_template.dart';
+import 'templates/final_pay_inputs.dart';
+import 'templates/final_pay_template.dart';
 import 'templates/liability_waiver_inputs.dart';
 import 'templates/liability_waiver_template.dart';
 import 'templates/nda_inputs.dart';
 import 'templates/nda_template.dart';
+import 'templates/nod_inputs.dart';
+import 'templates/nod_template.dart';
 import 'templates/non_reg_inputs.dart';
 import 'templates/non_reg_template.dart';
 import 'templates/nte_inputs.dart';
 import 'templates/nte_template.dart';
 import 'templates/quitclaim_inputs.dart';
 import 'templates/quitclaim_template.dart';
+import 'templates/regularization_inputs.dart';
+import 'templates/regularization_template.dart';
+import 'templates/resignation_acceptance_inputs.dart';
+import 'templates/resignation_acceptance_template.dart';
+import 'templates/salary_adjustment_inputs.dart';
+import 'templates/salary_adjustment_template.dart';
 import 'templates/template_registry.dart';
 
 class GenerateScreen extends ConsumerStatefulWidget {
   final String templateId;
   final String? employeeId;
-  const GenerateScreen({
-    super.key,
-    required this.templateId,
-    this.employeeId,
-  });
+  const GenerateScreen({super.key, required this.templateId, this.employeeId});
 
   @override
   ConsumerState<GenerateScreen> createState() => _GenerateScreenState();
@@ -56,6 +67,11 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
   EmploymentContractInputs? _employmentContract;
   NdaInputs? _nda;
   LiabilityWaiverInputs? _liabilityWaiver;
+  FinalPayInputs? _finalPay;
+  SalaryAdjustmentInputs? _salaryAdjustment;
+  NodInputs? _nod;
+  RegularizationInputs? _regularization;
+  ResignationAcceptanceInputs? _resignationAcceptance;
   bool _autofillDone = false;
   String? _autofillError;
   bool _dirty = false;
@@ -102,8 +118,9 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         final emp = await ref.read(documentEmployeeProvider(eId).future);
         final co = (emp == null || emp.hiringEntityId == null)
             ? null
-            : await ref
-                .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+            : await ref.read(
+                hiringEntityByIdProvider(emp.hiringEntityId!).future,
+              );
         final ctx = AutofillContext(employee: emp, company: co, ref: ref);
         final filled = await tpl.autofill(ctx);
         setState(() {
@@ -125,8 +142,9 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         final emp = await ref.read(documentEmployeeProvider(eId).future);
         final co = (emp == null || emp.hiringEntityId == null)
             ? null
-            : await ref
-                .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+            : await ref.read(
+                hiringEntityByIdProvider(emp.hiringEntityId!).future,
+              );
         final ctx = AutofillContext(employee: emp, company: co, ref: ref);
         final filled = await tpl.autofill(ctx);
         setState(() {
@@ -148,8 +166,9 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         final emp = await ref.read(documentEmployeeProvider(eId).future);
         final co = (emp == null || emp.hiringEntityId == null)
             ? null
-            : await ref
-                .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+            : await ref.read(
+                hiringEntityByIdProvider(emp.hiringEntityId!).future,
+              );
         final ctx = AutofillContext(employee: emp, company: co, ref: ref);
         final filled = await tpl.autofill(ctx);
         setState(() {
@@ -171,8 +190,9 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         final emp = await ref.read(documentEmployeeProvider(eId).future);
         final co = (emp == null || emp.hiringEntityId == null)
             ? null
-            : await ref
-                .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+            : await ref.read(
+                hiringEntityByIdProvider(emp.hiringEntityId!).future,
+              );
         final ctx = AutofillContext(employee: emp, company: co, ref: ref);
         final filled = await tpl.autofill(ctx);
         setState(() {
@@ -194,8 +214,9 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         final emp = await ref.read(documentEmployeeProvider(eId).future);
         final co = (emp == null || emp.hiringEntityId == null)
             ? null
-            : await ref
-                .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+            : await ref.read(
+                hiringEntityByIdProvider(emp.hiringEntityId!).future,
+              );
         final ctx = AutofillContext(employee: emp, company: co, ref: ref);
         final filled = await tpl.autofill(ctx);
         setState(() {
@@ -217,12 +238,133 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         final emp = await ref.read(documentEmployeeProvider(eId).future);
         final co = (emp == null || emp.hiringEntityId == null)
             ? null
-            : await ref
-                .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+            : await ref.read(
+                hiringEntityByIdProvider(emp.hiringEntityId!).future,
+              );
         final ctx = AutofillContext(employee: emp, company: co, ref: ref);
         final filled = await tpl.autofill(ctx);
         setState(() {
           _liabilityWaiver = filled;
+          _autofillDone = true;
+          _autofillRev++;
+        });
+        return;
+      }
+      if (tpl is FinalPayTemplate) {
+        if (eId == null) {
+          setState(() {
+            _finalPay = tpl.emptyInputs();
+            _autofillDone = true;
+            _autofillRev++;
+          });
+          return;
+        }
+        final emp = await ref.read(documentEmployeeProvider(eId).future);
+        final co = (emp == null || emp.hiringEntityId == null)
+            ? null
+            : await ref.read(
+                hiringEntityByIdProvider(emp.hiringEntityId!).future,
+              );
+        final ctx = AutofillContext(employee: emp, company: co, ref: ref);
+        final filled = await tpl.autofill(ctx);
+        setState(() {
+          _finalPay = filled;
+          _autofillDone = true;
+          _autofillRev++;
+        });
+        return;
+      }
+      if (tpl is SalaryAdjustmentTemplate) {
+        if (eId == null) {
+          setState(() {
+            _salaryAdjustment = tpl.emptyInputs();
+            _autofillDone = true;
+            _autofillRev++;
+          });
+          return;
+        }
+        final emp = await ref.read(documentEmployeeProvider(eId).future);
+        final co = (emp == null || emp.hiringEntityId == null)
+            ? null
+            : await ref.read(
+                hiringEntityByIdProvider(emp.hiringEntityId!).future,
+              );
+        final ctx = AutofillContext(employee: emp, company: co, ref: ref);
+        final filled = await tpl.autofill(ctx);
+        setState(() {
+          _salaryAdjustment = filled;
+          _autofillDone = true;
+          _autofillRev++;
+        });
+        return;
+      }
+      if (tpl is NodTemplate) {
+        if (eId == null) {
+          setState(() {
+            _nod = tpl.emptyInputs();
+            _autofillDone = true;
+            _autofillRev++;
+          });
+          return;
+        }
+        final emp = await ref.read(documentEmployeeProvider(eId).future);
+        final co = (emp == null || emp.hiringEntityId == null)
+            ? null
+            : await ref.read(
+                hiringEntityByIdProvider(emp.hiringEntityId!).future,
+              );
+        final ctx = AutofillContext(employee: emp, company: co, ref: ref);
+        final filled = await tpl.autofill(ctx);
+        setState(() {
+          _nod = filled;
+          _autofillDone = true;
+          _autofillRev++;
+        });
+        return;
+      }
+      if (tpl is RegularizationTemplate) {
+        if (eId == null) {
+          setState(() {
+            _regularization = tpl.emptyInputs();
+            _autofillDone = true;
+            _autofillRev++;
+          });
+          return;
+        }
+        final emp = await ref.read(documentEmployeeProvider(eId).future);
+        final co = (emp == null || emp.hiringEntityId == null)
+            ? null
+            : await ref.read(
+                hiringEntityByIdProvider(emp.hiringEntityId!).future,
+              );
+        final ctx = AutofillContext(employee: emp, company: co, ref: ref);
+        final filled = await tpl.autofill(ctx);
+        setState(() {
+          _regularization = filled;
+          _autofillDone = true;
+          _autofillRev++;
+        });
+        return;
+      }
+      if (tpl is ResignationAcceptanceTemplate) {
+        if (eId == null) {
+          setState(() {
+            _resignationAcceptance = tpl.emptyInputs();
+            _autofillDone = true;
+            _autofillRev++;
+          });
+          return;
+        }
+        final emp = await ref.read(documentEmployeeProvider(eId).future);
+        final co = (emp == null || emp.hiringEntityId == null)
+            ? null
+            : await ref.read(
+                hiringEntityByIdProvider(emp.hiringEntityId!).future,
+              );
+        final ctx = AutofillContext(employee: emp, company: co, ref: ref);
+        final filled = await tpl.autofill(ctx);
+        setState(() {
+          _resignationAcceptance = filled;
           _autofillDone = true;
           _autofillRev++;
         });
@@ -243,8 +385,9 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       final emp = await ref.read(documentEmployeeProvider(eId).future);
       final co = (emp == null || emp.hiringEntityId == null)
           ? null
-          : await ref
-              .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+          : await ref.read(
+              hiringEntityByIdProvider(emp.hiringEntityId!).future,
+            );
       final ctx = AutofillContext(employee: emp, company: co, ref: ref);
       final filled = await tpl.autofill(ctx);
       setState(() {
@@ -272,12 +415,14 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
     final tpl = findTemplateById(widget.templateId);
     if (tpl == null) return;
     try {
-      final emp =
-          await ref.read(documentEmployeeProvider(newEmployeeId).future);
+      final emp = await ref.read(
+        documentEmployeeProvider(newEmployeeId).future,
+      );
       final co = (emp == null || emp.hiringEntityId == null)
           ? null
-          : await ref
-              .read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+          : await ref.read(
+              hiringEntityByIdProvider(emp.hiringEntityId!).future,
+            );
       final ctx = AutofillContext(employee: emp, company: co, ref: ref);
       if (tpl is CoeTemplate) {
         final filled = await tpl.autofill(ctx);
@@ -327,6 +472,46 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           _autofillRev++;
           _dirty = true;
         });
+      } else if (tpl is FinalPayTemplate) {
+        final filled = await tpl.autofill(ctx);
+        if (!mounted) return;
+        setState(() {
+          _finalPay = filled;
+          _autofillRev++;
+          _dirty = true;
+        });
+      } else if (tpl is SalaryAdjustmentTemplate) {
+        final filled = await tpl.autofill(ctx);
+        if (!mounted) return;
+        setState(() {
+          _salaryAdjustment = filled;
+          _autofillRev++;
+          _dirty = true;
+        });
+      } else if (tpl is NodTemplate) {
+        final filled = await tpl.autofill(ctx);
+        if (!mounted) return;
+        setState(() {
+          _nod = filled;
+          _autofillRev++;
+          _dirty = true;
+        });
+      } else if (tpl is RegularizationTemplate) {
+        final filled = await tpl.autofill(ctx);
+        if (!mounted) return;
+        setState(() {
+          _regularization = filled;
+          _autofillRev++;
+          _dirty = true;
+        });
+      } else if (tpl is ResignationAcceptanceTemplate) {
+        final filled = await tpl.autofill(ctx);
+        if (!mounted) return;
+        setState(() {
+          _resignationAcceptance = filled;
+          _autofillRev++;
+          _dirty = true;
+        });
       } else if (tpl is QuitclaimTemplate) {
         final filled = await tpl.autofill(ctx);
         if (!mounted) return;
@@ -342,7 +527,8 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('Could not refresh fields for new employee: $e')),
+          content: Text('Could not refresh fields for new employee: $e'),
+        ),
       );
     }
   }
@@ -448,10 +634,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         ),
         body: Row(
           children: [
-            SizedBox(
-              width: 480,
-              child: _formFor(tpl),
-            ),
+            SizedBox(width: 480, child: _formFor(tpl)),
             const VerticalDivider(width: 1),
             Expanded(child: _previewFor(tpl)),
           ],
@@ -545,6 +728,67 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         onEmployeeChanged: _onPickerEmployeeChanged,
       );
     }
+    if (tpl is FinalPayTemplate && _finalPay != null) {
+      return FinalPayForm(
+        key: ValueKey('final_pay-$_autofillRev'),
+        initial: _finalPay!,
+        employeeLocked: widget.employeeId != null,
+        onChanged: (next) => setState(() {
+          _finalPay = next;
+          _dirty = true;
+        }),
+        onEmployeeChanged: _onPickerEmployeeChanged,
+      );
+    }
+    if (tpl is SalaryAdjustmentTemplate && _salaryAdjustment != null) {
+      return SalaryAdjustmentForm(
+        key: ValueKey('salary_adjustment-$_autofillRev'),
+        initial: _salaryAdjustment!,
+        employeeLocked: widget.employeeId != null,
+        onChanged: (next) => setState(() {
+          _salaryAdjustment = next;
+          _dirty = true;
+        }),
+        onEmployeeChanged: _onPickerEmployeeChanged,
+      );
+    }
+    if (tpl is NodTemplate && _nod != null) {
+      return NodForm(
+        key: ValueKey('nod-$_autofillRev'),
+        initial: _nod!,
+        employeeLocked: widget.employeeId != null,
+        onChanged: (next) => setState(() {
+          _nod = next;
+          _dirty = true;
+        }),
+        onEmployeeChanged: _onPickerEmployeeChanged,
+      );
+    }
+    if (tpl is RegularizationTemplate && _regularization != null) {
+      return RegularizationForm(
+        key: ValueKey('regularization-$_autofillRev'),
+        initial: _regularization!,
+        employeeLocked: widget.employeeId != null,
+        onChanged: (next) => setState(() {
+          _regularization = next;
+          _dirty = true;
+        }),
+        onEmployeeChanged: _onPickerEmployeeChanged,
+      );
+    }
+    if (tpl is ResignationAcceptanceTemplate &&
+        _resignationAcceptance != null) {
+      return ResignationAcceptanceForm(
+        key: ValueKey('resignation_acceptance-$_autofillRev'),
+        initial: _resignationAcceptance!,
+        employeeLocked: widget.employeeId != null,
+        onChanged: (next) => setState(() {
+          _resignationAcceptance = next;
+          _dirty = true;
+        }),
+        onEmployeeChanged: _onPickerEmployeeChanged,
+      );
+    }
     return const Center(child: Text('Form not implemented'));
   }
 
@@ -563,8 +807,8 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       final who = inputs.employeeFullName.trim().isNotEmpty
           ? inputs.employeeFullName.trim()
           : (inputs.employeeId.isEmpty
-              ? '(unknown employee)'
-              : inputs.employeeId);
+                ? '(unknown employee)'
+                : inputs.employeeId);
       return _previewWithBanner(
         errors,
         filename,
@@ -573,17 +817,20 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
         },
         onExported: (action) {
-          ref.read(auditRepositoryProvider).logExport(
-            description: 'Quitclaim PDF $action: $who',
-            entityType: 'document_template_pdf',
-            metadata: {
-              'template_id': 'quitclaim',
-              'employee_id':
-                  inputs.employeeId.isEmpty ? null : inputs.employeeId,
-              'file_name': filename,
-              'action': action,
-            },
-          );
+          ref
+              .read(auditRepositoryProvider)
+              .logExport(
+                description: 'Quitclaim PDF $action: $who',
+                entityType: 'document_template_pdf',
+                metadata: {
+                  'template_id': 'quitclaim',
+                  'employee_id': inputs.employeeId.isEmpty
+                      ? null
+                      : inputs.employeeId,
+                  'file_name': filename,
+                  'action': action,
+                },
+              );
         },
       );
     }
@@ -599,8 +846,8 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       final who = inputs.employeeFullName.trim().isNotEmpty
           ? inputs.employeeFullName.trim()
           : (inputs.employeeId.isEmpty
-              ? '(unknown employee)'
-              : inputs.employeeId);
+                ? '(unknown employee)'
+                : inputs.employeeId);
       return _previewWithBanner(
         errors,
         filename,
@@ -609,17 +856,20 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
         },
         onExported: (action) {
-          ref.read(auditRepositoryProvider).logExport(
-            description: 'COE PDF $action: $who',
-            entityType: 'document_template_pdf',
-            metadata: {
-              'template_id': 'coe',
-              'employee_id':
-                  inputs.employeeId.isEmpty ? null : inputs.employeeId,
-              'file_name': filename,
-              'action': action,
-            },
-          );
+          ref
+              .read(auditRepositoryProvider)
+              .logExport(
+                description: 'COE PDF $action: $who',
+                entityType: 'document_template_pdf',
+                metadata: {
+                  'template_id': 'coe',
+                  'employee_id': inputs.employeeId.isEmpty
+                      ? null
+                      : inputs.employeeId,
+                  'file_name': filename,
+                  'action': action,
+                },
+              );
         },
       );
     }
@@ -635,8 +885,8 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       final who = inputs.employeeFullName.trim().isNotEmpty
           ? inputs.employeeFullName.trim()
           : (inputs.employeeId.isEmpty
-              ? '(unknown employee)'
-              : inputs.employeeId);
+                ? '(unknown employee)'
+                : inputs.employeeId);
       final subject = inputs.finalSubject;
       return _previewWithBanner(
         errors,
@@ -646,18 +896,21 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
         },
         onExported: (action) {
-          ref.read(auditRepositoryProvider).logExport(
-            description: 'NTE PDF $action: $who — $subject',
-            entityType: 'document_template_pdf',
-            metadata: {
-              'template_id': 'nte',
-              'employee_id':
-                  inputs.employeeId.isEmpty ? null : inputs.employeeId,
-              'subject': subject,
-              'file_name': filename,
-              'action': action,
-            },
-          );
+          ref
+              .read(auditRepositoryProvider)
+              .logExport(
+                description: 'NTE PDF $action: $who — $subject',
+                entityType: 'document_template_pdf',
+                metadata: {
+                  'template_id': 'nte',
+                  'employee_id': inputs.employeeId.isEmpty
+                      ? null
+                      : inputs.employeeId,
+                  'subject': subject,
+                  'file_name': filename,
+                  'action': action,
+                },
+              );
         },
       );
     }
@@ -673,8 +926,8 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       final who = inputs.employeeFullName.trim().isNotEmpty
           ? inputs.employeeFullName.trim()
           : (inputs.employeeId.isEmpty
-              ? '(unknown employee)'
-              : inputs.employeeId);
+                ? '(unknown employee)'
+                : inputs.employeeId);
       return _previewWithBanner(
         errors,
         filename,
@@ -683,17 +936,20 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
         },
         onExported: (action) {
-          ref.read(auditRepositoryProvider).logExport(
-            description: 'Non-Reg PDF $action: $who',
-            entityType: 'document_template_pdf',
-            metadata: {
-              'template_id': 'non_reg',
-              'employee_id':
-                  inputs.employeeId.isEmpty ? null : inputs.employeeId,
-              'file_name': filename,
-              'action': action,
-            },
-          );
+          ref
+              .read(auditRepositoryProvider)
+              .logExport(
+                description: 'Non-Reg PDF $action: $who',
+                entityType: 'document_template_pdf',
+                metadata: {
+                  'template_id': 'non_reg',
+                  'employee_id': inputs.employeeId.isEmpty
+                      ? null
+                      : inputs.employeeId,
+                  'file_name': filename,
+                  'action': action,
+                },
+              );
         },
       );
     }
@@ -703,14 +959,16 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       final filename = filenameForDocument(
         templateId: 'employment_contract',
         employeeNumber: null,
-        employeeId: (inputs.employeeId?.isEmpty ?? true) ? '00000000' : inputs.employeeId!,
+        employeeId: (inputs.employeeId?.isEmpty ?? true)
+            ? '00000000'
+            : inputs.employeeId!,
         date: inputs.dateEntered,
       );
       final who = inputs.employeeFullName.trim().isNotEmpty
           ? inputs.employeeFullName.trim()
           : ((inputs.employeeId?.isEmpty ?? true)
-              ? '(unknown employee)'
-              : inputs.employeeId!);
+                ? '(unknown employee)'
+                : inputs.employeeId!);
       return _previewWithBanner(
         errors,
         filename,
@@ -719,17 +977,20 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
         },
         onExported: (action) {
-          ref.read(auditRepositoryProvider).logExport(
-            description: 'Employment Contract PDF $action: $who',
-            entityType: 'document_template_pdf',
-            metadata: {
-              'template_id': 'employment_contract',
-              'employee_id':
-                  (inputs.employeeId?.isEmpty ?? true) ? null : inputs.employeeId,
-              'file_name': filename,
-              'action': action,
-            },
-          );
+          ref
+              .read(auditRepositoryProvider)
+              .logExport(
+                description: 'Employment Contract PDF $action: $who',
+                entityType: 'document_template_pdf',
+                metadata: {
+                  'template_id': 'employment_contract',
+                  'employee_id': (inputs.employeeId?.isEmpty ?? true)
+                      ? null
+                      : inputs.employeeId,
+                  'file_name': filename,
+                  'action': action,
+                },
+              );
         },
       );
     }
@@ -745,8 +1006,8 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       final who = inputs.employeeFullName.trim().isNotEmpty
           ? inputs.employeeFullName.trim()
           : (inputs.employeeId.isEmpty
-              ? '(unknown employee)'
-              : inputs.employeeId);
+                ? '(unknown employee)'
+                : inputs.employeeId);
       return _previewWithBanner(
         errors,
         filename,
@@ -755,17 +1016,20 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
         },
         onExported: (action) {
-          ref.read(auditRepositoryProvider).logExport(
-            description: 'NDA PDF $action: $who',
-            entityType: 'document_template_pdf',
-            metadata: {
-              'template_id': 'nda',
-              'employee_id':
-                  inputs.employeeId.isEmpty ? null : inputs.employeeId,
-              'file_name': filename,
-              'action': action,
-            },
-          );
+          ref
+              .read(auditRepositoryProvider)
+              .logExport(
+                description: 'NDA PDF $action: $who',
+                entityType: 'document_template_pdf',
+                metadata: {
+                  'template_id': 'nda',
+                  'employee_id': inputs.employeeId.isEmpty
+                      ? null
+                      : inputs.employeeId,
+                  'file_name': filename,
+                  'action': action,
+                },
+              );
         },
       );
     }
@@ -781,8 +1045,8 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       final who = inputs.employeeFullName.trim().isNotEmpty
           ? inputs.employeeFullName.trim()
           : (inputs.employeeId.isEmpty
-              ? '(unknown employee)'
-              : inputs.employeeId);
+                ? '(unknown employee)'
+                : inputs.employeeId);
       return _previewWithBanner(
         errors,
         filename,
@@ -791,17 +1055,216 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
         },
         onExported: (action) {
-          ref.read(auditRepositoryProvider).logExport(
-            description: 'Liability Waiver PDF $action: $who',
-            entityType: 'document_template_pdf',
-            metadata: {
-              'template_id': 'liability_waiver',
-              'employee_id':
-                  inputs.employeeId.isEmpty ? null : inputs.employeeId,
-              'file_name': filename,
-              'action': action,
-            },
-          );
+          ref
+              .read(auditRepositoryProvider)
+              .logExport(
+                description: 'Liability Waiver PDF $action: $who',
+                entityType: 'document_template_pdf',
+                metadata: {
+                  'template_id': 'liability_waiver',
+                  'employee_id': inputs.employeeId.isEmpty
+                      ? null
+                      : inputs.employeeId,
+                  'file_name': filename,
+                  'action': action,
+                },
+              );
+        },
+      );
+    }
+    if (tpl is FinalPayTemplate && _finalPay != null) {
+      final inputs = _finalPay!;
+      final errors = tpl.validate(inputs);
+      final filename = filenameForDocument(
+        templateId: 'final_pay',
+        employeeNumber: null,
+        employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
+        date: inputs.computedAsOf,
+      );
+      final who = inputs.employeeFullName.trim().isNotEmpty
+          ? inputs.employeeFullName.trim()
+          : (inputs.employeeId.isEmpty
+                ? '(unknown employee)'
+                : inputs.employeeId);
+      return _previewWithBanner(
+        errors,
+        filename,
+        (format) async {
+          final theme = await PdfTheme.defaults();
+          return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
+        },
+        onExported: (action) {
+          ref
+              .read(auditRepositoryProvider)
+              .logExport(
+                description: 'Final Pay PDF $action: $who',
+                entityType: 'document_template_pdf',
+                metadata: {
+                  'template_id': 'final_pay',
+                  'employee_id': inputs.employeeId.isEmpty
+                      ? null
+                      : inputs.employeeId,
+                  'file_name': filename,
+                  'action': action,
+                },
+              );
+        },
+      );
+    }
+    if (tpl is SalaryAdjustmentTemplate && _salaryAdjustment != null) {
+      final inputs = _salaryAdjustment!;
+      final errors = tpl.validate(inputs);
+      final filename = filenameForDocument(
+        templateId: 'salary_adjustment',
+        employeeNumber: null,
+        employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
+        date: inputs.issueDate,
+      );
+      final who = inputs.employeeFullName.trim().isNotEmpty
+          ? inputs.employeeFullName.trim()
+          : (inputs.employeeId.isEmpty
+                ? '(unknown employee)'
+                : inputs.employeeId);
+      return _previewWithBanner(
+        errors,
+        filename,
+        (format) async {
+          final theme = await PdfTheme.defaults();
+          return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
+        },
+        onExported: (action) {
+          ref
+              .read(auditRepositoryProvider)
+              .logExport(
+                description: 'Salary Adjustment PDF $action: $who',
+                entityType: 'document_template_pdf',
+                metadata: {
+                  'template_id': 'salary_adjustment',
+                  'employee_id': inputs.employeeId.isEmpty
+                      ? null
+                      : inputs.employeeId,
+                  'file_name': filename,
+                  'action': action,
+                },
+              );
+        },
+      );
+    }
+    if (tpl is NodTemplate && _nod != null) {
+      final inputs = _nod!;
+      final errors = tpl.validate(inputs);
+      final filename = filenameForDocument(
+        templateId: 'nod',
+        employeeNumber: null,
+        employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
+        date: inputs.issueDate,
+      );
+      final who = inputs.employeeFullName.trim().isNotEmpty
+          ? inputs.employeeFullName.trim()
+          : (inputs.employeeId.isEmpty
+                ? '(unknown employee)'
+                : inputs.employeeId);
+      return _previewWithBanner(
+        errors,
+        filename,
+        (format) async {
+          final theme = await PdfTheme.defaults();
+          return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
+        },
+        onExported: (action) {
+          ref
+              .read(auditRepositoryProvider)
+              .logExport(
+                description: 'NOD PDF $action: $who',
+                entityType: 'document_template_pdf',
+                metadata: {
+                  'template_id': 'nod',
+                  'employee_id': inputs.employeeId.isEmpty
+                      ? null
+                      : inputs.employeeId,
+                  'file_name': filename,
+                  'action': action,
+                },
+              );
+        },
+      );
+    }
+    if (tpl is RegularizationTemplate && _regularization != null) {
+      final inputs = _regularization!;
+      final errors = tpl.validate(inputs);
+      final filename = filenameForDocument(
+        templateId: 'regularization',
+        employeeNumber: null,
+        employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
+        date: inputs.issueDate,
+      );
+      final who = inputs.employeeFullName.trim().isNotEmpty
+          ? inputs.employeeFullName.trim()
+          : (inputs.employeeId.isEmpty
+                ? '(unknown employee)'
+                : inputs.employeeId);
+      return _previewWithBanner(
+        errors,
+        filename,
+        (format) async {
+          final theme = await PdfTheme.defaults();
+          return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
+        },
+        onExported: (action) {
+          ref
+              .read(auditRepositoryProvider)
+              .logExport(
+                description: 'Regularization PDF $action: $who',
+                entityType: 'document_template_pdf',
+                metadata: {
+                  'template_id': 'regularization',
+                  'employee_id': inputs.employeeId.isEmpty
+                      ? null
+                      : inputs.employeeId,
+                  'file_name': filename,
+                  'action': action,
+                },
+              );
+        },
+      );
+    }
+    if (tpl is ResignationAcceptanceTemplate &&
+        _resignationAcceptance != null) {
+      final inputs = _resignationAcceptance!;
+      final errors = tpl.validate(inputs);
+      final filename = filenameForDocument(
+        templateId: 'resignation_acceptance',
+        employeeNumber: null,
+        employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
+        date: inputs.issueDate,
+      );
+      final who = inputs.employeeFullName.trim().isNotEmpty
+          ? inputs.employeeFullName.trim()
+          : (inputs.employeeId.isEmpty
+                ? '(unknown employee)'
+                : inputs.employeeId);
+      return _previewWithBanner(
+        errors,
+        filename,
+        (format) async {
+          final theme = await PdfTheme.defaults();
+          return buildDocumentPdf(blocks: tpl.build(inputs), theme: theme);
+        },
+        onExported: (action) {
+          ref
+              .read(auditRepositoryProvider)
+              .logExport(
+                description: 'Resignation Acceptance PDF $action: $who',
+                entityType: 'document_template_pdf',
+                metadata: {
+                  'template_id': 'resignation_acceptance',
+                  'employee_id': inputs.employeeId.isEmpty
+                      ? null
+                      : inputs.employeeId,
+                  'file_name': filename,
+                  'action': action,
+                },
+              );
         },
       );
     }
