@@ -5,16 +5,21 @@ import 'package:go_router/go_router.dart';
 import '../auth/profile_provider.dart';
 import '../../data/models/applicant.dart';
 import '../../data/repositories/applicant_repository.dart';
+import '../../data/repositories/job_listing_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../../data/repositories/hiring_entity_repository.dart';
 
 class ApplicantFormScreen extends ConsumerStatefulWidget {
   /// null = create. Non-null = edit existing applicant.
   final String? applicantId;
-  const ApplicantFormScreen({super.key, this.applicantId});
+
+  /// null → Talent Pool (or editing existing). Non-null → bound to a job listing.
+  final String? listingId;
+  const ApplicantFormScreen({super.key, this.applicantId, this.listingId});
 
   @override
-  ConsumerState<ApplicantFormScreen> createState() => _ApplicantFormScreenState();
+  ConsumerState<ApplicantFormScreen> createState() =>
+      _ApplicantFormScreenState();
 }
 
 class _ApplicantFormScreenState extends ConsumerState<ApplicantFormScreen> {
@@ -73,10 +78,26 @@ class _ApplicantFormScreenState extends ConsumerState<ApplicantFormScreen> {
 
   Future<void> _load() async {
     if (widget.applicantId == null) {
+      // Seed from listing if present.
+      if (widget.listingId != null) {
+        try {
+          final listing = await ref.read(
+            jobListingByIdProvider(widget.listingId!).future,
+          );
+          if (listing != null && mounted) {
+            _roleScorecardId = listing.roleScorecardId;
+            _hiringEntityId = listing.hiringEntityId;
+          }
+        } catch (_) {
+          // Swallow — pickers stay unset.
+        }
+      }
       setState(() => _loading = false);
       return;
     }
-    final a = await ref.read(applicantRepositoryProvider).byId(widget.applicantId!);
+    final a = await ref
+        .read(applicantRepositoryProvider)
+        .byId(widget.applicantId!);
     if (a != null) {
       _firstName.text = a.firstName;
       _middleName.text = a.middleName ?? '';
@@ -120,7 +141,13 @@ class _ApplicantFormScreenState extends ConsumerState<ApplicantFormScreen> {
     }
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.applicantId == null ? 'New applicant' : 'Edit applicant'),
+        title: Text(
+          widget.applicantId != null
+              ? 'Edit applicant'
+              : (widget.listingId != null
+                    ? 'New applicant — listing'
+                    : 'New applicant — Talent Pool'),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/hiring'),
@@ -134,63 +161,77 @@ class _ApplicantFormScreenState extends ConsumerState<ApplicantFormScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const _SectionLabel('Identity'),
-              Row(children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _firstName,
-                    decoration: const InputDecoration(labelText: 'First name *'),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _firstName,
+                      decoration: const InputDecoration(
+                        labelText: 'First name *',
+                      ),
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _middleName,
-                    decoration: const InputDecoration(labelText: 'Middle name'),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _middleName,
+                      decoration: const InputDecoration(
+                        labelText: 'Middle name',
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _lastName,
-                    decoration: const InputDecoration(labelText: 'Last name *'),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _lastName,
+                      decoration: const InputDecoration(
+                        labelText: 'Last name *',
+                      ),
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                SizedBox(
-                  width: 80,
-                  child: TextFormField(
-                    controller: _suffix,
-                    decoration: const InputDecoration(labelText: 'Suffix'),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 80,
+                    child: TextFormField(
+                      controller: _suffix,
+                      decoration: const InputDecoration(labelText: 'Suffix'),
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _email,
                 decoration: const InputDecoration(labelText: 'Email *'),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                validator: (v) =>
+                    (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),
-              Row(children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _phone,
-                    decoration: const InputDecoration(labelText: 'Phone'),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _phone,
+                      decoration: const InputDecoration(labelText: 'Phone'),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _mobile,
-                    decoration: const InputDecoration(labelText: 'Mobile'),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _mobile,
+                      decoration: const InputDecoration(labelText: 'Mobile'),
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
               const SizedBox(height: 24),
               const _SectionLabel('Role *'),
               _RoleScorecardPicker(
                 value: _roleScorecardId,
+                locked: widget.listingId != null,
                 onChanged: (id) {
                   setState(() => _roleScorecardId = id);
                   if (id != null) _autofillSalaryFromScorecard(id);
@@ -199,13 +240,16 @@ class _ApplicantFormScreenState extends ConsumerState<ApplicantFormScreen> {
               const SizedBox(height: 12),
               _HiringEntityPicker(
                 value: _hiringEntityId,
+                locked: widget.listingId != null,
                 onChanged: (id) => setState(() => _hiringEntityId = id),
               ),
               const SizedBox(height: 24),
               const _SectionLabel('Sourcing'),
               TextFormField(
                 controller: _source,
-                decoration: const InputDecoration(labelText: 'Source (e.g. Referral, Lark Careers, LinkedIn)'),
+                decoration: const InputDecoration(
+                  labelText: 'Source (e.g. Referral, Lark Careers, LinkedIn)',
+                ),
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -218,29 +262,35 @@ class _ApplicantFormScreenState extends ConsumerState<ApplicantFormScreen> {
               ),
               const SizedBox(height: 24),
               const _SectionLabel('Offer'),
-              Row(children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _salaryMin,
-                    decoration: const InputDecoration(
-                      labelText: 'Expected salary min (PHP)',
-                      hintText: 'Auto-fills from scorecard baseSalary',
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _salaryMin,
+                      decoration: const InputDecoration(
+                        labelText: 'Expected salary min (PHP)',
+                        hintText: 'Auto-fills from scorecard baseSalary',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _salaryMax,
-                    decoration: const InputDecoration(
-                      labelText: 'Expected salary max (PHP)',
-                      hintText: 'Auto-fills from scorecard baseSalary',
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _salaryMax,
+                      decoration: const InputDecoration(
+                        labelText: 'Expected salary max (PHP)',
+                        hintText: 'Auto-fills from scorecard baseSalary',
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   ),
-                ),
-              ]),
+                ],
+              ),
               const SizedBox(height: 12),
               _DatePickerField(
                 label: 'Expected start date',
@@ -303,8 +353,11 @@ class _ApplicantFormScreenState extends ConsumerState<ApplicantFormScreen> {
       final id = await repo.upsert(
         id: widget.applicantId,
         companyId: profile.companyId,
+        listingId: widget.listingId,
         firstName: _firstName.text.trim(),
-        middleName: _middleName.text.trim().isEmpty ? null : _middleName.text.trim(),
+        middleName: _middleName.text.trim().isEmpty
+            ? null
+            : _middleName.text.trim(),
         lastName: _lastName.text.trim(),
         suffix: _suffix.text.trim().isEmpty ? null : _suffix.text.trim(),
         email: _email.text.trim(),
@@ -315,10 +368,18 @@ class _ApplicantFormScreenState extends ConsumerState<ApplicantFormScreen> {
         hiringEntityId: _hiringEntityId,
         source: _source.text.trim().isEmpty ? null : _source.text.trim(),
         referredById: _referredById,
-        linkedinUrl: _linkedin.text.trim().isEmpty ? null : _linkedin.text.trim(),
-        portfolioUrl: _portfolio.text.trim().isEmpty ? null : _portfolio.text.trim(),
-        expectedSalaryMin: _salaryMin.text.trim().isEmpty ? null : _salaryMin.text.trim(),
-        expectedSalaryMax: _salaryMax.text.trim().isEmpty ? null : _salaryMax.text.trim(),
+        linkedinUrl: _linkedin.text.trim().isEmpty
+            ? null
+            : _linkedin.text.trim(),
+        portfolioUrl: _portfolio.text.trim().isEmpty
+            ? null
+            : _portfolio.text.trim(),
+        expectedSalaryMin: _salaryMin.text.trim().isEmpty
+            ? null
+            : _salaryMin.text.trim(),
+        expectedSalaryMax: _salaryMax.text.trim().isEmpty
+            ? null
+            : _salaryMax.text.trim(),
         expectedStartDate: _expectedStartDate,
         status: _seed?.status ?? 'NEW',
         notes: _notes.text.trim().isEmpty ? null : _notes.text.trim(),
@@ -330,7 +391,9 @@ class _ApplicantFormScreenState extends ConsumerState<ApplicantFormScreen> {
       context.go('/hiring/$id');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Save failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -342,24 +405,36 @@ class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.text);
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Text(text,
-            style: const TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.4)),
-      );
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Text(
+      text,
+      style: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.4,
+      ),
+    ),
+  );
 }
 
 class _RoleScorecardPicker extends ConsumerWidget {
   final String? value;
   final ValueChanged<String?> onChanged;
-  const _RoleScorecardPicker({required this.value, required this.onChanged});
+  final bool locked;
+  const _RoleScorecardPicker({
+    required this.value,
+    required this.onChanged,
+    this.locked = false,
+  });
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scorecards = ref.watch(roleScorecardListProvider).asData?.value ?? const [];
+    final scorecards =
+        ref.watch(roleScorecardListProvider).asData?.value ?? const [];
     return InputDecorator(
       decoration: InputDecoration(
         labelText: 'Role Scorecard *',
         errorText: value == null ? 'A Role Scorecard is required' : null,
+        helperText: locked ? 'Inherited from the listing' : null,
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String?>(
@@ -370,7 +445,7 @@ class _RoleScorecardPicker extends ConsumerWidget {
             for (final s in scorecards)
               DropdownMenuItem<String?>(value: s.id, child: Text(s.jobTitle)),
           ],
-          onChanged: onChanged,
+          onChanged: locked ? null : onChanged,
         ),
       ),
     );
@@ -380,19 +455,28 @@ class _RoleScorecardPicker extends ConsumerWidget {
 class _HiringEntityPicker extends ConsumerWidget {
   final String? value;
   final ValueChanged<String?> onChanged;
-  const _HiringEntityPicker({required this.value, required this.onChanged});
+  final bool locked;
+  const _HiringEntityPicker({
+    required this.value,
+    required this.onChanged,
+    this.locked = false,
+  });
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final entities = ref.watch(hiringEntityListProvider).asData?.value ?? const [];
+    final entities =
+        ref.watch(hiringEntityListProvider).asData?.value ?? const [];
     return DropdownButtonFormField<String?>(
       initialValue: value,
-      decoration: const InputDecoration(labelText: 'Hiring Entity (brand)'),
+      decoration: InputDecoration(
+        labelText: 'Hiring Entity (brand)',
+        helperText: locked ? 'Inherited from the listing' : null,
+      ),
       items: [
         const DropdownMenuItem<String?>(value: null, child: Text('— None —')),
         for (final e in entities)
           DropdownMenuItem<String?>(value: e.id, child: Text(e.name)),
       ],
-      onChanged: onChanged,
+      onChanged: locked ? null : onChanged,
     );
   }
 }

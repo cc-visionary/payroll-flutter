@@ -205,8 +205,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/hiring/listings/:id/applicants/new',
-            // listingId pre-fill wired in Task 13 (ApplicantFormScreen.listingId param)
-            builder: (c, s) => const ApplicantFormScreen(),
+            builder: (c, s) =>
+                ApplicantFormScreen(listingId: s.pathParameters['id']),
           ),
           GoRoute(
             path: '/hiring/:id',
