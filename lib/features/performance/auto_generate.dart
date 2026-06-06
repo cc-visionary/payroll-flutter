@@ -1,45 +1,75 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/models/employee.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../data/repositories/performance_repository.dart';
 import '../auth/profile_provider.dart';
 
-/// Lazy auto-generation: ensures the current quarter's company-wide period
-/// exists, then for each active employee ensures the right check-ins exist
-/// (quarterly for REGULAR, 1M/3M/5M for PROBATIONARY), with skill_ratings
-/// auto-seeded from the employee's RoleScorecard KPIs.
+/// Outcome of a batch generation run: how many check-ins were newly created
+/// vs. already existed (idempotent skips).
+typedef BatchGenResult = ({int created, int existed});
+
+/// Manually generates performance check-ins for every ACTIVE employee for the
+/// given quarter:
+///   - REGULAR      → one check-in in that quarter's company-wide period
+///   - PROBATIONARY → check-ins for each 1M/3M/5M milestone already reached
+///     (milestones are date-based off hire date, independent of the quarter)
 ///
-/// Called once when /performance is opened. Idempotent at every step.
-Future<void> autoGeneratePerformanceForCurrentQuarter(WidgetRef ref) async {
+/// Skill ratings are seeded from each employee's RoleScorecard KPIs. Every step
+/// is idempotent, so re-running a quarter never creates duplicates. Returns the
+/// created/existed counts for user feedback.
+///
+/// Triggered manually from the Performance screen — there is intentionally no
+/// automatic generation on screen open.
+Future<BatchGenResult> generatePerformanceCheckInsForQuarter(
+  WidgetRef ref, {
+  required int year,
+  required int quarter,
+}) async {
   final profile = await ref.read(userProfileProvider.future);
   final companyId = profile?.companyId;
-  if (companyId == null) return;
+  if (companyId == null || companyId.isEmpty) {
+    throw Exception('No company on your profile.');
+  }
   final repo = ref.read(performanceRepositoryProvider);
   final now = DateTime.now().toUtc();
 
-  // 1. Quarterly company-wide period (for REGULAR employees).
-  final quarterlyPeriodId = await repo.ensureQuarterlyPeriodForCurrentQuarter(
+  final quarterlyPeriodId = await repo.ensureQuarterlyPeriod(
     companyId: companyId,
-    now: now,
+    year: year,
+    quarter: quarter,
   );
 
-  // 2. For each active employee, ensure the right check-ins exist.
-  final employees = await ref.read(
-      employeeListProvider(const EmployeeListQuery()).future);
+  final employees =
+      await ref.read(employeeListProvider(const EmployeeListQuery()).future);
+
+  var created = 0;
+  var existed = 0;
+
+  Future<void> ensureOne(String periodId, Employee emp) async {
+    final pre =
+        await repo.findCheckInId(periodId: periodId, employeeId: emp.id);
+    final checkInId = await repo.ensureCheckInForEmployeeInPeriod(
+      periodId: periodId,
+      employeeId: emp.id,
+      reviewerId: emp.reportsToId,
+    );
+    await repo.seedSkillRatingsForCheckIn(
+      checkInId: checkInId,
+      roleScorecardId: emp.roleScorecardId,
+    );
+    if (pre == null) {
+      created++;
+    } else {
+      existed++;
+    }
+  }
+
   for (final emp in employees) {
     if (emp.employmentStatus != 'ACTIVE') continue;
-    final reviewerId = emp.reportsToId;
 
     if (emp.employmentType == 'REGULAR') {
-      final checkInId = await repo.ensureCheckInForEmployeeInPeriod(
-        periodId: quarterlyPeriodId,
-        employeeId: emp.id,
-        reviewerId: reviewerId,
-      );
-      await repo.seedSkillRatingsForCheckIn(
-        checkInId: checkInId,
-        roleScorecardId: emp.roleScorecardId,
-      );
+      await ensureOne(quarterlyPeriodId, emp);
     } else if (emp.employmentType == 'PROBATIONARY') {
       final periodIds = await repo.ensureProbationaryPeriodsForEmployee(
         companyId: companyId,
@@ -49,17 +79,11 @@ Future<void> autoGeneratePerformanceForCurrentQuarter(WidgetRef ref) async {
         now: now,
       );
       for (final pid in periodIds) {
-        final checkInId = await repo.ensureCheckInForEmployeeInPeriod(
-          periodId: pid,
-          employeeId: emp.id,
-          reviewerId: reviewerId,
-        );
-        await repo.seedSkillRatingsForCheckIn(
-          checkInId: checkInId,
-          roleScorecardId: emp.roleScorecardId,
-        );
+        await ensureOne(pid, emp);
       }
     }
-    // Other employmentTypes are out of scope in v1.
+    // Other employmentTypes are out of scope.
   }
+
+  return (created: created, existed: existed);
 }

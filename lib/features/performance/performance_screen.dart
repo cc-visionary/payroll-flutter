@@ -7,7 +7,8 @@ import '../../app/shell.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../data/repositories/performance_repository.dart';
 import '../auth/profile_provider.dart';
-import 'auto_generate.dart';
+import 'generate_batch_dialog.dart';
+import 'new_check_in_dialog.dart';
 
 class PerformanceScreen extends ConsumerStatefulWidget {
   const PerformanceScreen({super.key});
@@ -17,26 +18,32 @@ class PerformanceScreen extends ConsumerStatefulWidget {
 
 class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
   List<String> _statuses = const ['DRAFT', 'SUBMITTED', 'UNDER_REVIEW'];
-  bool _autoGenStarted = false;
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (_autoGenStarted) return;
-      _autoGenStarted = true;
-      try {
-        await autoGeneratePerformanceForCurrentQuarter(ref);
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Performance auto-gen failed: $e')),
-        );
-      }
-      if (mounted) {
-        ref.invalidate(performanceCheckInListProvider);
-      }
-    });
+  Future<void> _onGenerateBatch() async {
+    final result = await showGenerateBatchDialog(context: context);
+    if (result == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Created ${result.created} check-in(s)'
+          '${result.existed > 0 ? ' · ${result.existed} already existed' : ''}.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onNewCheckIn() async {
+    final result = await showNewCheckInDialog(context: context);
+    if (result == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.existed
+            ? 'Check-in already existed — opened it.'
+            : 'Check-in created.'),
+      ),
+    );
+    if (!mounted) return;
+    context.go('/performance/${result.id}');
   }
 
   @override
@@ -51,7 +58,26 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
     }
     return Scaffold(
       drawer: isMobile(context) ? const AppDrawer() : null,
-      appBar: AppBar(title: const Text('Performance')),
+      appBar: AppBar(
+        title: const Text('Performance'),
+        actions: [
+          if (profile.isHrOrAdmin) ...[
+            TextButton.icon(
+              onPressed: _onNewCheckIn,
+              icon: const Icon(Icons.add),
+              label: const Text('New check-in'),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 8, right: 8),
+              child: FilledButton.icon(
+                onPressed: _onGenerateBatch,
+                icon: const Icon(Icons.group_add_outlined),
+                label: const Text('Generate check-ins'),
+              ),
+            ),
+          ],
+        ],
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -125,6 +151,9 @@ class _CheckInsTable extends ConsumerWidget {
         .asData
         ?.value ?? const [];
     final empNameById = {for (final e in employees) e.id: e.fullName};
+    final periodNames =
+        ref.watch(checkInPeriodNamesProvider).asData?.value ??
+            const <String, String>{};
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(
@@ -143,7 +172,7 @@ class _CheckInsTable extends ConsumerWidget {
               child: ListTile(
                 title: Text(empNameById[c.employeeId] ?? '(unknown employee)'),
                 subtitle: Text(
-                  c.status,
+                  '${periodNames[c.periodId] ?? '—'} · ${c.status}',
                   style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
                 trailing: Text(

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/performance/check_in_status.dart';
+import '../quarter.dart';
 import '../models/check_in_period.dart';
 import '../models/check_in_goal.dart';
 import '../models/performance_check_in.dart';
@@ -81,6 +82,17 @@ class PerformanceRepository {
     return CheckInPeriodFromRow.fromRow(row);
   }
 
+  /// All visible check-in period names keyed by id. RLS scopes the result to
+  /// the caller's company. Used to label performance-list rows with the period
+  /// (e.g. "2026 Q2") so quarters are distinguishable.
+  Future<Map<String, String>> periodNames() async {
+    final rows = await _client.from('check_in_periods').select('id, name');
+    return {
+      for (final r in (rows as List))
+        (r as Map<String, dynamic>)['id'] as String: r['name'] as String,
+    };
+  }
+
   Future<List<CheckInGoal>> goalsFor(String checkInId) async {
     final rows = await _client
         .from('check_in_goals')
@@ -103,20 +115,18 @@ class PerformanceRepository {
         .toList();
   }
 
-  /// Idempotent. Returns the period id for the current calendar quarter.
-  /// If a row with the same (company_id, name, target_employee_id=null)
-  /// already exists, returns its id without creating a duplicate.
-  Future<String> ensureQuarterlyPeriodForCurrentQuarter({
+  /// Idempotent. Ensures the company-wide quarterly period for an explicit
+  /// (year, quarter) exists and returns its id. If a row with the same
+  /// (company_id, name, target_employee_id=null) already exists, returns its id
+  /// without creating a duplicate. Used by the manual batch generator and the
+  /// "New check-in" flow.
+  Future<String> ensureQuarterlyPeriod({
     required String companyId,
-    required DateTime now,
+    required int year,
+    required int quarter,
   }) async {
-    final quarter = ((now.month - 1) ~/ 3) + 1;
-    final startMonth = (quarter - 1) * 3 + 1;
-    final start = DateTime.utc(now.year, startMonth, 1);
-    final endMonthStart = DateTime.utc(now.year, startMonth + 3, 1);
-    final end = endMonthStart.subtract(const Duration(days: 1));
-    final due = end.add(const Duration(days: 15));
-    final name = '${now.year} Q$quarter';
+    final name = quarterPeriodName(year, quarter);
+    final window = quarterWindow(year, quarter);
 
     final existing = await _client
         .from('check_in_periods')
@@ -136,9 +146,9 @@ class PerformanceRepository {
           'company_id': companyId,
           'name': name,
           'period_type': 'QUARTERLY',
-          'start_date': iso(start),
-          'end_date': iso(end),
-          'due_date': iso(due),
+          'start_date': iso(window.start),
+          'end_date': iso(window.end),
+          'due_date': iso(window.due),
           'is_active': true,
         })
         .select('id')
@@ -169,7 +179,7 @@ class PerformanceRepository {
     String iso(DateTime d) => d.toIso8601String().substring(0, 10);
 
     for (final (months, type, label) in milestones) {
-      final milestoneDate = _addMonths(hireDate, months);
+      final milestoneDate = addMonths(hireDate, months);
       if (milestoneDate.isAfter(now)) continue; // milestone not yet reached
 
       final name = 'Probation $label — $employeeFullName';
@@ -209,6 +219,23 @@ class PerformanceRepository {
       ids.add(inserted['id'] as String);
     }
     return ids;
+  }
+
+  /// Returns the id of an existing check-in for (period, employee), or null if
+  /// none exists yet. Lets the manual "New check-in" flow distinguish "opened
+  /// an existing check-in" from "created a new one" without changing the
+  /// idempotent `ensureCheckInForEmployeeInPeriod` contract.
+  Future<String?> findCheckInId({
+    required String periodId,
+    required String employeeId,
+  }) async {
+    final row = await _client
+        .from('performance_check_ins')
+        .select('id')
+        .eq('period_id', periodId)
+        .eq('employee_id', employeeId)
+        .maybeSingle();
+    return row?['id'] as String?;
   }
 
   /// Idempotent. Returns the check-in id for (period, employee). Inserts a
@@ -456,26 +483,6 @@ class PerformanceRepository {
   Future<void> deleteSkill(String skillId) async {
     await _client.from('skill_ratings').delete().eq('id', skillId);
   }
-
-  /// Private clone of the pure helper so this file doesn't depend on the
-  /// features layer (model files are in lib/data/, repositories should not
-  /// depend on lib/features/). Inlined intentionally.
-  DateTime _addMonths(DateTime d, int months) {
-    var year = d.year;
-    var month = d.month + months;
-    while (month > 12) {
-      month -= 12;
-      year += 1;
-    }
-    while (month < 1) {
-      month += 12;
-      year -= 1;
-    }
-    final lastDayOfTarget =
-        DateTime.utc(year, month + 1, 1).subtract(const Duration(days: 1)).day;
-    final day = d.day > lastDayOfTarget ? lastDayOfTarget : d.day;
-    return DateTime.utc(year, month, day);
-  }
 }
 
 final performanceRepositoryProvider = Provider<PerformanceRepository>(
@@ -492,6 +499,9 @@ final performanceCheckInByIdProvider =
 final checkInPeriodByIdProvider =
     FutureProvider.family<CheckInPeriod?, String>(
         (ref, id) => ref.read(performanceRepositoryProvider).periodById(id));
+
+final checkInPeriodNamesProvider = FutureProvider<Map<String, String>>(
+    (ref) => ref.read(performanceRepositoryProvider).periodNames());
 
 final checkInGoalsProvider = FutureProvider.family<List<CheckInGoal>, String>(
     (ref, checkInId) => ref.read(performanceRepositoryProvider).goalsFor(checkInId));
