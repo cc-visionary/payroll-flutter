@@ -10,6 +10,7 @@ import '../../data/repositories/hiring_entity_repository.dart';
 import 'applicant_status.dart';
 import 'convert_action.dart';
 import 'offer_letter_action.dart';
+import 'widgets/move_to_listing_dialog.dart';
 import 'widgets/reject_dialog.dart';
 import 'widgets/withdraw_dialog.dart';
 
@@ -34,7 +35,9 @@ class ApplicantDetailScreen extends ConsumerWidget {
       ),
       error: (e, _) => Scaffold(
         appBar: AppBar(title: const Text('Applicant')),
-        body: Center(child: Text('Error: $e', style: const TextStyle(color: Colors.red))),
+        body: Center(
+          child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
+        ),
       ),
       data: (a) {
         if (a == null) {
@@ -55,8 +58,10 @@ class _Body extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final scorecards = ref.watch(roleScorecardListProvider).asData?.value ?? const [];
-    final entities = ref.watch(hiringEntityListProvider).asData?.value ?? const [];
+    final scorecards =
+        ref.watch(roleScorecardListProvider).asData?.value ?? const [];
+    final entities =
+        ref.watch(hiringEntityListProvider).asData?.value ?? const [];
     final scorecard = a.roleScorecardId == null
         ? null
         : scorecards.where((s) => s.id == a.roleScorecardId).firstOrNull;
@@ -78,6 +83,17 @@ class _Body extends ConsumerWidget {
             icon: const Icon(Icons.edit_outlined),
             onPressed: () => context.go('/hiring/${a.id}/edit'),
           ),
+          IconButton(
+            tooltip: 'Move to listing…',
+            icon: const Icon(Icons.move_down_outlined),
+            onPressed: () => showDialog(
+              context: context,
+              builder: (_) => MoveToListingDialog(
+                applicantId: a.id,
+                currentListingId: a.listingId,
+              ),
+            ),
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -85,15 +101,22 @@ class _Body extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              Chip(label: Text(a.status)),
-              const SizedBox(width: 12),
-              if (jobTitle != null) Text(jobTitle, style: const TextStyle(fontSize: 16)),
-              const SizedBox(width: 12),
-              if (entityName != null)
-                Text('• $entityName',
-                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-            ]),
+            Row(
+              children: [
+                Chip(label: Text(a.status)),
+                const SizedBox(width: 12),
+                if (jobTitle != null)
+                  Text(jobTitle, style: const TextStyle(fontSize: 16)),
+                const SizedBox(width: 12),
+                if (entityName != null)
+                  Text(
+                    '• $entityName',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: 16),
             if (a.convertedToEmployeeId != null) ...[
               Container(
@@ -104,8 +127,11 @@ class _Body extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle_outline,
-                        color: Colors.green, size: 18),
+                    const Icon(
+                      Icons.check_circle_outline,
+                      color: Colors.green,
+                      size: 18,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Hired on ${a.convertedAt?.toIso8601String().substring(0, 10) ?? '—'}',
@@ -135,10 +161,10 @@ class _Body extends ConsumerWidget {
                   onPressed: a.roleScorecardId == null
                       ? null
                       : () => showOfferLetterPreview(
-                            context,
-                            applicant: a,
-                            ref: ref,
-                          ),
+                          context,
+                          applicant: a,
+                          ref: ref,
+                        ),
                   icon: const Icon(Icons.picture_as_pdf_outlined),
                   label: const Text('Generate Offer Letter'),
                 ),
@@ -163,15 +189,24 @@ class _Body extends ConsumerWidget {
                 '${a.expectedSalaryMin ?? '?'} — ${a.expectedSalaryMax ?? '?'}',
               ),
             if (a.expectedStartDate != null)
-              _DetailField('Expected start',
-                  a.expectedStartDate!.toIso8601String().substring(0, 10)),
-            _DetailField('Applied', a.appliedAt.toIso8601String().substring(0, 10)),
-            _DetailField('Status changed',
-                a.statusChangedAt.toIso8601String().substring(0, 16)),
+              _DetailField(
+                'Expected start',
+                a.expectedStartDate!.toIso8601String().substring(0, 10),
+              ),
+            _DetailField(
+              'Applied',
+              a.appliedAt.toIso8601String().substring(0, 10),
+            ),
+            _DetailField(
+              'Status changed',
+              a.statusChangedAt.toIso8601String().substring(0, 16),
+            ),
             if (a.notes != null) ...[
               const SizedBox(height: 16),
-              const Text('Notes',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+              const Text(
+                'Notes',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: 4),
               Text(a.notes!),
             ],
@@ -188,22 +223,24 @@ class _DetailField extends StatelessWidget {
   const _DetailField(this.label, this.value);
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 140,
-              child: Text(label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  )),
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 140,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            Expanded(child: Text(value)),
-          ],
+          ),
         ),
-      );
+        Expanded(child: Text(value)),
+      ],
+    ),
+  );
 }
 
 class _StatusActionsBar extends ConsumerWidget {
@@ -212,27 +249,40 @@ class _StatusActionsBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final allowed = (kApplicantTransitions[a.status] ?? const <String>{}).toList()..sort();
+    final allowed =
+        (kApplicantTransitions[a.status] ?? const <String>{}).toList()..sort();
     if (allowed.isEmpty) {
-      return Text('Terminal status — no further transitions.',
-          style: Theme.of(context).textTheme.bodySmall);
+      return Text(
+        'Terminal status — no further transitions.',
+        style: Theme.of(context).textTheme.bodySmall,
+      );
     }
-    return Row(children: [
-      Text('Move to:',
-          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-      const SizedBox(width: 12),
-      for (final s in allowed)
-        Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: OutlinedButton(
-            onPressed: () => _transitionTo(context, ref, s),
-            child: Text(s),
+    return Row(
+      children: [
+        Text(
+          'Move to:',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
-    ]);
+        const SizedBox(width: 12),
+        for (final s in allowed)
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: OutlinedButton(
+              onPressed: () => _transitionTo(context, ref, s),
+              child: Text(s),
+            ),
+          ),
+      ],
+    );
   }
 
-  Future<void> _transitionTo(BuildContext context, WidgetRef ref, String target) async {
+  Future<void> _transitionTo(
+    BuildContext context,
+    WidgetRef ref,
+    String target,
+  ) async {
     final reasonField = requiresReason(target: target);
     String? reason;
     if (reasonField != null) {
@@ -278,9 +328,9 @@ class _StatusActionsBar extends ConsumerWidget {
       ref.invalidate(applicantsCountByStatusProvider);
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Status change failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Status change failed: $e')));
     }
   }
 }
