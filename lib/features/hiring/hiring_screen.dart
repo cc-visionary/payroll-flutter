@@ -12,6 +12,7 @@ import '../auth/profile_provider.dart';
 import 'widgets/applicant_card.dart';
 import 'widgets/applicant_kanban.dart';
 import 'widgets/listings_table.dart';
+import 'widgets/move_to_listing_dialog.dart';
 
 class HiringScreen extends ConsumerStatefulWidget {
   const HiringScreen({super.key});
@@ -90,6 +91,15 @@ class _HiringScreenState extends ConsumerState<HiringScreen> {
                             roleScorecardId: _roleId,
                             hiringEntityId: _entityId,
                           ),
+                          onMoveToListing: (a) async {
+                            await showDialog(
+                              context: context,
+                              builder: (_) => MoveToListingDialog(
+                                applicantId: a.id,
+                                currentListingId: a.listingId,
+                              ),
+                            );
+                          },
                         ),
                 ),
                 Padding(

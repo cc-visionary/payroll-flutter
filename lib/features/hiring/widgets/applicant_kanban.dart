@@ -133,6 +133,9 @@ class _KanbanColumn extends StatelessWidget {
               entityName: a.hiringEntityId == null
                   ? null
                   : entityById[a.hiringEntityId!],
+              onMoveToListing: onMoveToListing == null
+                  ? null
+                  : () => onMoveToListing!(a),
             ),
         ],
       ),
