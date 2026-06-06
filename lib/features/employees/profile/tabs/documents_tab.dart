@@ -6,6 +6,7 @@ import '../../../../data/models/employee.dart';
 import '../../../auth/profile_provider.dart';
 import '../../../documents/providers.dart';
 import '../../../documents/templates/document_template.dart';
+import '../../../documents/templates/template_picker_field.dart';
 import '../../../documents/templates/template_registry.dart';
 import '../providers.dart';
 import '../widgets/info_card.dart';
@@ -37,19 +38,11 @@ class _DocumentsTabState extends ConsumerState<DocumentsTab> {
             child: Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _selectedTemplateId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: 'Select document type...',
-                      isDense: true,
-                    ),
-                    items: [
-                      for (final t in kTemplates)
-                        DropdownMenuItem(value: t.id, child: Text(t.name)),
-                    ],
-                    onChanged: (v) => setState(() => _selectedTemplateId = v),
+                  child: TemplatePickerField(
+                    selectedId: _selectedTemplateId,
+                    hintText: 'Select document type...',
+                    onSelected: (id) =>
+                        setState(() => _selectedTemplateId = id),
                   ),
                 ),
                 const SizedBox(width: 12),

@@ -18,6 +18,7 @@ import '../../../data/repositories/employee_repository.dart';
 import '../../auth/profile_provider.dart';
 import '../templates/document_template.dart';
 import '../templates/liability_waiver_template.dart';
+import '../templates/template_picker_field.dart';
 import '../templates/template_registry.dart';
 import 'bulk_generate.dart';
 
@@ -185,42 +186,14 @@ class _BulkGenerateScreenState extends ConsumerState<BulkGenerateScreen> {
       );
 
   Widget _templatePicker(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      initialValue: _template.id,
-      decoration: const InputDecoration(
-        border: OutlineInputBorder(),
-        isDense: true,
-      ),
-      items: [
-        for (final t in _bulkTemplates)
-          DropdownMenuItem(
-            value: t.id,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(t.name,
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                Text(
-                  t.description,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-      onChanged: _generating
-          ? null
-          : (id) {
-              if (id == null) return;
-              final next = _bulkTemplates.firstWhere((t) => t.id == id);
-              setState(() => _template = next);
-            },
+    return TemplatePickerField(
+      selectedId: _template.id,
+      enabled: !_generating,
+      filter: (t) => t.supportsBulk,
+      onSelected: (id) {
+        final next = findTemplateById(id);
+        if (next != null) setState(() => _template = next);
+      },
     );
   }
 
