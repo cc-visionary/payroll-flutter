@@ -36,47 +36,76 @@ class _HiringScreenState extends ConsumerState<HiringScreen> {
         ),
       );
     }
-    return Scaffold(
-      drawer: isMobile(context) ? const AppDrawer() : null,
-      appBar: AppBar(
-        title: const Text('Hiring'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: FilledButton.icon(
-              onPressed: () => context.go('/hiring/new'),
-              icon: const Icon(Icons.add),
-              label: const Text('New applicant'),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        drawer: isMobile(context) ? const AppDrawer() : null,
+        appBar: AppBar(
+          title: const Text('Hiring'),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: FilledButton.icon(
+                onPressed: () => context.go('/hiring/listings/new'),
+                icon: const Icon(Icons.add),
+                label: const Text('New listing'),
+              ),
             ),
+          ],
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Listings'),
+              Tab(text: 'Talent Pool'),
+            ],
           ),
-        ],
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _TopFilters(
-            onSearchChanged: (s) => setState(() => _search = s),
-            roleId: _roleId,
-            onRoleChanged: (id) => setState(() => _roleId = id),
-            entityId: _entityId,
-            onEntityChanged: (id) => setState(() => _entityId = id),
-          ),
-          Expanded(
-            child: isMobile(context)
-                ? _StackedList(
-                    search: _search,
-                    roleId: _roleId,
-                    entityId: _entityId,
-                  )
-                : ApplicantKanban(
-                    query: ApplicantListQuery(
-                      search: _search.trim().isEmpty ? null : _search,
-                      roleScorecardId: _roleId,
-                      hiringEntityId: _entityId,
+        ),
+        body: TabBarView(
+          children: [
+            // Tab 1 — Listings (placeholder until Task 9).
+            const Center(child: Text('Listings table coming next task')),
+            // Tab 2 — Talent Pool: reuse the existing kanban filtered by
+            // listingIsExplicitlyNull (applicants with NULL listing_id).
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _TopFilters(
+                  onSearchChanged: (s) => setState(() => _search = s),
+                  roleId: _roleId,
+                  onRoleChanged: (id) => setState(() => _roleId = id),
+                  entityId: _entityId,
+                  onEntityChanged: (id) => setState(() => _entityId = id),
+                ),
+                Expanded(
+                  child: isMobile(context)
+                      ? _StackedList(
+                          search: _search,
+                          roleId: _roleId,
+                          entityId: _entityId,
+                        )
+                      : ApplicantKanban(
+                          query: ApplicantListQuery(
+                            listingIsExplicitlyNull: true,
+                            search: _search.trim().isEmpty ? null : _search,
+                            roleScorecardId: _roleId,
+                            hiringEntityId: _entityId,
+                          ),
+                        ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: FilledButton.tonalIcon(
+                      onPressed: () => context.go('/hiring/new'),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add to Talent Pool'),
                     ),
                   ),
-          ),
-        ],
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -106,6 +135,7 @@ class _StackedList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final query = ApplicantListQuery(
+      listingIsExplicitlyNull: true,
       search: search.trim().isEmpty ? null : search,
       roleScorecardId: roleId,
       hiringEntityId: entityId,
