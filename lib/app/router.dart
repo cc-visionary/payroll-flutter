@@ -33,6 +33,8 @@ import '../features/documents/generate_screen.dart';
 import '../features/hiring/hiring_screen.dart';
 import '../features/hiring/applicant_form_screen.dart';
 import '../features/hiring/applicant_detail_screen.dart';
+import '../features/hiring/listing_form_screen.dart';
+import '../features/hiring/listing_detail_screen.dart';
 import '../features/org_chart/org_chart_screen.dart';
 import '../features/performance/performance_screen.dart';
 import '../features/performance/performance_check_in_screen.dart';
@@ -78,43 +80,78 @@ final routerProvider = Provider<GoRouter>((ref) {
           return '/dashboard';
         }
         final loc = state.matchedLocation;
-        if (loc.startsWith('/settings') && !profile.isAdmin) return '/dashboard';
-        if (loc.startsWith('/responsibility-cards') && !profile.isHrOrAdmin) return '/dashboard';
-        if (loc.startsWith('/workforce-planning') && !profile.isHrOrAdmin) return '/dashboard';
-        if (loc.startsWith('/compensation') && !profile.isHrOrAdmin) return '/dashboard';
-        if (loc.startsWith('/compliance') && !profile.isHrOrAdmin) return '/dashboard';
+        if (loc.startsWith('/settings') && !profile.isAdmin) {
+          return '/dashboard';
+        }
+        if (loc.startsWith('/responsibility-cards') && !profile.isHrOrAdmin) {
+          return '/dashboard';
+        }
+        if (loc.startsWith('/workforce-planning') && !profile.isHrOrAdmin) {
+          return '/dashboard';
+        }
+        if (loc.startsWith('/compensation') && !profile.isHrOrAdmin) {
+          return '/dashboard';
+        }
+        if (loc.startsWith('/compliance') && !profile.isHrOrAdmin) {
+          return '/dashboard';
+        }
         if (loc.startsWith('/audit') && !profile.isAdmin) return '/dashboard';
       }
       return null;
     },
     routes: [
       GoRoute(path: '/login', builder: (c, s) => const LoginScreen()),
-      GoRoute(path: '/change-password', builder: (c, s) => const ChangePasswordScreen()),
+      GoRoute(
+        path: '/change-password',
+        builder: (c, s) => const ChangePasswordScreen(),
+      ),
       ShellRoute(
         builder: (c, s, child) => AppShell(child: child),
         routes: [
-          GoRoute(path: '/dashboard', builder: (c, s) => const DashboardScreen()),
-          GoRoute(path: '/employees', builder: (c, s) => const EmployeesScreen()),
-          GoRoute(path: '/employees/new', builder: (c, s) => const EmployeeFormScreen()),
+          GoRoute(
+            path: '/dashboard',
+            builder: (c, s) => const DashboardScreen(),
+          ),
+          GoRoute(
+            path: '/employees',
+            builder: (c, s) => const EmployeesScreen(),
+          ),
+          GoRoute(
+            path: '/employees/new',
+            builder: (c, s) => const EmployeeFormScreen(),
+          ),
           GoRoute(
             path: '/employees/:id',
-            builder: (c, s) => EmployeeProfileScreen(employeeId: s.pathParameters['id']!),
+            builder: (c, s) =>
+                EmployeeProfileScreen(employeeId: s.pathParameters['id']!),
           ),
           GoRoute(
             path: '/employees/:id/edit',
-            builder: (c, s) => EmployeeFormScreen(employeeId: s.pathParameters['id']),
+            builder: (c, s) =>
+                EmployeeFormScreen(employeeId: s.pathParameters['id']),
           ),
-          GoRoute(path: '/responsibility-cards', builder: (c, s) => const ResponsibilityCardsScreen()),
-          GoRoute(path: '/responsibility-cards/new', builder: (c, s) => const RoleScorecardFormScreen()),
+          GoRoute(
+            path: '/responsibility-cards',
+            builder: (c, s) => const ResponsibilityCardsScreen(),
+          ),
+          GoRoute(
+            path: '/responsibility-cards/new',
+            builder: (c, s) => const RoleScorecardFormScreen(),
+          ),
           GoRoute(
             path: '/responsibility-cards/:id',
-            builder: (c, s) => RoleScorecardDetailScreen(cardId: s.pathParameters['id']!),
+            builder: (c, s) =>
+                RoleScorecardDetailScreen(cardId: s.pathParameters['id']!),
           ),
           GoRoute(
             path: '/responsibility-cards/:id/edit',
-            builder: (c, s) => RoleScorecardFormScreen(cardId: s.pathParameters['id']),
+            builder: (c, s) =>
+                RoleScorecardFormScreen(cardId: s.pathParameters['id']),
           ),
-          GoRoute(path: '/attendance', builder: (c, s) => const AttendanceScreen()),
+          GoRoute(
+            path: '/attendance',
+            builder: (c, s) => const AttendanceScreen(),
+          ),
           GoRoute(
             path: '/attendance/:employeeId/:date',
             builder: (c, s) {
@@ -125,7 +162,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               );
             },
           ),
-          GoRoute(path: '/payroll', builder: (c, s) => const PayrollRunsScreen()),
+          GoRoute(
+            path: '/payroll',
+            builder: (c, s) => const PayrollRunsScreen(),
+          ),
           GoRoute(
             path: '/payroll/:id',
             builder: (c, s) =>
@@ -140,30 +180,74 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/payslips/:id',
-            builder: (c, s) => PayslipPreviewScreen(payslipId: s.pathParameters['id']!),
+            builder: (c, s) =>
+                PayslipPreviewScreen(payslipId: s.pathParameters['id']!),
           ),
           GoRoute(path: '/adjuncts', builder: (c, s) => const AdjunctsScreen()),
           GoRoute(path: '/hiring', builder: (c, s) => const HiringScreen()),
-          GoRoute(path: '/hiring/new', builder: (c, s) => const ApplicantFormScreen()),
+          GoRoute(
+            path: '/hiring/new',
+            builder: (c, s) => const ApplicantFormScreen(),
+          ),
+          GoRoute(
+            path: '/hiring/listings/new',
+            builder: (c, s) => const ListingFormScreen(),
+          ),
+          GoRoute(
+            path: '/hiring/listings/:id',
+            builder: (c, s) =>
+                ListingDetailScreen(listingId: s.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: '/hiring/listings/:id/edit',
+            builder: (c, s) =>
+                ListingFormScreen(listingId: s.pathParameters['id']),
+          ),
+          GoRoute(
+            path: '/hiring/listings/:id/applicants/new',
+            // listingId pre-fill wired in Task 13 (ApplicantFormScreen.listingId param)
+            builder: (c, s) => const ApplicantFormScreen(),
+          ),
           GoRoute(
             path: '/hiring/:id',
-            builder: (c, s) => ApplicantDetailScreen(applicantId: s.pathParameters['id']!),
+            builder: (c, s) =>
+                ApplicantDetailScreen(applicantId: s.pathParameters['id']!),
           ),
           GoRoute(
             path: '/hiring/:id/edit',
-            builder: (c, s) => ApplicantFormScreen(applicantId: s.pathParameters['id']),
+            builder: (c, s) =>
+                ApplicantFormScreen(applicantId: s.pathParameters['id']),
           ),
-          GoRoute(path: '/org-chart', builder: (c, s) => const OrgChartScreen()),
-          GoRoute(path: '/workforce-planning', builder: (c, s) => const WorkforcePlanningScreen()),
-          GoRoute(path: '/performance', builder: (c, s) => const PerformanceScreen()),
+          GoRoute(
+            path: '/org-chart',
+            builder: (c, s) => const OrgChartScreen(),
+          ),
+          GoRoute(
+            path: '/workforce-planning',
+            builder: (c, s) => const WorkforcePlanningScreen(),
+          ),
+          GoRoute(
+            path: '/performance',
+            builder: (c, s) => const PerformanceScreen(),
+          ),
           GoRoute(
             path: '/performance/:id',
-            builder: (c, s) => PerformanceCheckInScreen(checkInId: s.pathParameters['id']!),
+            builder: (c, s) =>
+                PerformanceCheckInScreen(checkInId: s.pathParameters['id']!),
           ),
-          GoRoute(path: '/compensation', builder: (c, s) => const CompensationScreen()),
+          GoRoute(
+            path: '/compensation',
+            builder: (c, s) => const CompensationScreen(),
+          ),
           GoRoute(path: '/assets', builder: (c, s) => const AssetsScreen()),
-          GoRoute(path: '/compliance', builder: (c, s) => const ComplianceScreen()),
-          GoRoute(path: '/workflows', builder: (c, s) => const WorkflowsScreen()),
+          GoRoute(
+            path: '/compliance',
+            builder: (c, s) => const ComplianceScreen(),
+          ),
+          GoRoute(
+            path: '/workflows',
+            builder: (c, s) => const WorkflowsScreen(),
+          ),
           GoRoute(
             path: '/workflows/:id',
             builder: (c, s) =>
@@ -171,8 +255,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/documents',
-            builder: (c, s) =>
-                DocumentsScreen(employeeId: s.uri.queryParameters['employeeId']),
+            builder: (c, s) => DocumentsScreen(
+              employeeId: s.uri.queryParameters['employeeId'],
+            ),
           ),
           GoRoute(
             path: '/documents/bulk',
@@ -189,7 +274,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/settings', builder: (c, s) => const SettingsScreen()),
           GoRoute(
             path: '/settings/:tab',
-            builder: (c, s) => SettingsScreen(initialTab: s.pathParameters['tab']),
+            builder: (c, s) =>
+                SettingsScreen(initialTab: s.pathParameters['tab']),
           ),
         ],
       ),
@@ -205,9 +291,7 @@ class _NotFoundRedirect extends StatelessWidget {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (context.mounted) context.go('/dashboard');
     });
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }
 
