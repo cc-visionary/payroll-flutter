@@ -8,7 +8,6 @@ import '../../../data/repositories/applicant_repository.dart';
 import '../../../data/repositories/hiring_entity_repository.dart';
 import '../../../data/repositories/job_listing_repository.dart';
 import '../../../data/repositories/role_scorecard_repository.dart';
-import '../../../widgets/responsive_table.dart';
 
 class ListingsTable extends ConsumerStatefulWidget {
   const ListingsTable({super.key});
@@ -67,11 +66,25 @@ class _ListingsTableState extends ConsumerState<ListingsTable> {
                   ),
                 );
               }
-              return ResponsiveTable(
-                child: ListView.separated(
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (_, i) => _ListingRow(listing: filtered[i]),
+              return Align(
+                alignment: AlignmentDirectional.topStart,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1100),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const _ListingsHeaderRow(),
+                      const Divider(height: 1),
+                      Expanded(
+                        child: ListView.separated(
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, _) => const Divider(height: 1),
+                          itemBuilder: (_, i) =>
+                              _ListingRow(listing: filtered[i]),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -171,6 +184,33 @@ class _FilterBar extends ConsumerWidget {
             ],
             onChanged: onRoleChanged,
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ListingsHeaderRow extends StatelessWidget {
+  const _ListingsHeaderRow();
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.4,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          Expanded(flex: 4, child: Text('TITLE', style: style)),
+          Expanded(flex: 2, child: Text('BRAND', style: style)),
+          Expanded(flex: 2, child: Text('ROLE', style: style)),
+          Expanded(flex: 2, child: Text('FILLED', style: style)),
+          Expanded(flex: 2, child: Text('STATUS', style: style)),
+          Expanded(flex: 2, child: Text('APPLICANTS', style: style)),
+          Expanded(flex: 2, child: Text('CREATED', style: style)),
         ],
       ),
     );
