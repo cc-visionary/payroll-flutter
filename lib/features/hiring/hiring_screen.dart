@@ -11,6 +11,7 @@ import '../../data/repositories/hiring_entity_repository.dart';
 import '../auth/profile_provider.dart';
 import 'widgets/applicant_card.dart';
 import 'widgets/applicant_kanban.dart';
+import 'widgets/listings_table.dart';
 
 class HiringScreen extends ConsumerStatefulWidget {
   const HiringScreen({super.key});
@@ -61,8 +62,8 @@ class _HiringScreenState extends ConsumerState<HiringScreen> {
         ),
         body: TabBarView(
           children: [
-            // Tab 1 — Listings (placeholder until Task 9).
-            const Center(child: Text('Listings table coming next task')),
+            // Tab 1 — Listings.
+            const ListingsTable(),
             // Tab 2 — Talent Pool: reuse the existing kanban filtered by
             // listingIsExplicitlyNull (applicants with NULL listing_id).
             Column(
