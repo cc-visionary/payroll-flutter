@@ -12,8 +12,51 @@ import 'data/repositories/audit_repository.dart';
 import 'data/services/auth_audit_service.dart';
 import 'data/supabase/client.dart';
 
+/// TEMPORARY DIAGNOSTIC (debug only): the known Flutter desktop mouse-tracker
+/// reentrancy bug (`!_debugDuringDeviceUpdate`) cascades into "Cannot hit test a
+/// render box with no size" and floods the console with a full error dump on
+/// every pointer event — which itself freezes the UI. This filter presents the
+/// FIRST occurrence of each signature in full (so we capture the culprit widget
+/// + stack) and suppresses the repeats so the app stays responsive while we
+/// localise the root cause. Remove once the trigger is found and fixed.
+void _installMouseTrackerDiagnostics() {
+  final original = FlutterError.onError;
+  final presented = <String>{};
+  var suppressed = 0;
+
+  String signatureOf(String s) {
+    if (s.contains('Cannot hit test a render box with no size')) return 'no-size';
+    if (s.contains('_debugDuringDeviceUpdate') || s.contains('mouse_tracker')) {
+      return 'mouse-tracker';
+    }
+    return '';
+  }
+
+  FlutterError.onError = (FlutterErrorDetails details) {
+    final sig = signatureOf(details.exceptionAsString());
+    if (sig.isNotEmpty) {
+      if (presented.add(sig)) {
+        debugPrint('\n━━━━━━ [mouse-tracker diagnostic] FIRST "$sig" — '
+            'full details below (this names the culprit widget) ━━━━━━');
+        FlutterError.presentError(details);
+        debugPrint('━━━━━━ [mouse-tracker diagnostic] further "$sig" errors '
+            'will be SUPPRESSED to keep the app responsive ━━━━━━\n');
+      } else {
+        suppressed++;
+        if (suppressed % 2000 == 0) {
+          debugPrint('[mouse-tracker diagnostic] suppressed $suppressed '
+              'repeat framework mouse errors so far');
+        }
+      }
+      return; // these are caught, non-fatal framework errors
+    }
+    (original ?? FlutterError.presentError)(details);
+  };
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (kDebugMode) _installMouseTrackerDiagnostics();
   // Fail fast on release builds that forgot their `--dart-define` flags.
   // In debug the call is a no-op so local `flutter run` stays convenient.
   Env.assertConfigured(isRelease: kReleaseMode);
