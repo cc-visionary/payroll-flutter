@@ -154,6 +154,8 @@ class _CheckInsTable extends ConsumerWidget {
     final periodNames =
         ref.watch(checkInPeriodNamesProvider).asData?.value ??
             const <String, String>{};
+    final isAdmin =
+        ref.watch(userProfileProvider).asData?.value?.isHrOrAdmin ?? false;
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(
@@ -167,20 +169,54 @@ class _CheckInsTable extends ConsumerWidget {
           itemCount: rows.length,
           itemBuilder: (ctx, i) {
             final c = rows[i];
+            final empName = empNameById[c.employeeId] ?? '(unknown employee)';
+            final periodName = periodNames[c.periodId] ?? '—';
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
               child: ListTile(
-                title: Text(empNameById[c.employeeId] ?? '(unknown employee)'),
+                title: Text(empName),
                 subtitle: Text(
-                  '${periodNames[c.periodId] ?? '—'} · ${c.status}',
+                  '$periodName · ${c.status}',
                   style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
-                trailing: Text(
-                  c.createdAt.toIso8601String().substring(0, 10),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      c.createdAt.toIso8601String().substring(0, 10),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    if (isAdmin)
+                      PopupMenuButton<String>(
+                        tooltip: 'Actions',
+                        onSelected: (v) {
+                          if (v == 'delete') {
+                            _confirmDelete(
+                              context,
+                              ref,
+                              checkInId: c.id,
+                              status: c.status,
+                              empName: empName,
+                              periodName: periodName,
+                            );
+                          }
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(Icons.delete_outline),
+                              title: Text('Delete'),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
                 ),
                 onTap: () => context.go('/performance/${c.id}'),
               ),
@@ -189,5 +225,50 @@ class _CheckInsTable extends ConsumerWidget {
         );
       },
     );
+  }
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    WidgetRef ref, {
+    required String checkInId,
+    required String status,
+    required String empName,
+    required String periodName,
+  }) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete this check-in?'),
+        content: Text(
+          "Permanently deletes $empName's $periodName check-in (status "
+          '$status), along with its goals and skill ratings. This cannot be '
+          'undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(performanceRepositoryProvider).deleteCheckIn(checkInId);
+      ref.invalidate(performanceCheckInListProvider);
+      messenger.showSnackBar(
+        SnackBar(content: Text("Deleted $empName's $periodName check-in.")),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+    }
   }
 }

@@ -392,6 +392,13 @@ class PerformanceRepository {
     await _client.from('performance_check_ins').update(payload).eq('id', checkInId);
   }
 
+  /// Permanently deletes a check-in. Its `check_in_goals` and `skill_ratings`
+  /// rows are removed automatically by the database's ON DELETE CASCADE. Used to
+  /// undo a mistaken generation. Gated to HR/Admin by RLS.
+  Future<void> deleteCheckIn(String checkInId) async {
+    await _client.from('performance_check_ins').delete().eq('id', checkInId);
+  }
+
   Future<String> addGoal({
     required String checkInId,
     required String goalType,
