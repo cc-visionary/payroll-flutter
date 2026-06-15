@@ -36,10 +36,29 @@ class _EmploymentContractFormState
   late EmploymentContractInputs _i = widget.initial;
   final ScrollController _scrollController = ScrollController();
 
+  // Graduated training wage — local UI state. Seeded from the incoming
+  // inputs so a pre-filled contract (rare today) shows the toggle on.
+  late bool _trainingWageEnabled = widget.initial.trainingWage != null;
+  late String _trainingDailyRate =
+      widget.initial.trainingWage?.dailyRate ?? '350';
+  late String _trainingDays =
+      widget.initial.trainingWage?.trainingDays.toString() ?? '7';
+
   @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  // Assembles a TrainingWage from the current UI state, or null when the
+  // toggle is off. trainingDays falls back to 7 on an unparseable value so
+  // the assembled inputs stay well-formed while the user types.
+  TrainingWage? _assembleTrainingWage() {
+    if (!_trainingWageEnabled) return null;
+    return TrainingWage(
+      dailyRate: _trainingDailyRate,
+      trainingDays: int.tryParse(_trainingDays.trim()) ?? 7,
+    );
   }
 
   void _set(EmploymentContractInputs n) {
@@ -268,6 +287,48 @@ class _EmploymentContractFormState
               if (v != null) _set(_i.copyWith(salaryPeriod: v));
             },
           ),
+          const SizedBox(height: 16),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Graduated training wage'),
+            value: _trainingWageEnabled,
+            onChanged: (on) {
+              setState(() => _trainingWageEnabled = on);
+              _set(_i.copyWith(trainingWage: _assembleTrainingWage()));
+            },
+          ),
+          if (_trainingWageEnabled) ...[
+            const SizedBox(height: 8),
+            _label('Training daily rate (PHP)'),
+            const SizedBox(height: 4),
+            TextFormField(
+              initialValue: _trainingDailyRate,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: (v) {
+                _trainingDailyRate = v;
+                _set(_i.copyWith(trainingWage: _assembleTrainingWage()));
+              },
+            ),
+            const SizedBox(height: 16),
+            _label('Training period (days)'),
+            const SizedBox(height: 4),
+            TextFormField(
+              initialValue: _trainingDays,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: (v) {
+                _trainingDays = v;
+                _set(_i.copyWith(trainingWage: _assembleTrainingWage()));
+              },
+            ),
+          ],
           const SizedBox(height: 16),
           _label('Work Hours per Day'),
           const SizedBox(height: 4),

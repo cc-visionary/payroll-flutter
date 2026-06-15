@@ -48,6 +48,12 @@ class ValidationError {
 /// `toDebugMap` is for logs only — nothing is persisted in v1.
 abstract class TemplateInputs {
   Map<String, dynamic> toDebugMap();
+
+  /// Full, JSON-serializable snapshot of the template's inputs. Used to
+  /// persist generation parameters in `employee_documents.generation_options`.
+  /// `DateTime` → ISO-8601, `Decimal` → string, enums → `.name`. Binary
+  /// fields (e.g. `logoBytes`) are intentionally excluded.
+  Map<String, dynamic> toJson();
 }
 
 /// A code-defined document template. Each template:

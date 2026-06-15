@@ -60,6 +60,19 @@ List<ValidationError> validateEmploymentContract(
         'nonCompeteMonths', 'Non-compete period must be greater than 0.'));
   }
 
+  final tw = i.trainingWage;
+  if (tw != null) {
+    final rate = double.tryParse(tw.dailyRate.trim());
+    if (rate == null || rate <= 0) {
+      errs.add(const ValidationError('trainingWage.dailyRate',
+          'Training daily rate must be greater than 0.'));
+    }
+    if (tw.trainingDays < 1) {
+      errs.add(const ValidationError('trainingWage.trainingDays',
+          'Training period must be at least 1 day.'));
+    }
+  }
+
   if (i.responsibilities.isEmpty) {
     errs.add(const ValidationError(
         'responsibilities', 'Add at least one responsibility area (Annex A).'));

@@ -106,6 +106,27 @@ class NodInputs extends TemplateInputs {
     'decision': decision.name,
     'linkedNte': linkedNteDocumentId,
   };
+
+  @override
+  Map<String, dynamic> toJson() => {
+    'employeeId': employeeId,
+    'employeeFullName': employeeFullName,
+    'employeePosition': employeePosition,
+    'employeeGender': employeeGender,
+    'companyId': companyId,
+    'companyName': companyName,
+    'companyAddress': companyAddress,
+    'hrManagerName': hrManagerName,
+    'linkedNteDocumentId': linkedNteDocumentId,
+    'nteDate': nteDate?.toIso8601String(),
+    'charges': charges,
+    'employeeResponseSummary': employeeResponseSummary,
+    'findings': findings,
+    'decision': decision.name,
+    'suspensionDays': suspensionDays,
+    'effectiveDate': effectiveDate.toIso8601String(),
+    'issueDate': issueDate.toIso8601String(),
+  };
 }
 
 const _undef = Object();

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../data/models/employee.dart';
 import '../../../auth/profile_provider.dart';
@@ -10,6 +12,15 @@ import '../../../documents/templates/template_picker_field.dart';
 import '../../../documents/templates/template_registry.dart';
 import '../providers.dart';
 import '../widgets/info_card.dart';
+import 'document_status.dart';
+
+/// Storage bucket holding frozen, generated employee PDFs. Object path is
+/// `{employee_id}/{document_id}.pdf`, recorded in each row's `file_path`.
+const String _kDocumentsBucket = 'employee-documents';
+
+/// Signed-URL validity window. Long enough to open + download once; short
+/// enough that a shared/leaked link expires quickly.
+const int _kSignedUrlExpirySeconds = 300;
 
 class DocumentsTab extends ConsumerStatefulWidget {
   final Employee employee;
@@ -112,7 +123,7 @@ class _DocumentsTabState extends ConsumerState<DocumentsTab> {
                           for (final r in rows)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 8),
-                              child: _DocRow(row: r),
+                              child: DocRow(row: r),
                             ),
                         ],
                       ),
@@ -173,16 +184,60 @@ class _Card extends StatelessWidget {
   }
 }
 
-class _DocRow extends StatelessWidget {
+/// A single row in the "Documents on file" list: title + meta, a status chip,
+/// and (when a stored PDF exists) a View/Download action that opens the file
+/// via a short-lived Storage signed URL. Public so it can be widget-tested in
+/// isolation without standing up the full tab (Riverpod + Supabase).
+class DocRow extends StatefulWidget {
   final Map<String, dynamic> row;
-  const _DocRow({required this.row});
+  const DocRow({super.key, required this.row});
+
+  @override
+  State<DocRow> createState() => _DocRowState();
+}
+
+class _DocRowState extends State<DocRow> {
+  bool _opening = false;
+
+  Map<String, dynamic> get row => widget.row;
+
+  Future<void> _openDocument() async {
+    final filePath = (row['file_path'] as String?)?.trim();
+    if (filePath == null || filePath.isEmpty) return;
+
+    setState(() => _opening = true);
+    try {
+      final signedUrl = await Supabase.instance.client.storage
+          .from(_kDocumentsBucket)
+          .createSignedUrl(filePath, _kSignedUrlExpirySeconds);
+      final launched = await launchUrl(
+        Uri.parse(signedUrl),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't open the document.")),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to open document: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _opening = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final title = (row['title'] as String?) ?? (row['file_name'] as String? ?? 'Document');
+    final title =
+        (row['title'] as String?) ?? (row['file_name'] as String? ?? 'Document');
     final type = (row['document_type'] as String?) ?? '';
     final status = (row['status'] as String?) ?? 'ISSUED';
     final created = row['created_at'] as String?;
+    final hasFile = documentHasFile(row);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -218,7 +273,28 @@ class _DocRow extends StatelessWidget {
               ],
             ),
           ),
-          StatusChip(label: status, tone: toneForStatus(status)),
+          StatusChip(
+            label: documentStatusLabel(status),
+            tone: documentStatusTone(status),
+          ),
+          if (hasFile) ...[
+            const SizedBox(width: 8),
+            _opening
+                ? const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : IconButton(
+                    onPressed: _openDocument,
+                    icon: const Icon(Icons.open_in_new, size: 18),
+                    tooltip: 'View / download',
+                    visualDensity: VisualDensity.compact,
+                  ),
+          ],
         ],
       ),
     );

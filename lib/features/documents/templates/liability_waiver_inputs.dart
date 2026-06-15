@@ -59,6 +59,20 @@ class LiabilityWaiverInputs extends TemplateInputs {
         'employeeId': employeeId,
         'companyId': companyId,
       };
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'employeeId': employeeId,
+        'employeeFullName': employeeFullName,
+        'employeeAddress': employeeAddress,
+        'companyId': companyId,
+        'companyName': companyName,
+        'dateOfEmployment': dateOfEmployment?.toIso8601String(),
+        'outingDate': outingDate?.toIso8601String(),
+        'outingLocation': outingLocation,
+        'dateSigned': dateSigned.toIso8601String(),
+        'signingPlace': signingPlace,
+      };
 }
 
 const _undef = Object();

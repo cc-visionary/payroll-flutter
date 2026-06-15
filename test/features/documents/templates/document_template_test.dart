@@ -8,6 +8,8 @@ class _StubInputs extends TemplateInputs {
   _StubInputs(this.name);
   @override
   Map<String, dynamic> toDebugMap() => {'name': name};
+  @override
+  Map<String, dynamic> toJson() => {'name': name};
 }
 
 class _StubTemplate extends DocumentTemplate<_StubInputs> {

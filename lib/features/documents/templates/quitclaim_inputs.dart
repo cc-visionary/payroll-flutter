@@ -59,6 +59,20 @@ class QuitclaimInputs extends TemplateInputs {
         'companyId': companyId,
         'finalPayAmount': finalPayAmount.toString(),
       };
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'employeeId': employeeId,
+        'employeeFullName': employeeFullName,
+        'employeeAddress': employeeAddress,
+        'civilStatus': civilStatus,
+        'companyId': companyId,
+        'companyName': companyName,
+        'finalPayAmount': finalPayAmount.toString(),
+        'dateTerminated': dateTerminated?.toIso8601String(),
+        'dateSigned': dateSigned.toIso8601String(),
+        'placeSigned': placeSigned,
+      };
 }
 
 const _undef = Object();

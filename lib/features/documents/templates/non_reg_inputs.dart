@@ -6,6 +6,8 @@ class SubFinding {
   final String title;
   final String body;
   const SubFinding({required this.title, required this.body});
+
+  Map<String, dynamic> toJson() => {'title': title, 'body': body};
 }
 
 class FindingSection {
@@ -19,6 +21,13 @@ class FindingSection {
     required this.finding,
     this.subFindings = const [],
   });
+
+  Map<String, dynamic> toJson() => {
+        'title': title,
+        'standard': standard,
+        'finding': finding,
+        'subFindings': subFindings.map((s) => s.toJson()).toList(),
+      };
 }
 
 class NonRegInputs extends TemplateInputs {
@@ -106,5 +115,25 @@ class NonRegInputs extends TemplateInputs {
         'findingCount': findings.length,
         'subFindingCount':
             findings.fold<int>(0, (n, f) => n + f.subFindings.length),
+      };
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'employeeId': employeeId,
+        'employeeFullName': employeeFullName,
+        'employeeLastName': employeeLastName,
+        'employeePosition': employeePosition,
+        'companyId': companyId,
+        'companyName': companyName,
+        'companyAddress': companyAddress,
+        'hrManagerName': hrManagerName,
+        'dateIssued': dateIssued.toIso8601String(),
+        'probationaryStart': probationaryStart?.toIso8601String(),
+        'probationaryEnd': probationaryEnd?.toIso8601String(),
+        'effectiveEndDate': effectiveEndDate?.toIso8601String(),
+        'salutationName': salutationName,
+        'noteOnScope': noteOnScope,
+        'findings': findings.map((f) => f.toJson()).toList(),
+        'witnessName': witnessName,
       };
 }

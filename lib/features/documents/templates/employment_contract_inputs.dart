@@ -6,12 +6,29 @@ class ContractResponsibility {
   final String area;
   final List<String> tasks;
   const ContractResponsibility({required this.area, required this.tasks});
+
+  Map<String, dynamic> toJson() => {'area': area, 'tasks': tasks};
 }
 
 class ContractKpi {
   final String metric;
   final String frequency;
   const ContractKpi({required this.metric, required this.frequency});
+
+  Map<String, dynamic> toJson() => {'metric': metric, 'frequency': frequency};
+}
+
+/// Optional graduated "training wage" terms for §5 COMPENSATION. When
+/// present, the contract states a reduced daily training allowance for the
+/// first [trainingDays] days, with the full salary applying upon passing the
+/// evaluation (end of training, or end of the 1st month on a second pass).
+class TrainingWage {
+  final String dailyRate; // formatted like monthlySalary, e.g. "350"
+  final int trainingDays; // e.g. 7
+  const TrainingWage({required this.dailyRate, required this.trainingDays});
+
+  Map<String, dynamic> toJson() =>
+      {'dailyRate': dailyRate, 'trainingDays': trainingDays};
 }
 
 /// Sentinel for `copyWith` so nullable fields can be explicitly cleared
@@ -43,6 +60,8 @@ class EmploymentContractInputs extends TemplateInputs {
   final int workHoursPerDay;
   final String workDaysPerWeek;
   final int nonCompeteMonths;
+  // Optional graduated training wage (null ⇒ clause omitted).
+  final TrainingWage? trainingWage;
   // Signatories
   final String employerSignatoryName;
   final String employerSignatoryRole;
@@ -78,6 +97,7 @@ class EmploymentContractInputs extends TemplateInputs {
     required this.workHoursPerDay,
     required this.workDaysPerWeek,
     required this.nonCompeteMonths,
+    this.trainingWage,
     required this.employerSignatoryName,
     required this.employerSignatoryRole,
     this.witness1Name = '',
@@ -114,6 +134,7 @@ class EmploymentContractInputs extends TemplateInputs {
     int? workHoursPerDay,
     String? workDaysPerWeek,
     int? nonCompeteMonths,
+    Object? trainingWage = _unset,
     String? employerSignatoryName,
     String? employerSignatoryRole,
     String? witness1Name,
@@ -154,6 +175,9 @@ class EmploymentContractInputs extends TemplateInputs {
         workHoursPerDay: workHoursPerDay ?? this.workHoursPerDay,
         workDaysPerWeek: workDaysPerWeek ?? this.workDaysPerWeek,
         nonCompeteMonths: nonCompeteMonths ?? this.nonCompeteMonths,
+        trainingWage: identical(trainingWage, _unset)
+            ? this.trainingWage
+            : trainingWage as TrainingWage?,
         employerSignatoryName:
             employerSignatoryName ?? this.employerSignatoryName,
         employerSignatoryRole:
@@ -176,5 +200,42 @@ class EmploymentContractInputs extends TemplateInputs {
         'position': position,
         'responsibilityCount': responsibilities.length,
         'kpiCount': kpis.length,
+        'trainingWage': trainingWage == null
+            ? null
+            : '${trainingWage!.dailyRate}/${trainingWage!.trainingDays}d',
+      };
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'employeeId': employeeId,
+        'applicantId': applicantId,
+        'employeeFullName': employeeFullName,
+        'employeeAddress': employeeAddress,
+        'companyId': companyId,
+        'companyName': companyName,
+        'companyAddress': companyAddress,
+        'representativeName': representativeName,
+        'representativeRole': representativeRole,
+        'place': place,
+        'dateEntered': dateEntered.toIso8601String(),
+        'industry': industry,
+        'position': position,
+        'probationStart': probationStart?.toIso8601String(),
+        'probationEnd': probationEnd?.toIso8601String(),
+        'monthlySalary': monthlySalary,
+        'salaryPeriod': salaryPeriod,
+        'workHoursPerDay': workHoursPerDay,
+        'workDaysPerWeek': workDaysPerWeek,
+        'nonCompeteMonths': nonCompeteMonths,
+        'trainingWage': trainingWage?.toJson(),
+        'employerSignatoryName': employerSignatoryName,
+        'employerSignatoryRole': employerSignatoryRole,
+        'witness1Name': witness1Name,
+        'witness1Role': witness1Role,
+        'witness2Name': witness2Name,
+        'witness2Role': witness2Role,
+        'missionStatement': missionStatement,
+        'responsibilities': responsibilities.map((r) => r.toJson()).toList(),
+        'kpis': kpis.map((k) => k.toJson()).toList(),
       };
 }

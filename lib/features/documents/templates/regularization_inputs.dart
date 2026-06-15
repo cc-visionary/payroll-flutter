@@ -74,6 +74,24 @@ class RegularizationInputs extends TemplateInputs {
     'employeeId': employeeId,
     'regularizationDate': regularizationDate.toIso8601String(),
   };
+
+  @override
+  Map<String, dynamic> toJson() => {
+    'employeeId': employeeId,
+    'employeeFullName': employeeFullName,
+    'employeePosition': employeePosition,
+    'employeeGender': employeeGender,
+    'companyId': companyId,
+    'companyName': companyName,
+    'companyAddress': companyAddress,
+    'hrManagerName': hrManagerName,
+    'hireDate': hireDate?.toIso8601String(),
+    'regularizationDate': regularizationDate.toIso8601String(),
+    'baseSalary': baseSalary.toString(),
+    'salaryPeriod': salaryPeriod,
+    'issueDate': issueDate.toIso8601String(),
+    'performanceSummary': performanceSummary,
+  };
 }
 
 const _undef = Object();

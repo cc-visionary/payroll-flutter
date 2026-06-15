@@ -8,6 +8,8 @@ class NteCharge {
   final String title;
   final Delta body;
   const NteCharge({required this.title, required this.body});
+
+  Map<String, dynamic> toJson() => {'title': title, 'body': body.toJson()};
 }
 
 class NteInputs extends TemplateInputs {
@@ -100,5 +102,25 @@ class NteInputs extends TemplateInputs {
         'companyId': companyId,
         'chargeCount': charges.length,
         'violationCount': applicableViolations.length,
+      };
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'employeeId': employeeId,
+        'employeeFullName': employeeFullName,
+        'employeeFirstName': employeeFirstName,
+        'employeeLastName': employeeLastName,
+        'employeeHonorific': employeeHonorific,
+        'employeePosition': employeePosition,
+        'employeeDepartment': employeeDepartment,
+        'companyId': companyId,
+        'companyName': companyName,
+        'companyAddress': companyAddress,
+        'hrManagerName': hrManagerName,
+        'dateIssued': dateIssued.toIso8601String(),
+        'responseDeadline': responseDeadline.toIso8601String(),
+        'subjectSubtopic': subjectSubtopic,
+        'charges': charges.map((c) => c.toJson()).toList(),
+        'applicableViolations': applicableViolations,
       };
 }

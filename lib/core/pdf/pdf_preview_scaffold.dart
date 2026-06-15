@@ -18,6 +18,12 @@ class PdfPreviewScaffold extends StatelessWidget {
   final String filename;
   final bool enabled;
 
+  /// When false, the preview renders WITHOUT Download / Print actions. Used by
+  /// the generate screen's editing-stage live preview, where export is
+  /// deliberately withheld until the document has been generated (and saved)
+  /// in the preview stage. Defaults to true to preserve existing callers.
+  final bool allowExport;
+
   /// Optional override for the platform-detected `canPrint`. Tests
   /// inject `true` so the print action is exercised regardless of host.
   final bool? canPrintOverride;
@@ -34,6 +40,7 @@ class PdfPreviewScaffold extends StatelessWidget {
     required this.buildPdf,
     required this.filename,
     this.enabled = true,
+    this.allowExport = true,
     this.canPrintOverride,
     this.onExported,
   });
@@ -66,26 +73,27 @@ class PdfPreviewScaffold extends StatelessWidget {
       canDebug: false,
       maxPageWidth: 820,
       actions: [
-        PdfPreviewAction(
-          icon: const Icon(Icons.download),
-          onPressed: (ctx, b, fmt) async {
-            try {
-              final bytes = await b(fmt);
-              await Printing.sharePdf(bytes: bytes, filename: filename);
-              onExported?.call('download');
-            } catch (e) {
-              if (ctx.mounted) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        "Couldn't open save dialog — try again."),
-                  ),
-                );
+        if (allowExport)
+          PdfPreviewAction(
+            icon: const Icon(Icons.download),
+            onPressed: (ctx, b, fmt) async {
+              try {
+                final bytes = await b(fmt);
+                await Printing.sharePdf(bytes: bytes, filename: filename);
+                onExported?.call('download');
+              } catch (e) {
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          "Couldn't open save dialog — try again."),
+                    ),
+                  );
+                }
               }
-            }
-          },
-        ),
-        if (canPrint)
+            },
+          ),
+        if (allowExport && canPrint)
           PdfPreviewAction(
             icon: const Icon(Icons.print),
             onPressed: (ctx, b, fmt) async {

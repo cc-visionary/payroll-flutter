@@ -71,4 +71,21 @@ class CoeInputs extends TemplateInputs {
   @override
   Map<String, dynamic> toDebugMap() =>
       {'employeeId': employeeId, 'companyId': companyId, 'position': position};
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'employeeId': employeeId,
+        'employeeFullName': employeeFullName,
+        'employeeLastName': employeeLastName,
+        'employeeHonorific': employeeHonorific,
+        'companyId': companyId,
+        'companyName': companyName,
+        'companyAddress': companyAddress,
+        'hrManagerName': hrManagerName,
+        'position': position,
+        'place': place,
+        'dateStart': dateStart?.toIso8601String(),
+        'dateEnd': dateEnd?.toIso8601String(),
+        'dateIssued': dateIssued.toIso8601String(),
+      };
 }

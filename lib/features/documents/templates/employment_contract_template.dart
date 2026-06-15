@@ -111,6 +111,20 @@ const String _s5CompensationP1 =
     'government mandated deductions. Such rate does not include payment for '
     'OT during regular, rest day or holidays, which shall be paid '
     'separately as incurred.';
+// Optional graduated "training wage" clause — inserted after P1 and before
+// P2 only when `i.trainingWage != null`.
+const String _s5TrainingWage =
+    'Notwithstanding the foregoing, during the first {trainingDays} days of '
+    'employment (the "training period"), the EMPLOYEE shall receive a '
+    'training allowance of PHP {trainingDailyRate} per day in lieu of the '
+    'basic salary stated above. Upon passing the evaluation conducted at the '
+    'end of the training period, the EMPLOYEE shall thereafter receive the '
+    'full basic salary. Should the EMPLOYEE not pass said evaluation, he/she '
+    'shall continue to receive the training allowance and shall be evaluated '
+    'again at the end of the first month; upon passing, the EMPLOYEE shall '
+    'receive the full basic salary. Failure to meet the standards for '
+    'regularization set forth in Annex "B" may result in termination as '
+    'provided in Section 4.';
 const String _s5CompensationP2 =
     'It is hereby further agreed, and the EMPLOYEE hereby acknowledges, '
     'that during the period of probationary employment, he/she shall not be '
@@ -800,9 +814,19 @@ class EmploymentContractTemplate
     final s5 = interpolate(
         _s5CompensationP1, {'salaryPeriod': i.salaryPeriod},
         lenient: true);
+    final tw = i.trainingWage;
     section(5, [
       EmphasisParagraphBlock(
           spans: _boldValueSpans(s5, {'monthlySalary': i.monthlySalary})),
+      // Optional graduated training-wage clause — both numeric values bold.
+      if (tw != null) ...[
+        const SpacerBlock(6),
+        EmphasisParagraphBlock(
+            spans: _boldValueSpans(_s5TrainingWage, {
+          'trainingDays': '${tw.trainingDays}',
+          'trainingDailyRate': tw.dailyRate,
+        })),
+      ],
       const SpacerBlock(6),
       const ParagraphBlock(_s5CompensationP2),
       const SpacerBlock(6),

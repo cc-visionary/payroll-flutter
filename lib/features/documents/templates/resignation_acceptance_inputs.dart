@@ -76,4 +76,22 @@ class ResignationAcceptanceInputs extends TemplateInputs {
     'employeeId': employeeId,
     'lastDayOfWork': lastDayOfWork.toIso8601String(),
   };
+
+  @override
+  Map<String, dynamic> toJson() => {
+    'employeeId': employeeId,
+    'employeeFullName': employeeFullName,
+    'employeePosition': employeePosition,
+    'employeeGender': employeeGender,
+    'companyId': companyId,
+    'companyName': companyName,
+    'companyAddress': companyAddress,
+    'hrManagerName': hrManagerName,
+    'resignationDate': resignationDate.toIso8601String(),
+    'lastDayOfWork': lastDayOfWork.toIso8601String(),
+    'issueDate': issueDate.toIso8601String(),
+    'turnoverInstructions': turnoverInstructions,
+    'includeClearanceMention': includeClearanceMention,
+    'includeFinalPayMention': includeFinalPayMention,
+  };
 }

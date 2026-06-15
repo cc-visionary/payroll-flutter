@@ -60,6 +60,20 @@ class NdaInputs extends TemplateInputs {
         'companyId': companyId,
         'position': employeePosition,
       };
+
+  @override
+  Map<String, dynamic> toJson() => {
+        'employeeId': employeeId,
+        'employeeFullName': employeeFullName,
+        'employeePosition': employeePosition,
+        'employeeHomeAddress': employeeHomeAddress,
+        'companyId': companyId,
+        'companyName': companyName,
+        'companyAddress': companyAddress,
+        'effectiveDate': effectiveDate?.toIso8601String(),
+        'authorizedSignatoryName': authorizedSignatoryName,
+        'authorizedSignatoryRole': authorizedSignatoryRole,
+      };
 }
 
 const _undef = Object();

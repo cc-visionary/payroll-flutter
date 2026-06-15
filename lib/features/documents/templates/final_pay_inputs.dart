@@ -125,6 +125,31 @@ class FinalPayInputs extends TemplateInputs {
     'separation': employeeSeparationDate?.toIso8601String(),
     'total': total.toString(),
   };
+
+  @override
+  Map<String, dynamic> toJson() => {
+    'employeeId': employeeId,
+    'employeeFullName': employeeFullName,
+    'employeePosition': employeePosition,
+    'employeeHireDate': employeeHireDate?.toIso8601String(),
+    'employeeSeparationDate': employeeSeparationDate?.toIso8601String(),
+    'companyId': companyId,
+    'companyName': companyName,
+    'companyAddress': companyAddress,
+    'hrManagerName': hrManagerName,
+    'lastNetPay': lastNetPay.toString(),
+    'thirteenthMonth': thirteenthMonth.toString(),
+    'unusedLeaveConversion': unusedLeaveConversion.toString(),
+    'outstandingCashAdvance': outstandingCashAdvance.toString(),
+    'otherDeductions': otherDeductions.toString(),
+    'otherDeductionsLabel': otherDeductionsLabel,
+    'lastNetPayLocked': lastNetPayLocked,
+    'thirteenthMonthLocked': thirteenthMonthLocked,
+    'unusedLeaveConversionLocked': unusedLeaveConversionLocked,
+    'outstandingCashAdvanceLocked': outstandingCashAdvanceLocked,
+    'computedAsOf': computedAsOf.toIso8601String(),
+    'releaseDate': releaseDate.toIso8601String(),
+  };
 }
 
 const _undef = Object();

@@ -109,6 +109,29 @@ class SalaryAdjustmentInputs extends TemplateInputs {
     'employeeId': employeeId,
     'effective': effectiveDate.toIso8601String(),
   };
+
+  @override
+  Map<String, dynamic> toJson() => {
+    'type': type.name,
+    'employeeId': employeeId,
+    'employeeFullName': employeeFullName,
+    'employeePosition': employeePosition,
+    'employeeGender': employeeGender,
+    'companyId': companyId,
+    'companyName': companyName,
+    'companyAddress': companyAddress,
+    'hrManagerName': hrManagerName,
+    'oldRoleScorecardId': oldRoleScorecardId,
+    'newRoleScorecardId': newRoleScorecardId,
+    'oldPosition': oldPosition,
+    'newPosition': newPosition,
+    'oldSalary': oldSalary.toString(),
+    'newSalary': newSalary.toString(),
+    'salaryPeriod': salaryPeriod,
+    'effectiveDate': effectiveDate.toIso8601String(),
+    'issueDate': issueDate.toIso8601String(),
+    'reason': reason,
+  };
 }
 
 const _undef = Object();
