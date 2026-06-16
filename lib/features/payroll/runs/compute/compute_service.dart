@@ -19,6 +19,21 @@ class PayrollComputeService {
   final SupabaseClient _client;
   PayrollComputeService(this._client);
 
+  /// Columns SELECTed for each employee in [computeRun]. This MUST include
+  /// every column later read off the employee `row` when building the engine
+  /// input — a column that is read but not selected silently reads as
+  /// null/false. (The statutory force-enroll eligibility overrides were
+  /// dropped from this list once, which disabled force-enrolment in payroll.)
+  static const String employeeSelectColumns =
+      'id, employee_number, hire_date, regularization_date, employment_type, '
+      'is_rank_and_file, is_ot_eligible, is_nd_eligible, '
+      'is_holiday_pay_eligible, tax_on_full_earnings, '
+      'sss_eligibility_override, philhealth_eligibility_override, '
+      'pagibig_eligibility_override, '
+      'declared_wage_override, declared_wage_type, role_scorecard_id, '
+      'role_scorecards(id, base_salary, wage_type, work_hours_per_day, '
+      'work_days_per_week, shift_template_id)';
+
   Future<ComputeOutcome> computeRun(
     String runId, {
     void Function(String step)? onStep,
@@ -61,14 +76,7 @@ class PayrollComputeService {
     final periodEndIso = payPeriodInput.endDate.toIso8601String().substring(0, 10);
     var empQuery = _client
         .from('employees')
-        .select(
-          'id, employee_number, hire_date, regularization_date, employment_type, '
-          'is_rank_and_file, is_ot_eligible, is_nd_eligible, '
-          'is_holiday_pay_eligible, tax_on_full_earnings, '
-          'declared_wage_override, declared_wage_type, role_scorecard_id, '
-          'role_scorecards(id, base_salary, wage_type, work_hours_per_day, '
-          'work_days_per_week, shift_template_id)',
-        )
+        .select(employeeSelectColumns)
         .eq('company_id', companyId)
         .eq('employment_status', 'ACTIVE')
         .isFilter('deleted_at', null)
