@@ -170,8 +170,12 @@ final employmentEventsProvider = FutureProvider.family<
 
 // --- Employee documents ---------------------------------------------------
 
+// autoDispose so re-entering the profile's Documents tab re-fetches: a document
+// generated elsewhere (global Generate screen, bulk generate) must appear on the
+// next visit without a stale empty cache. A live tab is also invalidated
+// explicitly after a save (see generate_screen `_runGenerate`).
 final employeeDocumentsProvider =
-    FutureProvider.family<List<Map<String, dynamic>>, String>(
+    FutureProvider.autoDispose.family<List<Map<String, dynamic>>, String>(
         (ref, employeeId) async {
   final rows = await Supabase.instance.client
       .from('employee_documents')

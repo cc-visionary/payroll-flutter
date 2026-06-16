@@ -9,6 +9,7 @@ import '../../core/pdf/pdf_preview_scaffold.dart';
 import '../../core/pdf/pdf_theme.dart';
 import '../../data/repositories/audit_repository.dart';
 import '../../data/repositories/employee_document_repository.dart';
+import '../employees/profile/providers.dart' show employeeDocumentsProvider;
 import 'blocks/block.dart';
 import 'document_type_mapping.dart';
 import 'forms/coe_form.dart';
@@ -677,6 +678,12 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         sessionRecordId: _sessionRecordId,
       );
       _sessionRecordId = saved.id;
+      // Reflect the new/updated record immediately: the company-wide hub and
+      // the employee's Documents tab must show it without a stale cache. The
+      // tab provider is autoDispose (refreshes on next visit), but a tab that
+      // is already open needs this explicit nudge.
+      ref.invalidate(allDocumentsProvider);
+      ref.invalidate(employeeDocumentsProvider(employeeId));
     } catch (e, st) {
       // Persistence is non-blocking: the document is already previewable and
       // exportable. Surface a warning but keep the user on the preview.

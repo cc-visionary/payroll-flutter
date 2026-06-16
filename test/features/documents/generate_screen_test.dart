@@ -13,6 +13,8 @@ import 'package:payroll_flutter/data/repositories/hiring_entity_repository.dart'
 import 'package:payroll_flutter/data/repositories/role_scorecard_repository.dart';
 import 'package:payroll_flutter/features/documents/generate_screen.dart';
 import 'package:payroll_flutter/features/documents/providers.dart';
+import 'package:payroll_flutter/features/employees/profile/providers.dart'
+    show employeeDocumentsProvider;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Records every [saveGenerated] call so the test can assert it was invoked
@@ -265,6 +267,78 @@ void main() {
       );
       // Save was attempted.
       expect(repo.calls, hasLength(1));
+    });
+
+    testWidgets(
+        'a successful generate refreshes the employee Documents tab and the '
+        'company hub (no stale empty cache)', (tester) async {
+      var empDocBuilds = 0;
+      var hubBuilds = 0;
+      final container = ProviderContainer(overrides: [
+        employeeDocumentRepositoryProvider.overrideWithValue(_FakeDocRepo()),
+        documentEmployeeProvider(_empId).overrideWith((ref) => _employee()),
+        hiringEntityByIdProvider(_coId).overrideWith((ref) => _company),
+        employeeListProvider(const EmployeeListQuery(includeArchived: true))
+            .overrideWith((ref) => [_employee()]),
+        employeeListProvider(const EmployeeListQuery())
+            .overrideWith((ref) => [_employee()]),
+        hiringEntityListProvider.overrideWith((ref) => [_company]),
+        roleScorecardListProvider
+            .overrideWith((ref) => const <RoleScorecard>[]),
+        employeeDocumentsProvider(_empId).overrideWith((ref) {
+          empDocBuilds++;
+          return const <Map<String, dynamic>>[];
+        }),
+        allDocumentsProvider.overrideWith((ref) {
+          hubBuilds++;
+          return const <DocumentRegistryEntry>[];
+        }),
+      ]);
+      addTearDown(container.dispose);
+
+      // Keep both alive so an invalidation triggers a recompute we can observe.
+      container.listen(employeeDocumentsProvider(_empId), (_, _) {});
+      container.listen(allDocumentsProvider, (_, _) {});
+      await container.read(employeeDocumentsProvider(_empId).future);
+      await container.read(allDocumentsProvider.future);
+      expect(empDocBuilds, 1);
+      expect(hubBuilds, 1);
+
+      final router = GoRouter(
+        initialLocation: '/gen',
+        routes: [
+          GoRoute(
+            path: '/gen',
+            builder: (_, _) => GenerateScreen(
+              templateId: 'coe',
+              employeeId: _empId,
+              pdfThemeOverride: PdfTheme.testStub(),
+              showLivePreview: false,
+            ),
+          ),
+          GoRoute(
+            path: '/documents',
+            builder: (_, _) => const Scaffold(body: Text('Documents hub')),
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await _tapGenerate(tester);
+
+      // Both providers were invalidated by the save, so a fresh read recomputes.
+      await container.read(employeeDocumentsProvider(_empId).future);
+      await container.read(allDocumentsProvider.future);
+      expect(empDocBuilds, greaterThan(1),
+          reason: 'employee Documents tab must refresh after a generate');
+      expect(hubBuilds, greaterThan(1),
+          reason: 'company documents hub must refresh after a generate');
     });
   });
 
