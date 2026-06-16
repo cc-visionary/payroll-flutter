@@ -37,6 +37,35 @@ class ResignationAcceptanceInputs extends TemplateInputs {
     this.includeFinalPayMention = true,
   });
 
+  factory ResignationAcceptanceInputs.fromJson(Map<String, dynamic> json) {
+    DateTime parseDate(Object? v) {
+      if (v == null) return DateTime.now();
+      final s = v as String;
+      if (s.isEmpty) return DateTime.now();
+      return DateTime.tryParse(s) ?? DateTime.now();
+    }
+
+    return ResignationAcceptanceInputs(
+      employeeId: json['employeeId'] as String? ?? '',
+      employeeFullName: json['employeeFullName'] as String? ?? '',
+      employeePosition: json['employeePosition'] as String? ?? '',
+      employeeGender: json['employeeGender'] as String? ?? '',
+      companyId: json['companyId'] as String? ?? '',
+      companyName: json['companyName'] as String? ?? '',
+      companyAddress: json['companyAddress'] as String? ?? '',
+      hrManagerName: json['hrManagerName'] as String? ?? '',
+      resignationDate: parseDate(json['resignationDate']),
+      lastDayOfWork: parseDate(json['lastDayOfWork']),
+      issueDate: parseDate(json['issueDate']),
+      turnoverInstructions:
+          json['turnoverInstructions'] as String? ??
+          kDefaultTurnoverInstructions,
+      includeClearanceMention:
+          json['includeClearanceMention'] as bool? ?? true,
+      includeFinalPayMention: json['includeFinalPayMention'] as bool? ?? true,
+    );
+  }
+
   ResignationAcceptanceInputs copyWith({
     String? employeeId,
     String? employeeFullName,

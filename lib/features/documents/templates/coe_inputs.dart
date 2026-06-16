@@ -35,6 +35,33 @@ class CoeInputs extends TemplateInputs {
     this.logoBytes,
   });
 
+  factory CoeInputs.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDate(dynamic v) {
+      if (v == null) return null;
+      final s = v as String;
+      if (s.isEmpty) return null;
+      return DateTime.tryParse(s);
+    }
+
+    return CoeInputs(
+      employeeId: json['employeeId'] as String,
+      employeeFullName: json['employeeFullName'] as String,
+      employeeLastName: (json['employeeLastName'] as String?) ?? '',
+      employeeHonorific: (json['employeeHonorific'] as String?) ?? '',
+      companyId: json['companyId'] as String,
+      companyName: json['companyName'] as String,
+      companyAddress: json['companyAddress'] as String?,
+      hrManagerName: json['hrManagerName'] as String?,
+      position: json['position'] as String,
+      place: (json['place'] as String?) ?? '',
+      dateStart: parseDate(json['dateStart']),
+      dateEnd: parseDate(json['dateEnd']),
+      dateIssued: parseDate(json['dateIssued'])!,
+      // logoBytes is intentionally excluded from toJson (binary), so it
+      // cannot be reconstructed here; it stays null.
+    );
+  }
+
   CoeInputs copyWith({
     String? employeeId,
     String? employeeFullName,

@@ -238,10 +238,18 @@ class _DocRowState extends State<DocRow> {
     final status = (row['status'] as String?) ?? 'ISSUED';
     final created = row['created_at'] as String?;
     final hasFile = documentHasFile(row);
-    return Container(
+    final id = (row['id'] as String?)?.trim();
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: (id == null || id.isEmpty)
+            ? null
+            : () => context.go('/documents/view/$id'),
+        child: Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
         border: Border.all(color: Theme.of(context).dividerColor),
         borderRadius: BorderRadius.circular(8),
       ),
@@ -295,7 +303,15 @@ class _DocRowState extends State<DocRow> {
                     visualDensity: VisualDensity.compact,
                   ),
           ],
+          const SizedBox(width: 8),
+          Icon(
+            Icons.chevron_right,
+            size: 18,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ],
+      ),
+        ),
       ),
     );
   }

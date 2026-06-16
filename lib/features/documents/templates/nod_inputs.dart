@@ -59,6 +59,36 @@ class NodInputs extends TemplateInputs {
     required this.issueDate,
   });
 
+  factory NodInputs.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDate(Object? v) {
+      if (v == null) return null;
+      final s = v as String;
+      if (s.isEmpty) return null;
+      return DateTime.tryParse(s);
+    }
+
+    return NodInputs(
+      employeeId: json['employeeId'] as String,
+      employeeFullName: json['employeeFullName'] as String,
+      employeePosition: (json['employeePosition'] as String?) ?? '',
+      employeeGender: (json['employeeGender'] as String?) ?? '',
+      companyId: json['companyId'] as String,
+      companyName: json['companyName'] as String,
+      companyAddress: (json['companyAddress'] as String?) ?? '',
+      hrManagerName: (json['hrManagerName'] as String?) ?? '',
+      linkedNteDocumentId: json['linkedNteDocumentId'] as String?,
+      nteDate: parseDate(json['nteDate']),
+      charges: (json['charges'] as String?) ?? '',
+      employeeResponseSummary:
+          (json['employeeResponseSummary'] as String?) ?? '',
+      findings: (json['findings'] as String?) ?? '',
+      decision: NodDecision.values.byName(json['decision'] as String),
+      suspensionDays: (json['suspensionDays'] as num?)?.toInt() ?? 0,
+      effectiveDate: parseDate(json['effectiveDate'])!,
+      issueDate: parseDate(json['issueDate'])!,
+    );
+  }
+
   NodInputs copyWith({
     String? employeeId,
     String? employeeFullName,

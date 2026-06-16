@@ -25,6 +25,32 @@ class NdaInputs extends TemplateInputs {
     this.authorizedSignatoryRole = 'Authorized Signatory',
   });
 
+  /// Inverse of [toJson]. `effectiveDate` preserves null; the optional string
+  /// fields fall back to their constructor defaults when the key is missing or
+  /// null (`authorizedSignatoryRole` defaults to 'Authorized Signatory').
+  factory NdaInputs.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDate(Object? v) {
+      if (v == null) return null;
+      final s = v as String;
+      if (s.isEmpty) return null;
+      return DateTime.tryParse(s);
+    }
+
+    return NdaInputs(
+      employeeId: json['employeeId'] as String? ?? '',
+      employeeFullName: json['employeeFullName'] as String? ?? '',
+      employeePosition: json['employeePosition'] as String? ?? '',
+      employeeHomeAddress: json['employeeHomeAddress'] as String? ?? '',
+      companyId: json['companyId'] as String? ?? '',
+      companyName: json['companyName'] as String? ?? '',
+      companyAddress: json['companyAddress'] as String? ?? '',
+      effectiveDate: parseDate(json['effectiveDate']),
+      authorizedSignatoryName: json['authorizedSignatoryName'] as String? ?? '',
+      authorizedSignatoryRole:
+          json['authorizedSignatoryRole'] as String? ?? 'Authorized Signatory',
+    );
+  }
+
   NdaInputs copyWith({
     String? employeeId,
     String? employeeFullName,

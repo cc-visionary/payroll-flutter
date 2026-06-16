@@ -10,6 +10,11 @@ class NteCharge {
   const NteCharge({required this.title, required this.body});
 
   Map<String, dynamic> toJson() => {'title': title, 'body': body.toJson()};
+
+  factory NteCharge.fromJson(Map<String, dynamic> json) => NteCharge(
+        title: json['title'] as String,
+        body: Delta.fromJson((json['body'] as List?) ?? const []),
+      );
 }
 
 class NteInputs extends TemplateInputs {
@@ -50,6 +55,35 @@ class NteInputs extends TemplateInputs {
     required this.applicableViolations,
     this.logoBytes,
   });
+
+  factory NteInputs.fromJson(Map<String, dynamic> json) {
+    DateTime parseDate(dynamic v) => DateTime.parse(v as String);
+
+    return NteInputs(
+      employeeId: json['employeeId'] as String,
+      employeeFullName: json['employeeFullName'] as String,
+      employeeFirstName: json['employeeFirstName'] as String,
+      employeeLastName: json['employeeLastName'] as String,
+      employeeHonorific: (json['employeeHonorific'] as String?) ?? '',
+      employeePosition: json['employeePosition'] as String,
+      employeeDepartment: json['employeeDepartment'] as String,
+      companyId: json['companyId'] as String,
+      companyName: json['companyName'] as String,
+      companyAddress: json['companyAddress'] as String?,
+      hrManagerName: json['hrManagerName'] as String?,
+      dateIssued: parseDate(json['dateIssued']),
+      responseDeadline: parseDate(json['responseDeadline']),
+      subjectSubtopic: json['subjectSubtopic'] as String,
+      charges: ((json['charges'] as List?) ?? const [])
+          .map((e) => NteCharge.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
+      applicableViolations: ((json['applicableViolations'] as List?) ?? const [])
+          .map((e) => e as String)
+          .toList(),
+      // logoBytes is intentionally excluded from toJson (binary), so it
+      // cannot be reconstructed here; it stays null.
+    );
+  }
 
   String get finalSubject {
     if (subjectSubtopic.trim().isEmpty) return 'Notice to Explain';

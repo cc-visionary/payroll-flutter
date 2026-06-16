@@ -59,6 +59,48 @@ class FinalPayInputs extends TemplateInputs {
        outstandingCashAdvance = outstandingCashAdvance ?? Decimal.zero,
        otherDeductions = otherDeductions ?? Decimal.zero;
 
+  factory FinalPayInputs.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDate(Object? v) {
+      if (v == null) return null;
+      final s = v as String;
+      if (s.isEmpty) return null;
+      return DateTime.tryParse(s);
+    }
+
+    Decimal? parseDecimal(Object? v) {
+      if (v == null) return null;
+      final s = v as String;
+      if (s.isEmpty) return null;
+      return Decimal.parse(s);
+    }
+
+    return FinalPayInputs(
+      employeeId: json['employeeId'] as String,
+      employeeFullName: json['employeeFullName'] as String,
+      employeePosition: (json['employeePosition'] as String?) ?? '',
+      employeeHireDate: parseDate(json['employeeHireDate']),
+      employeeSeparationDate: parseDate(json['employeeSeparationDate']),
+      companyId: json['companyId'] as String,
+      companyName: json['companyName'] as String,
+      companyAddress: (json['companyAddress'] as String?) ?? '',
+      hrManagerName: (json['hrManagerName'] as String?) ?? '',
+      lastNetPay: parseDecimal(json['lastNetPay']),
+      thirteenthMonth: parseDecimal(json['thirteenthMonth']),
+      unusedLeaveConversion: parseDecimal(json['unusedLeaveConversion']),
+      outstandingCashAdvance: parseDecimal(json['outstandingCashAdvance']),
+      otherDeductions: parseDecimal(json['otherDeductions']),
+      otherDeductionsLabel: (json['otherDeductionsLabel'] as String?) ?? '',
+      lastNetPayLocked: (json['lastNetPayLocked'] as bool?) ?? false,
+      thirteenthMonthLocked: (json['thirteenthMonthLocked'] as bool?) ?? false,
+      unusedLeaveConversionLocked:
+          (json['unusedLeaveConversionLocked'] as bool?) ?? false,
+      outstandingCashAdvanceLocked:
+          (json['outstandingCashAdvanceLocked'] as bool?) ?? false,
+      computedAsOf: parseDate(json['computedAsOf'])!,
+      releaseDate: parseDate(json['releaseDate'])!,
+    );
+  }
+
   Decimal get total =>
       lastNetPay +
       thirteenthMonth +

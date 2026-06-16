@@ -35,6 +35,36 @@ class RegularizationInputs extends TemplateInputs {
     this.performanceSummary = '',
   }) : baseSalary = baseSalary ?? Decimal.zero;
 
+  factory RegularizationInputs.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDate(Object? v) {
+      if (v == null) return null;
+      final s = v as String;
+      if (s.isEmpty) return null;
+      return DateTime.tryParse(s);
+    }
+
+    final baseSalaryRaw = json['baseSalary'] as String?;
+    return RegularizationInputs(
+      employeeId: json['employeeId'] as String? ?? '',
+      employeeFullName: json['employeeFullName'] as String? ?? '',
+      employeePosition: json['employeePosition'] as String? ?? '',
+      employeeGender: json['employeeGender'] as String? ?? '',
+      companyId: json['companyId'] as String? ?? '',
+      companyName: json['companyName'] as String? ?? '',
+      companyAddress: json['companyAddress'] as String? ?? '',
+      hrManagerName: json['hrManagerName'] as String? ?? '',
+      hireDate: parseDate(json['hireDate']),
+      regularizationDate:
+          parseDate(json['regularizationDate']) ?? DateTime.now(),
+      baseSalary: (baseSalaryRaw == null || baseSalaryRaw.isEmpty)
+          ? Decimal.zero
+          : Decimal.parse(baseSalaryRaw),
+      salaryPeriod: json['salaryPeriod'] as String? ?? 'MONTHLY',
+      issueDate: parseDate(json['issueDate']) ?? DateTime.now(),
+      performanceSummary: json['performanceSummary'] as String? ?? '',
+    );
+  }
+
   RegularizationInputs copyWith({
     String? employeeId,
     String? employeeFullName,

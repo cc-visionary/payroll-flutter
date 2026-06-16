@@ -30,6 +30,7 @@ import '../features/compliance/compliance_screen.dart';
 import '../features/documents/bulk/bulk_generate_screen.dart';
 import '../features/documents/documents_screen.dart';
 import '../features/documents/generate_screen.dart';
+import '../features/documents/view/document_view_screen.dart';
 import '../features/hiring/hiring_screen.dart';
 import '../features/hiring/applicant_form_screen.dart';
 import '../features/hiring/applicant_detail_screen.dart';
@@ -269,6 +270,11 @@ final routerProvider = Provider<GoRouter>((ref) {
               templateId: s.pathParameters['templateId']!,
               employeeId: s.uri.queryParameters['employeeId'],
             ),
+          ),
+          GoRoute(
+            path: '/documents/view/:id',
+            builder: (c, s) =>
+                DocumentViewScreen(documentId: s.pathParameters['id']!),
           ),
           GoRoute(path: '/audit', builder: (c, s) => const AuditLogScreen()),
           GoRoute(path: '/settings', builder: (c, s) => const SettingsScreen()),

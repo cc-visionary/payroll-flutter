@@ -57,6 +57,47 @@ class SalaryAdjustmentInputs extends TemplateInputs {
   }) : oldSalary = oldSalary ?? Decimal.zero,
        newSalary = newSalary ?? Decimal.zero;
 
+  factory SalaryAdjustmentInputs.fromJson(Map<String, dynamic> json) {
+    DateTime parseDate(Object? v) {
+      if (v == null) return DateTime.now();
+      final s = v as String;
+      if (s.isEmpty) return DateTime.now();
+      return DateTime.tryParse(s) ?? DateTime.now();
+    }
+
+    Decimal parseDecimal(Object? v) {
+      if (v == null) return Decimal.zero;
+      final s = v as String;
+      if (s.isEmpty) return Decimal.zero;
+      return Decimal.parse(s);
+    }
+
+    final typeName = json['type'] as String?;
+    return SalaryAdjustmentInputs(
+      type: typeName == null
+          ? SalaryAdjustmentType.salaryAdjustment
+          : SalaryAdjustmentType.values.byName(typeName),
+      employeeId: json['employeeId'] as String? ?? '',
+      employeeFullName: json['employeeFullName'] as String? ?? '',
+      employeePosition: json['employeePosition'] as String? ?? '',
+      employeeGender: json['employeeGender'] as String? ?? '',
+      companyId: json['companyId'] as String? ?? '',
+      companyName: json['companyName'] as String? ?? '',
+      companyAddress: json['companyAddress'] as String? ?? '',
+      hrManagerName: json['hrManagerName'] as String? ?? '',
+      oldRoleScorecardId: json['oldRoleScorecardId'] as String?,
+      newRoleScorecardId: json['newRoleScorecardId'] as String?,
+      oldPosition: json['oldPosition'] as String? ?? '',
+      newPosition: json['newPosition'] as String? ?? '',
+      oldSalary: parseDecimal(json['oldSalary']),
+      newSalary: parseDecimal(json['newSalary']),
+      salaryPeriod: json['salaryPeriod'] as String? ?? 'MONTHLY',
+      effectiveDate: parseDate(json['effectiveDate']),
+      issueDate: parseDate(json['issueDate']),
+      reason: json['reason'] as String? ?? '',
+    );
+  }
+
   SalaryAdjustmentInputs copyWith({
     SalaryAdjustmentType? type,
     String? employeeId,

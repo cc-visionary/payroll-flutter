@@ -231,6 +231,22 @@ final allDocumentsProvider =
       ];
     });
 
+/// A single `employee_documents` row by id (null if missing/deleted). Backs the
+/// document viewer, which re-renders the PDF from the row's `generation_options`.
+final documentByIdProvider =
+    FutureProvider.autoDispose.family<Map<String, dynamic>?, String>((
+      ref,
+      id,
+    ) async {
+      final row = await Supabase.instance.client
+          .from('employee_documents')
+          .select()
+          .eq('id', id)
+          .isFilter('deleted_at', null)
+          .maybeSingle();
+      return row;
+    });
+
 class EmployeeDocumentSummary {
   final String id;
   final String title;

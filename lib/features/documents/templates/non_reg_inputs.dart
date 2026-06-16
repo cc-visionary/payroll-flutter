@@ -7,6 +7,11 @@ class SubFinding {
   final String body;
   const SubFinding({required this.title, required this.body});
 
+  factory SubFinding.fromJson(Map<String, dynamic> json) => SubFinding(
+        title: json['title'] as String? ?? '',
+        body: json['body'] as String? ?? '',
+      );
+
   Map<String, dynamic> toJson() => {'title': title, 'body': body};
 }
 
@@ -21,6 +26,15 @@ class FindingSection {
     required this.finding,
     this.subFindings = const [],
   });
+
+  factory FindingSection.fromJson(Map<String, dynamic> json) => FindingSection(
+        title: json['title'] as String? ?? '',
+        standard: json['standard'] as String? ?? '',
+        finding: json['finding'] as String? ?? '',
+        subFindings: ((json['subFindings'] as List?) ?? const [])
+            .map((e) => SubFinding.fromJson((e as Map).cast<String, dynamic>()))
+            .toList(),
+      );
 
   Map<String, dynamic> toJson() => {
         'title': title,
@@ -68,6 +82,40 @@ class NonRegInputs extends TemplateInputs {
     this.witnessName = '',
     this.logoBytes,
   });
+
+  /// Inverse of [toJson]. `logoBytes` is intentionally absent from the JSON
+  /// snapshot, so it is left null here. Nullable date/string fields preserve
+  /// nulls; `noteOnScope` / `witnessName` fall back to their constructor
+  /// defaults if the key is missing or null.
+  factory NonRegInputs.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDate(Object? v) {
+      if (v == null) return null;
+      final s = v as String;
+      if (s.isEmpty) return null;
+      return DateTime.tryParse(s);
+    }
+
+    return NonRegInputs(
+      employeeId: json['employeeId'] as String? ?? '',
+      employeeFullName: json['employeeFullName'] as String? ?? '',
+      employeeLastName: json['employeeLastName'] as String? ?? '',
+      employeePosition: json['employeePosition'] as String? ?? '',
+      companyId: json['companyId'] as String? ?? '',
+      companyName: json['companyName'] as String? ?? '',
+      companyAddress: json['companyAddress'] as String?,
+      hrManagerName: json['hrManagerName'] as String?,
+      dateIssued: parseDate(json['dateIssued']) ?? DateTime.now(),
+      probationaryStart: parseDate(json['probationaryStart']),
+      probationaryEnd: parseDate(json['probationaryEnd']),
+      effectiveEndDate: parseDate(json['effectiveEndDate']),
+      salutationName: json['salutationName'] as String? ?? '',
+      noteOnScope: json['noteOnScope'] as String? ?? '',
+      findings: ((json['findings'] as List?) ?? const [])
+          .map((e) => FindingSection.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
+      witnessName: json['witnessName'] as String? ?? '',
+    );
+  }
 
   NonRegInputs copyWith({
     String? employeeId,

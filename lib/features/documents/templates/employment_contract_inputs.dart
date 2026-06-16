@@ -8,6 +8,14 @@ class ContractResponsibility {
   const ContractResponsibility({required this.area, required this.tasks});
 
   Map<String, dynamic> toJson() => {'area': area, 'tasks': tasks};
+
+  factory ContractResponsibility.fromJson(Map<String, dynamic> j) =>
+      ContractResponsibility(
+        area: j['area'] as String? ?? '',
+        tasks: ((j['tasks'] as List?) ?? const [])
+            .map((e) => e as String)
+            .toList(),
+      );
 }
 
 class ContractKpi {
@@ -16,6 +24,11 @@ class ContractKpi {
   const ContractKpi({required this.metric, required this.frequency});
 
   Map<String, dynamic> toJson() => {'metric': metric, 'frequency': frequency};
+
+  factory ContractKpi.fromJson(Map<String, dynamic> j) => ContractKpi(
+        metric: j['metric'] as String? ?? '',
+        frequency: j['frequency'] as String? ?? '',
+      );
 }
 
 /// Optional graduated "training wage" terms for §5 COMPENSATION. When
@@ -29,6 +42,11 @@ class TrainingWage {
 
   Map<String, dynamic> toJson() =>
       {'dailyRate': dailyRate, 'trainingDays': trainingDays};
+
+  factory TrainingWage.fromJson(Map<String, dynamic> j) => TrainingWage(
+        dailyRate: j['dailyRate'] as String? ?? '',
+        trainingDays: (j['trainingDays'] as num?)?.toInt() ?? 0,
+      );
 }
 
 /// Sentinel for `copyWith` so nullable fields can be explicitly cleared
@@ -238,4 +256,54 @@ class EmploymentContractInputs extends TemplateInputs {
         'responsibilities': responsibilities.map((r) => r.toJson()).toList(),
         'kpis': kpis.map((k) => k.toJson()).toList(),
       };
+
+  /// Reconstructs inputs from a persisted [toJson] snapshot
+  /// (`employee_documents.generation_options`). The inverse of [toJson] — used
+  /// to re-render a previously generated contract on the fly. `logoBytes` is
+  /// not part of the snapshot and is re-supplied at render time.
+  factory EmploymentContractInputs.fromJson(Map<String, dynamic> j) {
+    DateTime? parseDate(Object? v) =>
+        (v is String && v.isNotEmpty) ? DateTime.tryParse(v) : null;
+    final tw = j['trainingWage'];
+    return EmploymentContractInputs(
+      employeeId: j['employeeId'] as String?,
+      applicantId: j['applicantId'] as String?,
+      employeeFullName: j['employeeFullName'] as String? ?? '',
+      employeeAddress: j['employeeAddress'] as String? ?? '',
+      companyId: j['companyId'] as String? ?? '',
+      companyName: j['companyName'] as String? ?? '',
+      companyAddress: j['companyAddress'] as String? ?? '',
+      representativeName: j['representativeName'] as String? ?? '',
+      representativeRole: j['representativeRole'] as String? ?? '',
+      place: j['place'] as String? ?? '',
+      dateEntered:
+          parseDate(j['dateEntered']) ?? DateTime.fromMillisecondsSinceEpoch(0),
+      industry: j['industry'] as String? ?? '',
+      position: j['position'] as String? ?? '',
+      probationStart: parseDate(j['probationStart']),
+      probationEnd: parseDate(j['probationEnd']),
+      monthlySalary: j['monthlySalary'] as String? ?? '',
+      salaryPeriod: j['salaryPeriod'] as String? ?? 'month',
+      workHoursPerDay: (j['workHoursPerDay'] as num?)?.toInt() ?? 8,
+      workDaysPerWeek: j['workDaysPerWeek'] as String? ?? '',
+      nonCompeteMonths: (j['nonCompeteMonths'] as num?)?.toInt() ?? 0,
+      trainingWage: tw == null
+          ? null
+          : TrainingWage.fromJson((tw as Map).cast<String, dynamic>()),
+      employerSignatoryName: j['employerSignatoryName'] as String? ?? '',
+      employerSignatoryRole: j['employerSignatoryRole'] as String? ?? '',
+      witness1Name: j['witness1Name'] as String? ?? '',
+      witness1Role: j['witness1Role'] as String? ?? '',
+      witness2Name: j['witness2Name'] as String? ?? '',
+      witness2Role: j['witness2Role'] as String? ?? '',
+      missionStatement: j['missionStatement'] as String? ?? '',
+      responsibilities: ((j['responsibilities'] as List?) ?? const [])
+          .map((e) =>
+              ContractResponsibility.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
+      kpis: ((j['kpis'] as List?) ?? const [])
+          .map((e) => ContractKpi.fromJson((e as Map).cast<String, dynamic>()))
+          .toList(),
+    );
+  }
 }

@@ -25,6 +25,28 @@ class LiabilityWaiverInputs extends TemplateInputs {
     this.signingPlace = '',
   });
 
+  factory LiabilityWaiverInputs.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDate(Object? v) {
+      if (v == null) return null;
+      final s = v as String;
+      if (s.isEmpty) return null;
+      return DateTime.tryParse(s);
+    }
+
+    return LiabilityWaiverInputs(
+      employeeId: json['employeeId'] as String? ?? '',
+      employeeFullName: json['employeeFullName'] as String? ?? '',
+      employeeAddress: json['employeeAddress'] as String? ?? '',
+      companyId: json['companyId'] as String? ?? '',
+      companyName: json['companyName'] as String? ?? '',
+      dateOfEmployment: parseDate(json['dateOfEmployment']),
+      outingDate: parseDate(json['outingDate']),
+      outingLocation: json['outingLocation'] as String? ?? '',
+      dateSigned: parseDate(json['dateSigned']) ?? DateTime.now(),
+      signingPlace: json['signingPlace'] as String? ?? '',
+    );
+  }
+
   LiabilityWaiverInputs copyWith({
     String? employeeId,
     String? employeeFullName,

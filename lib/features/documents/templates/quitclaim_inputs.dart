@@ -26,6 +26,28 @@ class QuitclaimInputs extends TemplateInputs {
     this.placeSigned = '',
   });
 
+  factory QuitclaimInputs.fromJson(Map<String, dynamic> json) {
+    DateTime? parseDate(Object? v) {
+      if (v == null) return null;
+      final s = v as String;
+      if (s.isEmpty) return null;
+      return DateTime.tryParse(s);
+    }
+
+    return QuitclaimInputs(
+      employeeId: json['employeeId'] as String,
+      employeeFullName: json['employeeFullName'] as String,
+      employeeAddress: (json['employeeAddress'] as String?) ?? '',
+      civilStatus: (json['civilStatus'] as String?) ?? 'single',
+      companyId: json['companyId'] as String,
+      companyName: json['companyName'] as String,
+      finalPayAmount: Decimal.parse(json['finalPayAmount'] as String),
+      dateTerminated: parseDate(json['dateTerminated']),
+      dateSigned: parseDate(json['dateSigned'])!,
+      placeSigned: (json['placeSigned'] as String?) ?? '',
+    );
+  }
+
   QuitclaimInputs copyWith({
     String? employeeId,
     String? employeeFullName,
