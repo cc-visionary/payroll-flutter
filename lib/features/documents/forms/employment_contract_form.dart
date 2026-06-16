@@ -164,6 +164,7 @@ class _EmploymentContractFormState
           _label('Employee'),
           const SizedBox(height: 4),
           EmployeePicker(
+            key: const ValueKey('ec-employee'),
             selectedId: (_i.employeeId?.isEmpty ?? true) ? null : _i.employeeId,
             locked: widget.employeeLocked,
             includeArchived: false,
@@ -180,6 +181,7 @@ class _EmploymentContractFormState
           _label('Company'),
           const SizedBox(height: 4),
           CompanyPicker(
+            key: const ValueKey('ec-company'),
             selectedId: _i.companyId.isEmpty ? null : _i.companyId,
             locked: false,
             onChanged: (id) {
@@ -190,6 +192,7 @@ class _EmploymentContractFormState
           _label('Company Representative Name'),
           const SizedBox(height: 4),
           EmployeeNameField(
+            key: const ValueKey('ec-representativeName'),
             value: _i.representativeName,
             onChanged: (v) => _set(_i.copyWith(representativeName: v)),
           ),
@@ -197,6 +200,7 @@ class _EmploymentContractFormState
           _label('Representative Role'),
           const SizedBox(height: 4),
           RoleTitleField(
+            key: const ValueKey('ec-representativeRole'),
             value: _i.representativeRole,
             hintText: 'e.g. People Manager',
             onChanged: (v) => _set(_i.copyWith(representativeRole: v)),
@@ -205,6 +209,7 @@ class _EmploymentContractFormState
           _label('Place of Execution'),
           const SizedBox(height: 4),
           TextFormField(
+            key: const ValueKey('ec-place'),
             initialValue: _i.place,
             decoration: const InputDecoration(
               border: OutlineInputBorder(),
@@ -216,6 +221,7 @@ class _EmploymentContractFormState
           _label('Industry'),
           const SizedBox(height: 4),
           TextFormField(
+            key: const ValueKey('ec-industry'),
             initialValue: _i.industry,
             decoration: const InputDecoration(
               border: OutlineInputBorder(),
@@ -227,6 +233,7 @@ class _EmploymentContractFormState
           _label('Position'),
           const SizedBox(height: 4),
           RoleTitleField(
+            key: const ValueKey('ec-position'),
             value: _i.position,
             onChanged: _onPositionChanged,
           ),
@@ -234,6 +241,7 @@ class _EmploymentContractFormState
           _label('Date Entered'),
           const SizedBox(height: 4),
           DateField(
+            key: const ValueKey('ec-dateEntered'),
             value: _i.dateEntered,
             locked: false,
             onChanged: (d) {
@@ -244,6 +252,7 @@ class _EmploymentContractFormState
           _label('Probationary Start'),
           const SizedBox(height: 4),
           DateField(
+            key: const ValueKey('ec-probationStart'),
             value: _i.probationStart,
             locked: false,
             onChanged: (d) => _set(_i.copyWith(probationStart: d)),
@@ -252,6 +261,7 @@ class _EmploymentContractFormState
           _label('Probationary End'),
           const SizedBox(height: 4),
           DateField(
+            key: const ValueKey('ec-probationEnd'),
             value: _i.probationEnd,
             locked: false,
             onChanged: (d) => _set(_i.copyWith(probationEnd: d)),
@@ -260,6 +270,7 @@ class _EmploymentContractFormState
           _label('Salary (PHP)'),
           const SizedBox(height: 4),
           TextFormField(
+            key: const ValueKey('ec-monthlySalary'),
             initialValue: _i.monthlySalary,
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(
@@ -272,6 +283,7 @@ class _EmploymentContractFormState
           _label('Salary Period'),
           const SizedBox(height: 4),
           DropdownButtonFormField<String>(
+            key: const ValueKey('ec-salaryPeriod'),
             initialValue: _i.salaryPeriod,
             isExpanded: true,
             decoration: const InputDecoration(
@@ -302,6 +314,7 @@ class _EmploymentContractFormState
             _label('Training daily rate (PHP)'),
             const SizedBox(height: 4),
             TextFormField(
+              key: const ValueKey('ec-trainingDailyRate'),
               initialValue: _trainingDailyRate,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
@@ -317,6 +330,7 @@ class _EmploymentContractFormState
             _label('Training period (days)'),
             const SizedBox(height: 4),
             TextFormField(
+              key: const ValueKey('ec-trainingDays'),
               initialValue: _trainingDays,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
@@ -333,6 +347,7 @@ class _EmploymentContractFormState
           _label('Work Hours per Day'),
           const SizedBox(height: 4),
           TextFormField(
+            key: const ValueKey('ec-workHoursPerDay'),
             initialValue: _i.workHoursPerDay.toString(),
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(
@@ -348,6 +363,7 @@ class _EmploymentContractFormState
           _label('Work Days per Week'),
           const SizedBox(height: 4),
           TextFormField(
+            key: const ValueKey('ec-workDaysPerWeek'),
             initialValue: _i.workDaysPerWeek,
             decoration: const InputDecoration(
               border: OutlineInputBorder(),
@@ -359,6 +375,7 @@ class _EmploymentContractFormState
           _label('Non-Compete (months)'),
           const SizedBox(height: 4),
           TextFormField(
+            key: const ValueKey('ec-nonCompeteMonths'),
             initialValue: _i.nonCompeteMonths.toString(),
             keyboardType: TextInputType.number,
             decoration: const InputDecoration(
@@ -374,6 +391,7 @@ class _EmploymentContractFormState
           _label('Employer Signatory Name'),
           const SizedBox(height: 4),
           EmployeeNameField(
+            key: const ValueKey('ec-employerSignatoryName'),
             value: _i.employerSignatoryName,
             onChanged: (v) => _set(_i.copyWith(employerSignatoryName: v)),
           ),
@@ -381,6 +399,7 @@ class _EmploymentContractFormState
           _label('Employer Signatory Role'),
           const SizedBox(height: 4),
           RoleTitleField(
+            key: const ValueKey('ec-employerSignatoryRole'),
             value: _i.employerSignatoryRole,
             onChanged: (v) => _set(_i.copyWith(employerSignatoryRole: v)),
           ),
@@ -388,6 +407,7 @@ class _EmploymentContractFormState
           _label('Witness 1 Name'),
           const SizedBox(height: 4),
           EmployeeNameField(
+            key: const ValueKey('ec-witness1Name'),
             value: _i.witness1Name,
             onChanged: (v) => _set(_i.copyWith(witness1Name: v)),
             exclude: [
@@ -401,6 +421,7 @@ class _EmploymentContractFormState
           _label('Witness 1 Role'),
           const SizedBox(height: 4),
           RoleTitleField(
+            key: const ValueKey('ec-witness1Role'),
             value: _i.witness1Role,
             onChanged: (v) => _set(_i.copyWith(witness1Role: v)),
           ),
@@ -408,6 +429,7 @@ class _EmploymentContractFormState
           _label('Witness 2 Name'),
           const SizedBox(height: 4),
           EmployeeNameField(
+            key: const ValueKey('ec-witness2Name'),
             value: _i.witness2Name,
             onChanged: (v) => _set(_i.copyWith(witness2Name: v)),
             exclude: [
@@ -421,6 +443,7 @@ class _EmploymentContractFormState
           _label('Witness 2 Role'),
           const SizedBox(height: 4),
           RoleTitleField(
+            key: const ValueKey('ec-witness2Role'),
             value: _i.witness2Role,
             onChanged: (v) => _set(_i.copyWith(witness2Role: v)),
           ),
@@ -428,6 +451,7 @@ class _EmploymentContractFormState
           _label('Mission Statement'),
           const SizedBox(height: 4),
           TextFormField(
+            key: const ValueKey('ec-missionStatement'),
             initialValue: _i.missionStatement,
             maxLines: 3,
             minLines: 1,
@@ -441,6 +465,7 @@ class _EmploymentContractFormState
           _label('Annex A'),
           const SizedBox(height: 4),
           AnnexAEditor(
+            key: const ValueKey('ec-annexA'),
             responsibilities: _i.responsibilities,
             onResponsibilitiesChanged: (next) =>
                 _set(_i.copyWith(responsibilities: next)),
