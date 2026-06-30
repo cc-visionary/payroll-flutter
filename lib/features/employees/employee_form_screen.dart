@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +14,19 @@ import '../../data/repositories/hiring_entity_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../auth/profile_provider.dart';
 import '../payroll/constants.dart';
+
+/// Brand-allocation entry mode for the employee form.
+enum BrandMode { derive, manual }
+
+/// Resolves the brand allocation to persist for an employee. In derive mode the
+/// selected role scorecard's entity is used; in manual mode the explicit pick is
+/// used. Returns null when nothing resolves — the form must block save then.
+String? resolveBrandAllocation({
+  required bool deriveFromScorecard,
+  required String? scorecardHiringEntityId,
+  required String? manualHiringEntityId,
+}) =>
+    deriveFromScorecard ? scorecardHiringEntityId : manualHiringEntityId;
 
 /// A subset of Applicant fields the EmployeeFormScreen can prefill from on
 /// conversion. Keeping this as a separate value object (rather than coupling
@@ -106,6 +120,10 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
   bool _isNdEligible = true;
   bool _isHolidayEligible = true;
 
+  // Brand allocation (Company / hiring entity). HR/Admin editable.
+  BrandMode _brandMode = BrandMode.derive;
+  String? _hiringEntityId;       // manual selection
+
   // Statutory employer-of-record override (HR/Admin editable). null = inherit
   // from brand allocation (`hiring_entity_id`). Stored as `statutory_entity_id`.
   String? _statutoryEntityId;
@@ -160,9 +178,10 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
     _mobile.text = s.mobileNumber ?? s.phoneNumber ?? '';
     _roleScorecardId = s.roleScorecardId;
     _hireDate = s.expectedStartDate ?? DateTime.now();
-    // hiringEntityId, departmentId, and referredById are not direct form
-    // fields — they are derived from the role scorecard or stored on the
-    // applicant record. HR can set them after save if needed.
+    if (s.hiringEntityId != null && s.hiringEntityId!.isNotEmpty) {
+      _hiringEntityId = s.hiringEntityId;
+      _brandMode = BrandMode.manual;
+    }
     // offerSalary: intentionally not applied to declaredWageOverride here;
     // that is a statutory/tax-calc field (SUPER_ADMIN only). HR can fill it
     // manually after conversion if the negotiated salary differs.
@@ -217,6 +236,10 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       _isOtEligible = e.isOtEligible;
       _isNdEligible = e.isNdEligible;
       _isHolidayEligible = e.isHolidayPayEligible;
+      _hiringEntityId = e.hiringEntityId;
+      // Existing employees with a stored brand open in manual mode showing it
+      // (lossless); legacy null-brand rows default to derive.
+      _brandMode = e.hiringEntityId == null ? BrandMode.derive : BrandMode.manual;
       _statutoryEntityId = e.statutoryEntityId;
       _origStatutoryEntityId = e.statutoryEntityId;
       _taxOnFullEarnings = e.taxOnFullEarnings;
@@ -301,6 +324,18 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       final derivedJobTitle = selectedCard?.jobTitle as String?;
       final derivedDepartmentId = selectedCard?.departmentId as String?;
 
+      final effectiveHiringEntityId = resolveBrandAllocation(
+        deriveFromScorecard: _brandMode == BrandMode.derive,
+        scorecardHiringEntityId: selectedCard?.hiringEntityId as String?,
+        manualHiringEntityId: _hiringEntityId,
+      );
+      if (effectiveHiringEntityId == null) {
+        setState(() => _error =
+            'Company (brand) is required. Pick a brand, or choose a role '
+            'scorecard that has a company set.');
+        return;
+      }
+
       final saved = await ref.read(employeeRepositoryProvider).upsert(
             id: _existing?.id,
             companyId: _existing?.companyId ?? profile.companyId,
@@ -311,6 +346,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
             jobTitle: derivedJobTitle,
             departmentId: derivedDepartmentId,
             roleScorecardId: _roleScorecardId,
+            hiringEntityId: effectiveHiringEntityId,
             workEmail: _workEmail.text.trim().isEmpty ? null : _workEmail.text.trim(),
             mobileNumber: _mobile.text.trim().isEmpty ? null : _mobile.text.trim(),
             birthDate: _birthDate,
@@ -558,6 +594,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                             ),
                           ]),
                           const SizedBox(height: 12),
+                          _buildBrandAllocationField(),
+                          const SizedBox(height: 12),
                           _buildStatutoryEntityField(),
                           if (_employmentStatus != 'ACTIVE') ...[
                             const SizedBox(height: 16),
@@ -724,6 +762,68 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           onChanged: (v) => setState(() => _roleScorecardId = v),
         );
       },
+    );
+  }
+
+  Widget _buildBrandAllocationField() {
+    final profile = ref.watch(userProfileProvider).asData?.value;
+    final canEdit = profile?.isHrOrAdmin ?? false;
+    final entities =
+        ref.watch(hiringEntityListProvider).asData?.value ?? const [];
+    final cards = ref.watch(roleScorecardListProvider).asData?.value ?? const [];
+    final selectedCard = _roleScorecardId == null
+        ? null
+        : cards.where((c) => c.id == _roleScorecardId).firstOrNull;
+    final derivedId = selectedCard?.hiringEntityId;
+    String nameOf(String? id) => id == null
+        ? '—'
+        : (entities.where((e) => e.id == id).firstOrNull?.name ?? '(unavailable)');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SegmentedButton<BrandMode>(
+          segments: const [
+            ButtonSegment(value: BrandMode.derive, label: Text('From role scorecard')),
+            ButtonSegment(value: BrandMode.manual, label: Text('Set manually')),
+          ],
+          selected: {_brandMode},
+          onSelectionChanged:
+              canEdit ? (s) => setState(() => _brandMode = s.first) : null,
+        ),
+        const SizedBox(height: 8),
+        if (_brandMode == BrandMode.derive)
+          InputDecorator(
+            decoration: InputDecoration(
+              labelText: 'Company (brand)',
+              helperText: derivedId == null
+                  ? 'This role scorecard has no company set — choose "Set '
+                      'manually", or set it on the scorecard.'
+                  : 'Derived from the role scorecard.',
+              border: const OutlineInputBorder(),
+              isDense: true,
+            ),
+            child: Text(derivedId == null ? '— None —' : nameOf(derivedId)),
+          )
+        else
+          DropdownButtonFormField<String?>(
+            initialValue:
+                entities.any((e) => e.id == _hiringEntityId) ? _hiringEntityId : null,
+            decoration: const InputDecoration(
+              labelText: 'Company (brand)',
+              helperText: 'Required.',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+            items: [
+              const DropdownMenuItem<String?>(value: null, child: Text('— Select —')),
+              for (final e in entities)
+                DropdownMenuItem<String?>(value: e.id, child: Text(e.name)),
+            ],
+            onChanged:
+                canEdit ? (v) => setState(() => _hiringEntityId = v) : null,
+          ),
+      ],
     );
   }
 
