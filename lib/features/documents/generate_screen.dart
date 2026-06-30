@@ -620,6 +620,20 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           companyName: name,
           companyAddress: addr,
           logoBytes: logo,
+          place: co == null
+              ? ''
+              : [co.city, co.province, 'Philippines']
+                  .where((s) => s != null && s.isNotEmpty)
+                  .cast<String>()
+                  .join(', '),
+          representativeName: co?.hrManagerName ?? '',
+          representativeRole: (co?.legalSignatoryRole?.isNotEmpty ?? false)
+              ? co!.legalSignatoryRole!
+              : 'People Manager',
+          employerSignatoryName: co?.hrManagerName ?? '',
+          employerSignatoryRole: (co?.legalSignatoryRole?.isNotEmpty ?? false)
+              ? co!.legalSignatoryRole!
+              : 'People Manager',
         );
       } else if (tpl is CoeTemplate && _coe != null) {
         _coe = _coe!.copyWith(
@@ -657,6 +671,12 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           companyName: name,
           companyAddress: addr,
           logoBytes: logo,
+          authorizedSignatoryName: (co?.legalSignatoryName?.isNotEmpty ?? false)
+              ? co!.legalSignatoryName!
+              : (co?.hrManagerName ?? ''),
+          authorizedSignatoryRole: (co?.legalSignatoryRole?.isNotEmpty ?? false)
+              ? co!.legalSignatoryRole!
+              : 'Authorized Signatory',
         );
       } else if (tpl is NodTemplate && _nod != null) {
         _nod = _nod!.copyWith(
@@ -683,6 +703,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           companyId: companyId,
           companyName: name,
           logoBytes: logo,
+          placeSigned: co == null ? '' : _composeCompanyAddress(co),
         );
       } else if (tpl is RegularizationTemplate && _regularization != null) {
         _regularization = _regularization!.copyWith(
