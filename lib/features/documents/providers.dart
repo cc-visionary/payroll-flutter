@@ -10,22 +10,16 @@ import '../../data/models/role_scorecard.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../data/repositories/hiring_entity_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
-import '../auth/profile_provider.dart';
 
 /// Single hiring entity by id, or null when soft-deleted / not found.
+/// Uses a direct single-row fetch that includes logo columns, so
+/// [loadCompanyLogoBytes] receives the uploaded logo rather than falling
+/// back to the bundled asset every time.
 final hiringEntityByIdProvider = FutureProvider.family<HiringEntity?, String>((
   ref,
   id,
 ) async {
-  final profile = await ref.watch(userProfileProvider.future);
-  if (profile == null) return null;
-  final entities = await ref
-      .read(hiringEntityRepositoryProvider)
-      .list(profile.companyId);
-  for (final e in entities) {
-    if (e.id == id) return e;
-  }
-  return null;
+  return ref.watch(hiringEntityRepositoryProvider).byId(id);
 });
 
 /// Single employee by id.
@@ -292,7 +286,7 @@ final ntesByEmployeeProvider =
 final hiringEntityLogoProvider =
     FutureProvider.family<Uint8List?, String>((ref, entityId) async {
   final logo = await ref
-      .read(hiringEntityRepositoryProvider)
+      .watch(hiringEntityRepositoryProvider)
       .logoFor(entityId);
   return decodeLogoBytes(logo?.base64);
 });

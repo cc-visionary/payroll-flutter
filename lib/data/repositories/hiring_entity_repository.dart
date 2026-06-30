@@ -53,6 +53,19 @@ class HiringEntityRepository {
     return (base64: b64, mime: (row?['logo_mime'] as String?) ?? 'image/png');
   }
 
+  /// Fetch one entity by id, INCLUDING the logo columns (unlike [list], which
+  /// omits them to keep the picker light). Used by render paths that need the
+  /// uploaded logo. Returns null when not found / soft-deleted.
+  Future<HiringEntity?> byId(String id) async {
+    final row = await _client
+        .from('hiring_entities')
+        .select()
+        .eq('id', id)
+        .isFilter('deleted_at', null)
+        .maybeSingle();
+    return row == null ? null : HiringEntity.fromRow(row);
+  }
+
   Future<Map<String, int>> employeeCounts(String companyId) async {
     final rows = await _client
         .from('employees')
