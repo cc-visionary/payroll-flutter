@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_quill/quill_delta.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/features/documents/blocks/memo_header_block.dart';
@@ -63,5 +65,13 @@ void main() {
     final blocks = t.build(valid());
     final bullets = blocks.whereType<BulletListBlock>().first;
     expect(bullets.items, contains('Code of Conduct §3.1'));
+  });
+
+  test('build: MemoHeaderBlock is first and carries logoBytes when set', () {
+    final blocks = const NteTemplate().build(valid().copyWith(
+      logoBytes: Uint8List.fromList(const [137, 80, 78, 71]),
+    ));
+    expect(blocks.first, isA<MemoHeaderBlock>());
+    expect((blocks.first as MemoHeaderBlock).logoBytes, isNotNull);
   });
 }

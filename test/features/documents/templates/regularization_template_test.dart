@@ -1,9 +1,23 @@
+import 'dart:typed_data';
+
 import 'package:decimal/decimal.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/features/documents/blocks/heading_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/memo_header_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/paragraph_block.dart';
 import 'package:payroll_flutter/features/documents/templates/regularization_inputs.dart';
 import 'package:payroll_flutter/features/documents/templates/regularization_template.dart';
+
+RegularizationInputs _ri() => RegularizationInputs(
+      employeeId: 'e1',
+      employeeFullName: 'Bob',
+      companyId: 'c1',
+      companyName: 'Luxium',
+      hrManagerName: 'HR',
+      regularizationDate: DateTime(2026, 6, 5),
+      baseSalary: Decimal.parse('25000'),
+      issueDate: DateTime(2026, 6, 5),
+    );
 
 void main() {
   test('id + name + supportsBulk', () {
@@ -62,5 +76,13 @@ void main() {
           .any((h) => h.text.contains('Performance')),
       isTrue,
     );
+  });
+
+  test('build: MemoHeaderBlock is first and carries logoBytes when set', () {
+    final blocks = const RegularizationTemplate().build(_ri().copyWith(
+      logoBytes: Uint8List.fromList(const [137, 80, 78, 71]),
+    ));
+    expect(blocks.first, isA<MemoHeaderBlock>());
+    expect((blocks.first as MemoHeaderBlock).logoBytes, isNotNull);
   });
 }

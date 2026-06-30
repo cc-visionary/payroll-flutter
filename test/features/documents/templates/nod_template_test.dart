@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/features/documents/blocks/heading_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/memo_header_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/paragraph_block.dart';
 import 'package:payroll_flutter/features/documents/templates/nod_inputs.dart';
 import 'package:payroll_flutter/features/documents/templates/nod_template.dart';
@@ -60,5 +63,13 @@ void main() {
         .join(' ');
     expect(body, contains('3'));
     expect(body.toLowerCase(), contains('suspension'));
+  });
+
+  test('build includes the logo in MemoHeaderBlock when logoBytes set', () {
+    final blocks = const NodTemplate().build(_i().copyWith(
+      logoBytes: Uint8List.fromList(const [137, 80, 78, 71]),
+    ));
+    expect(blocks.first, isA<MemoHeaderBlock>());
+    expect((blocks.first as MemoHeaderBlock).logoBytes, isNotNull);
   });
 }

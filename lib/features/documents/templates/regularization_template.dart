@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
 import '../../../data/models/role_scorecard.dart';
+import '../brand_logo.dart';
 import '../blocks/block.dart';
 import '../blocks/bullet_list_block.dart';
 import '../blocks/heading_block.dart';
@@ -82,6 +83,7 @@ class RegularizationTemplate extends DocumentTemplate<RegularizationInputs> {
       }
     }
 
+    final logo = await loadCompanyLogoBytes(c);
     return RegularizationInputs(
       employeeId: e?.id ?? '',
       employeeFullName: e?.fullName ?? '',
@@ -105,6 +107,7 @@ class RegularizationTemplate extends DocumentTemplate<RegularizationInputs> {
           e?.declaredWageOverride ?? scorecard?.baseSalary ?? Decimal.zero,
       salaryPeriod: scorecard?.wageType ?? 'MONTHLY',
       issueDate: today,
+      logoBytes: logo,
     );
   }
 
@@ -137,6 +140,7 @@ class RegularizationTemplate extends DocumentTemplate<RegularizationInputs> {
         salutation: i.employeeFullName.isEmpty
             ? null
             : '$honorific ${_lastName(i.employeeFullName)},',
+        logoBytes: i.logoBytes,
       ),
       const SpacerBlock(16),
       ParagraphBlock(

@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:payroll_flutter/features/documents/blocks/memo_header_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/paragraph_block.dart';
 import 'package:payroll_flutter/features/documents/templates/resignation_acceptance_inputs.dart';
 import 'package:payroll_flutter/features/documents/templates/resignation_acceptance_template.dart';
@@ -54,5 +57,13 @@ void main() {
         .join(' ');
     expect(body.toLowerCase(), contains('clearance'));
     expect(body, contains('06-20'));
+  });
+
+  test('build: MemoHeaderBlock is first and carries logoBytes when set', () {
+    final blocks = const ResignationAcceptanceTemplate().build(_i().copyWith(
+      logoBytes: Uint8List.fromList(const [137, 80, 78, 71]),
+    ));
+    expect(blocks.first, isA<MemoHeaderBlock>());
+    expect((blocks.first as MemoHeaderBlock).logoBytes, isNotNull);
   });
 }

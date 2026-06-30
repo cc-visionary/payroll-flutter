@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
+import '../brand_logo.dart';
 import '../blocks/block.dart';
 import '../blocks/heading_block.dart';
 import '../blocks/letter_meta_block.dart';
@@ -60,6 +61,7 @@ class ResignationAcceptanceTemplate
     final c = ctx.company;
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
+    final logo = await loadCompanyLogoBytes(c);
     return ResignationAcceptanceInputs(
       employeeId: e?.id ?? '',
       employeeFullName: e?.fullName ?? '',
@@ -80,6 +82,7 @@ class ResignationAcceptanceTemplate
       resignationDate: today,
       lastDayOfWork: today.add(const Duration(days: 30)),
       issueDate: today,
+      logoBytes: logo,
     );
   }
 
@@ -107,6 +110,7 @@ class ResignationAcceptanceTemplate
         salutation: i.employeeFullName.isEmpty
             ? null
             : '$honorific ${_lastName(i.employeeFullName)},',
+        logoBytes: i.logoBytes,
       ),
       const SpacerBlock(16),
       ParagraphBlock(
