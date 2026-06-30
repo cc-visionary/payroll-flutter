@@ -5,6 +5,7 @@ import '../blocks/block.dart';
 import '../blocks/bullet_list_block.dart';
 import '../blocks/emphasis_paragraph_block.dart';
 import '../blocks/heading_block.dart';
+import '../blocks/letterhead_block.dart';
 import '../blocks/lettered_list_block.dart';
 import '../blocks/paragraph_block.dart';
 import '../blocks/party_block.dart';
@@ -12,6 +13,7 @@ import '../blocks/section_heading_block.dart';
 import '../blocks/signature_line_block.dart';
 import '../blocks/spacer_block.dart';
 import '../blocks/title_block.dart';
+import '../brand_logo.dart';
 import '../providers.dart';
 import 'document_template.dart';
 import 'nda_inputs.dart';
@@ -271,6 +273,7 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
     } catch (_) {
       hireDate = null;
     }
+    final logo = await loadCompanyLogoBytes(co);
     return NdaInputs(
       employeeId: emp.id,
       employeeFullName: emp.fullName,
@@ -290,6 +293,7 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
       authorizedSignatoryRole: (co?.legalSignatoryRole?.isNotEmpty == true)
           ? co!.legalSignatoryRole!
           : 'Authorized Signatory',
+      logoBytes: logo,
     );
   }
 
@@ -305,6 +309,14 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
 
     final blocks = <Block>[];
 
+    if (i.logoBytes != null || i.companyName.isNotEmpty) {
+      blocks.add(LetterheadBlock(
+        logoBytes: i.logoBytes,
+        companyName: i.companyName,
+        companyAddress: i.companyAddress.isEmpty ? null : i.companyAddress,
+      ));
+    }
+    blocks.add(const SpacerBlock(16));
     blocks.add(const TitleBlock(
       'Confidentiality & Non-Disclosure Agreement',
       centered: true,

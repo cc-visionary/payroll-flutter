@@ -4,9 +4,11 @@ import 'package:intl/intl.dart';
 import '../blocks/block.dart';
 import '../blocks/emphasis_paragraph_block.dart';
 import '../blocks/heading_block.dart';
+import '../blocks/letterhead_block.dart';
 import '../blocks/lettered_list_block.dart';
 import '../blocks/signature_line_block.dart';
 import '../blocks/spacer_block.dart';
+import '../brand_logo.dart';
 import '../providers.dart';
 import 'document_template.dart';
 import 'liability_waiver_inputs.dart';
@@ -100,6 +102,7 @@ class LiabilityWaiverTemplate
             .cast<String>()
             .join(', ');
 
+    final logo = await loadCompanyLogoBytes(co);
     return LiabilityWaiverInputs(
       employeeId: emp.id,
       employeeFullName: emp.fullName,
@@ -118,6 +121,7 @@ class LiabilityWaiverTemplate
       outingLocation: '',
       dateSigned: today,
       signingPlace: signingPlace,
+      logoBytes: logo,
     );
   }
 
@@ -135,6 +139,9 @@ class LiabilityWaiverTemplate
     final signed = i.dateSigned;
 
     return [
+      if (i.logoBytes != null || i.companyName.isNotEmpty)
+        LetterheadBlock(logoBytes: i.logoBytes, companyName: i.companyName),
+      const SpacerBlock(16),
       // 1. Title — left-aligned bold heading (not a big centered TitleBlock).
       const HeadingBlock('Travel Release and Waiver'),
       const SpacerBlock(12),

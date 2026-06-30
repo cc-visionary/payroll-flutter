@@ -1,6 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:decimal/decimal.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/features/documents/blocks/centered_signature_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/letterhead_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/multi_signature_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/key_value_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/company_header_block.dart';
@@ -28,13 +31,21 @@ void main() {
     expect(t.build(filled()), isNotEmpty);
   });
 
-  test('first block is the centered canonical title', () {
+  test('quitclaim build prepends LetterheadBlock', () {
+    final i = filled().copyWith(
+        logoBytes: Uint8List.fromList(const [137, 80, 78, 71]));
+    final blocks = const QuitclaimTemplate().build(i);
+    expect(blocks.whereType<LetterheadBlock>(), isNotEmpty);
+  });
+
+  test('first block is LetterheadBlock when companyName is set, canonical title is present', () {
     const t = QuitclaimTemplate();
     final blocks = t.build(filled());
-    expect(blocks.first, isA<TitleBlock>());
-    final title = blocks.first as TitleBlock;
-    expect(title.text, 'QUITCLAIM AND RELEASE');
-    expect(title.centered, true);
+    expect(blocks.first, isA<LetterheadBlock>());
+    final titles = blocks.whereType<TitleBlock>().toList();
+    expect(
+        titles.any((b) => b.text == 'QUITCLAIM AND RELEASE' && b.centered),
+        true);
   });
 
   test('build includes a centered employee signature block', () {

@@ -5,9 +5,11 @@ import 'package:intl/intl.dart';
 import '../blocks/block.dart';
 import '../blocks/centered_signature_block.dart';
 import '../blocks/emphasis_paragraph_block.dart';
+import '../blocks/letterhead_block.dart';
 import '../blocks/paragraph_block.dart';
 import '../blocks/spacer_block.dart';
 import '../blocks/title_block.dart';
+import '../brand_logo.dart';
 import 'document_template.dart';
 import 'quitclaim_inputs.dart';
 import 'quitclaim_validate.dart';
@@ -56,6 +58,7 @@ class QuitclaimTemplate extends DocumentTemplate<QuitclaimInputs> {
     final emp = ctx.employee;
     final co = ctx.company;
     if (emp == null) return emptyInputs();
+    final logo = await loadCompanyLogoBytes(co);
     return QuitclaimInputs(
       employeeId: emp.id,
       employeeFullName: emp.fullName,
@@ -71,6 +74,7 @@ class QuitclaimTemplate extends DocumentTemplate<QuitclaimInputs> {
           ? ''
           : _composeAddress(co.addressLine1, co.addressLine2, co.city,
               co.province, co.zipCode),
+      logoBytes: logo,
     );
   }
 
@@ -85,6 +89,9 @@ class QuitclaimTemplate extends DocumentTemplate<QuitclaimInputs> {
     final fmt = DateFormat('MMMM d, yyyy');
     final amount = _formatPeso(i.finalPayAmount.toString());
     return [
+      if (i.logoBytes != null || i.companyName.isNotEmpty)
+        LetterheadBlock(logoBytes: i.logoBytes, companyName: i.companyName),
+      const SpacerBlock(16),
       const TitleBlock('QUITCLAIM AND RELEASE', centered: true),
       const SpacerBlock(16),
       EmphasisParagraphBlock(spans: [

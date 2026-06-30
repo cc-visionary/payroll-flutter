@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/features/documents/blocks/bullet_list_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/letterhead_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/lettered_list_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/section_heading_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/signature_line_block.dart';
@@ -21,12 +22,14 @@ void main() {
         authorizedSignatoryRole: 'Authorized Signatory',
       );
 
-  test('first block is the centered title', () {
+  test('first block is LetterheadBlock when companyName is set, centered title is present', () {
     final blocks = const NdaTemplate().build(seed());
-    expect(blocks.first, isA<TitleBlock>());
-    final title = blocks.first as TitleBlock;
-    expect(title.text, 'Confidentiality & Non-Disclosure Agreement');
-    expect(title.centered, true);
+    expect(blocks.first, isA<LetterheadBlock>());
+    final titles = blocks.whereType<TitleBlock>().toList();
+    expect(
+        titles.any(
+            (b) => b.text == 'Confidentiality & Non-Disclosure Agreement' && b.centered),
+        true);
   });
 
   test('16 section headings numbered 1..16 in order', () {

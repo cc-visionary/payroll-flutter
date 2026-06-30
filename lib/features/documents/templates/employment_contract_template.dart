@@ -10,6 +10,7 @@ import '../blocks/bullet_list_block.dart';
 import '../blocks/emphasis_paragraph_block.dart';
 import '../blocks/heading_block.dart';
 import '../blocks/labelled_bullet_list_block.dart';
+import '../blocks/letterhead_block.dart';
 import '../blocks/lettered_list_block.dart';
 import '../blocks/numbered_list_block.dart';
 import '../blocks/page_break_block.dart';
@@ -19,6 +20,7 @@ import '../blocks/section_heading_block.dart';
 import '../blocks/signature_line_block.dart';
 import '../blocks/spacer_block.dart';
 import '../blocks/title_block.dart';
+import '../brand_logo.dart';
 import '../providers.dart';
 import 'contract_person.dart';
 import 'document_template.dart';
@@ -563,6 +565,7 @@ class EmploymentContractTemplate
           ? ''
           : NumberFormat('#,##0', 'en_US').format(salarySource.toDouble());
 
+      final logo = await loadCompanyLogoBytes(entity);
       return EmploymentContractInputs(
         applicantId: applicant.id,
         employeeFullName: person.fullName,
@@ -605,7 +608,7 @@ class EmploymentContractTemplate
                 .map((k) =>
                     ContractKpi(metric: k.metric, frequency: k.frequency))
                 .toList(),
-        logoBytes: null,
+        logoBytes: logo,
       );
     }
 
@@ -667,6 +670,7 @@ class EmploymentContractTemplate
         ? ''
         : NumberFormat('#,##0', 'en_US').format(salary.toDouble());
 
+    final logo = await loadCompanyLogoBytes(co);
     return EmploymentContractInputs(
       employeeId: emp.id,
       employeeFullName: emp.fullName,
@@ -714,7 +718,7 @@ class EmploymentContractTemplate
               .map((k) =>
                   ContractKpi(metric: k.metric, frequency: k.frequency))
               .toList(),
-      logoBytes: null,
+      logoBytes: logo,
     );
   }
 
@@ -731,6 +735,16 @@ class EmploymentContractTemplate
     String dateOrDash(DateTime? d) => d == null ? '—' : fmt.format(d);
 
     final blocks = <Block>[];
+
+    // Letterhead — logo + company name + address, above the title.
+    if (i.logoBytes != null || i.companyName.isNotEmpty) {
+      blocks.add(LetterheadBlock(
+        logoBytes: i.logoBytes,
+        companyName: i.companyName,
+        companyAddress: i.companyAddress.isEmpty ? null : i.companyAddress,
+      ));
+    }
+    blocks.add(const SpacerBlock(16));
 
     // 2-3. Title.
     blocks.add(const TitleBlock('EMPLOYMENT CONTRACT', centered: true));

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/features/documents/blocks/emphasis_paragraph_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/heading_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/letterhead_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/lettered_list_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/multi_signature_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/page_break_block.dart';
@@ -80,16 +81,20 @@ void main() {
 
   const t = EmploymentContractTemplate();
 
-  test('first block is the centered TitleBlock', () {
+  test('first block is LetterheadBlock when companyName is set, EMPLOYMENT CONTRACT title is present', () {
     final blocks = t.build(seed());
-    expect(blocks.first, isA<TitleBlock>());
-    expect((blocks.first as TitleBlock).text, 'EMPLOYMENT CONTRACT');
+    expect(blocks.first, isA<LetterheadBlock>());
+    final titles = blocks.whereType<TitleBlock>().toList();
+    expect(titles.any((b) => b.text == 'EMPLOYMENT CONTRACT' && b.centered), true);
   });
 
-  test('EC ignores logoBytes — first block is still the TitleBlock', () {
+  test('EC prepends LetterheadBlock with logo when logoBytes is set', () {
     final blocks = t.build(seed(logoBytes: Uint8List.fromList([1, 2, 3])));
-    expect(blocks.first, isA<TitleBlock>());
-    expect((blocks.first as TitleBlock).text, 'EMPLOYMENT CONTRACT');
+    final heads = blocks.whereType<LetterheadBlock>().toList();
+    expect(heads, isNotEmpty);
+    expect(heads.first.logoBytes, isNotNull);
+    expect(blocks.first, isA<LetterheadBlock>());
+    expect(blocks.whereType<TitleBlock>().any((b) => b.text == 'EMPLOYMENT CONTRACT'), true);
   });
 
   test('exactly 17 SectionHeadingBlocks, numbered 1..17 in order with '

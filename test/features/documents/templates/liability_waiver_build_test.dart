@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/features/documents/blocks/emphasis_paragraph_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/heading_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/letterhead_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/lettered_list_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/signature_line_block.dart';
 import 'package:payroll_flutter/features/documents/templates/liability_waiver_inputs.dart';
@@ -22,10 +23,12 @@ void main() {
 
   const t = LiabilityWaiverTemplate();
 
-  test('first block is the title HeadingBlock', () {
+  test('first block is LetterheadBlock when companyName is set, HeadingBlock title is present', () {
     final blocks = t.build(seed());
-    expect(blocks.first, isA<HeadingBlock>());
-    expect((blocks.first as HeadingBlock).text, 'Travel Release and Waiver');
+    expect(blocks.first, isA<LetterheadBlock>());
+    expect(
+        blocks.whereType<HeadingBlock>().any((b) => b.text == 'Travel Release and Waiver'),
+        true);
   });
 
   test('two LetteredListBlocks: §2 (5 items) and §3 (3 items)', () {
