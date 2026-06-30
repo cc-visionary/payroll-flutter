@@ -542,6 +542,55 @@ void main() {
       expect(json['applicableViolations'], ['V1', 'V2']);
       expect(json.containsKey('logoBytes'), isFalse);
     });
+
+    test('excludes attachmentBytes and attachmentCaption', () {
+      final inputs = NteInputs(
+        employeeId: 'EMP-1',
+        employeeFullName: 'Jane Doe',
+        employeeFirstName: 'Jane',
+        employeeLastName: 'Doe',
+        employeePosition: 'Clerk',
+        employeeDepartment: 'Ops',
+        companyId: 'CO-1',
+        companyName: 'Acme',
+        dateIssued: DateTime.utc(2026, 1, 1),
+        responseDeadline: DateTime.utc(2026, 1, 6),
+        subjectSubtopic: '',
+        charges: const [],
+        applicableViolations: const [],
+        attachmentBytes: logo,
+        attachmentCaption: 'CCTV still',
+      );
+      final json = inputs.toJson();
+      expect(json.containsKey('attachmentBytes'), isFalse);
+      expect(json.containsKey('attachmentCaption'), isFalse);
+    });
+
+    test('copyWith sets and clears the attachment', () {
+      final base = NteInputs(
+        employeeId: 'EMP-1',
+        employeeFullName: 'Jane Doe',
+        employeeFirstName: 'Jane',
+        employeeLastName: 'Doe',
+        employeePosition: 'Clerk',
+        employeeDepartment: 'Ops',
+        companyId: 'CO-1',
+        companyName: 'Acme',
+        dateIssued: DateTime.utc(2026, 1, 1),
+        responseDeadline: DateTime.utc(2026, 1, 6),
+        subjectSubtopic: '',
+        charges: const [],
+        applicableViolations: const [],
+      );
+      final withImg =
+          base.copyWith(attachmentBytes: logo, attachmentCaption: 'cap');
+      expect(withImg.attachmentBytes, logo);
+      expect(withImg.attachmentCaption, 'cap');
+      final cleared =
+          withImg.copyWith(attachmentBytes: null, attachmentCaption: null);
+      expect(cleared.attachmentBytes, isNull);
+      expect(cleared.attachmentCaption, isNull);
+    });
   });
 
   group('RegularizationInputs.toJson', () {
