@@ -3,13 +3,14 @@ import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
 import '../blocks/block.dart';
-import '../blocks/company_header_block.dart';
 import '../blocks/heading_block.dart';
 import '../blocks/key_value_block.dart';
 import '../blocks/letter_meta_block.dart';
+import '../blocks/letterhead_block.dart';
 import '../blocks/multi_signature_block.dart';
 import '../blocks/paragraph_block.dart';
 import '../blocks/spacer_block.dart';
+import '../brand_logo.dart';
 import '../providers.dart';
 import 'document_template.dart';
 import 'final_pay_inputs.dart';
@@ -80,6 +81,8 @@ class FinalPayTemplate extends DocumentTemplate<FinalPayInputs> {
       }
     }
 
+    final logo = await loadCompanyLogoBytes(c);
+
     return FinalPayInputs(
       employeeId: e?.id ?? '',
       employeeFullName: e?.fullName ?? '',
@@ -104,6 +107,7 @@ class FinalPayTemplate extends DocumentTemplate<FinalPayInputs> {
       outstandingCashAdvance: bd?.outstandingCashAdvance ?? Decimal.zero,
       computedAsOf: today,
       releaseDate: today.add(const Duration(days: 30)),
+      logoBytes: logo,
     );
   }
 
@@ -143,10 +147,12 @@ class FinalPayTemplate extends DocumentTemplate<FinalPayInputs> {
 
     return [
       // Letterhead.
-      CompanyHeaderBlock(
-        name: i.companyName,
-        address: i.companyAddress.isEmpty ? null : i.companyAddress,
-      ),
+      if (i.logoBytes != null || i.companyName.isNotEmpty)
+        LetterheadBlock(
+          logoBytes: i.logoBytes,
+          companyName: i.companyName,
+          companyAddress: i.companyAddress.isEmpty ? null : i.companyAddress,
+        ),
       const SpacerBlock(16),
 
       // Letter meta: date, recipient, subject.

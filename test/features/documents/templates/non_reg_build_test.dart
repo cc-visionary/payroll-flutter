@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/features/documents/blocks/heading_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/labelled_bullet_list_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/letter_meta_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/letterhead_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/page_break_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/section_heading_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/signature_block.dart';
@@ -32,12 +33,13 @@ void main() {
         witnessName: witnessName,
       );
 
-  test('build starts with LetterMetaBlock', () {
+  test('build starts with LetterheadBlock when companyName is non-empty', () {
     const t = NonRegTemplate();
     final blocks = t.build(seed(findings: const [
       FindingSection(title: 'T', standard: 's', finding: 'f'),
     ]));
-    expect(blocks.first, isA<LetterMetaBlock>());
+    expect(blocks.first, isA<LetterheadBlock>());
+    expect(blocks.whereType<LetterMetaBlock>(), isNotEmpty);
   });
 
   test('build contains SUBJECT heading after meta', () {

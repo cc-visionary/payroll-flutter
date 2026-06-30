@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:decimal/decimal.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:payroll_flutter/features/documents/blocks/letterhead_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/paragraph_block.dart';
 import 'package:payroll_flutter/features/documents/templates/salary_adjustment_inputs.dart';
 import 'package:payroll_flutter/features/documents/templates/salary_adjustment_template.dart';
@@ -37,6 +40,25 @@ void main() {
     final joined = ps.join(' ');
     expect(joined, contains('salary will be adjusted'));
     expect(joined, isNot(contains('promoted from')));
+  });
+
+  test('build prepends a LetterheadBlock with company + logo', () {
+    final i = SalaryAdjustmentInputs(
+      employeeId: 'e',
+      employeeFullName: 'Bob',
+      companyId: 'c',
+      companyName: 'GameCove Online Store',
+      companyAddress: '1 Market St',
+      effectiveDate: DateTime(2026, 7, 1),
+      issueDate: DateTime(2026, 6, 5),
+      oldSalary: Decimal.parse('1'),
+      newSalary: Decimal.parse('2'),
+    ).copyWith(logoBytes: Uint8List.fromList(const [137, 80, 78, 71]));
+    final blocks = const SalaryAdjustmentTemplate().build(i);
+    final head = blocks.whereType<LetterheadBlock>().toList();
+    expect(head, isNotEmpty);
+    expect(head.first.companyName, 'GameCove Online Store');
+    expect(head.first.logoBytes, isNotNull);
   });
 
   test('PROMOTION body mentions promoted from/to', () {

@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/features/documents/blocks/block.dart';
 import 'package:payroll_flutter/features/documents/blocks/company_header_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/emphasis_paragraph_block.dart';
-import 'package:payroll_flutter/features/documents/blocks/logo_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/letterhead_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/paragraph_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/signature_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/title_block.dart';
@@ -29,19 +29,32 @@ void main() {
         logoBytes: logo,
       );
 
-  test('first block is a centered TitleBlock when no logo', () {
+  test('first block is a LetterheadBlock when no logo (companyName non-empty)',
+      () {
     const t = CoeTemplate();
     final blocks = t.build(filled());
-    expect(blocks.first, isA<TitleBlock>());
+    expect(blocks.first, isA<LetterheadBlock>());
     final title = blocks.whereType<TitleBlock>().first;
     expect(title.text, 'CERTIFICATE OF EMPLOYMENT');
     expect(title.centered, true);
   });
 
-  test('first block is a LogoBlock when logoBytes set', () {
+  test('first block is a LetterheadBlock with logoBytes when logo set', () {
     const t = CoeTemplate();
-    final blocks = t.build(filled(logo: Uint8List.fromList([1, 2, 3])));
-    expect(blocks.first, isA<LogoBlock>());
+    final blocks =
+        t.build(filled(logo: Uint8List.fromList(const [137, 80, 78, 71])));
+    expect(blocks.first, isA<LetterheadBlock>());
+    expect((blocks.first as LetterheadBlock).logoBytes, isNotNull);
+  });
+
+  test('build prepends LetterheadBlock with companyName + logo', () {
+    const t = CoeTemplate();
+    final blocks =
+        t.build(filled(logo: Uint8List.fromList(const [137, 80, 78, 71])));
+    final heads = blocks.whereType<LetterheadBlock>().toList();
+    expect(heads, isNotEmpty);
+    expect(heads.first.companyName, 'Luxium');
+    expect(heads.first.logoBytes, isNotNull);
   });
 
   test('contains a bold centered "To Whom It May Concern:" emphasis', () {

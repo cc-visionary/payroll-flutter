@@ -5,7 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 import '../brand_logo.dart';
 import '../blocks/block.dart';
 import '../blocks/emphasis_paragraph_block.dart';
-import '../blocks/logo_block.dart';
+import '../blocks/letterhead_block.dart';
 import '../blocks/paragraph_block.dart';
 import '../blocks/spacer_block.dart';
 import '../blocks/title_block.dart';
@@ -48,10 +48,7 @@ class CoeTemplate extends DocumentTemplate<CoeInputs> {
     final emp = ctx.employee;
     if (emp == null) return emptyInputs();
     final co = ctx.company;
-    final logo = await loadBrandLogoBytes(
-      companyName: co?.name,
-      code: co?.code,
-    );
+    final logo = await loadCompanyLogoBytes(co);
     // Dates come straight off the Employee row, which is the source of
     // truth (hireDate is set at onboarding; separationDate is set when a
     // separation is confirmed). We do NOT query employment_events here —
@@ -97,9 +94,15 @@ class CoeTemplate extends DocumentTemplate<CoeInputs> {
     final start = i.dateStart == null ? '—' : fmt.format(i.dateStart!);
     final end = i.dateEnd == null ? '—' : fmt.format(i.dateEnd!);
     return [
-      if (i.logoBytes != null)
-        LogoBlock(i.logoBytes!, height: 100, alignment: pw.Alignment.center),
-      if (i.logoBytes != null) const SpacerBlock(16),
+      if (i.logoBytes != null || i.companyName.isNotEmpty)
+        LetterheadBlock(
+          logoBytes: i.logoBytes,
+          companyName: i.companyName,
+          companyAddress: (i.companyAddress?.isEmpty ?? true)
+              ? null
+              : i.companyAddress,
+        ),
+      const SpacerBlock(16),
       const TitleBlock('CERTIFICATE OF EMPLOYMENT', centered: true),
       const SpacerBlock(16),
       const EmphasisParagraphBlock(

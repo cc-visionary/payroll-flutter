@@ -5,9 +5,11 @@ import 'package:intl/intl.dart';
 import '../../../data/models/role_scorecard.dart';
 import '../blocks/block.dart';
 import '../blocks/letter_meta_block.dart';
+import '../blocks/letterhead_block.dart';
 import '../blocks/multi_signature_block.dart';
 import '../blocks/paragraph_block.dart';
 import '../blocks/spacer_block.dart';
+import '../brand_logo.dart';
 import '../providers.dart';
 import 'document_template.dart';
 import 'salary_adjustment_inputs.dart';
@@ -78,6 +80,8 @@ class SalaryAdjustmentTemplate
       }
     }
 
+    final logo = await loadCompanyLogoBytes(c);
+
     return SalaryAdjustmentInputs(
       type: SalaryAdjustmentType.salaryAdjustment,
       employeeId: e?.id ?? '',
@@ -103,6 +107,7 @@ class SalaryAdjustmentTemplate
       salaryPeriod: scorecard?.wageType ?? 'MONTHLY',
       effectiveDate: firstOfNextMonth,
       issueDate: today,
+      logoBytes: logo,
     );
   }
 
@@ -135,6 +140,13 @@ class SalaryAdjustmentTemplate
               '${cf.format(i.newSalary.toDouble())}. ${i.reason}';
 
     return <Block>[
+      if (i.logoBytes != null || i.companyName.isNotEmpty)
+        LetterheadBlock(
+          logoBytes: i.logoBytes,
+          companyName: i.companyName,
+          companyAddress: i.companyAddress.isEmpty ? null : i.companyAddress,
+        ),
+      const SpacerBlock(16),
       LetterMetaBlock(
         date: i.issueDate,
         to: LetterParty(name: i.employeeFullName),
