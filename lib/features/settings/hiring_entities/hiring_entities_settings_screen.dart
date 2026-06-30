@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:collection/collection.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +13,11 @@ import '../../../data/repositories/hiring_entity_repository.dart';
 import '../../auth/profile_provider.dart';
 import '../../../widgets/employee_name_field.dart';
 import '../../../widgets/role_title_field.dart';
+
+/// Returns an error message when [bytes] exceed the 300 KB logo size cap,
+/// or null when the size is acceptable.
+String? logoSizeError(Uint8List bytes) =>
+    bytes.length > 300 * 1024 ? 'Logo must be under 300 KB.' : null;
 
 class HiringEntitiesSettingsScreen extends ConsumerWidget {
   const HiringEntitiesSettingsScreen({super.key});
@@ -55,7 +64,7 @@ class HiringEntitiesSettingsScreen extends ConsumerWidget {
                         'No hiring entities yet. Click "Add Hiring Entity" to create one.'))
                 : ListView.separated(
                     itemCount: entities.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (_, i) => _EntityCard(
                       entity: entities[i],
                       employeeCount:
@@ -219,8 +228,58 @@ class _FormState extends ConsumerState<_EntityForm> {
   late String _signatoryRole = widget.existing?.legalSignatoryRole ?? '';
   late String _hrManager = widget.existing?.hrManagerName ?? '';
   late bool _isActive = widget.existing?.isActive ?? true;
+  Uint8List? _logoBytes;
+  String? _logoMime;
+  bool _logoChanged = false;
   bool _saving = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existing != null) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _loadExistingLogo());
+    }
+  }
+
+  Future<void> _loadExistingLogo() async {
+    if (_logoChanged || !mounted) return;
+    final logo = await ref
+        .read(hiringEntityRepositoryProvider)
+        .logoFor(widget.existing!.id);
+    if (!mounted || _logoChanged) return;
+    if (logo != null) {
+      setState(() {
+        _logoBytes = base64.decode(logo.base64);
+        _logoMime = logo.mime;
+      });
+    }
+  }
+
+  Future<void> _pickLogo() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['png', 'jpg', 'jpeg'],
+      withData: true,
+    );
+    final file = result?.files.singleOrNull;
+    if (file == null || file.bytes == null) return;
+    final err = logoSizeError(file.bytes!);
+    if (err != null) {
+      setState(() => _error = err);
+      return;
+    }
+    final mime = (file.extension?.toLowerCase() == 'png')
+        ? 'image/png'
+        : 'image/jpeg';
+    setState(() {
+      _logoBytes = file.bytes;
+      _logoMime = mime;
+      _logoChanged = true;
+      _error = null;
+    });
+  }
 
   @override
   void dispose() {
@@ -284,6 +343,8 @@ class _FormState extends ConsumerState<_EntityForm> {
                 _signatoryRole.trim().isEmpty ? null : _signatoryRole.trim(),
             hrManagerName:
                 _hrManager.trim().isEmpty ? null : _hrManager.trim(),
+            logoBase64: _logoBytes == null ? null : base64.encode(_logoBytes!),
+            logoMime: _logoMime,
             isActive: _isActive,
           );
       widget.onSaved();
@@ -387,6 +448,63 @@ class _FormState extends ConsumerState<_EntityForm> {
                   ),
                   const SizedBox.shrink(),
                 ]),
+                const SizedBox(height: 16),
+                _sectionHeader(context, 'Branding'),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        border:
+                            Border.all(color: Theme.of(context).dividerColor),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: _logoBytes != null
+                          ? Image.memory(_logoBytes!, fit: BoxFit.contain)
+                          : Center(
+                              child: Icon(
+                                Icons.image_outlined,
+                                color: Theme.of(context).disabledColor,
+                                size: 32,
+                              ),
+                            ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        FilledButton.tonal(
+                          onPressed: _pickLogo,
+                          child: const Text('Upload logo'),
+                        ),
+                        if (_logoBytes != null) ...[
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () => setState(() {
+                              _logoBytes = null;
+                              _logoMime = null;
+                              _logoChanged = true;
+                            }),
+                            style: TextButton.styleFrom(
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.error,
+                            ),
+                            child: const Text('Remove'),
+                          ),
+                        ],
+                        const SizedBox(height: 4),
+                        const Text(
+                          'PNG or JPG · max 300 KB',
+                          style:
+                              TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
                 if (_error != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
