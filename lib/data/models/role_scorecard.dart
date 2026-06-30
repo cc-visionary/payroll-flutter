@@ -43,6 +43,7 @@ class RoleScorecard {
   final DateTime effectiveDate;
   final String? supersededById;
   final String? shiftTemplateId;
+  final String? hiringEntityId;
 
   const RoleScorecard({
     required this.id,
@@ -62,6 +63,7 @@ class RoleScorecard {
     required this.effectiveDate,
     this.supersededById,
     this.shiftTemplateId,
+    this.hiringEntityId,
   });
 
   factory RoleScorecard.fromRow(Map<String, dynamic> r) {
@@ -101,6 +103,7 @@ class RoleScorecard {
       effectiveDate: DateTime.parse(r['effective_date'] as String),
       supersededById: r['superseded_by_id'] as String?,
       shiftTemplateId: r['shift_template_id'] as String?,
+      hiringEntityId: r['hiring_entity_id'] as String?,
     );
   }
 
@@ -120,5 +123,6 @@ class RoleScorecard {
         'work_days_per_week': workDaysPerWeek,
         'is_active': isActive,
         'effective_date': effectiveDate.toIso8601String().substring(0, 10),
+        'hiring_entity_id': hiringEntityId,
       };
 }
