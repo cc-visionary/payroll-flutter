@@ -83,6 +83,7 @@ class EmployeeRepository {
   Future<Employee> upsert({
     String? id,
     required String companyId,
+    String? hiringEntityId,
     required String employeeNumber,
     required String firstName,
     String? middleName,
@@ -138,6 +139,7 @@ class EmployeeRepository {
     final payload = <String, dynamic>{
       if (id != null) 'id': id,
       'company_id': companyId,
+      'hiring_entity_id': hiringEntityId,
       'employee_number': employeeNumber,
       'first_name': firstName,
       'middle_name': middleName,
