@@ -76,6 +76,7 @@ class AttendanceRepository {
     required DateTime start,
     required DateTime end,
     String? employeeId,
+    String? companyId,
   }) async {
     final startIso = start.toIso8601String().substring(0, 10);
     final endIso = end.toIso8601String().substring(0, 10);
@@ -85,6 +86,9 @@ class AttendanceRepository {
         .gte('attendance_date', startIso)
         .lte('attendance_date', endIso);
     if (employeeId != null) q = q.eq('employee_id', employeeId);
+    // Restrict to one company by filtering the inner-joined employee. `!inner`
+    // makes this an effective WHERE on the embedded resource.
+    if (companyId != null) q = q.eq('employees.company_id', companyId);
     final rows = await q.order('attendance_date', ascending: false);
     final out = <AttendanceDay>[];
     for (final r in rows) {

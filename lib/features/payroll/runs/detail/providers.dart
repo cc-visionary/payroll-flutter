@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../data/models/payroll_run.dart';
 import '../../../../data/repositories/payroll_repository.dart';
+import '../../../../data/repositories/attendance_repository.dart';
+import '../../../../data/repositories/shift_template_repository.dart';
+import 'warnings.dart';
 
 /// Bundles the payroll run + aggregated statutory totals. Period fields are
 /// read directly from `run` now that pay_periods has been dropped.
@@ -95,4 +98,27 @@ final payslipListForRunProvider =
 final larkApprovalCountsProvider =
     FutureProvider.family<Map<String, int>, String>((ref, runId) {
   return ref.watch(payrollRepositoryProvider).larkApprovalCounts(runId);
+});
+
+/// Live, ephemeral attendance-anomaly scan for a run. Reads the run's company +
+/// period, loads that period's attendance and the shift templates, and runs the
+/// pure [detectWarnings]. Re-runs whenever [payrollRunDetailProvider] changes
+/// (recompute / realtime) or when invalidated by the tab's Refresh button.
+final runWarningsProvider =
+    FutureProvider.family<List<RunWarning>, String>((ref, runId) async {
+  final detail = await ref.watch(payrollRunDetailProvider(runId).future);
+  if (detail == null) return const <RunWarning>[];
+  final run = detail.run;
+  final records = await ref.watch(attendanceRepositoryProvider).listByRange(
+        start: run.periodStart,
+        end: run.periodEnd,
+        companyId: run.companyId,
+      );
+  final shifts = await ref.watch(shiftTemplateListProvider.future);
+  final shiftsById = {for (final s in shifts) s.id: s};
+  return detectWarnings(
+    records: records,
+    shiftsById: shiftsById,
+    today: DateTime.now(),
+  );
 });
