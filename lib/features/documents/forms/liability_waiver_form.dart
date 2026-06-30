@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../inputs/company_picker.dart';
 import '../inputs/date_field.dart';
 import '../inputs/employee_picker.dart';
-import '../providers.dart';
 import '../templates/liability_waiver_inputs.dart';
 import '../templates/liability_waiver_validate.dart';
 
@@ -13,12 +12,14 @@ class LiabilityWaiverForm extends ConsumerStatefulWidget {
   final bool employeeLocked;
   final ValueChanged<LiabilityWaiverInputs> onChanged;
   final ValueChanged<String> onEmployeeChanged;
+  final ValueChanged<String> onCompanyChanged;
   const LiabilityWaiverForm({
     super.key,
     required this.initial,
     required this.employeeLocked,
     required this.onChanged,
     required this.onEmployeeChanged,
+    required this.onCompanyChanged,
   });
 
   @override
@@ -39,25 +40,6 @@ class _LiabilityWaiverFormState extends ConsumerState<LiabilityWaiverForm> {
   void _set(LiabilityWaiverInputs next) {
     setState(() => _i = next);
     widget.onChanged(next);
-  }
-
-  Future<void> _onCompanyChanged(String id) async {
-    // Optimistic: set the id immediately so the picker reflects the choice.
-    _set(_i.copyWith(companyId: id));
-    try {
-      final co = await ref.read(hiringEntityByIdProvider(id).future);
-      if (co == null || !mounted) return;
-      final signingPlace = [co.city, co.province]
-          .where((s) => s != null && s.isNotEmpty)
-          .cast<String>()
-          .join(', ');
-      _set(_i.copyWith(
-        companyName: co.name,
-        signingPlace: signingPlace,
-      ));
-    } catch (_) {
-      // Best-effort; leave companyId set, user can fill manually.
-    }
   }
 
   String? _errFor(String field) {
@@ -112,7 +94,9 @@ class _LiabilityWaiverFormState extends ConsumerState<LiabilityWaiverForm> {
             selectedId: _i.companyId.isEmpty ? null : _i.companyId,
             locked: false,
             onChanged: (id) {
-              if (id != null) _onCompanyChanged(id);
+              if (id == null) return;
+              _set(_i.copyWith(companyId: id));
+              widget.onCompanyChanged(id);
             },
           ),
           _error('companyName'),

@@ -56,6 +56,7 @@ Future<void> _pump(WidgetTester tester) async {
             employeeLocked: false,
             onChanged: (_) {},
             onEmployeeChanged: (_) {},
+            onCompanyChanged: (_) {},
           ),
         ),
       ),

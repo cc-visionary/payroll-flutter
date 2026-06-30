@@ -11,6 +11,7 @@ import '../../data/repositories/audit_repository.dart';
 import '../../data/repositories/employee_document_repository.dart';
 import '../employees/profile/providers.dart' show employeeDocumentsProvider;
 import 'blocks/block.dart';
+import 'brand_logo.dart';
 import 'document_type_mapping.dart';
 import 'forms/coe_form.dart';
 import 'forms/employment_contract_form.dart';
@@ -587,6 +588,143 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
     }
   }
 
+  /// Composes a single-line address string from the hiring entity's address
+  /// fields, filtering out null and empty segments.
+  String _composeCompanyAddress(dynamic co) {
+    final tail = [co.city, co.province, co.zipCode]
+        .where((s) => s != null && (s as String).isNotEmpty)
+        .join(', ');
+    return [co.addressLine1, co.addressLine2, tail]
+        .where((s) => s != null && (s as String).isNotEmpty)
+        .cast<String>()
+        .join(', ');
+  }
+
+  /// Fired by every form's `onCompanyChanged` callback. Fetches the chosen
+  /// hiring entity + its logo, then patches the active template's inputs with
+  /// the new letterhead data — preserving any fields the user already typed.
+  Future<void> _onPickerCompanyChanged(String companyId) async {
+    final tpl = findTemplateById(widget.templateId);
+    if (tpl == null) return;
+    final co = await ref.read(hiringEntityByIdProvider(companyId).future);
+    final logo = await loadCompanyLogoBytes(co);
+    if (!mounted) return;
+    final name = co?.name ?? '';
+    final addr = co == null ? '' : _composeCompanyAddress(co);
+    final hr = co?.hrManagerName ?? '';
+    setState(() {
+      _dirty = true;
+      if (tpl is EmploymentContractTemplate && _employmentContract != null) {
+        _employmentContract = _employmentContract!.copyWith(
+          companyId: companyId,
+          companyName: name,
+          companyAddress: addr,
+          logoBytes: logo,
+        );
+      } else if (tpl is CoeTemplate && _coe != null) {
+        _coe = _coe!.copyWith(
+          companyId: companyId,
+          companyName: name,
+          companyAddress: addr,
+          hrManagerName: (_coe!.hrManagerName?.isNotEmpty ?? false)
+              ? _coe!.hrManagerName
+              : hr,
+          logoBytes: logo,
+        );
+      } else if (tpl is NteTemplate && _nte != null) {
+        _nte = _nte!.copyWith(
+          companyId: companyId,
+          companyName: name,
+          companyAddress: addr,
+          hrManagerName: (_nte!.hrManagerName?.isNotEmpty ?? false)
+              ? _nte!.hrManagerName
+              : hr,
+          logoBytes: logo,
+        );
+      } else if (tpl is NonRegTemplate && _nonReg != null) {
+        _nonReg = _nonReg!.copyWith(
+          companyId: companyId,
+          companyName: name,
+          companyAddress: addr,
+          hrManagerName: (_nonReg!.hrManagerName?.isNotEmpty ?? false)
+              ? _nonReg!.hrManagerName
+              : hr,
+          logoBytes: logo,
+        );
+      } else if (tpl is NdaTemplate && _nda != null) {
+        _nda = _nda!.copyWith(
+          companyId: companyId,
+          companyName: name,
+          companyAddress: addr,
+          logoBytes: logo,
+        );
+      } else if (tpl is NodTemplate && _nod != null) {
+        _nod = _nod!.copyWith(
+          companyId: companyId,
+          companyName: name,
+          companyAddress: addr,
+          hrManagerName: _nod!.hrManagerName.isNotEmpty
+              ? _nod!.hrManagerName
+              : hr,
+          logoBytes: logo,
+        );
+      } else if (tpl is FinalPayTemplate && _finalPay != null) {
+        _finalPay = _finalPay!.copyWith(
+          companyId: companyId,
+          companyName: name,
+          companyAddress: addr,
+          hrManagerName: _finalPay!.hrManagerName.isNotEmpty
+              ? _finalPay!.hrManagerName
+              : hr,
+          logoBytes: logo,
+        );
+      } else if (tpl is QuitclaimTemplate && _quitclaim != null) {
+        _quitclaim = _quitclaim!.copyWith(
+          companyId: companyId,
+          companyName: name,
+          logoBytes: logo,
+        );
+      } else if (tpl is RegularizationTemplate && _regularization != null) {
+        _regularization = _regularization!.copyWith(
+          companyId: companyId,
+          companyName: name,
+          companyAddress: addr,
+          hrManagerName: _regularization!.hrManagerName.isNotEmpty
+              ? _regularization!.hrManagerName
+              : hr,
+          logoBytes: logo,
+        );
+      } else if (tpl is ResignationAcceptanceTemplate &&
+          _resignationAcceptance != null) {
+        _resignationAcceptance = _resignationAcceptance!.copyWith(
+          companyId: companyId,
+          companyName: name,
+          companyAddress: addr,
+          hrManagerName: _resignationAcceptance!.hrManagerName.isNotEmpty
+              ? _resignationAcceptance!.hrManagerName
+              : hr,
+          logoBytes: logo,
+        );
+      } else if (tpl is SalaryAdjustmentTemplate && _salaryAdjustment != null) {
+        _salaryAdjustment = _salaryAdjustment!.copyWith(
+          companyId: companyId,
+          companyName: name,
+          companyAddress: addr,
+          hrManagerName: _salaryAdjustment!.hrManagerName.isNotEmpty
+              ? _salaryAdjustment!.hrManagerName
+              : hr,
+          logoBytes: logo,
+        );
+      } else if (tpl is LiabilityWaiverTemplate && _liabilityWaiver != null) {
+        _liabilityWaiver = _liabilityWaiver!.copyWith(
+          companyId: companyId,
+          companyName: name,
+          logoBytes: logo,
+        );
+      }
+    });
+  }
+
   Future<void> _attemptLeave() async {
     if (!_dirty) {
       if (mounted) context.go('/documents');
@@ -986,6 +1124,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           _dirty = true;
         }),
         onEmployeeChanged: _onPickerEmployeeChanged,
+        onCompanyChanged: _onPickerCompanyChanged,
       );
     }
     if (tpl is CoeTemplate && _coe != null) {
@@ -998,6 +1137,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           _dirty = true;
         }),
         onEmployeeChanged: _onPickerEmployeeChanged,
+        onCompanyChanged: _onPickerCompanyChanged,
       );
     }
     if (tpl is NteTemplate && _nte != null) {
@@ -1010,6 +1150,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           _dirty = true;
         }),
         onEmployeeChanged: _onPickerEmployeeChanged,
+        onCompanyChanged: _onPickerCompanyChanged,
       );
     }
     if (tpl is NonRegTemplate && _nonReg != null) {
@@ -1022,6 +1163,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           _dirty = true;
         }),
         onEmployeeChanged: _onPickerEmployeeChanged,
+        onCompanyChanged: _onPickerCompanyChanged,
       );
     }
     if (tpl is EmploymentContractTemplate && _employmentContract != null) {
@@ -1034,6 +1176,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           _dirty = true;
         }),
         onEmployeeChanged: _onPickerEmployeeChanged,
+        onCompanyChanged: _onPickerCompanyChanged,
       );
     }
     if (tpl is NdaTemplate && _nda != null) {
@@ -1046,6 +1189,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           _dirty = true;
         }),
         onEmployeeChanged: _onPickerEmployeeChanged,
+        onCompanyChanged: _onPickerCompanyChanged,
       );
     }
     if (tpl is LiabilityWaiverTemplate && _liabilityWaiver != null) {
@@ -1058,6 +1202,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           _dirty = true;
         }),
         onEmployeeChanged: _onPickerEmployeeChanged,
+        onCompanyChanged: _onPickerCompanyChanged,
       );
     }
     if (tpl is FinalPayTemplate && _finalPay != null) {
@@ -1070,6 +1215,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           _dirty = true;
         }),
         onEmployeeChanged: _onPickerEmployeeChanged,
+        onCompanyChanged: _onPickerCompanyChanged,
       );
     }
     if (tpl is SalaryAdjustmentTemplate && _salaryAdjustment != null) {
@@ -1082,6 +1228,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           _dirty = true;
         }),
         onEmployeeChanged: _onPickerEmployeeChanged,
+        onCompanyChanged: _onPickerCompanyChanged,
       );
     }
     if (tpl is NodTemplate && _nod != null) {
@@ -1094,6 +1241,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           _dirty = true;
         }),
         onEmployeeChanged: _onPickerEmployeeChanged,
+        onCompanyChanged: _onPickerCompanyChanged,
       );
     }
     if (tpl is RegularizationTemplate && _regularization != null) {
@@ -1106,6 +1254,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           _dirty = true;
         }),
         onEmployeeChanged: _onPickerEmployeeChanged,
+        onCompanyChanged: _onPickerCompanyChanged,
       );
     }
     if (tpl is ResignationAcceptanceTemplate &&
@@ -1119,6 +1268,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           _dirty = true;
         }),
         onEmployeeChanged: _onPickerEmployeeChanged,
+        onCompanyChanged: _onPickerCompanyChanged,
       );
     }
     return const Center(child: Text('Form not implemented'));

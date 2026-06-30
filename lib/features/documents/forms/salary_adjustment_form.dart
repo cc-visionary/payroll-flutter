@@ -9,7 +9,6 @@ import '../../../widgets/employee_name_field.dart';
 import '../inputs/company_picker.dart';
 import '../inputs/date_field.dart';
 import '../inputs/employee_picker.dart';
-import '../providers.dart';
 import '../templates/salary_adjustment_inputs.dart';
 import '../templates/salary_adjustment_validate.dart';
 
@@ -18,12 +17,14 @@ class SalaryAdjustmentForm extends ConsumerStatefulWidget {
   final bool employeeLocked;
   final ValueChanged<SalaryAdjustmentInputs> onChanged;
   final ValueChanged<String> onEmployeeChanged;
+  final ValueChanged<String> onCompanyChanged;
   const SalaryAdjustmentForm({
     super.key,
     required this.initial,
     required this.employeeLocked,
     required this.onChanged,
     required this.onEmployeeChanged,
+    required this.onCompanyChanged,
   });
 
   @override
@@ -55,35 +56,6 @@ class _SalaryAdjustmentFormState extends ConsumerState<SalaryAdjustmentForm> {
   void _set(SalaryAdjustmentInputs next) {
     setState(() => _i = next);
     widget.onChanged(next);
-  }
-
-  Future<void> _onCompanyChanged(String id) async {
-    // Optimistic: set the id immediately so the picker reflects the choice.
-    _set(_i.copyWith(companyId: id));
-    try {
-      final co = await ref.read(hiringEntityByIdProvider(id).future);
-      if (co == null || !mounted) return;
-      final address = <String?>[
-        co.addressLine1,
-        co.addressLine2,
-        [
-          co.city,
-          co.province,
-          co.zipCode,
-        ].where((s) => s != null && s.isNotEmpty).join(', '),
-      ].where((s) => s != null && s.isNotEmpty).cast<String>().join(', ');
-      _set(
-        _i.copyWith(
-          companyName: co.name,
-          companyAddress: address,
-          hrManagerName: _i.hrManagerName.isNotEmpty
-              ? _i.hrManagerName
-              : (co.hrManagerName ?? ''),
-        ),
-      );
-    } catch (_) {
-      // Best-effort; leave companyId set, user can fill manually.
-    }
   }
 
   String? _errFor(String field) {
@@ -156,7 +128,9 @@ class _SalaryAdjustmentFormState extends ConsumerState<SalaryAdjustmentForm> {
             selectedId: _i.companyId.isEmpty ? null : _i.companyId,
             locked: false,
             onChanged: (id) {
-              if (id != null) _onCompanyChanged(id);
+              if (id == null) return;
+              _set(_i.copyWith(companyId: id));
+              widget.onCompanyChanged(id);
             },
           ),
           _error('company'),

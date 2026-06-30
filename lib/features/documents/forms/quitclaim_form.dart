@@ -14,12 +14,14 @@ class QuitclaimForm extends ConsumerStatefulWidget {
   final bool employeeLocked;
   final ValueChanged<QuitclaimInputs> onChanged;
   final ValueChanged<String> onEmployeeChanged;
+  final ValueChanged<String> onCompanyChanged;
   const QuitclaimForm({
     super.key,
     required this.initial,
     required this.employeeLocked,
     required this.onChanged,
     required this.onEmployeeChanged,
+    required this.onCompanyChanged,
   });
 
   @override
@@ -39,25 +41,6 @@ class _QuitclaimFormState extends ConsumerState<QuitclaimForm> {
   void _set(QuitclaimInputs next) {
     setState(() => _i = next);
     widget.onChanged(next);
-  }
-
-  Future<void> _onCompanyChanged(String id) async {
-    _set(_i.copyWith(companyId: id));
-    try {
-      final co = await ref.read(hiringEntityByIdProvider(id).future);
-      if (co == null || !mounted) return;
-      final addr = [
-        co.addressLine1,
-        co.addressLine2,
-        [co.city, co.province, co.zipCode]
-            .where((s) => s != null && s.isNotEmpty)
-            .join(', '),
-      ]
-          .where((s) => s != null && s.isNotEmpty)
-          .cast<String>()
-          .join(', ');
-      _set(_i.copyWith(companyName: co.name, placeSigned: addr));
-    } catch (_) {}
   }
 
   String? _errFor(String field) {
@@ -117,7 +100,9 @@ class _QuitclaimFormState extends ConsumerState<QuitclaimForm> {
             selectedId: _i.companyId.isEmpty ? null : _i.companyId,
             locked: false,
             onChanged: (id) {
-              if (id != null) _onCompanyChanged(id);
+              if (id == null) return;
+              _set(_i.copyWith(companyId: id));
+              widget.onCompanyChanged(id);
             },
           ),
           _error('company'),

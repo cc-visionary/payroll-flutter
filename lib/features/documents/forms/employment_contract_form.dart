@@ -6,7 +6,6 @@ import '../inputs/annex_a_editor.dart';
 import '../inputs/company_picker.dart';
 import '../inputs/date_field.dart';
 import '../inputs/employee_picker.dart';
-import '../providers.dart';
 import '../templates/employment_contract_inputs.dart';
 import '../../../data/models/role_scorecard.dart';
 import '../../../data/repositories/role_scorecard_repository.dart';
@@ -18,12 +17,14 @@ class EmploymentContractForm extends ConsumerStatefulWidget {
   final bool employeeLocked;
   final ValueChanged<EmploymentContractInputs> onChanged;
   final ValueChanged<String> onEmployeeChanged;
+  final ValueChanged<String> onCompanyChanged;
   const EmploymentContractForm({
     super.key,
     required this.initial,
     required this.employeeLocked,
     required this.onChanged,
     required this.onEmployeeChanged,
+    required this.onCompanyChanged,
   });
 
   @override
@@ -64,42 +65,6 @@ class _EmploymentContractFormState
   void _set(EmploymentContractInputs n) {
     setState(() => _i = n);
     widget.onChanged(n);
-  }
-
-  Future<void> _onCompanyChanged(String id) async {
-    // Optimistic: set the id immediately so the picker reflects the choice.
-    _set(_i.copyWith(companyId: id));
-    try {
-      final co = await ref.read(hiringEntityByIdProvider(id).future);
-      if (co == null || !mounted) return;
-      final address = <String?>[
-        co.addressLine1,
-        co.addressLine2,
-        [co.city, co.province, co.zipCode]
-            .where((s) => s != null && s.isNotEmpty)
-            .join(', '),
-      ].where((s) => s != null && s.isNotEmpty).cast<String>()
-          .join(' · ');
-      final place = [co.city, co.province, 'Philippines']
-          .where((s) => s != null && s.isNotEmpty)
-          .cast<String>()
-          .join(', ');
-      final repRole = (co.legalSignatoryRole?.isNotEmpty == true)
-          ? co.legalSignatoryRole!
-          : 'People Manager';
-      final repName = co.hrManagerName ?? '';
-      _set(_i.copyWith(
-        companyName: co.name,
-        companyAddress: address,
-        place: place,
-        representativeName: repName,
-        representativeRole: repRole,
-        employerSignatoryName: repName,
-        employerSignatoryRole: repRole,
-      ));
-    } catch (_) {
-      // Best-effort; leave companyId set, user can fill manually.
-    }
   }
 
   Future<void> _onPositionChanged(String position) async {
@@ -185,7 +150,9 @@ class _EmploymentContractFormState
             selectedId: _i.companyId.isEmpty ? null : _i.companyId,
             locked: false,
             onChanged: (id) {
-              if (id != null) _onCompanyChanged(id);
+              if (id == null) return;
+              _set(_i.copyWith(companyId: id));
+              widget.onCompanyChanged(id);
             },
           ),
           const SizedBox(height: 16),
