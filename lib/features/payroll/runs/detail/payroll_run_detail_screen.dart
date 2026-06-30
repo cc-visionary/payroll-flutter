@@ -17,6 +17,7 @@ import 'tabs/approvals_tab.dart';
 import 'tabs/disbursement_tab.dart';
 import 'tabs/payslips_tab.dart';
 import 'tabs/summary_tab.dart';
+import 'tabs/warnings_tab.dart';
 import 'widgets/distribute_13th_dialog.dart';
 import 'widgets/status_timeline.dart';
 
@@ -77,6 +78,7 @@ class _PayrollRunDetailScreenState
     ref.invalidate(payslipListForRunProvider(runId));
     ref.invalidate(payslipApprovalCountsProvider(runId));
     ref.invalidate(larkApprovalCountsProvider(runId));
+    ref.invalidate(runWarningsProvider(runId));
   }
 
   @override
@@ -103,7 +105,9 @@ class _PayrollRunDetailScreenState
           }
           final showApprovals =
               detail.run.status == 'REVIEW' || detail.run.status == 'RELEASED';
-          final tabCount = showApprovals ? 4 : 3;
+          final tabCount = showApprovals ? 5 : 4;
+          final warnCount =
+              ref.watch(runWarningsProvider(runId)).asData?.value.length ?? 0;
           final hPad = isMobile(context) ? 16.0 : 24.0;
           return DefaultTabController(
             length: tabCount,
@@ -153,6 +157,7 @@ class _PayrollRunDetailScreenState
                               const Tab(text: 'Summary'),
                               Tab(text: 'Payslips (${detail.payslipCount})'),
                               const Tab(text: 'Disbursement'),
+                              Tab(child: _WarningsTabLabel(count: warnCount)),
                               if (showApprovals) const Tab(text: 'Approvals'),
                             ],
                           ),
@@ -176,6 +181,7 @@ class _PayrollRunDetailScreenState
                       runId: runId,
                       runStatus: detail.run.status,
                     ),
+                    PayrollWarningsTab(runId: runId),
                     if (showApprovals) PayrollApprovalsTab(runId: runId),
                   ],
                 ),
@@ -598,6 +604,7 @@ class _ActionBar extends ConsumerWidget {
         ref.refresh(larkApprovalCountsProvider(runId).future),
       ]);
       ref.invalidate(payrollRunsProvider);
+      ref.invalidate(runWarningsProvider(runId));
       if (!context.mounted) return;
       if (outcome.errors.isEmpty && outcome.warnings.isEmpty) {
         messenger.showSnackBar(SnackBar(
@@ -889,5 +896,39 @@ class _SendLarkApprovalsButton extends ConsumerWidget {
       ),
     );
     return result == true;
+  }
+}
+
+/// Tab label that appends an amber count badge when the run has > 0 attendance
+/// warnings. Renders just "Warnings" when the count is zero.
+class _WarningsTabLabel extends StatelessWidget {
+  final int count;
+  const _WarningsTabLabel({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    if (count == 0) return const Text('Warnings');
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('Warnings'),
+        const SizedBox(width: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFEF3C7),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            '$count',
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF92400E),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
