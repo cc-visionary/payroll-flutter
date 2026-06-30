@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'document_template.dart';
 
 enum NodDecision {
@@ -38,6 +40,8 @@ class NodInputs extends TemplateInputs {
   final int suspensionDays;
   final DateTime effectiveDate;
   final DateTime issueDate;
+  // Excluded from toJson — re-resolved from the entity at view time.
+  final Uint8List? logoBytes;
 
   NodInputs({
     required this.employeeId,
@@ -57,6 +61,7 @@ class NodInputs extends TemplateInputs {
     this.suspensionDays = 0,
     required this.effectiveDate,
     required this.issueDate,
+    this.logoBytes,
   });
 
   factory NodInputs.fromJson(Map<String, dynamic> json) {
@@ -107,6 +112,7 @@ class NodInputs extends TemplateInputs {
     int? suspensionDays,
     DateTime? effectiveDate,
     DateTime? issueDate,
+    Uint8List? logoBytes,
   }) => NodInputs(
     employeeId: employeeId ?? this.employeeId,
     employeeFullName: employeeFullName ?? this.employeeFullName,
@@ -128,6 +134,7 @@ class NodInputs extends TemplateInputs {
     suspensionDays: suspensionDays ?? this.suspensionDays,
     effectiveDate: effectiveDate ?? this.effectiveDate,
     issueDate: issueDate ?? this.issueDate,
+    logoBytes: logoBytes ?? this.logoBytes,
   );
 
   @override

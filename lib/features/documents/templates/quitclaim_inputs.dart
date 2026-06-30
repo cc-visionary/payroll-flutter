@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:decimal/decimal.dart';
 import 'document_template.dart';
 
@@ -12,6 +14,8 @@ class QuitclaimInputs extends TemplateInputs {
   final DateTime? dateTerminated;
   final DateTime dateSigned;
   final String placeSigned;      // where the document is signed (company address)
+  // Excluded from toJson — re-resolved from the entity at view time.
+  final Uint8List? logoBytes;
 
   QuitclaimInputs({
     required this.employeeId,
@@ -24,6 +28,7 @@ class QuitclaimInputs extends TemplateInputs {
     this.dateTerminated,
     required this.dateSigned,
     this.placeSigned = '',
+    this.logoBytes,
   });
 
   factory QuitclaimInputs.fromJson(Map<String, dynamic> json) {
@@ -59,6 +64,7 @@ class QuitclaimInputs extends TemplateInputs {
     Object? dateTerminated = _undef,
     DateTime? dateSigned,
     String? placeSigned,
+    Uint8List? logoBytes,
   }) =>
       QuitclaimInputs(
         employeeId: employeeId ?? this.employeeId,
@@ -73,6 +79,7 @@ class QuitclaimInputs extends TemplateInputs {
             : dateTerminated as DateTime?,
         dateSigned: dateSigned ?? this.dateSigned,
         placeSigned: placeSigned ?? this.placeSigned,
+        logoBytes: logoBytes ?? this.logoBytes,
       );
 
   @override

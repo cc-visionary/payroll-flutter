@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'document_template.dart';
 
 class LiabilityWaiverInputs extends TemplateInputs {
@@ -11,6 +13,8 @@ class LiabilityWaiverInputs extends TemplateInputs {
   final String outingLocation;
   final DateTime dateSigned;
   final String signingPlace;
+  // Excluded from toJson — re-resolved from the entity at view time.
+  final Uint8List? logoBytes;
 
   LiabilityWaiverInputs({
     required this.employeeId,
@@ -23,6 +27,7 @@ class LiabilityWaiverInputs extends TemplateInputs {
     this.outingLocation = '',
     required this.dateSigned,
     this.signingPlace = '',
+    this.logoBytes,
   });
 
   factory LiabilityWaiverInputs.fromJson(Map<String, dynamic> json) {
@@ -58,6 +63,7 @@ class LiabilityWaiverInputs extends TemplateInputs {
     String? outingLocation,
     DateTime? dateSigned,
     String? signingPlace,
+    Uint8List? logoBytes,
   }) =>
       LiabilityWaiverInputs(
         employeeId: employeeId ?? this.employeeId,
@@ -74,6 +80,7 @@ class LiabilityWaiverInputs extends TemplateInputs {
         outingLocation: outingLocation ?? this.outingLocation,
         dateSigned: dateSigned ?? this.dateSigned,
         signingPlace: signingPlace ?? this.signingPlace,
+        logoBytes: logoBytes ?? this.logoBytes,
       );
 
   @override

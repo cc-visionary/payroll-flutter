@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:decimal/decimal.dart';
 
 import 'document_template.dart';
@@ -30,6 +32,8 @@ class FinalPayInputs extends TemplateInputs {
 
   final DateTime computedAsOf;
   final DateTime releaseDate;
+  // Excluded from toJson — re-resolved from the entity at view time.
+  final Uint8List? logoBytes;
 
   FinalPayInputs({
     required this.employeeId,
@@ -53,6 +57,7 @@ class FinalPayInputs extends TemplateInputs {
     this.outstandingCashAdvanceLocked = false,
     required this.computedAsOf,
     required this.releaseDate,
+    this.logoBytes,
   }) : lastNetPay = lastNetPay ?? Decimal.zero,
        thirteenthMonth = thirteenthMonth ?? Decimal.zero,
        unusedLeaveConversion = unusedLeaveConversion ?? Decimal.zero,
@@ -130,6 +135,7 @@ class FinalPayInputs extends TemplateInputs {
     bool? outstandingCashAdvanceLocked,
     DateTime? computedAsOf,
     DateTime? releaseDate,
+    Uint8List? logoBytes,
   }) => FinalPayInputs(
     employeeId: employeeId ?? this.employeeId,
     employeeFullName: employeeFullName ?? this.employeeFullName,
@@ -159,6 +165,7 @@ class FinalPayInputs extends TemplateInputs {
         outstandingCashAdvanceLocked ?? this.outstandingCashAdvanceLocked,
     computedAsOf: computedAsOf ?? this.computedAsOf,
     releaseDate: releaseDate ?? this.releaseDate,
+    logoBytes: logoBytes ?? this.logoBytes,
   );
 
   @override

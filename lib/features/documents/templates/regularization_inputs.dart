@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:decimal/decimal.dart';
 
 import 'document_template.dart';
@@ -17,6 +19,8 @@ class RegularizationInputs extends TemplateInputs {
   final String salaryPeriod; // MONTHLY | DAILY
   final DateTime issueDate;
   final String performanceSummary;
+  // Excluded from toJson — re-resolved from the entity at view time.
+  final Uint8List? logoBytes;
 
   RegularizationInputs({
     required this.employeeId,
@@ -33,6 +37,7 @@ class RegularizationInputs extends TemplateInputs {
     this.salaryPeriod = 'MONTHLY',
     required this.issueDate,
     this.performanceSummary = '',
+    this.logoBytes,
   }) : baseSalary = baseSalary ?? Decimal.zero;
 
   factory RegularizationInputs.fromJson(Map<String, dynamic> json) {
@@ -80,6 +85,7 @@ class RegularizationInputs extends TemplateInputs {
     String? salaryPeriod,
     DateTime? issueDate,
     String? performanceSummary,
+    Uint8List? logoBytes,
   }) => RegularizationInputs(
     employeeId: employeeId ?? this.employeeId,
     employeeFullName: employeeFullName ?? this.employeeFullName,
@@ -97,6 +103,7 @@ class RegularizationInputs extends TemplateInputs {
     salaryPeriod: salaryPeriod ?? this.salaryPeriod,
     issueDate: issueDate ?? this.issueDate,
     performanceSummary: performanceSummary ?? this.performanceSummary,
+    logoBytes: logoBytes ?? this.logoBytes,
   );
 
   @override

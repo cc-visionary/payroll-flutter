@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:decimal/decimal.dart';
 
 import 'document_template.dart';
@@ -33,6 +35,8 @@ class SalaryAdjustmentInputs extends TemplateInputs {
   final DateTime effectiveDate;
   final DateTime issueDate;
   final String reason;
+  // Excluded from toJson — re-resolved from the entity at view time.
+  final Uint8List? logoBytes;
 
   SalaryAdjustmentInputs({
     this.type = SalaryAdjustmentType.salaryAdjustment,
@@ -54,6 +58,7 @@ class SalaryAdjustmentInputs extends TemplateInputs {
     required this.effectiveDate,
     required this.issueDate,
     this.reason = '',
+    this.logoBytes,
   }) : oldSalary = oldSalary ?? Decimal.zero,
        newSalary = newSalary ?? Decimal.zero;
 
@@ -118,6 +123,7 @@ class SalaryAdjustmentInputs extends TemplateInputs {
     DateTime? effectiveDate,
     DateTime? issueDate,
     String? reason,
+    Uint8List? logoBytes,
   }) => SalaryAdjustmentInputs(
     type: type ?? this.type,
     employeeId: employeeId ?? this.employeeId,
@@ -142,6 +148,7 @@ class SalaryAdjustmentInputs extends TemplateInputs {
     effectiveDate: effectiveDate ?? this.effectiveDate,
     issueDate: issueDate ?? this.issueDate,
     reason: reason ?? this.reason,
+    logoBytes: logoBytes ?? this.logoBytes,
   );
 
   @override

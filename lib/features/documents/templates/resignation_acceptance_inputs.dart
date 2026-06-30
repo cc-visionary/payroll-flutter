@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'document_template.dart';
 
 const String kDefaultTurnoverInstructions =
@@ -19,6 +21,8 @@ class ResignationAcceptanceInputs extends TemplateInputs {
   final String turnoverInstructions;
   final bool includeClearanceMention;
   final bool includeFinalPayMention;
+  // Excluded from toJson — re-resolved from the entity at view time.
+  final Uint8List? logoBytes;
 
   ResignationAcceptanceInputs({
     required this.employeeId,
@@ -35,6 +39,7 @@ class ResignationAcceptanceInputs extends TemplateInputs {
     this.turnoverInstructions = kDefaultTurnoverInstructions,
     this.includeClearanceMention = true,
     this.includeFinalPayMention = true,
+    this.logoBytes,
   });
 
   factory ResignationAcceptanceInputs.fromJson(Map<String, dynamic> json) {
@@ -81,6 +86,7 @@ class ResignationAcceptanceInputs extends TemplateInputs {
     String? turnoverInstructions,
     bool? includeClearanceMention,
     bool? includeFinalPayMention,
+    Uint8List? logoBytes,
   }) => ResignationAcceptanceInputs(
     employeeId: employeeId ?? this.employeeId,
     employeeFullName: employeeFullName ?? this.employeeFullName,
@@ -98,6 +104,7 @@ class ResignationAcceptanceInputs extends TemplateInputs {
         includeClearanceMention ?? this.includeClearanceMention,
     includeFinalPayMention:
         includeFinalPayMention ?? this.includeFinalPayMention,
+    logoBytes: logoBytes ?? this.logoBytes,
   );
 
   @override

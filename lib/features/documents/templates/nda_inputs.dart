@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'document_template.dart';
 
 class NdaInputs extends TemplateInputs {
@@ -11,6 +13,8 @@ class NdaInputs extends TemplateInputs {
   final DateTime? effectiveDate;
   final String authorizedSignatoryName;
   final String authorizedSignatoryRole;
+  // Excluded from toJson — re-resolved from the entity at view time.
+  final Uint8List? logoBytes;
 
   NdaInputs({
     required this.employeeId,
@@ -23,6 +27,7 @@ class NdaInputs extends TemplateInputs {
     this.effectiveDate,
     this.authorizedSignatoryName = '',
     this.authorizedSignatoryRole = 'Authorized Signatory',
+    this.logoBytes,
   });
 
   /// Inverse of [toJson]. `effectiveDate` preserves null; the optional string
@@ -62,6 +67,7 @@ class NdaInputs extends TemplateInputs {
     Object? effectiveDate = _undef,
     String? authorizedSignatoryName,
     String? authorizedSignatoryRole,
+    Uint8List? logoBytes,
   }) =>
       NdaInputs(
         employeeId: employeeId ?? this.employeeId,
@@ -78,6 +84,7 @@ class NdaInputs extends TemplateInputs {
             authorizedSignatoryName ?? this.authorizedSignatoryName,
         authorizedSignatoryRole:
             authorizedSignatoryRole ?? this.authorizedSignatoryRole,
+        logoBytes: logoBytes ?? this.logoBytes,
       );
 
   @override
