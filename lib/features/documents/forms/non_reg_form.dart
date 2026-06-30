@@ -38,6 +38,14 @@ class _NonRegFormState extends ConsumerState<NonRegForm> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant NonRegForm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.initial, widget.initial)) {
+      _i = widget.initial;
+    }
+  }
+
   void _set(NonRegInputs n) {
     setState(() => _i = n);
     widget.onChanged(n);

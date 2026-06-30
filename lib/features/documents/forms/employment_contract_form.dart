@@ -51,6 +51,14 @@ class _EmploymentContractFormState
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant EmploymentContractForm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.initial, widget.initial)) {
+      _i = widget.initial;
+    }
+  }
+
   // Assembles a TrainingWage from the current UI state, or null when the
   // toggle is off. trainingDays falls back to 7 on an unparseable value so
   // the assembled inputs stay well-formed while the user types.

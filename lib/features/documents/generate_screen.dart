@@ -741,6 +741,12 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           companyId: companyId,
           companyName: name,
           logoBytes: logo,
+          signingPlace: co == null
+              ? ''
+              : [co.city, co.province]
+                  .where((s) => s != null && s.isNotEmpty)
+                  .cast<String>()
+                  .join(', '),
         );
       }
     });

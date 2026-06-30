@@ -38,6 +38,14 @@ class _QuitclaimFormState extends ConsumerState<QuitclaimForm> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant QuitclaimForm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.initial, widget.initial)) {
+      _i = widget.initial;
+    }
+  }
+
   void _set(QuitclaimInputs next) {
     setState(() => _i = next);
     widget.onChanged(next);

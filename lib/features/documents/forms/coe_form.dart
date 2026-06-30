@@ -38,6 +38,14 @@ class _CoeFormState extends ConsumerState<CoeForm> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant CoeForm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.initial, widget.initial)) {
+      _i = widget.initial;
+    }
+  }
+
   void _set(CoeInputs next) {
     setState(() => _i = next);
     widget.onChanged(next);

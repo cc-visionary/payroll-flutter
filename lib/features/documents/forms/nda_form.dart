@@ -38,6 +38,14 @@ class _NdaFormState extends ConsumerState<NdaForm> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant NdaForm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.initial, widget.initial)) {
+      _i = widget.initial;
+    }
+  }
+
   void _set(NdaInputs next) {
     setState(() => _i = next);
     widget.onChanged(next);

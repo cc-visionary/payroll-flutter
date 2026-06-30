@@ -37,6 +37,14 @@ class _LiabilityWaiverFormState extends ConsumerState<LiabilityWaiverForm> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant LiabilityWaiverForm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.initial, widget.initial)) {
+      _i = widget.initial;
+    }
+  }
+
   void _set(LiabilityWaiverInputs next) {
     setState(() => _i = next);
     widget.onChanged(next);

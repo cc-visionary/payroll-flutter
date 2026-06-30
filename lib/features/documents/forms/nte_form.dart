@@ -38,6 +38,14 @@ class _NteFormState extends ConsumerState<NteForm> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant NteForm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.initial, widget.initial)) {
+      _i = widget.initial;
+    }
+  }
+
   void _set(NteInputs n) {
     setState(() => _i = n);
     widget.onChanged(n);
