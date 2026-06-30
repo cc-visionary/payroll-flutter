@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../../app/status_colors.dart';
 import '../../../../attendance/attendance_row_vm.dart' show isoDate;
 import '../providers.dart';
 import '../warnings.dart';
@@ -32,8 +33,8 @@ class PayrollWarningsTab extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.check_circle_outline,
-                      size: 40, color: Color(0xFF16A34A)),
+                  Icon(Icons.check_circle_outline,
+                      size: 40, color: StatusPalette.of(context, StatusTone.success).foreground),
                   const SizedBox(height: 12),
                   Text(
                     'No attendance warnings for this period.',
@@ -49,7 +50,9 @@ class PayrollWarningsTab extends ConsumerWidget {
         return ListView(
           padding: const EdgeInsets.symmetric(vertical: 16),
           children: [
-            Row(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
               children: [
                 Text(
                   '${warnings.length} warning${warnings.length == 1 ? '' : 's'}',
@@ -62,6 +65,7 @@ class PayrollWarningsTab extends ConsumerWidget {
                   onPressed: () => ref.invalidate(runWarningsProvider(runId)),
                 ),
               ],
+              ),
             ),
             const SizedBox(height: 8),
             Container(
@@ -94,7 +98,8 @@ class _WarningRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (icon, bg, fg) = _style(warning.type);
+    final (icon, tone) = _style(warning.type);
+    final palette = StatusPalette.of(context, tone);
     return InkWell(
       onTap: () => context
           .go('/attendance/${warning.employeeId}/${isoDate(warning.date)}'),
@@ -106,10 +111,10 @@ class _WarningRow extends StatelessWidget {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: bg,
+                color: palette.background,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(icon, size: 18, color: fg),
+              child: Icon(icon, size: 18, color: palette.foreground),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -132,29 +137,21 @@ class _WarningRow extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, size: 20, color: Color(0xFF9CA3AF)),
+            Icon(Icons.chevron_right, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ],
         ),
       ),
     );
   }
 
-  static (IconData, Color, Color) _style(WarningType t) {
+  static (IconData, StatusTone) _style(WarningType t) {
     switch (t) {
       case WarningType.invalidWorkedTime:
-        return (
-          Icons.error_outline,
-          const Color(0xFFFEE2E2),
-          const Color(0xFF991B1B)
-        );
+        return (Icons.error_outline, StatusTone.danger);
       case WarningType.missingClockOut:
       case WarningType.missingClockIn:
       case WarningType.unapprovedOvertime:
-        return (
-          Icons.warning_amber_rounded,
-          const Color(0xFFFEF3C7),
-          const Color(0xFF92400E)
-        );
+        return (Icons.warning_amber_rounded, StatusTone.warning);
     }
   }
 

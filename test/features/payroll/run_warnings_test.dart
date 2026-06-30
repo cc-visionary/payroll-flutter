@@ -178,4 +178,21 @@ void main() {
     expect(w.first.employeeLabel, contains('Alice'));
     expect(w.last.employeeLabel, contains('Zara'));
   });
+
+  test('exactly 30 min late-out is not flagged (threshold is > 30)', () {
+    final w = _run([_day(tIn: _at(9, 0), tOut: _at(18, 30), shiftId: 'S1')]);
+    expect(w, isEmpty);
+  });
+
+  test('31 min late-out is flagged as unapproved overtime', () {
+    final w = _run([_day(tIn: _at(9, 0), tOut: _at(18, 31), shiftId: 'S1')]);
+    expect(w.single.type, WarningType.unapprovedOvertime);
+  });
+
+  test('both-ends unapproved OT message names both ends', () {
+    final w = _run([_day(tIn: _at(8, 20), tOut: _at(18, 45), shiftId: 'S1')]);
+    expect(w.single.type, WarningType.unapprovedOvertime);
+    expect(w.single.message, contains('past shift end'));
+    expect(w.single.message, contains('before shift start'));
+  });
 }

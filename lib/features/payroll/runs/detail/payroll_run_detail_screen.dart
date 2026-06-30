@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../app/breakpoints.dart';
+import '../../../../app/status_colors.dart';
 import '../../../../data/repositories/audit_repository.dart';
 import '../../../../data/repositories/payroll_repository.dart';
 import '../../../../widgets/syncing_dialog.dart';
@@ -21,7 +22,7 @@ import 'tabs/warnings_tab.dart';
 import 'widgets/distribute_13th_dialog.dart';
 import 'widgets/status_timeline.dart';
 
-/// Payroll run detail — Summary / Payslips / Disbursement / Approvals tabs.
+/// Payroll run detail — Summary / Payslips / Disbursement / Warnings / Approvals tabs.
 /// Matches the payrollos run detail layout.
 class PayrollRunDetailScreen extends ConsumerStatefulWidget {
   final String runId;
@@ -908,6 +909,7 @@ class _WarningsTabLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (count == 0) return const Text('Warnings');
+    final warn = StatusPalette.of(context, StatusTone.warning);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -916,15 +918,15 @@ class _WarningsTabLabel extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
           decoration: BoxDecoration(
-            color: const Color(0xFFFEF3C7),
+            color: warn.background,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
             '$count',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF92400E),
+              color: warn.foreground,
             ),
           ),
         ),
