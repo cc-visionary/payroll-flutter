@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app/breakpoints.dart';
 import '../../data/models/role_scorecard.dart';
+import '../../data/repositories/hiring_entity_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../auth/profile_provider.dart';
 
@@ -27,6 +28,7 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
   final _daysPerWeek = TextEditingController(text: 'Monday to Saturday');
   String _wageType = 'MONTHLY';
   String? _departmentId;
+  String? _hiringEntityId;
   DateTime _effectiveDate = DateTime.now();
   bool _isActive = true;
   bool _loading = false;
@@ -68,6 +70,7 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
         _daysPerWeek.text = e.workDaysPerWeek;
         _wageType = e.wageType;
         _departmentId = e.departmentId;
+        _hiringEntityId = e.hiringEntityId;
         _effectiveDate = e.effectiveDate;
         _isActive = e.isActive;
         _areas.clear();
@@ -97,6 +100,7 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
         companyId: _existing?.companyId ?? profile.companyId,
         jobTitle: _jobTitle.text.trim(),
         departmentId: _departmentId,
+        hiringEntityId: _hiringEntityId,
         missionStatement: _mission.text.trim(),
         responsibilities: [
           for (final a in _areas)
@@ -168,6 +172,25 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                         },
                       ),
                     ]),
+                    const SizedBox(height: 12),
+                    Builder(builder: (context) {
+                      final entities =
+                          ref.watch(hiringEntityListProvider).asData?.value ?? const [];
+                      return DropdownButtonFormField<String?>(
+                        initialValue: _hiringEntityId,
+                        decoration: const InputDecoration(
+                          labelText: 'Company (brand)',
+                          helperText: 'Default brand for employees on this scorecard.',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          const DropdownMenuItem<String?>(value: null, child: Text('(none)')),
+                          for (final e in entities)
+                            DropdownMenuItem<String?>(value: e.id, child: Text(e.name)),
+                        ],
+                        onChanged: (v) => setState(() => _hiringEntityId = v),
+                      );
+                    }),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _mission,
