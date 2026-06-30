@@ -343,6 +343,7 @@ class _FormState extends ConsumerState<_EntityForm> {
                 _signatoryRole.trim().isEmpty ? null : _signatoryRole.trim(),
             hrManagerName:
                 _hrManager.trim().isEmpty ? null : _hrManager.trim(),
+            updateLogo: _logoChanged,
             logoBase64: _logoBytes == null ? null : base64.encode(_logoBytes!),
             logoMime: _logoMime,
             isActive: _isActive,
@@ -496,10 +497,14 @@ class _FormState extends ConsumerState<_EntityForm> {
                           ),
                         ],
                         const SizedBox(height: 4),
-                        const Text(
-                          'PNG or JPG · max 300 KB',
-                          style:
-                              TextStyle(fontSize: 11, color: Colors.grey),
+                        Builder(
+                          builder: (context) => Text(
+                            'PNG or JPG · max 300 KB',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
                         ),
                       ],
                     ),

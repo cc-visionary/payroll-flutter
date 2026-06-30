@@ -92,6 +92,7 @@ class HiringEntityRepository {
     String? hrManagerName,
     String? logoBase64,
     String? logoMime,
+    bool updateLogo = false,
     bool isActive = true,
   }) async {
     final payload = {
@@ -115,10 +116,12 @@ class HiringEntityRepository {
       'legal_signatory_name': legalSignatoryName,
       'legal_signatory_role': legalSignatoryRole,
       'hr_manager_name': hrManagerName,
-      'logo_base64': logoBase64,
-      'logo_mime': logoMime,
       'is_active': isActive,
     };
+    if (updateLogo) {
+      payload['logo_base64'] = logoBase64;
+      payload['logo_mime'] = logoMime;
+    }
     if (id == null) {
       await _client.from('hiring_entities').insert(payload);
     } else {
