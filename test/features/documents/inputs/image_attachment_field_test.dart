@@ -47,6 +47,7 @@ void main() {
     expect(find.text('Add image'), findsNothing);
     expect(find.text('Remove'), findsOneWidget);
     expect(find.byType(TextFormField), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
   });
 
   testWidgets('Remove triggers onRemoved', (t) async {
@@ -76,5 +77,22 @@ void main() {
     await t.pump();
     await t.enterText(find.byType(TextFormField), 'CCTV still');
     expect(captured, 'CCTV still');
+  });
+
+  testWidgets('parent-driven caption change updates the field text', (t) async {
+    Widget build(String? caption) => _host(ImageAttachmentField(
+          bytes: validPng,
+          caption: caption,
+          onPicked: (_, __) {},
+          onRemoved: () {},
+          onCaptionChanged: (_) {},
+        ));
+    await t.pumpWidget(build('first'));
+    await t.pump();
+    expect(find.text('first'), findsOneWidget);
+    await t.pumpWidget(build('second'));
+    await t.pump();
+    expect(find.text('second'), findsOneWidget);
+    expect(find.text('first'), findsNothing);
   });
 }

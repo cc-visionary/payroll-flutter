@@ -31,6 +31,31 @@ class ImageAttachmentField extends StatefulWidget {
 
 class _ImageAttachmentFieldState extends State<ImageAttachmentField> {
   String? _fileName;
+  late final TextEditingController _captionController;
+
+  @override
+  void initState() {
+    super.initState();
+    _captionController = TextEditingController(text: widget.caption ?? '');
+  }
+
+  @override
+  void didUpdateWidget(ImageAttachmentField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Only push parent-driven caption changes into the field. The
+    // `!= _captionController.text` guard prevents echoing the user's own
+    // keystrokes back (which would reset the cursor position).
+    final incoming = widget.caption ?? '';
+    if (incoming != _captionController.text) {
+      _captionController.text = incoming;
+    }
+  }
+
+  @override
+  void dispose() {
+    _captionController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pick() async {
     final result = await FilePicker.platform.pickFiles(
@@ -106,7 +131,7 @@ class _ImageAttachmentFieldState extends State<ImageAttachmentField> {
         ),
         const SizedBox(height: 8),
         TextFormField(
-          initialValue: widget.caption ?? '',
+          controller: _captionController,
           decoration: const InputDecoration(
             border: OutlineInputBorder(),
             isDense: true,
