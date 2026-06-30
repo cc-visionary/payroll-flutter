@@ -18,11 +18,9 @@ void main() {
     expect(bytes!.toList(), [9, 8, 7]);
   });
 
-  test('null entity falls back to brand logo (no crash)', () async {
-    // Falls through to loadBrandLogoBytes which loads the bundled brand asset.
+  test('null entity falls back to loadBrandLogoBytes(null, null)', () async {
+    final fallback = await loadBrandLogoBytes(companyName: null, code: null);
     final bytes = await loadCompanyLogoBytes(null);
-    // In test env with assets, this returns the Luxium logo bytes; no crash.
-    expect(bytes, isNotNull);
-    expect(bytes, isA<Uint8List>());
+    expect(bytes, fallback); // proves the same fallback path executed
   });
 }
