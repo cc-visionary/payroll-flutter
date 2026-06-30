@@ -123,6 +123,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
   // Brand allocation (Company / hiring entity). HR/Admin editable.
   BrandMode _brandMode = BrandMode.derive;
   String? _hiringEntityId;       // manual selection
+  String? _origHiringEntityId;
 
   // Statutory employer-of-record override (HR/Admin editable). null = inherit
   // from brand allocation (`hiring_entity_id`). Stored as `statutory_entity_id`.
@@ -237,6 +238,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       _isNdEligible = e.isNdEligible;
       _isHolidayEligible = e.isHolidayPayEligible;
       _hiringEntityId = e.hiringEntityId;
+      _origHiringEntityId = e.hiringEntityId;
       // Existing employees with a stored brand open in manual mode showing it
       // (lossless); legacy null-brand rows default to derive.
       _brandMode = e.hiringEntityId == null ? BrandMode.derive : BrandMode.manual;
@@ -324,16 +326,24 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       final derivedJobTitle = selectedCard?.jobTitle as String?;
       final derivedDepartmentId = selectedCard?.departmentId as String?;
 
-      final effectiveHiringEntityId = resolveBrandAllocation(
-        deriveFromScorecard: _brandMode == BrandMode.derive,
-        scorecardHiringEntityId: selectedCard?.hiringEntityId as String?,
-        manualHiringEntityId: _hiringEntityId,
-      );
-      if (effectiveHiringEntityId == null) {
-        setState(() => _error =
-            'Company (brand) is required. Pick a brand, or choose a role '
-            'scorecard that has a company set.');
-        return;
+      final canEditBrand = profile.isHrOrAdmin;
+      String? effectiveHiringEntityId;
+      if (canEditBrand) {
+        effectiveHiringEntityId = resolveBrandAllocation(
+          deriveFromScorecard: _brandMode == BrandMode.derive,
+          scorecardHiringEntityId: selectedCard?.hiringEntityId as String?,
+          manualHiringEntityId: _hiringEntityId,
+        );
+        if (effectiveHiringEntityId == null) {
+          setState(() => _error =
+              'Company (brand) is required. Pick a brand, or choose a role '
+              'scorecard that has a company set.');
+          return;
+        }
+      } else {
+        // Non-HR cannot edit the brand; preserve whatever was stored so their
+        // edit to other fields neither nulls nor is blocked by the brand.
+        effectiveHiringEntityId = _origHiringEntityId;
       }
 
       final saved = await ref.read(employeeRepositoryProvider).upsert(
