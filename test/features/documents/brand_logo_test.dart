@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/data/models/hiring_entity.dart';
 import 'package:payroll_flutter/features/documents/brand_logo.dart';
