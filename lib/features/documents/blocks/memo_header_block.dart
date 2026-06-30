@@ -1,8 +1,10 @@
+import 'dart:typed_data';
 import 'package:pdf/widgets.dart' as pw;
 import '../../../core/pdf/pdf_theme.dart';
 import 'block.dart';
 import 'company_header_block.dart';
 import 'letter_meta_block.dart';
+import 'logo_block.dart';
 import 'paragraph_block.dart';
 import 'title_block.dart';
 
@@ -19,6 +21,7 @@ class MemoHeaderBlock extends Block {
   final LetterParty from;
   final String subject;
   final String? salutation;
+  final Uint8List? logoBytes;
 
   const MemoHeaderBlock({
     required this.titleText,
@@ -29,6 +32,7 @@ class MemoHeaderBlock extends Block {
     required this.from,
     required this.subject,
     this.salutation,
+    this.logoBytes,
   });
 
   @override
@@ -36,6 +40,10 @@ class MemoHeaderBlock extends Block {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
       children: [
+        if (logoBytes != null) ...[
+          LogoBlock(logoBytes!, height: 64).toPdf(theme),
+          pw.SizedBox(height: 12),
+        ],
         TitleBlock(titleText).toPdf(theme),
         pw.SizedBox(height: 12),
         CompanyHeaderBlock(name: companyName, address: companyAddress)
