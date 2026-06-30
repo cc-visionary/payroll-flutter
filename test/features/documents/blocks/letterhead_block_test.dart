@@ -1,0 +1,29 @@
+import 'dart:typed_data';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:payroll_flutter/core/pdf/pdf_theme.dart';
+import 'package:payroll_flutter/features/documents/blocks/letterhead_block.dart';
+
+void main() {
+  test('renders without throwing, with and without a logo', () {
+    final theme = PdfTheme.testStub();
+    expect(
+      () => const LetterheadBlock(companyName: 'Acme', companyAddress: '1 St')
+          .toPdf(theme),
+      returnsNormally,
+    );
+    // Minimal valid 1x1 PNG (69 bytes) for testing image rendering
+    final minimalPng = Uint8List.fromList(const [
+      137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0,
+      0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0, 144, 119, 83, 222, 0, 0, 0, 12, 73,
+      68, 65, 84, 8, 153, 99, 248, 207, 192, 0, 0, 0, 3, 0, 1, 165, 28, 73,
+      92, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+    ]);
+    expect(
+      () => LetterheadBlock(
+        logoBytes: minimalPng,
+        companyName: 'Acme',
+      ).toPdf(theme),
+      returnsNormally,
+    );
+  });
+}
