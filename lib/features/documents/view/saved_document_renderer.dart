@@ -92,25 +92,29 @@ List<Block> blocksForSavedDocument(
       return const NonRegTemplate()
           .build(NonRegInputs.fromJson(o).copyWith(logoBytes: logoBytes));
     case 'nda':
-      return const NdaTemplate().build(NdaInputs.fromJson(o));
+      return const NdaTemplate()
+          .build(NdaInputs.fromJson(o).copyWith(logoBytes: logoBytes));
     case 'nod':
-      return const NodTemplate().build(NodInputs.fromJson(o));
+      return const NodTemplate()
+          .build(NodInputs.fromJson(o).copyWith(logoBytes: logoBytes));
     case 'final_pay':
-      return const FinalPayTemplate().build(FinalPayInputs.fromJson(o));
+      return const FinalPayTemplate()
+          .build(FinalPayInputs.fromJson(o).copyWith(logoBytes: logoBytes));
     case 'quitclaim':
-      return const QuitclaimTemplate().build(QuitclaimInputs.fromJson(o));
+      return const QuitclaimTemplate()
+          .build(QuitclaimInputs.fromJson(o).copyWith(logoBytes: logoBytes));
     case 'regularization':
       return const RegularizationTemplate()
-          .build(RegularizationInputs.fromJson(o));
+          .build(RegularizationInputs.fromJson(o).copyWith(logoBytes: logoBytes));
     case 'resignation_acceptance':
       return const ResignationAcceptanceTemplate()
-          .build(ResignationAcceptanceInputs.fromJson(o));
+          .build(ResignationAcceptanceInputs.fromJson(o).copyWith(logoBytes: logoBytes));
     case 'salary_adjustment':
       return const SalaryAdjustmentTemplate()
-          .build(SalaryAdjustmentInputs.fromJson(o));
+          .build(SalaryAdjustmentInputs.fromJson(o).copyWith(logoBytes: logoBytes));
     case 'liability_waiver':
       return const LiabilityWaiverTemplate()
-          .build(LiabilityWaiverInputs.fromJson(o));
+          .build(LiabilityWaiverInputs.fromJson(o).copyWith(logoBytes: logoBytes));
     default:
       throw UnsupportedSavedDocument(o['__template_id'] as String? ?? '(unknown)');
   }

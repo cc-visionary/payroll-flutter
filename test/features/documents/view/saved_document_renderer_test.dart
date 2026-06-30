@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:payroll_flutter/features/documents/blocks/letterhead_block.dart';
 import 'package:payroll_flutter/features/documents/templates/employment_contract_inputs.dart';
 import 'package:payroll_flutter/features/documents/templates/template_registry.dart';
 import 'package:payroll_flutter/features/documents/view/saved_document_renderer.dart';
@@ -104,5 +107,30 @@ void main() {
         expect(blocksForSavedDocument(options), isNotEmpty);
       });
     }
+  });
+
+  group('logoBytes propagation', () {
+    test('salary_adjustment saved render carries the passed logo', () {
+      final opts = {
+        '__template_id': 'salary_adjustment',
+        'employeeId': 'e',
+        'employeeFullName': 'Bob',
+        'companyId': 'c',
+        'companyName': 'GameCove',
+        'companyAddress': '1 St',
+        'oldSalary': '1',
+        'newSalary': '2',
+        'effectiveDate': '2026-07-01T00:00:00.000',
+        'issueDate': '2026-06-05T00:00:00.000',
+        'type': 'salaryAdjustment',
+      };
+      final blocks = blocksForSavedDocument(
+        opts,
+        logoBytes: Uint8List.fromList(const [137, 80, 78, 71]),
+      );
+      final head = blocks.whereType<LetterheadBlock>().toList();
+      expect(head, isNotEmpty);
+      expect(head.first.logoBytes, isNotNull);
+    });
   });
 }

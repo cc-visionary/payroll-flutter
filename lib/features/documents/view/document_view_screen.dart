@@ -62,9 +62,11 @@ class DocumentViewScreen extends ConsumerWidget {
             filename: filename,
             buildPdf: (format) async {
               final theme = pdfThemeOverride ?? await PdfTheme.defaults();
-              final logo = await loadBrandLogoBytes(
-                companyName: options['companyName'] as String?,
-              );
+              final companyId = options['companyId'] as String?;
+              final entity = (companyId == null || companyId.isEmpty)
+                  ? null
+                  : await ref.read(hiringEntityByIdProvider(companyId).future);
+              final logo = await loadCompanyLogoBytes(entity);
               final blocks =
                   blocksForSavedDocument(options, logoBytes: logo);
               return buildDocumentPdf(blocks: blocks, theme: theme);
