@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:decimal/decimal.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -285,3 +287,12 @@ final ntesByEmployeeProvider =
           )
           .toList();
     });
+
+/// Decoded logo bytes for one hiring entity, or null when none is set.
+final hiringEntityLogoProvider =
+    FutureProvider.family<Uint8List?, String>((ref, entityId) async {
+  final logo = await ref
+      .read(hiringEntityRepositoryProvider)
+      .logoFor(entityId);
+  return decodeLogoBytes(logo?.base64);
+});

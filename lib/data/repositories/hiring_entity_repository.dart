@@ -1,8 +1,21 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/hiring_entity.dart';
 import '../../features/auth/profile_provider.dart';
+
+/// Decode a base64 logo string to bytes; returns null on null/empty/invalid input.
+Uint8List? decodeLogoBytes(String? base64Str) {
+  if (base64Str == null || base64Str.isEmpty) return null;
+  try {
+    return base64.decode(base64Str);
+  } catch (_) {
+    return null;
+  }
+}
 
 class HiringEntityRepository {
   final SupabaseClient _client;
@@ -11,7 +24,13 @@ class HiringEntityRepository {
   Future<List<HiringEntity>> list(String companyId) async {
     final rows = await _client
         .from('hiring_entities')
-        .select()
+        .select(
+          'id, company_id, code, name, trade_name, tin, rdo_code, '
+          'sss_employer_id, philhealth_employer_id, pagibig_employer_id, '
+          'address_line1, address_line2, city, province, zip_code, country, '
+          'phone_number, email, legal_signatory_name, legal_signatory_role, '
+          'hr_manager_name, is_active',
+        )
         .eq('company_id', companyId)
         .isFilter('deleted_at', null)
         .order('name');
@@ -19,6 +38,19 @@ class HiringEntityRepository {
         .cast<Map<String, dynamic>>()
         .map(HiringEntity.fromRow)
         .toList();
+  }
+
+  /// Fetch ONLY the logo columns for one entity. Kept separate from [list] so the
+  /// (potentially large) base64 never rides along on the constantly-loaded picker list.
+  Future<({String base64, String mime})?> logoFor(String entityId) async {
+    final row = await _client
+        .from('hiring_entities')
+        .select('logo_base64, logo_mime')
+        .eq('id', entityId)
+        .maybeSingle();
+    final b64 = row?['logo_base64'] as String?;
+    if (b64 == null || b64.isEmpty) return null;
+    return (base64: b64, mime: (row?['logo_mime'] as String?) ?? 'image/png');
   }
 
   Future<Map<String, int>> employeeCounts(String companyId) async {
@@ -58,6 +90,8 @@ class HiringEntityRepository {
     String? legalSignatoryName,
     String? legalSignatoryRole,
     String? hrManagerName,
+    String? logoBase64,
+    String? logoMime,
     bool isActive = true,
   }) async {
     final payload = {
@@ -81,6 +115,8 @@ class HiringEntityRepository {
       'legal_signatory_name': legalSignatoryName,
       'legal_signatory_role': legalSignatoryRole,
       'hr_manager_name': hrManagerName,
+      'logo_base64': logoBase64,
+      'logo_mime': logoMime,
       'is_active': isActive,
     };
     if (id == null) {
