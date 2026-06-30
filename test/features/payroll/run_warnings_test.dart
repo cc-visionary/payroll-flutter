@@ -15,6 +15,7 @@ AttendanceDay _day({
   bool earlyInApproved = false,
   int? approvedOtMinutes,
   DateTime? date,
+  String empFirst = 'Jane',
 }) =>
     AttendanceDay(
       id: 'A1',
@@ -33,7 +34,7 @@ AttendanceDay _day({
       isLocked: false,
       shiftTemplateId: shiftId,
       employeeNumber: 'EMP-001',
-      employeeFirstName: 'Jane',
+      employeeFirstName: empFirst,
       employeeLastName: 'Doe',
     );
 
@@ -148,5 +149,33 @@ void main() {
     ]);
     expect(w.first.date, DateTime(2026, 6, 15));
     expect(w.last.date, DateTime(2026, 6, 17));
+  });
+
+  test('early-in approval flag suppresses the overtime warning', () {
+    final w = _run([
+      _day(tIn: _at(8, 20), tOut: _at(18, 0), shiftId: 'S1', earlyInApproved: true)
+    ]);
+    expect(w, isEmpty);
+  });
+
+  test('clock-out equal to clock-in is also flagged as invalid', () {
+    final w = _run([_day(tIn: _at(9, 0), tOut: _at(9, 0), shiftId: 'S1')]);
+    expect(w.single.type, WarningType.invalidWorkedTime);
+  });
+
+  test('a future-dated record is skipped', () {
+    final w = _run([
+      _day(tIn: _at(9, 0), tOut: null, shiftId: 'S1', date: DateTime(2026, 7, 5))
+    ]);
+    expect(w, isEmpty);
+  });
+
+  test('same-date warnings are sorted by employee label', () {
+    final date = DateTime(2026, 6, 15);
+    final zara = _day(tIn: _at(9, 0), tOut: null, shiftId: 'S1', date: date, empFirst: 'Zara');
+    final alice = _day(tIn: _at(9, 0), tOut: null, shiftId: 'S1', date: date, empFirst: 'Alice');
+    final w = detectWarnings(records: [zara, alice], shiftsById: {'S1': _shift()}, today: _today);
+    expect(w.first.employeeLabel, contains('Alice'));
+    expect(w.last.employeeLabel, contains('Zara'));
   });
 }
