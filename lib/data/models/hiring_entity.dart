@@ -20,6 +20,8 @@ class HiringEntity {
   final String? legalSignatoryName;
   final String? legalSignatoryRole;
   final String? hrManagerName;
+  final String? logoBase64;
+  final String? logoMime;
   final bool isActive;
 
   const HiringEntity({
@@ -44,6 +46,8 @@ class HiringEntity {
     this.legalSignatoryName,
     this.legalSignatoryRole,
     this.hrManagerName,
+    this.logoBase64,
+    this.logoMime,
     this.isActive = true,
   });
 
@@ -69,6 +73,8 @@ class HiringEntity {
         legalSignatoryName: r['legal_signatory_name'] as String?,
         legalSignatoryRole: r['legal_signatory_role'] as String?,
         hrManagerName: r['hr_manager_name'] as String?,
+        logoBase64: r['logo_base64'] as String?,
+        logoMime: r['logo_mime'] as String?,
         isActive: r['is_active'] as bool? ?? true,
       );
 }
