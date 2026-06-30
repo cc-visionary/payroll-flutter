@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../inputs/charges_editor.dart';
+import '../inputs/image_attachment_field.dart';
 import '../inputs/company_picker.dart';
 import '../inputs/date_field.dart';
 import '../inputs/employee_picker.dart';
@@ -130,6 +131,19 @@ class _NteFormState extends ConsumerState<NteForm> {
       ViolationsEditor(
         items: _i.applicableViolations,
         onChanged: (next) => _set(_i.copyWith(applicableViolations: next)),
+      ),
+      const SizedBox(height: 16),
+      _label('Attachment (optional)'),
+      const SizedBox(height: 4),
+      ImageAttachmentField(
+        bytes: _i.attachmentBytes,
+        caption: _i.attachmentCaption,
+        onPicked: (bytes, _) => _set(_i.copyWith(attachmentBytes: bytes)),
+        onRemoved: () => _set(
+          _i.copyWith(attachmentBytes: null, attachmentCaption: null),
+        ),
+        onCaptionChanged: (v) =>
+            _set(_i.copyWith(attachmentCaption: v.isEmpty ? null : v)),
       ),
         ],
       ),

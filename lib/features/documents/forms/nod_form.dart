@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../widgets/employee_name_field.dart';
 import '../inputs/company_picker.dart';
+import '../inputs/image_attachment_field.dart';
 import '../inputs/date_field.dart';
 import '../inputs/employee_picker.dart';
 import '../providers.dart';
@@ -299,6 +300,19 @@ class _NodFormState extends ConsumerState<NodForm> {
             },
           ),
           _error('effectiveDate'),
+          const SizedBox(height: 16),
+          _label('Attachment (optional)'),
+          const SizedBox(height: 4),
+          ImageAttachmentField(
+            bytes: _i.attachmentBytes,
+            caption: _i.attachmentCaption,
+            onPicked: (bytes, _) => _set(_i.copyWith(attachmentBytes: bytes)),
+            onRemoved: () => _set(
+              _i.copyWith(attachmentBytes: null, attachmentCaption: null),
+            ),
+            onCaptionChanged: (v) =>
+                _set(_i.copyWith(attachmentCaption: v.isEmpty ? null : v)),
+          ),
         ],
       ),
     );
