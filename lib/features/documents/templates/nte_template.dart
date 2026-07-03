@@ -5,9 +5,12 @@ import '../../../core/pdf/interpolate.dart';
 import '../brand_logo.dart';
 import '../blocks/block.dart';
 import '../blocks/bullet_list_block.dart';
+import '../blocks/heading_block.dart';
+import '../blocks/image_attachment_block.dart';
 import '../blocks/letter_meta_block.dart';
 import '../blocks/memo_acknowledgment_block.dart';
 import '../blocks/memo_header_block.dart';
+import '../blocks/page_break_block.dart';
 import '../blocks/paragraph_block.dart';
 import '../blocks/rich_text_block.dart';
 import '../blocks/section_heading_block.dart';
@@ -156,6 +159,15 @@ class NteTemplate extends DocumentTemplate<NteInputs> {
     ));
     blocks.add(const SpacerBlock(24));
     blocks.add(const MemoAcknowledgmentBlock());
+    if (i.attachmentBytes != null) {
+      blocks.add(const PageBreakBlock());
+      blocks.add(const HeadingBlock('Attachment'));
+      blocks.add(const SpacerBlock(8));
+      blocks.add(ImageAttachmentBlock(
+        i.attachmentBytes!,
+        caption: i.attachmentCaption,
+      ));
+    }
     return blocks;
   }
 }

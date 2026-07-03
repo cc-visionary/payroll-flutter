@@ -7,6 +7,9 @@ import 'package:payroll_flutter/features/documents/blocks/memo_acknowledgment_bl
 import 'package:payroll_flutter/features/documents/blocks/section_heading_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/rich_text_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/bullet_list_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/image_attachment_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/page_break_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/heading_block.dart';
 import 'package:payroll_flutter/features/documents/templates/nte_inputs.dart';
 import 'package:payroll_flutter/features/documents/templates/nte_template.dart';
 
@@ -73,5 +76,28 @@ void main() {
     ));
     expect(blocks.first, isA<MemoHeaderBlock>());
     expect((blocks.first as MemoHeaderBlock).logoBytes, isNotNull);
+  });
+
+  test('no attachment block when attachmentBytes is null', () {
+    const t = NteTemplate();
+    final blocks = t.build(valid());
+    expect(blocks.whereType<ImageAttachmentBlock>(), isEmpty);
+    expect(blocks.whereType<PageBreakBlock>(), isEmpty);
+  });
+
+  test('appends attachment section when attachmentBytes is set', () {
+    const t = NteTemplate();
+    final blocks = t.build(valid().copyWith(
+      attachmentBytes: Uint8List.fromList([1, 2, 3]),
+      attachmentCaption: 'Evidence photo',
+    ));
+    final img = blocks.whereType<ImageAttachmentBlock>().toList();
+    expect(img.length, 1);
+    expect(img.first.caption, 'Evidence photo');
+    expect(blocks.whereType<PageBreakBlock>().length, 1);
+    expect(
+      blocks.whereType<HeadingBlock>().any((h) => h.text == 'Attachment'),
+      isTrue,
+    );
   });
 }

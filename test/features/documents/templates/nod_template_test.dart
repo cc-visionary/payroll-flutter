@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/features/documents/blocks/heading_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/memo_header_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/image_attachment_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/page_break_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/paragraph_block.dart';
 import 'package:payroll_flutter/features/documents/templates/nod_inputs.dart';
 import 'package:payroll_flutter/features/documents/templates/nod_template.dart';
@@ -71,5 +73,36 @@ void main() {
     ));
     expect(blocks.first, isA<MemoHeaderBlock>());
     expect((blocks.first as MemoHeaderBlock).logoBytes, isNotNull);
+  });
+
+  test('no attachment block when attachmentBytes is null', () {
+    const t = NodTemplate();
+    final blocks = t.build(_i());
+    expect(blocks.whereType<ImageAttachmentBlock>(), isEmpty);
+    expect(blocks.whereType<PageBreakBlock>(), isEmpty);
+  });
+
+  test('appends attachment section when attachmentBytes is set', () {
+    const t = NodTemplate();
+    final blocks = t.build(_i().copyWith(
+      attachmentBytes: Uint8List.fromList([9, 8, 7]),
+      attachmentCaption: 'Damaged unit',
+    ));
+    final img = blocks.whereType<ImageAttachmentBlock>().toList();
+    expect(img.length, 1);
+    expect(img.first.caption, 'Damaged unit');
+    expect(blocks.whereType<PageBreakBlock>().length, 1);
+    expect(
+      blocks.whereType<HeadingBlock>().any((h) => h.text == 'Attachment'),
+      isTrue,
+    );
+
+    final iPage = blocks.indexWhere((b) => b is PageBreakBlock);
+    final iHeading =
+        blocks.indexWhere((b) => b is HeadingBlock && b.text == 'Attachment');
+    final iImage = blocks.indexWhere((b) => b is ImageAttachmentBlock);
+    expect(iPage, greaterThanOrEqualTo(0));
+    expect(iPage, lessThan(iHeading));
+    expect(iHeading, lessThan(iImage));
   });
 }

@@ -4,9 +4,11 @@ import 'package:intl/intl.dart';
 import '../brand_logo.dart';
 import '../blocks/block.dart';
 import '../blocks/heading_block.dart';
+import '../blocks/image_attachment_block.dart';
 import '../blocks/letter_meta_block.dart';
 import '../blocks/memo_header_block.dart';
 import '../blocks/multi_signature_block.dart';
+import '../blocks/page_break_block.dart';
 import '../blocks/paragraph_block.dart';
 import '../blocks/spacer_block.dart';
 import 'document_template.dart';
@@ -140,6 +142,15 @@ class NodTemplate extends DocumentTemplate<NodInputs> {
           role: 'Employee (Acknowledged)',
         ),
       ]),
+      if (i.attachmentBytes != null) ...[
+        const PageBreakBlock(),
+        const HeadingBlock('Attachment'),
+        const SpacerBlock(8),
+        ImageAttachmentBlock(
+          i.attachmentBytes!,
+          caption: i.attachmentCaption,
+        ),
+      ],
     ];
   }
 }

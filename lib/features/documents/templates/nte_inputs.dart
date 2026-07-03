@@ -35,6 +35,8 @@ class NteInputs extends TemplateInputs {
   final List<NteCharge> charges;
   final List<String> applicableViolations;
   final Uint8List? logoBytes;
+  final Uint8List? attachmentBytes;
+  final String? attachmentCaption;
 
   NteInputs({
     required this.employeeId,
@@ -54,6 +56,8 @@ class NteInputs extends TemplateInputs {
     required this.charges,
     required this.applicableViolations,
     this.logoBytes,
+    this.attachmentBytes,
+    this.attachmentCaption,
   });
 
   factory NteInputs.fromJson(Map<String, dynamic> json) {
@@ -108,6 +112,8 @@ class NteInputs extends TemplateInputs {
     List<NteCharge>? charges,
     List<String>? applicableViolations,
     Uint8List? logoBytes,
+    Object? attachmentBytes = _undef,
+    Object? attachmentCaption = _undef,
   }) =>
       NteInputs(
         employeeId: employeeId ?? this.employeeId,
@@ -128,6 +134,12 @@ class NteInputs extends TemplateInputs {
         applicableViolations:
             applicableViolations ?? this.applicableViolations,
         logoBytes: logoBytes ?? this.logoBytes,
+        attachmentBytes: identical(attachmentBytes, _undef)
+            ? this.attachmentBytes
+            : attachmentBytes as Uint8List?,
+        attachmentCaption: identical(attachmentCaption, _undef)
+            ? this.attachmentCaption
+            : attachmentCaption as String?,
       );
 
   @override
@@ -158,3 +170,5 @@ class NteInputs extends TemplateInputs {
         'applicableViolations': applicableViolations,
       };
 }
+
+const _undef = Object();

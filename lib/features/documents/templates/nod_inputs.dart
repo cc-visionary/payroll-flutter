@@ -42,6 +42,9 @@ class NodInputs extends TemplateInputs {
   final DateTime issueDate;
   // Excluded from toJson — re-resolved from the entity at view time.
   final Uint8List? logoBytes;
+  // Excluded from toJson — non-persisted, supplied per-generation.
+  final Uint8List? attachmentBytes;
+  final String? attachmentCaption;
 
   NodInputs({
     required this.employeeId,
@@ -62,6 +65,8 @@ class NodInputs extends TemplateInputs {
     required this.effectiveDate,
     required this.issueDate,
     this.logoBytes,
+    this.attachmentBytes,
+    this.attachmentCaption,
   });
 
   factory NodInputs.fromJson(Map<String, dynamic> json) {
@@ -113,6 +118,8 @@ class NodInputs extends TemplateInputs {
     DateTime? effectiveDate,
     DateTime? issueDate,
     Uint8List? logoBytes,
+    Object? attachmentBytes = _undef,
+    Object? attachmentCaption = _undef,
   }) => NodInputs(
     employeeId: employeeId ?? this.employeeId,
     employeeFullName: employeeFullName ?? this.employeeFullName,
@@ -135,6 +142,12 @@ class NodInputs extends TemplateInputs {
     effectiveDate: effectiveDate ?? this.effectiveDate,
     issueDate: issueDate ?? this.issueDate,
     logoBytes: logoBytes ?? this.logoBytes,
+    attachmentBytes: identical(attachmentBytes, _undef)
+        ? this.attachmentBytes
+        : attachmentBytes as Uint8List?,
+    attachmentCaption: identical(attachmentCaption, _undef)
+        ? this.attachmentCaption
+        : attachmentCaption as String?,
   );
 
   @override

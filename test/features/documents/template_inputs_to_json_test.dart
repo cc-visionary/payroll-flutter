@@ -422,6 +422,42 @@ void main() {
       expect(json['effectiveDate'], effectiveDate.toIso8601String());
       expect(json['issueDate'], issueDate.toIso8601String());
     });
+
+    test('excludes attachmentBytes and attachmentCaption', () {
+      final inputs = NodInputs(
+        employeeId: 'EMP-1',
+        employeeFullName: 'Jane Doe',
+        companyId: 'CO-1',
+        companyName: 'Acme',
+        effectiveDate: DateTime.utc(2026, 2, 1),
+        issueDate: DateTime.utc(2026, 1, 15),
+        attachmentBytes: logo,
+        attachmentCaption: 'Photo of damaged unit',
+      );
+      final json = inputs.toJson();
+      expect(json.containsKey('attachmentBytes'), isFalse);
+      expect(json.containsKey('attachmentCaption'), isFalse);
+    });
+
+    test('copyWith sets and clears the attachment', () {
+      final base = NodInputs(
+        employeeId: 'EMP-1',
+        employeeFullName: 'Jane Doe',
+        companyId: 'CO-1',
+        companyName: 'Acme',
+        effectiveDate: DateTime.utc(2026, 2, 1),
+        issueDate: DateTime.utc(2026, 1, 15),
+      );
+      final withImg =
+          base.copyWith(attachmentBytes: logo, attachmentCaption: 'cap');
+      expect(withImg.attachmentBytes, logo);
+      expect(withImg.attachmentCaption, 'cap');
+      final cleared =
+          withImg.copyWith(attachmentBytes: null, attachmentCaption: null);
+      expect(cleared.attachmentBytes, isNull);
+      expect(cleared.attachmentCaption, isNull);
+      expect(withImg.copyWith().attachmentBytes, logo);
+    });
   });
 
   group('NonRegInputs.toJson', () {
@@ -541,6 +577,55 @@ void main() {
 
       expect(json['applicableViolations'], ['V1', 'V2']);
       expect(json.containsKey('logoBytes'), isFalse);
+    });
+
+    test('excludes attachmentBytes and attachmentCaption', () {
+      final inputs = NteInputs(
+        employeeId: 'EMP-1',
+        employeeFullName: 'Jane Doe',
+        employeeFirstName: 'Jane',
+        employeeLastName: 'Doe',
+        employeePosition: 'Clerk',
+        employeeDepartment: 'Ops',
+        companyId: 'CO-1',
+        companyName: 'Acme',
+        dateIssued: DateTime.utc(2026, 1, 1),
+        responseDeadline: DateTime.utc(2026, 1, 6),
+        subjectSubtopic: '',
+        charges: const [],
+        applicableViolations: const [],
+        attachmentBytes: logo,
+        attachmentCaption: 'CCTV still',
+      );
+      final json = inputs.toJson();
+      expect(json.containsKey('attachmentBytes'), isFalse);
+      expect(json.containsKey('attachmentCaption'), isFalse);
+    });
+
+    test('copyWith sets and clears the attachment', () {
+      final base = NteInputs(
+        employeeId: 'EMP-1',
+        employeeFullName: 'Jane Doe',
+        employeeFirstName: 'Jane',
+        employeeLastName: 'Doe',
+        employeePosition: 'Clerk',
+        employeeDepartment: 'Ops',
+        companyId: 'CO-1',
+        companyName: 'Acme',
+        dateIssued: DateTime.utc(2026, 1, 1),
+        responseDeadline: DateTime.utc(2026, 1, 6),
+        subjectSubtopic: '',
+        charges: const [],
+        applicableViolations: const [],
+      );
+      final withImg =
+          base.copyWith(attachmentBytes: logo, attachmentCaption: 'cap');
+      expect(withImg.attachmentBytes, logo);
+      expect(withImg.attachmentCaption, 'cap');
+      final cleared =
+          withImg.copyWith(attachmentBytes: null, attachmentCaption: null);
+      expect(cleared.attachmentBytes, isNull);
+      expect(cleared.attachmentCaption, isNull);
     });
   });
 
