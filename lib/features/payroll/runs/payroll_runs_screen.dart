@@ -8,15 +8,47 @@ import '../../../app/shell.dart';
 import '../../../core/money.dart';
 import '../../../data/models/payroll_run.dart';
 import '../../../data/repositories/payroll_repository.dart';
+import '../../../widgets/live_refresh.dart';
 import '../../auth/profile_provider.dart';
 import '../payslips/payslip_pdf_context.dart';
 import 'new/new_run_dialog.dart';
 
-class PayrollRunsScreen extends ConsumerWidget {
+class PayrollRunsScreen extends ConsumerStatefulWidget {
   const PayrollRunsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PayrollRunsScreen> createState() => _PayrollRunsScreenState();
+}
+
+class _PayrollRunsScreenState extends ConsumerState<PayrollRunsScreen>
+    with LiveRefreshMixin<PayrollRunsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Cross-client live refresh: a colleague releasing/creating a run — or a
+    // payslip approval landing — on another PC updates this list within ~1s,
+    // no user action needed. No row filter (a list wants every run's changes),
+    // debounced so a bulk release fires one re-fetch. See live_refresh.dart.
+    startLiveRefresh(
+      channel: 'payroll-runs-list',
+      tables: const ['payroll_runs', 'payslips'],
+      onChange: _invalidate,
+    );
+  }
+
+  /// Re-fetch everything this screen (and its sidebar badge) reads. Also wired
+  /// to the AppBar refresh button as a manual fallback for a dropped socket.
+  void _invalidate() {
+    ref.invalidate(payrollRunsProvider);
+    // Per-run approval counts drive the inline REVIEW actions; invalidating the
+    // family refreshes them all.
+    ref.invalidate(payslipApprovalCountsProvider);
+    // Sidebar "awaiting release" badge otherwise lags up to 60s.
+    ref.invalidate(payrollRunsAwaitingReleaseCountProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(payrollRunsProvider);
     final profile = ref.watch(userProfileProvider).asData?.value;
     final canRun = profile?.canRunPayroll ?? false;
@@ -27,6 +59,11 @@ class PayrollRunsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Payroll Runs'),
         actions: [
+          IconButton(
+            tooltip: 'Refresh',
+            onPressed: _invalidate,
+            icon: const Icon(Icons.refresh),
+          ),
           if (canRun)
             Padding(
               padding: const EdgeInsets.only(right: 8),
