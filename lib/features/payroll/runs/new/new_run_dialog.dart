@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../data/models/payroll_run.dart';
 import '../../../../data/repositories/payroll_repository.dart';
 import '../../../auth/profile_provider.dart';
 import '../compute/compute_service.dart';
+import 'default_pay_period.dart';
 
 /// "New Payroll Run" dialog. Always creates a fresh pay period under the
 /// company's calendar for the chosen date range — reusing an existing
@@ -40,6 +42,13 @@ class _NewRunDialogState extends ConsumerState<_NewRunDialog> {
   late DateTime _endDate;
   late DateTime _payDate;
 
+  // Prior runs, loaded once, used to detect the last release for the default
+  // period. Null until the initial fetch resolves.
+  List<PayrollRun>? _priorRuns;
+  // True once the user adjusts the period/pay date, so the async default
+  // detection doesn't stomp on their edit.
+  bool _userEditedPeriod = false;
+
   // Employee-selection state (shared by both modes once dates are known)
   List<Map<String, dynamic>>? _employees;
   String? _employeesError;
@@ -56,11 +65,46 @@ class _NewRunDialogState extends ConsumerState<_NewRunDialog> {
   @override
   void initState() {
     super.initState();
-    final today = DateTime.now();
-    _startDate = DateTime(today.year, today.month, today.day);
-    _endDate = _startDate.add(const Duration(days: 14));
-    _payDate = _endDate.add(const Duration(days: 5));
-    _reloadEmployees(); // initial fetch for the default create-mode range
+    // Instant, sensible default: the 15-day window ending yesterday, paid
+    // today. Refined to the detected unpaid window once prior runs load.
+    final fallback = defaultPayPeriod(today: DateTime.now());
+    _startDate = fallback.start;
+    _endDate = fallback.end;
+    _payDate = fallback.payDate;
+    _reloadEmployees(); // load employees for the fallback range immediately
+    _loadPriorRunsAndApplyDefault();
+  }
+
+  /// Loads prior runs once, then defaults the period to the unpaid window
+  /// (day after the last release → yesterday). Best-effort: on failure the
+  /// synchronous fallback set in [initState] stands.
+  Future<void> _loadPriorRunsAndApplyDefault() async {
+    try {
+      final runs = await ref.read(payrollRepositoryProvider).listRuns();
+      if (!mounted) return;
+      _priorRuns = runs;
+      if (_userEditedPeriod) return; // don't stomp on the user's edit
+      _applyDetectedDefault(reload: true);
+    } catch (_) {
+      // Keep the fallback; employees already loaded in initState.
+    }
+  }
+
+  /// Recompute the default period from the cached prior runs for the current
+  /// frequency and apply it. Reloads employees for the new range when [reload].
+  void _applyDetectedDefault({bool reload = false}) {
+    final runs = _priorRuns;
+    final anchor = runs == null
+        ? null
+        : lastReleasedPeriodEnd(runs,
+            companyId: widget.companyId, frequency: _frequency);
+    final p = defaultPayPeriod(today: DateTime.now(), lastReleasedEnd: anchor);
+    setState(() {
+      _startDate = p.start;
+      _endDate = p.end;
+      _payDate = p.payDate;
+    });
+    if (reload) _reloadEmployees();
   }
 
   ({DateTime from, DateTime to}) _currentRange() =>
@@ -236,9 +280,18 @@ class _NewRunDialogState extends ConsumerState<_NewRunDialog> {
                 payDate: _payDate,
                 derivedCode: _derivedCode,
                 enabled: !_busy,
-                onFrequency: (v) => setState(() => _frequency = v),
+                onFrequency: (v) {
+                  setState(() => _frequency = v);
+                  // Changing frequency re-detects the default window for that
+                  // frequency. A hand-picked range for the previous frequency
+                  // isn't meaningful for the new one, so intentionally reset
+                  // the manual-edit guard and recompute.
+                  _userEditedPeriod = false;
+                  _applyDetectedDefault(reload: true);
+                },
                 onPeriodRange: (start, end) {
                   setState(() {
+                    _userEditedPeriod = true;
                     _startDate = start;
                     _endDate = end;
                     if (_payDate.isBefore(end)) {
@@ -247,7 +300,10 @@ class _NewRunDialogState extends ConsumerState<_NewRunDialog> {
                   });
                   _reloadEmployees();
                 },
-                onPayDate: (d) => setState(() => _payDate = d),
+                onPayDate: (d) => setState(() {
+                  _userEditedPeriod = true;
+                  _payDate = d;
+                }),
               ),
               const SizedBox(height: 12),
               Flexible(
