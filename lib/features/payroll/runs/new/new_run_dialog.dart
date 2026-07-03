@@ -93,29 +93,18 @@ class _NewRunDialogState extends ConsumerState<_NewRunDialog> {
   /// Recompute the default period from the cached prior runs for the current
   /// frequency and apply it. Reloads employees for the new range when [reload].
   void _applyDetectedDefault({bool reload = false}) {
-    final p = defaultPayPeriod(
-      today: DateTime.now(),
-      lastReleasedEnd: _lastReleasedEnd(_priorRuns, _frequency),
-    );
+    final runs = _priorRuns;
+    final anchor = runs == null
+        ? null
+        : lastReleasedPeriodEnd(runs,
+            companyId: widget.companyId, frequency: _frequency);
+    final p = defaultPayPeriod(today: DateTime.now(), lastReleasedEnd: anchor);
     setState(() {
       _startDate = p.start;
       _endDate = p.end;
       _payDate = p.payDate;
     });
     if (reload) _reloadEmployees();
-  }
-
-  /// `period_end` of the most recent RELEASED run — preferring [frequency],
-  /// else any frequency. Null when there are no releases. [runs] is sorted
-  /// newest-first by pay date (see [PayrollRepository.listRuns]).
-  DateTime? _lastReleasedEnd(List<PayrollRun>? runs, String frequency) {
-    if (runs == null) return null;
-    final released = runs.where((r) => r.status == 'RELEASED');
-    final sameFreq = released.where((r) => r.payFrequency == frequency);
-    final pick = sameFreq.isNotEmpty
-        ? sameFreq.first
-        : (released.isNotEmpty ? released.first : null);
-    return pick?.periodEnd;
   }
 
   ({DateTime from, DateTime to}) _currentRange() =>
@@ -293,7 +282,10 @@ class _NewRunDialogState extends ConsumerState<_NewRunDialog> {
                 enabled: !_busy,
                 onFrequency: (v) {
                   setState(() => _frequency = v);
-                  // Re-detect the unpaid window for the newly-chosen frequency.
+                  // Changing frequency re-detects the default window for that
+                  // frequency. A hand-picked range for the previous frequency
+                  // isn't meaningful for the new one, so intentionally reset
+                  // the manual-edit guard and recompute.
                   _userEditedPeriod = false;
                   _applyDetectedDefault(reload: true);
                 },

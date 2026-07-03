@@ -1,3 +1,27 @@
+import '../../../../data/models/payroll_run.dart';
+
+/// `period_end` of the most recent RELEASED run for [companyId] — preferring
+/// [frequency], falling back to any frequency. Returns null when the company
+/// has no releases.
+///
+/// [runs] must be sorted newest-first (as [PayrollRepository.listRuns] returns
+/// them). The [companyId] filter is required because `listRuns()` is not
+/// company-scoped server-side — a SUPER_ADMIN sees runs across every company
+/// via RLS, so an unscoped pick could anchor on the wrong company's release.
+DateTime? lastReleasedPeriodEnd(
+  List<PayrollRun> runs, {
+  required String companyId,
+  required String frequency,
+}) {
+  final released =
+      runs.where((r) => r.companyId == companyId && r.status == 'RELEASED');
+  final sameFreq = released.where((r) => r.payFrequency == frequency);
+  final pick = sameFreq.isNotEmpty
+      ? sameFreq.first
+      : (released.isNotEmpty ? released.first : null);
+  return pick?.periodEnd;
+}
+
 /// The default pay period a new payroll run opens with.
 class DefaultPayPeriod {
   final DateTime start;
