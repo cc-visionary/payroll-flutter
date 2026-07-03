@@ -96,7 +96,7 @@ void main() {
     expect(img.first.caption, 'Evidence photo');
     expect(blocks.whereType<PageBreakBlock>().length, 1);
     expect(
-      blocks.whereType<HeadingBlock>().any((h) => h.text == 'Attachment'),
+      blocks.whereType<HeadingBlock>().any((h) => h.text == 'Annex A'),
       isTrue,
     );
   });

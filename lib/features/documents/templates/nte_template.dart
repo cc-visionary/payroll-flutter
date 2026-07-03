@@ -161,7 +161,7 @@ class NteTemplate extends DocumentTemplate<NteInputs> {
     blocks.add(const MemoAcknowledgmentBlock());
     if (i.attachmentBytes != null) {
       blocks.add(const PageBreakBlock());
-      blocks.add(const HeadingBlock('Attachment'));
+      blocks.add(const HeadingBlock('Annex A'));
       blocks.add(const SpacerBlock(8));
       blocks.add(ImageAttachmentBlock(
         i.attachmentBytes!,

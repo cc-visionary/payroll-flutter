@@ -93,13 +93,13 @@ void main() {
     expect(img.first.caption, 'Damaged unit');
     expect(blocks.whereType<PageBreakBlock>().length, 1);
     expect(
-      blocks.whereType<HeadingBlock>().any((h) => h.text == 'Attachment'),
+      blocks.whereType<HeadingBlock>().any((h) => h.text == 'Annex A'),
       isTrue,
     );
 
     final iPage = blocks.indexWhere((b) => b is PageBreakBlock);
     final iHeading =
-        blocks.indexWhere((b) => b is HeadingBlock && b.text == 'Attachment');
+        blocks.indexWhere((b) => b is HeadingBlock && b.text == 'Annex A');
     final iImage = blocks.indexWhere((b) => b is ImageAttachmentBlock);
     expect(iPage, greaterThanOrEqualTo(0));
     expect(iPage, lessThan(iHeading));
