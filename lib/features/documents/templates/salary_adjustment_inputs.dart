@@ -4,13 +4,21 @@ import 'package:decimal/decimal.dart';
 
 import 'document_template.dart';
 
-enum SalaryAdjustmentType { salaryAdjustment, promotion }
+enum SalaryAdjustmentType { salaryAdjustment, promotion, lateral, demotion }
 
 extension SalaryAdjustmentTypeX on SalaryAdjustmentType {
   String get label => switch (this) {
     SalaryAdjustmentType.salaryAdjustment => 'Salary Adjustment',
     SalaryAdjustmentType.promotion => 'Promotion',
+    SalaryAdjustmentType.lateral => 'Lateral Transfer',
+    SalaryAdjustmentType.demotion => 'Demotion',
   };
+
+  /// True for modes that move the employee to a different role scorecard.
+  bool get isRoleChange =>
+      this == SalaryAdjustmentType.promotion ||
+      this == SalaryAdjustmentType.lateral ||
+      this == SalaryAdjustmentType.demotion;
 }
 
 class SalaryAdjustmentInputs extends TemplateInputs {

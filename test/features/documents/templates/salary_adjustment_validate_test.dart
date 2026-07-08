@@ -53,4 +53,51 @@ void main() {
       contains('newSalary'),
     );
   });
+
+  test('lateral requires equal salary and a differing role', () {
+    final i = _base().copyWith(
+      type: SalaryAdjustmentType.lateral,
+      newSalary: Decimal.parse('20000'),
+      oldRoleScorecardId: 'S1',
+      newRoleScorecardId: 'S2',
+    );
+    expect(validateSalaryAdjustment(i), isEmpty);
+  });
+
+  test('lateral rejects a salary change', () {
+    final i = _base().copyWith(
+      type: SalaryAdjustmentType.lateral,
+      oldRoleScorecardId: 'S1',
+      newRoleScorecardId: 'S2',
+    );
+    expect(
+      validateSalaryAdjustment(i).map((e) => e.field),
+      contains('newSalary'),
+    );
+  });
+
+  test('lateral rejects same role', () {
+    final i = _base().copyWith(
+      type: SalaryAdjustmentType.lateral,
+      newSalary: Decimal.parse('20000'),
+      oldRoleScorecardId: 'S1',
+      newRoleScorecardId: 'S1',
+    );
+    expect(
+      validateSalaryAdjustment(i).map((e) => e.field),
+      contains('newRoleScorecardId'),
+    );
+  });
+
+  test('demotion requires a differing role', () {
+    final i = _base().copyWith(
+      type: SalaryAdjustmentType.demotion,
+      newSalary: Decimal.parse('15000'),
+      oldRoleScorecardId: 'S1',
+    );
+    expect(
+      validateSalaryAdjustment(i).map((e) => e.field),
+      contains('newRoleScorecardId'),
+    );
+  });
 }

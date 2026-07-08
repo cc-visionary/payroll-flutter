@@ -31,7 +31,16 @@ List<ValidationError> validateSalaryAdjustment(SalaryAdjustmentInputs i) {
       const ValidationError('newSalary', 'New salary must be positive'),
     );
   }
-  if (i.oldSalary == i.newSalary) {
+  if (i.type == SalaryAdjustmentType.lateral) {
+    if (i.oldSalary != i.newSalary) {
+      errors.add(
+        const ValidationError(
+          'newSalary',
+          'A lateral transfer keeps salary unchanged',
+        ),
+      );
+    }
+  } else if (i.oldSalary == i.newSalary) {
     errors.add(
       const ValidationError('newSalary', 'New salary must differ from current'),
     );
@@ -39,7 +48,7 @@ List<ValidationError> validateSalaryAdjustment(SalaryAdjustmentInputs i) {
   if (i.reason.trim().isEmpty) {
     errors.add(const ValidationError('reason', 'Reason is required'));
   }
-  if (i.type == SalaryAdjustmentType.promotion) {
+  if (i.type.isRoleChange) {
     final newId = i.newRoleScorecardId ?? '';
     if (newId.isEmpty) {
       errors.add(
