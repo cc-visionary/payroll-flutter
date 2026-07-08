@@ -120,6 +120,11 @@ class GenerateScreen extends ConsumerStatefulWidget {
   final String templateId;
   final String? employeeId;
 
+  /// When launched from a compensation/role-change workflow, the linked
+  /// `compensation_changes.id`. Threaded into [AutofillContext] so the
+  /// salary-adjustment template renders THIS change rather than the newest.
+  final String? compensationChangeId;
+
   /// Test-only override for the PDF theme. When null (production) the screen
   /// fetches [PdfTheme.defaults] (Inter from Google Fonts). Tests inject
   /// [PdfTheme.testStub] to avoid the network fetch that races under
@@ -136,6 +141,7 @@ class GenerateScreen extends ConsumerStatefulWidget {
     super.key,
     required this.templateId,
     this.employeeId,
+    this.compensationChangeId,
     this.pdfThemeOverride,
     this.showLivePreview = true,
   });
@@ -471,7 +477,12 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
     final co = (emp == null || emp.hiringEntityId == null)
         ? null
         : await ref.read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
-    return AutofillContext(employee: emp, company: co, ref: ref);
+    return AutofillContext(
+      employee: emp,
+      company: co,
+      ref: ref,
+      compensationChangeId: widget.compensationChangeId,
+    );
   }
 
   Future<void> _onPickerEmployeeChanged(String newEmployeeId) async {

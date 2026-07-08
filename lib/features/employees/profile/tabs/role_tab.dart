@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/status_colors.dart';
 import '../../../../core/money.dart';
 import '../../../../data/models/compensation_change.dart';
 import '../../../../data/models/employee.dart';
@@ -251,8 +252,9 @@ class _RoleDetail extends ConsumerWidget {
   }
 }
 
-/// Amber "in-flight" strip listing SCHEDULED (future-dated) compensation
-/// changes for this employee, each with a jump to its workflow.
+/// "In-flight" strip listing SCHEDULED (future-dated) compensation changes for
+/// this employee, each with a jump to its workflow. Uses the shared warning
+/// tone so it adapts to light + dark themes (no hardcoded amber hex).
 class _PendingChangesStrip extends StatelessWidget {
   final List<CompensationChange> changes;
   const _PendingChangesStrip({required this.changes});
@@ -260,25 +262,26 @@ class _PendingChangesStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final warn = StatusPalette.of(context, StatusTone.warning);
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
+        color: warn.background,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            children: const [
-              Icon(Icons.schedule, size: 16, color: Color(0xFF92400E)),
-              SizedBox(width: 6),
+            children: [
+              Icon(Icons.schedule, size: 16, color: warn.foreground),
+              const SizedBox(width: 6),
               Text(
                 'Pending changes',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF92400E),
+                  color: warn.foreground,
                 ),
               ),
             ],

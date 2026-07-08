@@ -140,6 +140,33 @@ class CompensationChangeRepository {
         .eq('id', id);
   }
 
+  /// Materializes exactly ONE SCHEDULED change by id: repoints the employee's
+  /// role_scorecard_id when the change moves the role, then marks the change
+  /// APPLIED. Targeted analogue of [applyDue] for the workflow "Apply now"
+  /// action — scopes to the single linked change, never company-wide. A no-op
+  /// when the change isn't SCHEDULED (already applied / cancelled).
+  Future<void> applyChange(String changeId) async {
+    final row = await _client
+        .from('compensation_changes')
+        .select('id, employee_id, new_scorecard_id, prev_scorecard_id, status')
+        .eq('id', changeId)
+        .maybeSingle();
+    if (row == null) return;
+    if (row['status'] != 'SCHEDULED') return;
+    final newScorecardId = row['new_scorecard_id'] as String?;
+    final prevScorecardId = row['prev_scorecard_id'] as String?;
+    if (newScorecardId != null && newScorecardId != prevScorecardId) {
+      await _client
+          .from('employees')
+          .update({'role_scorecard_id': newScorecardId})
+          .eq('id', row['employee_id'] as String);
+    }
+    await _client.from('compensation_changes').update({
+      'status': 'APPLIED',
+      'applied_at': DateTime.now().toUtc().toIso8601String(),
+    }).eq('id', changeId);
+  }
+
   /// Materializes every SCHEDULED change due on or before [asOf]: repoints the
   /// employee's role_scorecard_id when the change moves the role, then marks
   /// the change APPLIED. Called at the start of a payroll compute (no cron).

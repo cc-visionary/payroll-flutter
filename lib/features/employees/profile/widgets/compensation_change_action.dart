@@ -53,7 +53,9 @@ Future<void> runCompensationChange({
     final effectiveDateStr = req.effectiveDate.toIso8601String().substring(0, 10);
 
     // 1) Effective-dated compensation change row (APPLIED now vs SCHEDULED).
-    final change = await ref.read(compensationChangeRepositoryProvider).insert(
+    //    Use the captured `container` (not the widget `ref`) for all post-await
+    //    reads so they don't depend on the widget's ref surviving disposal.
+    final change = await container.read(compensationChangeRepositoryProvider).insert(
           companyId: employee.companyId,
           employeeId: employee.id,
           changeType: req.changeType,
@@ -140,7 +142,7 @@ Future<void> runCompensationChange({
     final wfId = await container
         .read(workflowRepositoryProvider)
         .insertWithSteps(instance: seed.instance, steps: seed.steps);
-    await ref
+    await container
         .read(compensationChangeRepositoryProvider)
         .linkWorkflow(id: change.id, workflowId: wfId, documentId: docId);
 

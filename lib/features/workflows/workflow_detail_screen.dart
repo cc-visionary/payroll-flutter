@@ -201,7 +201,7 @@ class _CompensationChangeSection extends ConsumerWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               FilledButton(
-                onPressed: () => _applyNow(context, ref),
+                onPressed: () => _applyNow(context, ref, change),
                 child: const Text('Apply now'),
               ),
               TextButton(
@@ -235,11 +235,14 @@ class _CompensationChangeSection extends ConsumerWidget {
     );
   }
 
-  Future<void> _applyNow(BuildContext context, WidgetRef ref) async {
-    await ref.read(compensationChangeRepositoryProvider).applyDue(
-          companyId: workflow.companyId,
-          asOf: DateTime.now(),
-        );
+  Future<void> _applyNow(
+    BuildContext context,
+    WidgetRef ref,
+    CompensationChange change,
+  ) async {
+    // Scope to THIS change only — never company-wide applyDue, which would
+    // also materialize any other due change for the company.
+    await ref.read(compensationChangeRepositoryProvider).applyChange(change.id);
     ref.invalidate(workflowByIdProvider(workflow.id));
     ref.invalidate(employeeByIdProvider(workflow.employeeId));
     ref.invalidate(pendingCompensationChangesProvider(workflow.employeeId));
@@ -447,8 +450,22 @@ class _StepActions extends ConsumerWidget {
     }
     await ref.read(workflowRepositoryProvider).markStepInProgress(step.id);
     ref.invalidate(workflowStepsProvider(workflow.id));
+
+    // For compensation/role-change workflows, thread the linked change id so
+    // the salary-adjustment notice renders THIS change (not the newest). Other
+    // document workflows (separation, etc.) pass no changeId.
+    String? changeId;
+    if (workflow.workflowType == 'SALARY_CHANGE' ||
+        workflow.workflowType == 'ROLE_CHANGE') {
+      final change =
+          await ref.read(compensationChangeByWorkflowProvider(workflow.id).future);
+      changeId = change?.id;
+    }
     if (!context.mounted) return;
-    context.go('/documents/generate/$templateId?employeeId=${workflow.employeeId}');
+    final url = changeId == null
+        ? '/documents/generate/$templateId?employeeId=${workflow.employeeId}'
+        : '/documents/generate/$templateId?employeeId=${workflow.employeeId}&changeId=$changeId';
+    context.go(url);
   }
 
   Future<void> _markComplete(BuildContext context, WidgetRef ref) async {

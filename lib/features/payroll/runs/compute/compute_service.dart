@@ -79,8 +79,15 @@ class PayrollComputeService {
     final periodEndIso = payPeriodInput.endDate.toIso8601String().substring(0, 10);
     // Materialize any SCHEDULED compensation changes now due (no cron). Must run
     // before the employees select so joined role_scorecards reflect role moves.
-    await CompensationChangeRepository(_client)
-        .applyDue(companyId: companyId, asOf: periodEnd);
+    // Clamp asOf to TODAY: an ahead-dated run (period_end in the future) must
+    // not permanently apply changes that are still scheduled for the future —
+    // applyDue mutates employees.role_scorecard_id + marks the change APPLIED.
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    await CompensationChangeRepository(_client).applyDue(
+      companyId: companyId,
+      asOf: periodEnd.isAfter(today) ? today : periodEnd,
+    );
     var empQuery = _client
         .from('employees')
         .select(employeeSelectColumns)
@@ -655,6 +662,12 @@ class PayrollComputeService {
     //   mismatches and zero-value passthrough.
     // Effective compensation overrides the scorecard's base rate for actual
     // earnings. Falls back to the scorecard when no change is in effect.
+    //
+    // Known v1 limitation: recomputing a PRIOR period after a later role change
+    // has been APPLIED (scorecard pointer already moved) falls back to the
+    // CURRENT scorecard, not the historical prev_base_salary. Narrow window
+    // (an unreleased prior run recomputed after a later change lands).
+    // Follow-up: period-aware historical pay resolution.
     final effective = effectiveCompensation(comp, payPeriod.endDate);
     final wageTypeStr = effective?.newWageType ??
         (roleCard['wage_type'] as String?) ??

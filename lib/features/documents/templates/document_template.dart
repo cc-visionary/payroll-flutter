@@ -20,11 +20,19 @@ class AutofillContext {
   /// existing employee. The template is responsible for reading the Applicant
   /// from [applicantByIdProvider] using this id.
   final String? applicantId;
+
+  /// The specific `compensation_changes.id` this document belongs to, when the
+  /// generation was launched from a compensation/role-change workflow. The
+  /// salary-adjustment template selects THIS change from the employee's list
+  /// (rather than defaulting to the newest) so an older change's notice renders
+  /// its own salary/mode. Null when not launched from such a workflow.
+  final String? compensationChangeId;
   const AutofillContext({
     this.employee,
     this.company,
     required this.ref,
     this.applicantId,
+    this.compensationChangeId,
   });
 }
 

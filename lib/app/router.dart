@@ -269,6 +269,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (c, s) => GenerateScreen(
               templateId: s.pathParameters['templateId']!,
               employeeId: s.uri.queryParameters['employeeId'],
+              compensationChangeId: s.uri.queryParameters['changeId'],
             ),
           ),
           GoRoute(

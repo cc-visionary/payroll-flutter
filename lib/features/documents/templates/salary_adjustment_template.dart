@@ -86,13 +86,25 @@ class SalaryAdjustmentTemplate
 
     // If a compensation change exists for this employee, render the notice
     // from it (exact prev/new snapshots) rather than inferring from the
-    // scorecard alone. Newest non-cancelled change (by createdAt) wins.
+    // scorecard alone. When the workflow threaded a specific change id via
+    // [ctx.compensationChangeId], render THAT change (so an older change's
+    // notice doesn't render the newest one's numbers). Otherwise the newest
+    // non-cancelled change (by createdAt) wins.
     CompensationChange? change;
     try {
       final all = await ctx.ref.read(
         compensationChangesByEmployeeProvider(e?.id ?? '').future,
       );
-      change = all
+      final linkedId = ctx.compensationChangeId;
+      if (linkedId != null) {
+        for (final cc in all) {
+          if (cc.id == linkedId) {
+            change = cc;
+            break;
+          }
+        }
+      }
+      change ??= all
           .where((cc) => cc.status != 'CANCELLED')
           .fold<CompensationChange?>(
             null,
