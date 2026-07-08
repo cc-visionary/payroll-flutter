@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/status_colors.dart';
+import '../../data/models/compensation_change.dart';
 import '../../data/models/workflow_instance.dart';
 import '../../data/models/workflow_step.dart';
+import '../../data/repositories/compensation_change_repository.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../data/repositories/workflow_repository.dart';
 import '../auth/profile_provider.dart';
@@ -132,6 +135,10 @@ class _Body extends ConsumerWidget {
               data: (steps) =>
                   _StepsTimeline(workflow: w, steps: steps),
             ),
+            if (w.workflowType == 'SALARY_CHANGE' || w.workflowType == 'ROLE_CHANGE') ...[
+              const SizedBox(height: 24),
+              _CompensationChangeSection(workflow: w),
+            ],
             if (w.status == 'IN_PROGRESS' || w.status == 'DRAFT') ...[
               const SizedBox(height: 32),
               Align(
@@ -159,6 +166,137 @@ class _Body extends ConsumerWidget {
     ref.invalidate(workflowByIdProvider(w.id));
     ref.invalidate(workflowListProvider);
   }
+}
+
+/// Apply-now / cancel actions for the `compensation_changes` row linked to a
+/// SALARY_CHANGE / ROLE_CHANGE workflow. Renders nothing if the workflow has
+/// no linked change yet (e.g. still generating).
+class _CompensationChangeSection extends ConsumerWidget {
+  final WorkflowInstance workflow;
+  const _CompensationChangeSection({required this.workflow});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(compensationChangeByWorkflowProvider(workflow.id));
+    return async.when(
+      loading: () => const SizedBox.shrink(),
+      error: (e, _) => const SizedBox.shrink(),
+      data: (change) {
+        if (change == null) return const SizedBox.shrink();
+        final dateLabel = change.effectiveDate.toIso8601String().substring(0, 10);
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final effectiveDay = DateTime(
+          change.effectiveDate.year,
+          change.effectiveDate.month,
+          change.effectiveDate.day,
+        );
+        final isDue = !effectiveDay.isAfter(today);
+
+        Widget content;
+        if (change.status == 'SCHEDULED' && isDue) {
+          content = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              FilledButton(
+                onPressed: () => _applyNow(context, ref),
+                child: const Text('Apply now'),
+              ),
+              TextButton(
+                onPressed: () => _cancelChange(context, ref, change),
+                child: const Text('Cancel change'),
+              ),
+            ],
+          );
+        } else if (change.status == 'SCHEDULED') {
+          content = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              StatusChip(label: 'Scheduled for $dateLabel', tone: StatusTone.warning),
+              TextButton(
+                onPressed: () => _cancelChange(context, ref, change),
+                child: const Text('Cancel change'),
+              ),
+            ],
+          );
+        } else if (change.status == 'APPLIED') {
+          final appliedLabel = change.appliedAt?.toIso8601String().substring(0, 10) ?? dateLabel;
+          content = StatusChip(label: 'Applied $appliedLabel', tone: StatusTone.success);
+        } else {
+          content = const StatusChip(label: 'Cancelled', tone: StatusTone.danger);
+        }
+
+        return Padding(padding: const EdgeInsets.only(bottom: 8), child: content);
+      },
+    );
+  }
+
+  Future<void> _applyNow(BuildContext context, WidgetRef ref) async {
+    await ref.read(compensationChangeRepositoryProvider).applyDue(
+          companyId: workflow.companyId,
+          asOf: DateTime.now(),
+        );
+    ref.invalidate(workflowByIdProvider(workflow.id));
+    ref.invalidate(employeeByIdProvider(workflow.employeeId));
+    ref.invalidate(pendingCompensationChangesProvider(workflow.employeeId));
+    ref.invalidate(compensationChangeByWorkflowProvider(workflow.id));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Change applied.')),
+    );
+  }
+
+  Future<void> _cancelChange(
+    BuildContext context,
+    WidgetRef ref,
+    CompensationChange change,
+  ) async {
+    final confirmed = await _confirmDialog(
+      context,
+      'Cancel this compensation change?',
+      'This cancels the pending change and the linked workflow. This cannot be undone.',
+    );
+    if (!confirmed) return;
+    await ref.read(compensationChangeRepositoryProvider).cancel(change.id);
+    await ref.read(workflowRepositoryProvider).cancelInstance(
+          instanceId: workflow.id,
+          cancelReason: 'Compensation change cancelled',
+        );
+    ref.invalidate(workflowByIdProvider(workflow.id));
+    ref.invalidate(employeeByIdProvider(workflow.employeeId));
+    ref.invalidate(pendingCompensationChangesProvider(workflow.employeeId));
+    ref.invalidate(compensationChangeByWorkflowProvider(workflow.id));
+    ref.invalidate(workflowListProvider);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Change cancelled.')),
+    );
+  }
+}
+
+Future<bool> _confirmDialog(BuildContext context, String title, String body) async {
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(title),
+      content: Text(body),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Back'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Confirm'),
+        ),
+      ],
+    ),
+  );
+  return result ?? false;
 }
 
 class _StepsTimeline extends StatelessWidget {

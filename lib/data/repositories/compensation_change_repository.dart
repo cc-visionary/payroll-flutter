@@ -112,6 +112,16 @@ class CompensationChangeRepository {
         .toList();
   }
 
+  Future<CompensationChange?> byWorkflowId(String workflowId) async {
+    final row = await _client
+        .from('compensation_changes')
+        .select('*')
+        .eq('workflow_id', workflowId)
+        .isFilter('deleted_at', null)
+        .maybeSingle();
+    return row == null ? null : CompensationChange.fromRow(row);
+  }
+
   Future<void> linkWorkflow({
     required String id,
     required String workflowId,
@@ -181,3 +191,7 @@ final compensationChangesByEmployeeProvider =
 final pendingCompensationChangesProvider =
     FutureProvider.family<List<CompensationChange>, String>((ref, employeeId) =>
         ref.read(compensationChangeRepositoryProvider).pendingByEmployee(employeeId));
+
+final compensationChangeByWorkflowProvider =
+    FutureProvider.family<CompensationChange?, String>((ref, workflowId) =>
+        ref.read(compensationChangeRepositoryProvider).byWorkflowId(workflowId));
