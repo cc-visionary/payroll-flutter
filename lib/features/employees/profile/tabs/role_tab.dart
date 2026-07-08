@@ -3,11 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/money.dart';
+import '../../../../data/models/compensation_change.dart';
 import '../../../../data/models/employee.dart';
 import '../../../../data/models/role_scorecard.dart';
+import '../../../../data/repositories/compensation_change_repository.dart';
 import '../../../../data/repositories/role_scorecard_repository.dart';
 import '../../../auth/profile_provider.dart';
 import '../providers.dart';
+import '../widgets/compensation_change_action.dart';
+import '../widgets/compensation_change_dialog.dart';
 
 class RoleTab extends ConsumerWidget {
   final Employee employee;
@@ -51,6 +55,7 @@ class RoleTab extends ConsumerWidget {
         return _RoleDetail(
           employee: employee,
           card: card,
+          allCards: cards,
           departmentName: deptAsync.asData?.value,
           canManage: canManage,
         );
@@ -59,30 +64,55 @@ class RoleTab extends ConsumerWidget {
   }
 }
 
-class _RoleDetail extends StatelessWidget {
+class _RoleDetail extends ConsumerWidget {
   final Employee employee;
   final RoleScorecard card;
+  final List<RoleScorecard> allCards;
   final String? departmentName;
   final bool canManage;
   const _RoleDetail({
     required this.employee,
     required this.card,
+    required this.allCards,
     required this.departmentName,
     required this.canManage,
   });
 
+  Future<void> _openChangeDialog(BuildContext context, WidgetRef ref) async {
+    final req = await showCompensationChangeDialog(
+      context,
+      employee: employee,
+      currentCard: card,
+      allCards: allCards,
+    );
+    if (req == null || !context.mounted) return;
+    await runCompensationChange(
+      ref: ref,
+      context: context,
+      employee: employee,
+      currentCard: card,
+      req: req,
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pending =
+        ref.watch(pendingCompensationChangesProvider(employee.id)).asData?.value ??
+            const <CompensationChange>[];
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 16),
       children: [
+        if (pending.isNotEmpty) ...[
+          _PendingChangesStrip(changes: pending),
+          const SizedBox(height: 16),
+        ],
         _Section(
           title: 'Current Role',
           trailing: canManage
               ? FilledButton(
-                  onPressed: () =>
-                      context.push('/employees/${employee.id}/edit'),
-                  child: const Text('Change Role'),
+                  onPressed: () => _openChangeDialog(context, ref),
+                  child: const Text('Adjust Compensation / Change Role'),
                 )
               : null,
           subtitle: card.jobTitle,
@@ -218,6 +248,82 @@ class _RoleDetail extends StatelessWidget {
     final lo = c.salaryRangeMin == null ? '—' : Money.fmtPhp(c.salaryRangeMin!);
     final hi = c.salaryRangeMax == null ? '—' : Money.fmtPhp(c.salaryRangeMax!);
     return '$lo - $hi';
+  }
+}
+
+/// Amber "in-flight" strip listing SCHEDULED (future-dated) compensation
+/// changes for this employee, each with a jump to its workflow.
+class _PendingChangesStrip extends StatelessWidget {
+  final List<CompensationChange> changes;
+  const _PendingChangesStrip({required this.changes});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.schedule, size: 16, color: Color(0xFF92400E)),
+              SizedBox(width: 6),
+              Text(
+                'Pending changes',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF92400E),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          for (final row in changes)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          compensationChangeTypeLabel(row.changeType),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${row.newBaseSalary == null ? '—' : Money.fmtPhp(row.newBaseSalary!)}'
+                          ' · effective ${row.effectiveDate.toIso8601String().substring(0, 10)}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (row.workflowId != null)
+                    TextButton(
+                      onPressed: () =>
+                          context.go('/workflows/${row.workflowId}'),
+                      child: const Text('View workflow'),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
 
