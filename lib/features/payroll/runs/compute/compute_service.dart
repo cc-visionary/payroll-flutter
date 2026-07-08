@@ -2,7 +2,10 @@ import 'package:decimal/decimal.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../data/models/compensation_change.dart';
+import '../../../../data/repositories/compensation_change_repository.dart';
 import '../../engine/compute_engine.dart';
+import '../../engine/effective_compensation.dart';
 import '../../engine/statutory_tables.dart';
 import '../../engine/types.dart' as e;
 
@@ -74,6 +77,10 @@ class PayrollComputeService {
     // Active non-archived employees hired on or before the pay period end date.
     // When `included_employee_ids` is set on the run, restrict to that subset.
     final periodEndIso = payPeriodInput.endDate.toIso8601String().substring(0, 10);
+    // Materialize any SCHEDULED compensation changes now due (no cron). Must run
+    // before the employees select so joined role_scorecards reflect role moves.
+    await CompensationChangeRepository(_client)
+        .applyDue(companyId: companyId, asOf: periodEnd);
     var empQuery = _client
         .from('employees')
         .select(employeeSelectColumns)
@@ -92,6 +99,22 @@ class PayrollComputeService {
         errors: [],
         warnings: ['No active employees for this pay period.'],
       );
+    }
+
+    // Effective-dated compensation changes for the run's employees. The
+    // per-employee builder resolves the row in effect for the pay period and
+    // falls back to the role scorecard when none qualifies.
+    final compRows = await _client
+        .from('compensation_changes')
+        .select('*')
+        .eq('company_id', companyId)
+        .isFilter('deleted_at', null)
+        .inFilter(
+            'employee_id', employees.map((e) => e['id'] as String).toList());
+    final compByEmp = <String, List<CompensationChange>>{};
+    for (final r in (compRows as List).cast<Map<String, dynamic>>()) {
+      (compByEmp[r['employee_id'] as String] ??= [])
+          .add(CompensationChange.fromRow(r));
     }
 
     onStep?.call('Loading attendance + adjunct data…');
@@ -198,6 +221,7 @@ class PayrollComputeService {
         engineInputs.add(_buildEmployeeInput(
           row: row,
           payPeriod: payPeriodInput,
+          comp: compByEmp[row['id']] ?? const [],
           attendance: attendanceByEmp[row['id']] ?? const [],
           adjustments: adjustmentsByEmp[row['id']] ?? const [],
           cashAdvances: cashAdvancesByEmp[row['id']] ?? const [],
@@ -600,6 +624,7 @@ class PayrollComputeService {
   e.EmployeePayrollInput _buildEmployeeInput({
     required Map<String, dynamic> row,
     required e.PayPeriodInput payPeriod,
+    required List<CompensationChange> comp,
     required List<Map<String, dynamic>> attendance,
     required List<Map<String, dynamic>> adjustments,
     required List<Map<String, dynamic>> cashAdvances,
@@ -628,10 +653,15 @@ class PayrollComputeService {
     //   The override is applied only when BOTH the amount AND the type are
     //   set AND the amount is strictly positive — avoids partial-override
     //   mismatches and zero-value passthrough.
-    final wageTypeStr = (roleCard['wage_type'] as String?) ?? 'DAILY';
-    final baseRate =
+    // Effective compensation overrides the scorecard's base rate for actual
+    // earnings. Falls back to the scorecard when no change is in effect.
+    final effective = effectiveCompensation(comp, payPeriod.endDate);
+    final wageTypeStr = effective?.newWageType ??
+        (roleCard['wage_type'] as String?) ??
+        'DAILY';
+    final baseRate = effective?.newBaseSalary ??
         Decimal.tryParse((roleCard['base_salary'] ?? '0').toString()) ??
-            Decimal.zero;
+        Decimal.zero;
     final wageType = _parseWageType(wageTypeStr);
 
     final overrideRaw = row['declared_wage_override'];
