@@ -2,7 +2,9 @@ import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
+import '../../../data/models/compensation_change.dart';
 import '../../../data/models/role_scorecard.dart';
+import '../../../data/repositories/compensation_change_repository.dart';
 import '../blocks/block.dart';
 import '../blocks/letter_meta_block.dart';
 import '../blocks/letterhead_block.dart';
@@ -82,8 +84,47 @@ class SalaryAdjustmentTemplate
 
     final logo = await loadCompanyLogoBytes(c);
 
+    // If a compensation change exists for this employee, render the notice
+    // from it (exact prev/new snapshots) rather than inferring from the
+    // scorecard alone. Newest non-cancelled change (by createdAt) wins.
+    CompensationChange? change;
+    try {
+      final all = await ctx.ref.read(
+        compensationChangesByEmployeeProvider(e?.id ?? '').future,
+      );
+      change = all
+          .where((cc) => cc.status != 'CANCELLED')
+          .fold<CompensationChange?>(
+            null,
+            (best, cc) =>
+                best == null || cc.createdAt.isAfter(best.createdAt)
+                    ? cc
+                    : best,
+          );
+    } catch (_) {
+      change = null;
+    }
+
+    final mode = change == null
+        ? SalaryAdjustmentType.salaryAdjustment
+        : _modeForChangeType(change.changeType);
+
+    // Resolve the new position's title from the change's target scorecard,
+    // mirroring the lookup used for the old position's scorecard above.
+    RoleScorecard? newScorecard;
+    final newScorecardId = change?.newScorecardId;
+    if (newScorecardId != null && newScorecardId.isNotEmpty) {
+      try {
+        newScorecard = await ctx.ref.read(
+          roleScorecardByIdProvider(newScorecardId).future,
+        );
+      } catch (_) {
+        newScorecard = null;
+      }
+    }
+
     return SalaryAdjustmentInputs(
-      type: SalaryAdjustmentType.salaryAdjustment,
+      type: mode,
       employeeId: e?.id ?? '',
       employeeFullName: e?.fullName ?? '',
       employeePosition: e?.jobTitle ?? scorecard?.jobTitle ?? '',
@@ -100,13 +141,19 @@ class SalaryAdjustmentTemplate
               c.zipCode,
             ),
       hrManagerName: c?.hrManagerName ?? '',
-      oldRoleScorecardId: e?.roleScorecardId,
+      oldRoleScorecardId: change?.prevScorecardId ?? e?.roleScorecardId,
+      newRoleScorecardId: change?.newScorecardId,
       oldPosition: e?.jobTitle ?? scorecard?.jobTitle ?? '',
-      oldSalary:
-          e?.declaredWageOverride ?? scorecard?.baseSalary ?? Decimal.zero,
-      salaryPeriod: scorecard?.wageType ?? 'MONTHLY',
-      effectiveDate: firstOfNextMonth,
+      newPosition: newScorecard?.jobTitle ?? '',
+      oldSalary: change?.prevBaseSalary ??
+          e?.declaredWageOverride ??
+          scorecard?.baseSalary ??
+          Decimal.zero,
+      newSalary: change?.newBaseSalary ?? Decimal.zero,
+      salaryPeriod: change?.newWageType ?? scorecard?.wageType ?? 'MONTHLY',
+      effectiveDate: change?.effectiveDate ?? firstOfNextMonth,
       issueDate: today,
+      reason: change?.reason ?? '',
       logoBytes: logo,
     );
   }
@@ -123,21 +170,38 @@ class SalaryAdjustmentTemplate
         ? 'daily rate'
         : 'monthly salary';
     final salutation = _salutation(i.employeeGender, i.employeeFullName);
-    final subject = i.type == SalaryAdjustmentType.promotion
-        ? 'Notice of Promotion'
-        : 'Notice of Salary Adjustment';
+    final subject = switch (i.type) {
+      SalaryAdjustmentType.promotion => 'Notice of Promotion',
+      SalaryAdjustmentType.lateral => 'Notice of Lateral Transfer',
+      SalaryAdjustmentType.demotion => 'Notice of Change in Role',
+      SalaryAdjustmentType.salaryAdjustment => 'Notice of Salary Adjustment',
+    };
 
-    final bodyText = i.type == SalaryAdjustmentType.promotion
-        ? 'We are pleased to inform you that, effective '
-              '${df.format(i.effectiveDate)}, you are being promoted from '
-              '${i.oldPosition} to ${i.newPosition}. In line with this '
-              'promotion, your $periodLabel will be adjusted from '
-              '${cf.format(i.oldSalary.toDouble())} to '
-              '${cf.format(i.newSalary.toDouble())}. ${i.reason}'
-        : 'We are pleased to inform you that, effective '
-              '${df.format(i.effectiveDate)}, your $periodLabel will be '
-              'adjusted from ${cf.format(i.oldSalary.toDouble())} to '
-              '${cf.format(i.newSalary.toDouble())}. ${i.reason}';
+    final bodyText = switch (i.type) {
+      SalaryAdjustmentType.promotion =>
+        'We are pleased to inform you that, effective '
+            '${df.format(i.effectiveDate)}, you are being promoted from '
+            '${i.oldPosition} to ${i.newPosition}. In line with this '
+            'promotion, your $periodLabel will be adjusted from '
+            '${cf.format(i.oldSalary.toDouble())} to '
+            '${cf.format(i.newSalary.toDouble())}. ${i.reason}',
+      SalaryAdjustmentType.lateral =>
+        'We wish to inform you that, effective '
+            '${df.format(i.effectiveDate)}, you are being transferred from '
+            '${i.oldPosition} to ${i.newPosition}. Your $periodLabel remains '
+            'unchanged at ${cf.format(i.oldSalary.toDouble())}. ${i.reason}',
+      SalaryAdjustmentType.demotion =>
+        'We wish to inform you that, effective '
+            '${df.format(i.effectiveDate)}, your role will change from '
+            '${i.oldPosition} to ${i.newPosition}, and your $periodLabel '
+            'will be adjusted from ${cf.format(i.oldSalary.toDouble())} to '
+            '${cf.format(i.newSalary.toDouble())}. ${i.reason}',
+      SalaryAdjustmentType.salaryAdjustment =>
+        'We are pleased to inform you that, effective '
+            '${df.format(i.effectiveDate)}, your $periodLabel will be '
+            'adjusted from ${cf.format(i.oldSalary.toDouble())} to '
+            '${cf.format(i.newSalary.toDouble())}. ${i.reason}',
+    };
 
     return <Block>[
       if (i.logoBytes != null || i.companyName.isNotEmpty)
@@ -207,3 +271,14 @@ String _composeAddress(
     tail,
   ].where((s) => s != null && s.isNotEmpty).cast<String>().join(', ');
 }
+
+/// Maps a `compensation_changes.change_type` value to the notice mode it
+/// should render as. SALARY_INCREASE/SALARY_DECREASE both render as the
+/// plain salary-adjustment notice.
+SalaryAdjustmentType _modeForChangeType(String changeType) =>
+    switch (changeType) {
+      'PROMOTION' => SalaryAdjustmentType.promotion,
+      'LATERAL_TRANSFER' => SalaryAdjustmentType.lateral,
+      'DEMOTION' => SalaryAdjustmentType.demotion,
+      _ => SalaryAdjustmentType.salaryAdjustment,
+    };
