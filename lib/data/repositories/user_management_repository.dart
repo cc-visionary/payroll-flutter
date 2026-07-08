@@ -7,8 +7,9 @@ class UserManagementRepository {
   final SupabaseClient _client;
   UserManagementRepository(this._client);
 
-  /// Lists every user in the caller's company. RLS on `user_emails` already
-  /// scopes to the caller's company_id.
+  /// Lists users visible to the caller. `user_emails` is a security_invoker view
+  /// over `public.users`, so the `users_self_read` RLS policy applies: HR/admin
+  /// roles see the roster, everyone else sees only their own row.
   Future<List<ManagedUser>> list() async {
     final rows = await _client
         .from('user_emails')
