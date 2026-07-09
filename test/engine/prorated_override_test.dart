@@ -162,4 +162,34 @@ void main() {
       ),
     );
   });
+
+  test('null newWageType carries forward prevWageType, not the scorecard wage type', () {
+    final comp = [
+      // Role-only change: both new* fields null, so the wage type in force is
+      // carried from prevWageType ('DAILY'), not the scorecard's 'MONTHLY'.
+      _roleOnlyChange(
+        id: 'C1',
+        effective: '2026-07-10',
+        prevSalary: '34000',
+        prevWageType: 'DAILY',
+      ),
+      // Later change so periodEnd (2026-07-31) resolves to C2, a DIFFERENT id
+      // than the day's C1 -> the identity check passes and the fallback runs.
+      _change(id: 'C2', effective: '2026-07-20', newSalary: '38000'),
+    ];
+    // Between C1 and C2 -> C1's regime. C1 has newWageType == null, so the wage
+    // type must fall back to prevWageType 'DAILY' (flat 34000). If the fallback
+    // regressed to scorecardWageType 'MONTHLY', this would be 34000/26.
+    final r = _resolve(comp, '2026-07-15');
+    expect(r, isNotNull);
+    expect(
+      r,
+      dailyRateFrom(
+        baseSalary: _d('34000'),
+        wageType: 'DAILY',
+        workDaysPerMonth: 26,
+        hoursPerDay: 8,
+      ),
+    );
+  });
 }
