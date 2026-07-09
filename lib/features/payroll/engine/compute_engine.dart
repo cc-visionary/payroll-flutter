@@ -111,7 +111,6 @@ ComputedPayslip computeEmployeePayslip(
   // Sum of every emitted BASIC_PAY line. Used by the tax block (step 14) so
   // withholding is based on what is actually paid when days carry different
   // rates (mid-period compensation changes, manual per-day overrides).
-  // ignore: unused_local_variable
   Decimal basicPayTotalActual = Decimal.zero;
 
   // 3. Basic pay lines
@@ -427,32 +426,35 @@ ComputedPayslip computeEmployeePayslip(
     // override is the BIR-declared salary, not a per-period actual.
     Decimal taxBasicPay;
     Decimal taxLateUtDeduction;
-    {
+    if (employee.statutoryOverride != null) {
+      // The BIR-declared salary ALWAYS replaces the scorecard rate for tax —
+      // it is a declared figure, not a per-period actual. Unchanged.
       final workDaysPerMonth = profile.standardWorkDaysPerMonth;
       final hoursPerDay = profile.standardHoursPerDay;
+      final o = employee.statutoryOverride!;
       Decimal taxDailyRate;
-      Decimal taxMinuteRate;
-      if (employee.statutoryOverride != null) {
-        final o = employee.statutoryOverride!;
-        switch (o.wageType) {
-          case WageType.DAILY:
-            taxDailyRate = o.baseRate;
-            break;
-          case WageType.HOURLY:
-            taxDailyRate = o.baseRate * _fromInt(hoursPerDay);
-            break;
-          case WageType.MONTHLY:
-            taxDailyRate = _div(o.baseRate, _fromInt(workDaysPerMonth));
-            break;
-        }
-        taxMinuteRate = _div(taxDailyRate, _fromInt(hoursPerDay * 60));
-      } else {
-        taxDailyRate = rates.dailyRate;
-        taxMinuteRate = rates.minuteRate;
+      switch (o.wageType) {
+        case WageType.DAILY:
+          taxDailyRate = o.baseRate;
+          break;
+        case WageType.HOURLY:
+          taxDailyRate = o.baseRate * _fromInt(hoursPerDay);
+          break;
+        case WageType.MONTHLY:
+          taxDailyRate = _div(o.baseRate, _fromInt(workDaysPerMonth));
+          break;
       }
+      final taxMinuteRate = _div(taxDailyRate, _fromInt(hoursPerDay * 60));
       taxBasicPay = _round3(taxDailyRate * _fromInt(workDays));
       taxLateUtDeduction =
           _round3(taxMinuteRate * _fromDouble(totalDeductionMinutes));
+    } else {
+      // No declared-wage override: tax the pay that was ACTUALLY computed.
+      // When every day shares one rate this is arithmetically identical to the
+      // old notional `rates.dailyRate * workDays`; when days differ (mid-period
+      // compensation change, manual per-day override) it is the correct figure.
+      taxBasicPay = basicPayTotalActual;
+      taxLateUtDeduction = _round3(lateUtDeductionAmount);
     }
 
     if (employee.taxOnFullEarnings) {
