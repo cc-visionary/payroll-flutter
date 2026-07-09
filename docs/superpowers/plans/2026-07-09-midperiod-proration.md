@@ -1019,19 +1019,31 @@ void main() {
     expect(total < allNew, isTrue);
   });
 
-  test('INVARIANT 2: no per-day overrides -> identical payslip to the plain run', () {
-    final a = computePayroll(_july, _ruleset, [_employee(baseRate: _d('30000'))])
+  test('INVARIANT 2: no per-day overrides -> basic pay is exactly rate x workDays', () {
+    // Do NOT compare two identical runs — that asserts nothing. Assert the
+    // concrete pre-existing formula still holds.
+    final slip = computePayroll(_july, _ruleset, [_employee(baseRate: _d('30000'))])
         .payslips.single;
-    final b = computePayroll(_july, _ruleset, [_employee(baseRate: _d('30000'))])
-        .payslips.single;
-    expect(a.grossPay, b.grossPay);
-    expect(a.netPay, b.netPay);
-    expect(a.lines.length, b.lines.length);
+    final basic = slip.lines
+        .where((l) => l.category == PayslipLineCategory.BASIC_PAY)
+        .toList();
+
+    expect(basic, hasLength(1));
+    expect(basic.single.description, 'Basic Pay (Monthly)');
+    expect(basic.single.quantity, isNull);
+    expect(basic.single.rate, isNull);
+
+    // wage_calculator _round3's the standard daily rate: 30000/26 -> 1153.846.
+    // The engine sums that rate over 22 workdays.
+    final dailyRate = _d('1153.846');
+    expect(basic.single.amount, dailyRate * Decimal.fromInt(22));
   });
 
-  test('INVARIANT 3: a manual per-day override still wins (engine honors it)', () {
-    // compute_service applies precedence; the engine simply honors whatever
-    // dailyRateOverride it is given. Assert the override drives the rate.
+  test('ENGINE honors a per-day override on every day', () {
+    // NOTE: manual-vs-compensation PRECEDENCE lives in compute_service's `??=`
+    // and is not unit-tested (Supabase-row mapper; repo convention). This test
+    // asserts only what the engine guarantees: whatever dailyRateOverride it is
+    // handed drives that day's rate.
     final manual = _d('999');
     final slip = computePayroll(
       _july, _ruleset,
@@ -1040,8 +1052,11 @@ void main() {
     final basic = slip.lines
         .where((l) => l.category == PayslipLineCategory.BASIC_PAY)
         .toList();
-    // All 22 days overridden -> single group at the manual rate.
+
+    // All 22 days overridden to 999 -> one group at the overridden rate,
+    // NOT the 1153.846 standard rate.
     expect(basic, hasLength(1));
+    expect(basic.single.amount, manual * Decimal.fromInt(22));
   });
 }
 ```
