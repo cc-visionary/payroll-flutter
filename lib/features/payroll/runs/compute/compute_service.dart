@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../data/models/compensation_change.dart';
 import '../../../../data/repositories/compensation_change_repository.dart';
 import '../../engine/compute_engine.dart';
+import '../../engine/daily_rate.dart';
 import '../../engine/effective_compensation.dart';
 import '../../engine/statutory_tables.dart';
 import '../../engine/types.dart' as e;
@@ -734,9 +735,27 @@ class PayrollComputeService {
     final defaultShift =
         defaultShiftId == null ? null : shifts[defaultShiftId];
 
+    // Per-day compensation regime -> pro-rated daily rate. Returns null when
+    // the day shares the period-end regime (the engine's standard rate is then
+    // already correct), which is always the case when the employee has no
+    // compensation_changes rows.
+    final scorecardBase =
+        Decimal.tryParse((roleCard['base_salary'] ?? '0').toString()) ??
+            Decimal.zero;
+    final scorecardWageType = (roleCard['wage_type'] as String?) ?? 'DAILY';
+    Decimal? compRateFor(DateTime day) => proratedDailyRateOverride(
+          comp: comp,
+          attendanceDate: day,
+          periodEnd: payPeriod.endDate,
+          scorecardBaseSalary: scorecardBase,
+          scorecardWageType: scorecardWageType,
+          workDaysPerMonth: 26,
+          hoursPerDay: hoursPerDay,
+        );
+
     final attendanceInputs =
         attendance
-            .map((r) => _attendanceFromRow(r, shifts, defaultShift))
+            .map((r) => _attendanceFromRow(r, shifts, defaultShift, compRateFor))
             .whereType<e.AttendanceDayInput>()
             .toList();
 
@@ -795,6 +814,7 @@ class PayrollComputeService {
     Map<String, dynamic> r,
     Map<String, Map<String, dynamic>> shifts,
     Map<String, dynamic>? defaultShift,
+    Decimal? Function(DateTime) compRateFor,
   ) {
     // Day-type rule, mirrors AttendanceRowVm.dayType:
     //   - Holiday day types (REGULAR_HOLIDAY / SPECIAL_HOLIDAY /
@@ -971,12 +991,16 @@ class PayrollComputeService {
     // Per-day rate override — honored by every engine branch that calls
     // `getDayRates(...)`. Without this plumbing, batch-edit rate overrides
     // were silently ignored and compute would use the scorecard's base rate.
+    final attendanceDate = DateTime.parse(r['attendance_date'] as String);
     Decimal? dailyRateOverride;
     final rateRaw = r['daily_rate_override'];
     if (rateRaw != null) {
       final parsed = Decimal.tryParse(rateRaw.toString());
       if (parsed != null) dailyRateOverride = parsed;
     }
+    // Manual per-day override wins; otherwise fall back to the compensation-
+    // derived rate for this day (null when the day matches the period-end rate).
+    dailyRateOverride ??= compRateFor(attendanceDate);
 
     // Night-differential minutes — the intersection of the employee's
     // effective work window with PH's 22:00–06:00 ND band. "Effective"
@@ -1012,7 +1036,7 @@ class PayrollComputeService {
 
     return e.AttendanceDayInput(
       id: r['id'] as String,
-      attendanceDate: DateTime.parse(r['attendance_date'] as String),
+      attendanceDate: attendanceDate,
       dayType: dayType,
       holidayName: r['holiday_name'] as String?,
       workedMinutes: worked,
