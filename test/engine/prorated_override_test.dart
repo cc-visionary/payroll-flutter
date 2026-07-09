@@ -27,6 +27,31 @@ CompensationChange _change({
       createdAt: DateTime.parse(created),
     );
 
+/// Like [_change], but leaves `newBaseSalary`/`newWageType` unset so the
+/// fallback-to-`prev*` path can be exercised (e.g. a role-only change).
+CompensationChange _roleOnlyChange({
+  required String id,
+  required String effective,
+  required String prevSalary,
+  String status = 'SCHEDULED',
+  String? prevWageType = 'MONTHLY',
+  String created = '2026-07-01T00:00:00Z',
+}) =>
+    CompensationChange(
+      id: id,
+      companyId: 'CO1',
+      employeeId: 'E1',
+      changeType: 'LATERAL_TRANSFER',
+      status: status,
+      effectiveDate: DateTime.parse(effective),
+      prevBaseSalary: _d(prevSalary),
+      newBaseSalary: null,
+      prevWageType: prevWageType,
+      newWageType: null,
+      initiatedById: 'U1',
+      createdAt: DateTime.parse(created),
+    );
+
 Decimal? _resolve(List<CompensationChange> comp, String day) =>
     proratedDailyRateOverride(
       comp: comp,
@@ -66,7 +91,7 @@ void main() {
   });
 
   test('day AFTER the effective date -> null (same regime as period end)', () {
-    expect(_resolve(raise, '2026-07-31'), isNull);
+    expect(_resolve(raise, '2026-07-20'), isNull);
   });
 
   test('CANCELLED change is ignored -> null everywhere', () {
@@ -94,5 +119,47 @@ void main() {
     );
     // On/after C2 -> same regime as period end -> null.
     expect(_resolve(comp, '2026-07-25'), isNull);
+  });
+
+  test('null newBaseSalary carries forward prevBaseSalary, not the scorecard rate', () {
+    final comp = [
+      _roleOnlyChange(id: 'C1', effective: '2026-07-10', prevSalary: '34000'),
+      _change(id: 'C2', effective: '2026-07-20', newSalary: '38000'),
+    ];
+    // Between C1 and C2 -> C1's regime, but C1.newBaseSalary is null, so this
+    // must resolve to C1.prevBaseSalary (34000), NOT scorecardBaseSalary
+    // (30000) -- the two differ so the assertion actually discriminates.
+    final r = _resolve(comp, '2026-07-15');
+    expect(r, isNotNull);
+    expect(
+      r,
+      dailyRateFrom(
+        baseSalary: _d('34000'),
+        wageType: 'MONTHLY',
+        workDaysPerMonth: 26,
+        hoursPerDay: 8,
+      ),
+    );
+  });
+
+  test("DAILY wage-type change passes through the change's own wage type, not the scorecard's", () {
+    final comp = [
+      _change(id: 'C1', effective: '2026-07-10', newSalary: '1500', wageType: 'DAILY'),
+      _change(id: 'C2', effective: '2026-07-20', newSalary: '38000'),
+    ];
+    // scorecardWageType is 'MONTHLY' (per _resolve), so if the wage type were
+    // wrongly taken from the scorecard this would come back as 1500/26
+    // instead of 1500 flat.
+    final r = _resolve(comp, '2026-07-15');
+    expect(r, isNotNull);
+    expect(
+      r,
+      dailyRateFrom(
+        baseSalary: _d('1500'),
+        wageType: 'DAILY',
+        workDaysPerMonth: 26,
+        hoursPerDay: 8,
+      ),
+    );
   });
 }

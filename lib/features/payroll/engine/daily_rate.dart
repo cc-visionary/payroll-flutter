@@ -60,9 +60,15 @@ Decimal? proratedDailyRateOverride({
       hoursPerDay: hoursPerDay,
     );
   }
+  // Fallback order: new -> prev -> scorecard. `newBaseSalary`/`newWageType`
+  // are nullable (e.g. a role-only change that doesn't touch pay), and in
+  // that case the salary/wage-type actually in force on this day is whatever
+  // was captured as `prevBaseSalary`/`prevWageType` on the SAME row -- not
+  // the original role-scorecard values, which would silently discard any
+  // raise applied by an earlier change in the history.
   return dailyRateFrom(
-    baseSalary: dayEff.newBaseSalary ?? scorecardBaseSalary,
-    wageType: dayEff.newWageType ?? scorecardWageType,
+    baseSalary: dayEff.newBaseSalary ?? dayEff.prevBaseSalary ?? scorecardBaseSalary,
+    wageType: dayEff.newWageType ?? dayEff.prevWageType ?? scorecardWageType,
     workDaysPerMonth: workDaysPerMonth,
     hoursPerDay: hoursPerDay,
   );
