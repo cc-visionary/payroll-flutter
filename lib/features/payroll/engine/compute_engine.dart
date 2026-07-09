@@ -108,23 +108,60 @@ ComputedPayslip computeEmployeePayslip(
   }).toList();
   final workDays = workDayAttendance.length;
 
+  // Sum of every emitted BASIC_PAY line. Used by the tax block (step 14) so
+  // withholding is based on what is actually paid when days carry different
+  // rates (mid-period compensation changes, manual per-day overrides).
+  // ignore: unused_local_variable
+  Decimal basicPayTotalActual = Decimal.zero;
+
   // 3. Basic pay lines
   if (profile.wageType == WageType.MONTHLY) {
-    Decimal basicPayTotal = Decimal.zero;
+    final label = payPeriod.payFrequency == PayFrequency.SEMI_MONTHLY
+        ? 'Semi-Monthly'
+        : 'Monthly';
+
+    // Group by effective daily rate, preserving first-occurrence (chronological)
+    // order so the pre-change rate precedes the post-change rate.
+    final rateGroups = <String, _RateGroup>{};
     for (final day in workDayAttendance) {
       final dayRates = getDayRates(rates, hpd, day.dailyRateOverride);
-      basicPayTotal += dayRates.dailyRate;
+      final key = dayRates.dailyRate.toString();
+      final g = rateGroups[key] ?? _RateGroup(dayRates.dailyRate, 0);
+      rateGroups[key] = _RateGroup(dayRates.dailyRate, g.count + 1);
     }
-    basicPayTotal = _round3(basicPayTotal);
-    lines.add(ComputedPayslipLine(
-      category: PayslipLineCategory.BASIC_PAY,
-      description: payPeriod.payFrequency == PayFrequency.SEMI_MONTHLY
-          ? 'Basic Pay (Semi-Monthly)'
-          : 'Basic Pay (Monthly)',
-      amount: basicPayTotal,
-      sortOrder: 100,
-      ruleCode: 'BASIC_PAY',
-    ));
+
+    if (rateGroups.length <= 1) {
+      // Invariant 4: one rate (or no workdays) -> today's exact single line.
+      Decimal basicPayTotal = Decimal.zero;
+      for (final day in workDayAttendance) {
+        final dayRates = getDayRates(rates, hpd, day.dailyRateOverride);
+        basicPayTotal += dayRates.dailyRate;
+      }
+      basicPayTotal = _round3(basicPayTotal);
+      basicPayTotalActual += basicPayTotal;
+      lines.add(ComputedPayslipLine(
+        category: PayslipLineCategory.BASIC_PAY,
+        description: 'Basic Pay ($label)',
+        amount: basicPayTotal,
+        sortOrder: 100,
+        ruleCode: 'BASIC_PAY',
+      ));
+    } else {
+      for (final g in rateGroups.values) {
+        final amount = _round3(g.rate * _fromInt(g.count));
+        basicPayTotalActual += amount;
+        lines.add(ComputedPayslipLine(
+          category: PayslipLineCategory.BASIC_PAY,
+          description:
+              'Basic Pay ($label) — ${g.count} day${g.count != 1 ? 's' : ''}',
+          quantity: _fromInt(g.count),
+          rate: g.rate,
+          amount: amount,
+          sortOrder: 100,
+          ruleCode: 'BASIC_PAY',
+        ));
+      }
+    }
   } else {
     // Group by effective daily rate
     final rateGroups = <String, _RateGroup>{};
@@ -136,13 +173,15 @@ ComputedPayslip computeEmployeePayslip(
     }
     for (final g in rateGroups.values) {
       final qty = g.count.toDouble();
+      final amount = _round3(g.rate * _fromDouble(qty));
+      basicPayTotalActual += amount;
       lines.add(ComputedPayslipLine(
         category: PayslipLineCategory.BASIC_PAY,
         description:
             'Basic Pay (${qty.toStringAsFixed(3)} day${g.count != 1 ? 's' : ''})',
         quantity: _fromDouble(qty),
         rate: g.rate,
-        amount: _round3(g.rate * _fromDouble(qty)),
+        amount: amount,
         sortOrder: 100,
         ruleCode: 'BASIC_PAY',
       ));
