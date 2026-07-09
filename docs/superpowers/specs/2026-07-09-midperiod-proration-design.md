@@ -49,6 +49,11 @@ assumed boundary-aligned effective dates and never addressed proration.
 - `compute_service._buildEmployeeInput` (`:631`) already receives the employee's `comp`
   (`List<CompensationChange>`) and builds `attendanceInputs` (`:737`) — both the data and the seam
   are already in scope.
+- **There is no second basic-pay code path.** `payslip_generator.generateBasicPayLine(...)` and
+  `wage_calculator.calculateBasicPay(...)` are **dead code** — verified: nothing calls them.
+  `compute_engine` imports `payslip_generator` only for its overtime helpers and computes basic pay
+  inline via the per-day loop. So fixing the inline loop fixes everything; the payslip PDF renders
+  the stored `payslip_lines` that the loop produced.
 
 ## Decisions locked from brainstorm
 
@@ -66,6 +71,16 @@ assumed boundary-aligned effective dates and never addressed proration.
    untouched. (User-stated invariant.)
 6. **Mid-period `wage_type` changes are blocked.** If a change switches `wage_type`, the effective
    date must be the 1st of a month. Pay-only and same-wage-type role changes may land on any day.
+   **Reason (verified):** the *daily rate is the universal unit* — `getDayRates` derives hourly and
+   minute rates from whatever daily rate a day carries, so OT, night differential, and late/undertime
+   all pro-rate correctly for every wage type. The rates are never the problem. The single genuine
+   `wageType`-dependent divergence is `compute_engine.dart:100`:
+   `if (a.isOnLeave && a.leaveIsPaid && profile.wageType == WageType.MONTHLY) return true;` — **paid
+   leave days count as workdays only for MONTHLY employees.** A DAILY→MONTHLY switch mid-period would
+   apply the monthly rule to the whole period, over-counting paid leave taken *before* the switch.
+   Forcing such changes onto the 1st removes that edge for ~4 lines of validation. (Making the leave
+   rule itself per-day was considered and rejected: it feeds `workDays`, statutory eligibility, and
+   every downstream total — too large a blast radius on the money path for this spec.)
 7. **The MONTHLY basic-pay branch groups by rate**, emitting one line per distinct daily rate — like
    the DAILY/HOURLY branch already does — so a mid-period raise is self-documenting on the payslip.
    With a single rate (the normal case) it emits **exactly today's single line, unchanged**.
@@ -169,8 +184,11 @@ per-day `Σ rate_i` exactly.
 
 Extend the pure `validateCompensationRequest(...)`: when the request's `newWageType` differs from the
 employee's current wage type, the `effectiveDate` must have `day == 1`, else a validation error
-("A wage-type change must take effect on the 1st of a month"). This keeps the engine's
-single-branch-per-period assumption sound (decision 6).
+("A wage-type change must take effect on the 1st of a month").
+
+This exists **solely** to avoid the paid-leave miscount described in decision 6 — *not* because the
+rates need it. Both basic-pay branches compute `Σ (per-day rate)`, so the arithmetic is wage-type
+agnostic once the day carries the right daily rate.
 
 ### 6. Invariants (regression safety)
 
