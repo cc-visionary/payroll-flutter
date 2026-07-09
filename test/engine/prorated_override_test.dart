@@ -192,4 +192,51 @@ void main() {
       ),
     );
   });
+
+  test('role change: pre-change day uses prevBaseSalary, not the repointed scorecard', () {
+    // A mid-period PROMOTION moves the role, so applyDue repoints
+    // employees.role_scorecard_id to the NEW scorecard BEFORE the employees
+    // select. The joined scorecard therefore already reads the NEW salary
+    // (45000). A pre-change day must NOT inherit that -- it must use the
+    // prevBaseSalary (30000) captured on the change row.
+    final comp = [
+      CompensationChange(
+        id: 'C1',
+        companyId: 'CO1',
+        employeeId: 'E1',
+        changeType: 'PROMOTION',
+        status: 'SCHEDULED',
+        effectiveDate: DateTime.parse('2026-07-17'),
+        prevBaseSalary: _d('30000'),
+        newBaseSalary: _d('45000'),
+        prevWageType: 'MONTHLY',
+        newWageType: 'MONTHLY',
+        prevScorecardId: 'S1',
+        newScorecardId: 'S2',
+        initiatedById: 'U1',
+        createdAt: DateTime.parse('2026-07-01T00:00:00Z'),
+      ),
+    ];
+    // Day precedes the change -> dayEff == null. scorecardBaseSalary is 45000,
+    // simulating the already-repointed NEW scorecard.
+    final r = proratedDailyRateOverride(
+      comp: comp,
+      attendanceDate: DateTime.parse('2026-07-10'),
+      periodEnd: DateTime.parse('2026-07-31'),
+      scorecardBaseSalary: _d('45000'),
+      scorecardWageType: 'MONTHLY',
+      workDaysPerMonth: 26,
+      hoursPerDay: 8,
+    );
+    expect(r, isNotNull);
+    expect(
+      r,
+      dailyRateFrom(
+        baseSalary: _d('30000'),
+        wageType: 'MONTHLY',
+        workDaysPerMonth: 26,
+        hoursPerDay: 8,
+      ),
+    );
+  });
 }

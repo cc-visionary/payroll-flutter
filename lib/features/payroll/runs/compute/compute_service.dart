@@ -992,15 +992,12 @@ class PayrollComputeService {
     // `getDayRates(...)`. Without this plumbing, batch-edit rate overrides
     // were silently ignored and compute would use the scorecard's base rate.
     final attendanceDate = DateTime.parse(r['attendance_date'] as String);
-    Decimal? dailyRateOverride;
-    final rateRaw = r['daily_rate_override'];
-    if (rateRaw != null) {
-      final parsed = Decimal.tryParse(rateRaw.toString());
-      if (parsed != null) dailyRateOverride = parsed;
-    }
     // Manual per-day override wins; otherwise fall back to the compensation-
     // derived rate for this day (null when the day matches the period-end rate).
-    dailyRateOverride ??= compRateFor(attendanceDate);
+    final dailyRateOverride = resolveDailyRateOverride(
+      manualRaw: r['daily_rate_override'],
+      compensationDerived: compRateFor(attendanceDate),
+    );
 
     // Night-differential minutes — the intersection of the employee's
     // effective work window with PH's 22:00–06:00 ND band. "Effective"

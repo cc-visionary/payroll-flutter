@@ -28,6 +28,22 @@ Decimal dailyRateFrom({
   }
 }
 
+/// Resolves an attendance day's `dailyRateOverride`.
+///
+/// A manual per-day override (`attendance_day_records.daily_rate_override`)
+/// ALWAYS beats the compensation-derived rate — it is an explicit human edit.
+/// An unparseable manual value is treated as absent.
+Decimal? resolveDailyRateOverride({
+  required Object? manualRaw,
+  required Decimal? compensationDerived,
+}) {
+  if (manualRaw != null) {
+    final parsed = Decimal.tryParse(manualRaw.toString());
+    if (parsed != null) return parsed;
+  }
+  return compensationDerived;
+}
+
 /// The per-day `dailyRateOverride` implied by an employee's compensation
 /// history, or `null` when the day belongs to the same compensation regime as
 /// the period end (in which case the engine's period-level standard rate is
@@ -52,10 +68,25 @@ Decimal? proratedDailyRateOverride({
   if (dayEff?.id == periodEndEff?.id) return null;
 
   if (dayEff == null) {
-    // The day predates every change -> the pre-change (scorecard) rate.
+    // The day predates every change. The pre-change baseline is NOT the joined
+    // role scorecard: `applyDue` repoints `employees.role_scorecard_id` to the
+    // NEW scorecard whenever a change moves the role, and it runs BEFORE the
+    // employees select, so `scorecardBaseSalary`/`scorecardWageType` may already
+    // read the POST-change values (e.g. a promotion's new 45000). Trusting them
+    // would pay the pre-change days at the new rate -- the exact overpayment
+    // this feature exists to eliminate.
+    //
+    // Instead, take the pre-change compensation captured on the EARLIEST
+    // qualifying change (`prevBaseSalary`/`prevWageType`), which is immune to
+    // scorecard repointing. `dayEff == null` here is only reachable when
+    // `periodEndEff != null` (the identity check above already returned for the
+    // both-null case), so a qualifying change always exists -- but fall back to
+    // the scorecard defensively if none is found.
+    final earliest = _earliestQualifyingChange(comp);
     return dailyRateFrom(
-      baseSalary: scorecardBaseSalary,
-      wageType: scorecardWageType,
+      baseSalary:
+          earliest?.prevBaseSalary ?? scorecardBaseSalary,
+      wageType: earliest?.prevWageType ?? scorecardWageType,
       workDaysPerMonth: workDaysPerMonth,
       hoursPerDay: hoursPerDay,
     );
@@ -72,4 +103,28 @@ Decimal? proratedDailyRateOverride({
     workDaysPerMonth: workDaysPerMonth,
     hoursPerDay: hoursPerDay,
   );
+}
+
+/// The earliest qualifying compensation change, or `null` when none qualify.
+///
+/// "Qualifying" mirrors [effectiveCompensation]'s filter exactly: status
+/// SCHEDULED or APPLIED and not soft-deleted. "Earliest" is the smallest
+/// `effectiveDate`; ties break on oldest `createdAt`, then smallest `id` --
+/// the inverse of the resolver's newest-wins tie-break.
+CompensationChange? _earliestQualifyingChange(List<CompensationChange> comp) {
+  CompensationChange? best;
+  for (final c in comp) {
+    if (c.deletedAt != null) continue;
+    if (c.status != 'SCHEDULED' && c.status != 'APPLIED') continue;
+    if (best == null || _precedes(c, best)) best = c;
+  }
+  return best;
+}
+
+bool _precedes(CompensationChange a, CompensationChange b) {
+  final byDate = a.effectiveDate.compareTo(b.effectiveDate);
+  if (byDate != 0) return byDate < 0;
+  final byCreated = a.createdAt.compareTo(b.createdAt);
+  if (byCreated != 0) return byCreated < 0;
+  return a.id.compareTo(b.id) < 0;
 }
