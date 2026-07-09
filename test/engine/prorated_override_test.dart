@@ -239,4 +239,62 @@ void main() {
       ),
     );
   });
+
+  test('pre-change day with multiple changes uses the EARLIEST change prevBaseSalary', () {
+    // Two qualifying changes; a day that precedes BOTH must take the baseline
+    // from the EARLIEST change's prevBaseSalary (30000), not the latest change's
+    // prev (34000) and not the repointed scorecard (45000).
+    final comp = [
+      // Listed newest-first to prove ordering is by value, not list position.
+      CompensationChange(
+        id: 'C2',
+        companyId: 'CO1',
+        employeeId: 'E1',
+        changeType: 'PROMOTION',
+        status: 'SCHEDULED',
+        effectiveDate: DateTime.parse('2026-07-17'),
+        prevBaseSalary: _d('34000'),
+        newBaseSalary: _d('45000'),
+        prevWageType: 'MONTHLY',
+        newWageType: 'MONTHLY',
+        prevScorecardId: 'S1',
+        newScorecardId: 'S2',
+        initiatedById: 'U1',
+        createdAt: DateTime.parse('2026-07-01T00:00:00Z'),
+      ),
+      CompensationChange(
+        id: 'C1',
+        companyId: 'CO1',
+        employeeId: 'E1',
+        changeType: 'SALARY_INCREASE',
+        status: 'SCHEDULED',
+        effectiveDate: DateTime.parse('2026-07-05'),
+        prevBaseSalary: _d('30000'),
+        newBaseSalary: _d('34000'),
+        prevWageType: 'MONTHLY',
+        newWageType: 'MONTHLY',
+        initiatedById: 'U1',
+        createdAt: DateTime.parse('2026-07-01T00:00:00Z'),
+      ),
+    ];
+    final r = proratedDailyRateOverride(
+      comp: comp,
+      attendanceDate: DateTime.parse('2026-07-01'),
+      periodEnd: DateTime.parse('2026-07-31'),
+      scorecardBaseSalary: _d('45000'),
+      scorecardWageType: 'MONTHLY',
+      workDaysPerMonth: 26,
+      hoursPerDay: 8,
+    );
+    expect(r, isNotNull);
+    expect(
+      r,
+      dailyRateFrom(
+        baseSalary: _d('30000'),
+        wageType: 'MONTHLY',
+        workDaysPerMonth: 26,
+        hoursPerDay: 8,
+      ),
+    );
+  });
 }
