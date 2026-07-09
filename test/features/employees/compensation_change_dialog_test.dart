@@ -208,6 +208,7 @@ void main() {
         changeType: changeType,
         currentSalary: current,
         newSalary: proposed,
+        currentWageType: 'MONTHLY',
         newWageType: 'MONTHLY',
         newScorecardId: newScorecardId,
         currentScorecardId: currentScorecardId,
@@ -292,6 +293,57 @@ void main() {
         newScorecardId: 'rc2',
       );
       expect(errs, isEmpty);
+    });
+
+    test('wage-type change on a non-1st effective date is rejected', () {
+      final errors = validateCompensationRequest(
+        changeType: 'PROMOTION',
+        currentSalary: Decimal.fromInt(30000),
+        newSalary: Decimal.fromInt(38000),
+        currentWageType: 'DAILY',
+        newWageType: 'MONTHLY',
+        newScorecardId: 'rc2',
+        currentScorecardId: 'rc1',
+        effectiveDate: DateTime(2026, 7, 17),
+        reason: 'Promotion',
+        employee: emp,
+        today: DateTime(2026, 7, 1),
+      );
+      expect(errors.map((e) => e.field), contains('effectiveDate'));
+    });
+
+    test('wage-type change on the 1st is accepted', () {
+      final errors = validateCompensationRequest(
+        changeType: 'PROMOTION',
+        currentSalary: Decimal.fromInt(30000),
+        newSalary: Decimal.fromInt(38000),
+        currentWageType: 'DAILY',
+        newWageType: 'MONTHLY',
+        newScorecardId: 'rc2',
+        currentScorecardId: 'rc1',
+        effectiveDate: DateTime(2026, 8, 1),
+        reason: 'Promotion',
+        employee: emp,
+        today: DateTime(2026, 7, 1),
+      );
+      expect(errors.map((e) => e.field), isNot(contains('effectiveDate')));
+    });
+
+    test('same wage type on any date is accepted', () {
+      final errors = validateCompensationRequest(
+        changeType: 'SALARY_INCREASE',
+        currentSalary: Decimal.fromInt(30000),
+        newSalary: Decimal.fromInt(38000),
+        currentWageType: 'MONTHLY',
+        newWageType: 'MONTHLY',
+        newScorecardId: null,
+        currentScorecardId: 'rc1',
+        effectiveDate: DateTime(2026, 7, 17),
+        reason: 'Merit',
+        employee: emp,
+        today: DateTime(2026, 7, 1),
+      );
+      expect(errors.map((e) => e.field), isNot(contains('effectiveDate')));
     });
   });
 

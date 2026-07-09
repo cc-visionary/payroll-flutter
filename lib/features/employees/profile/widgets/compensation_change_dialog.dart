@@ -85,6 +85,7 @@ List<ValidationError> validateCompensationRequest({
   required String changeType,
   required Decimal currentSalary,
   required Decimal newSalary,
+  required String currentWageType,
   required String newWageType,
   required String? newScorecardId,
   required String? currentScorecardId,
@@ -159,6 +160,19 @@ List<ValidationError> validateCompensationRequest({
     ));
   }
 
+  // Rates pro-rate fine for any wage type (the daily rate is the universal
+  // unit — getDayRates derives hourly/minute from it). The ONE wageType-
+  // dependent divergence is compute_engine.dart:100: paid-leave days count as
+  // workdays only for MONTHLY employees. A DAILY->MONTHLY switch mid-period
+  // would apply that rule to the whole period, over-counting leave taken
+  // before the switch. Forcing such changes onto the 1st removes that edge.
+  if (newWageType != currentWageType && effectiveDate.day != 1) {
+    errors.add(const ValidationError(
+      'effectiveDate',
+      'A wage-type change must take effect on the 1st of a month',
+    ));
+  }
+
   return errors;
 }
 
@@ -208,10 +222,18 @@ class _CompensationChangeDialogState extends State<_CompensationChangeDialog> {
   @override
   void initState() {
     super.initState();
-    final cardWage = widget.currentCard?.wageType;
-    _wageType = kWageTypes.contains(cardWage) ? cardWage! : 'MONTHLY';
+    _wageType = _currentWageType;
     final now = DateTime.now();
     _effectiveDate = DateTime(now.year, now.month + 1, 1);
+  }
+
+  /// The employee's wage type as of today, i.e. before this change is
+  /// applied. Single source of truth for both the wage-type dropdown's
+  /// initial value and the "did this change switch wage type" validation
+  /// check, so the two can never disagree.
+  String get _currentWageType {
+    final cardWage = widget.currentCard?.wageType;
+    return kWageTypes.contains(cardWage) ? cardWage! : 'MONTHLY';
   }
 
   @override
@@ -264,6 +286,7 @@ class _CompensationChangeDialogState extends State<_CompensationChangeDialog> {
       changeType: _changeType,
       currentSalary: current,
       newSalary: newSalary,
+      currentWageType: _currentWageType,
       newWageType: _wageType,
       newScorecardId: _scorecardId,
       currentScorecardId: widget.currentCard?.id,
