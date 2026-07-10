@@ -43,6 +43,27 @@ Map<String, dynamic> buildCompensationChangeInsert({
   };
 }
 
+/// Thrown when `delete_compensation_change` refuses because a RELEASED payroll
+/// run already paid at this rate. The change must be cancelled, not erased.
+class ReleasedPayrollException implements Exception {
+  /// The offending run's period, e.g. `2026-07-01 to 2026-07-31`. Null when the
+  /// RPC did not supply a hint.
+  final String? runPeriod;
+  const ReleasedPayrollException(this.runPeriod);
+
+  @override
+  String toString() => 'ReleasedPayrollException($runPeriod)';
+}
+
+/// Pure mapper: recognises the RPC's `RELEASED_PAYROLL` guard error.
+/// Returns null for every other error so callers can rethrow unchanged.
+ReleasedPayrollException? releasedPayrollFrom(Object error) {
+  if (error is PostgrestException && error.message.contains('RELEASED_PAYROLL')) {
+    return ReleasedPayrollException(error.hint?.toString());
+  }
+  return null;
+}
+
 class CompensationChangeRepository {
   final SupabaseClient _client;
   CompensationChangeRepository(this._client);
@@ -204,6 +225,25 @@ class CompensationChangeRepository {
       count++;
     }
     return count;
+  }
+
+  /// Hard-deletes the change plus its workflow, notice document, and timeline
+  /// event, atomically, via the `delete_compensation_change` RPC. Reverts the
+  /// employee's scorecard pointer when an APPLIED role change is removed.
+  ///
+  /// Throws [ReleasedPayrollException] when released payroll already paid at
+  /// this rate — nothing is deleted in that case.
+  Future<void> deleteChange(String changeId) async {
+    try {
+      await _client.rpc(
+        'delete_compensation_change',
+        params: {'p_change_id': changeId},
+      );
+    } catch (e) {
+      final released = releasedPayrollFrom(e);
+      if (released != null) throw released;
+      rethrow;
+    }
   }
 }
 
