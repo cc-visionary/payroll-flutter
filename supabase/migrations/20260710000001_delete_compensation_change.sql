@@ -25,6 +25,14 @@
 -- can perform the deletes. Everything runs in one transaction, so the guard can
 -- never leave partial state.
 --
+-- The opening lookup runs under the SELECT policy (same company OR SUPER_ADMIN),
+-- but the deletes run under the WRITE policy (company + ADMIN/HR OR SUPER_ADMIN).
+-- A same-company non-HR caller can therefore SEE the change yet be unable to
+-- delete it, and Postgres does NOT raise when RLS filters a DELETE to zero rows.
+-- So we check `row_count` after the change delete and raise DELETE_FORBIDDEN when
+-- nothing was removed -- returning void there would be a silent no-op the UI
+-- would report as a successful destructive action.
+--
 -- FK order is forced:
 --   compensation_changes  (points outward at workflow + document)
 --   -> workflow_instances (workflow_steps cascade, releasing generated_document_id)
@@ -50,6 +58,7 @@ declare
   v_event_id       uuid;
   v_period_start   date;
   v_period_end     date;
+  v_deleted        integer;
 begin
   select employee_id, effective_date, status,
          prev_scorecard_id, new_scorecard_id, workflow_id, document_id
@@ -100,6 +109,14 @@ begin
   limit 1;
 
   delete from compensation_changes where id = p_change_id;
+  get diagnostics v_deleted = row_count;
+  if v_deleted = 0 then
+    -- Row was visible to the opening SELECT but the write policy filtered the
+    -- DELETE to zero rows. `raise` aborts before any dependent delete, so nothing
+    -- partial survives; without it the function would silently no-op.
+    raise exception 'DELETE_FORBIDDEN';
+  end if;
+
   delete from workflow_instances  where id = v_workflow_id;
 
   update employee_documents

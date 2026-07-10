@@ -64,6 +64,27 @@ ReleasedPayrollException? releasedPayrollFrom(Object error) {
   return null;
 }
 
+/// Thrown when `delete_compensation_change` removed zero rows because RLS let the
+/// caller SEE the change but not delete it (visible under the SELECT policy, not
+/// the write policy). The RPC raises `DELETE_FORBIDDEN` rather than silently
+/// no-op'ing, so the UI never claims success on a delete that did nothing.
+class DeleteForbiddenException implements Exception {
+  const DeleteForbiddenException();
+
+  @override
+  String toString() => 'DeleteForbiddenException';
+}
+
+/// Pure mapper: recognises the RPC's `DELETE_FORBIDDEN` sentinel. Matches the
+/// message exactly (not `contains`) so it never shadows another guard's error.
+/// Returns null for every other error so callers can rethrow unchanged.
+DeleteForbiddenException? deleteForbiddenFrom(Object error) {
+  if (error is PostgrestException && error.message == 'DELETE_FORBIDDEN') {
+    return const DeleteForbiddenException();
+  }
+  return null;
+}
+
 class CompensationChangeRepository {
   final SupabaseClient _client;
   CompensationChangeRepository(this._client);
@@ -232,7 +253,8 @@ class CompensationChangeRepository {
   /// employee's scorecard pointer when an APPLIED role change is removed.
   ///
   /// Throws [ReleasedPayrollException] when released payroll already paid at
-  /// this rate — nothing is deleted in that case.
+  /// this rate, or [DeleteForbiddenException] when RLS permitted the read but not
+  /// the delete — nothing is deleted in either case.
   Future<void> deleteChange(String changeId) async {
     try {
       await _client.rpc(
@@ -242,6 +264,8 @@ class CompensationChangeRepository {
     } catch (e) {
       final released = releasedPayrollFrom(e);
       if (released != null) throw released;
+      final forbidden = deleteForbiddenFrom(e);
+      if (forbidden != null) throw forbidden;
       rethrow;
     }
   }

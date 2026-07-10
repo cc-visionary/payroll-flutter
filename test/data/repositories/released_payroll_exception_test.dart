@@ -23,4 +23,19 @@ void main() {
       expect(releasedPayrollFrom(StateError('boom')), isNull);
     });
   });
+
+  group('deleteForbiddenFrom', () {
+    test('maps the RPC DELETE_FORBIDDEN sentinel', () {
+      final err = PostgrestException(message: 'DELETE_FORBIDDEN');
+      expect(deleteForbiddenFrom(err), isNotNull);
+    });
+
+    test('does not map RELEASED_PAYROLL to DeleteForbiddenException', () {
+      final err = PostgrestException(
+        message: 'RELEASED_PAYROLL',
+        hint: '2026-07-01 to 2026-07-31',
+      );
+      expect(deleteForbiddenFrom(err), isNull);
+    });
+  });
 }

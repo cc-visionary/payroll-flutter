@@ -81,6 +81,15 @@ Future<void> runDeleteCompensationChange({
       ),
     );
     return;
+  } on DeleteForbiddenException {
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text(
+          'You do not have permission to delete this compensation change.',
+        ),
+      ),
+    );
+    return;
   } catch (e) {
     messenger.showSnackBar(
       SnackBar(content: Text('Delete failed: $e')),
