@@ -78,8 +78,9 @@ void main() {
       expect(opts['__template_id'], 'nte');
       expect(original.containsKey('__template_id'), isFalse);
 
-      // Update payload must NOT carry insert-only keys.
-      expect(payload.containsKey('status'), isFalse);
+      // Update payload marks the row ISSUED (see dedicated test below) but must
+      // NOT carry insert-only keys.
+      expect(payload['status'], 'ISSUED');
       expect(payload.containsKey('id'), isFalse);
       expect(payload.containsKey('employee_id'), isFalse);
     });
@@ -94,6 +95,20 @@ void main() {
       final opts = payload['generation_options'] as Map<String, dynamic>;
       expect(opts.containsKey('__template_id'), isFalse);
       expect(opts['k'], 'v');
+    });
+
+    test('marks the row ISSUED so a DRAFT placeholder becomes the real notice', () {
+      final payload = buildUpdatePayload(
+        fileName: 'notice.pdf',
+        generationOptions: const {'foo': 'bar'},
+        updatedAt: DateTime.utc(2026, 7, 10),
+        templateId: 'salary_adjustment',
+      );
+      expect(payload['status'], 'ISSUED');
+      expect(payload['file_name'], 'notice.pdf');
+      expect(payload['updated_at'], DateTime.utc(2026, 7, 10).toIso8601String());
+      final opts = payload['generation_options'] as Map<String, dynamic>;
+      expect(opts['__template_id'], 'salary_adjustment');
     });
   });
 }

@@ -64,6 +64,10 @@ Map<String, dynamic> buildUpdatePayload({
     'file_name': fileName,
     'generation_options': opts,
     'updated_at': updatedAt.toIso8601String(),
+    // The update path is also how a pre-inserted DRAFT placeholder becomes the
+    // issued notice (see workflow_detail_screen's "Generate now"). Idempotent
+    // for the in-session re-save case, where the row is already ISSUED.
+    'status': 'ISSUED',
   };
 }
 
