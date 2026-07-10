@@ -125,6 +125,11 @@ class GenerateScreen extends ConsumerStatefulWidget {
   /// salary-adjustment template renders THIS change rather than the newest.
   final String? compensationChangeId;
 
+  /// The workflow step's pre-inserted DRAFT `employee_documents` row. When set,
+  /// saving UPDATES that row (marking it ISSUED) instead of inserting a second
+  /// document. Null for ad-hoc generation from the Documents screen.
+  final String? documentId;
+
   /// Test-only override for the PDF theme. When null (production) the screen
   /// fetches [PdfTheme.defaults] (Inter from Google Fonts). Tests inject
   /// [PdfTheme.testStub] to avoid the network fetch that races under
@@ -142,6 +147,7 @@ class GenerateScreen extends ConsumerStatefulWidget {
     required this.templateId,
     this.employeeId,
     this.compensationChangeId,
+    this.documentId,
     this.pdfThemeOverride,
     this.showLivePreview = true,
   });
@@ -211,6 +217,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
   @override
   void initState() {
     super.initState();
+    _sessionRecordId = widget.documentId;
     WidgetsBinding.instance.addPostFrameCallback((_) => _runAutofill());
   }
 
@@ -486,6 +493,9 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
   }
 
   Future<void> _onPickerEmployeeChanged(String newEmployeeId) async {
+    // The session record belongs to the PREVIOUS employee. Switching employees
+    // must mint a fresh document row, never overwrite theirs.
+    _sessionRecordId = null;
     final tpl = findTemplateById(widget.templateId);
     if (tpl == null) return;
     try {

@@ -270,6 +270,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               templateId: s.pathParameters['templateId']!,
               employeeId: s.uri.queryParameters['employeeId'],
               compensationChangeId: s.uri.queryParameters['changeId'],
+              documentId: s.uri.queryParameters['documentId'],
             ),
           ),
           GoRoute(

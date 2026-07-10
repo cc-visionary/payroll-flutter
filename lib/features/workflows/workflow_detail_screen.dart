@@ -10,6 +10,7 @@ import '../../data/repositories/compensation_change_repository.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../data/repositories/workflow_repository.dart';
 import '../auth/profile_provider.dart';
+import 'generate_url.dart';
 
 class WorkflowDetailScreen extends ConsumerWidget {
   final String instanceId;
@@ -462,9 +463,12 @@ class _StepActions extends ConsumerWidget {
       changeId = change?.id;
     }
     if (!context.mounted) return;
-    final url = changeId == null
-        ? '/documents/generate/$templateId?employeeId=${workflow.employeeId}'
-        : '/documents/generate/$templateId?employeeId=${workflow.employeeId}&changeId=$changeId';
+    final url = buildGenerateDocumentUrl(
+      templateId: templateId,
+      employeeId: workflow.employeeId,
+      changeId: changeId,
+      documentId: step.generatedDocumentId,
+    );
     context.go(url);
   }
 
