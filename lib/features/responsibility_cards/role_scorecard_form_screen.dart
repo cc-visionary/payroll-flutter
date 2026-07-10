@@ -9,6 +9,7 @@ import '../../data/models/role_scorecard.dart';
 import '../../data/repositories/hiring_entity_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../auth/profile_provider.dart';
+import 'scorecard_base_salary.dart';
 
 class RoleScorecardFormScreen extends ConsumerStatefulWidget {
   final String? cardId;
@@ -114,7 +115,14 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
         ],
         salaryRangeMin: dec(_rangeMin.text),
         salaryRangeMax: dec(_rangeMax.text),
-        baseSalary: dec(_baseSalary.text),
+        // Immutable on edit — see resolveScorecardBaseSalaryOnSave. Editing it
+        // would silently reprice every employee on this role who has no
+        // compensation_changes record.
+        baseSalary: resolveScorecardBaseSalaryOnSave(
+          isEdit: _isEdit,
+          existingBaseSalary: _existing?.baseSalary,
+          typedText: _baseSalary.text,
+        ),
         wageType: _wageType,
         workHoursPerDay: int.tryParse(_hoursPerDay.text.trim()) ?? 8,
         workDaysPerWeek: _daysPerWeek.text.trim(),
@@ -211,7 +219,7 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                             .toList(),
                         onChanged: (v) => setState(() => _wageType = v!),
                       ),
-                      _field(_baseSalary, 'Base salary (PHP)'),
+                      _baseSalaryField(),
                     ]),
                     const SizedBox(height: 12),
                     _responsiveRow([
@@ -373,6 +381,25 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
+        ),
+      );
+
+  /// Settable only when creating a scorecard; locked afterwards. Payroll falls
+  /// back to this value for employees with no compensation record, so editing
+  /// it would silently reprice them with no effective date or notice.
+  Widget _baseSalaryField() => TextFormField(
+        controller: _baseSalary,
+        readOnly: _isEdit,
+        enabled: !_isEdit,
+        decoration: InputDecoration(
+          labelText: 'Base salary (PHP)',
+          border: const OutlineInputBorder(),
+          helperMaxLines: 3,
+          helperText: _isEdit
+              ? 'Locked. Change pay via "Adjust Compensation" on the employee — '
+                  'that records an effective date and generates the notice.'
+              : "The role's default pay. Used by offer letters, and by any "
+                  'employee who has no compensation record yet.',
         ),
       );
 
