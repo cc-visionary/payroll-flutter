@@ -8,6 +8,7 @@ import '../../../../data/models/compensation_change.dart';
 import '../../../../data/models/employee.dart';
 import '../../../../data/repositories/compensation_change_repository.dart';
 import 'compensation_change_dialog.dart';
+import 'delete_compensation_change_action.dart';
 
 /// Maps a `compensation_changes.status` to the semantic tone used to render
 /// its [StatusChip]. Pure — no BuildContext, no theme lookups.
@@ -54,6 +55,7 @@ class CompensationHistorySection extends ConsumerWidget {
       data: (changes) => _HistoryCard(
         changes: changes,
         canManage: canManage,
+        employee: employee,
       ),
     );
   }
@@ -62,7 +64,12 @@ class CompensationHistorySection extends ConsumerWidget {
 class _HistoryCard extends StatelessWidget {
   final List<CompensationChange> changes;
   final bool canManage;
-  const _HistoryCard({required this.changes, required this.canManage});
+  final Employee employee;
+  const _HistoryCard({
+    required this.changes,
+    required this.canManage,
+    required this.employee,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -107,6 +114,7 @@ class _HistoryCard extends StatelessWidget {
                         _HistoryRow(
                           change: changes[i],
                           canManage: canManage,
+                          employee: employee,
                         ),
                       ],
                     ],
@@ -118,13 +126,18 @@ class _HistoryCard extends StatelessWidget {
   }
 }
 
-class _HistoryRow extends StatelessWidget {
+class _HistoryRow extends ConsumerWidget {
   final CompensationChange change;
   final bool canManage;
-  const _HistoryRow({required this.change, required this.canManage});
+  final Employee employee;
+  const _HistoryRow({
+    required this.change,
+    required this.canManage,
+    required this.employee,
+  });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final prev = change.prevBaseSalary == null
         ? '—'
@@ -193,7 +206,12 @@ class _HistoryRow extends StatelessWidget {
         if (canManage)
           IconButton(
             icon: const Icon(Icons.delete_outline),
-            onPressed: null, // wired in Task 6
+            onPressed: () => runDeleteCompensationChange(
+              ref: ref,
+              context: context,
+              employee: employee,
+              change: change,
+            ),
           ),
       ],
     );
