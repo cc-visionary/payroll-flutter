@@ -117,6 +117,29 @@ begin
     raise exception 'DELETE_FORBIDDEN';
   end if;
 
+  -- INVARIANT: the three dependent deletes below (workflow_instances,
+  -- employee_documents, employment_events) are NOT row_count-guarded, unlike
+  -- compensation_changes above. That is intentional -- a null workflow_id /
+  -- document_id / event_id legitimately deletes zero rows here (the confirm
+  -- handler skips the workflow + notice when it cannot resolve an actor), and
+  -- guarding on row_count would raise on that legitimate zero-row case.
+  --
+  -- This is only safe as long as EVERY ONE of these three tables' write policy
+  -- is a SUPERSET of compensation_changes' write policy -- i.e. any caller RLS
+  -- allows to delete the change is also allowed to delete its workflow, its
+  -- document, and its event. The row_count check above already proved the
+  -- caller can delete the change; under the superset assumption that proves
+  -- they can delete the dependents too, so skipping the guard here is safe.
+  --
+  -- If a FUTURE migration ever tightens workflow_instances', employee_documents',
+  -- or employment_events' write policy so it is narrower than
+  -- compensation_changes' write policy, this invariant breaks silently: the
+  -- change (and possibly its workflow) would be deleted while the narrowed
+  -- table's delete gets filtered to zero rows by RLS with no raise -- orphaning
+  -- the issued notice/workflow/event with no error surfaced to the caller.
+  -- Before narrowing any of those three tables' write policies, either restore
+  -- policy parity with compensation_changes or add an explicit row_count guard
+  -- (matching the compensation_changes pattern above) to the affected delete.
   delete from workflow_instances  where id = v_workflow_id;
 
   update employee_documents

@@ -46,6 +46,8 @@ class CompensationHistorySection extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Text(
           'Could not load compensation history: $e',
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontSize: 12,
             color: Theme.of(context).colorScheme.onSurfaceVariant,

@@ -22,6 +22,13 @@ void main() {
     test('returns null for a non-Postgrest error', () {
       expect(releasedPayrollFrom(StateError('boom')), isNull);
     });
+
+    test('maps the guard error with no hint to a null runPeriod', () {
+      final err = PostgrestException(message: 'RELEASED_PAYROLL');
+      final mapped = releasedPayrollFrom(err);
+      expect(mapped, isNotNull);
+      expect(mapped!.runPeriod, isNull);
+    });
   });
 
   group('deleteForbiddenFrom', () {

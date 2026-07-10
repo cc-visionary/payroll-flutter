@@ -6,6 +6,7 @@ import '../../../../data/models/employee.dart';
 import '../../../../data/repositories/compensation_change_repository.dart';
 import '../../../../data/repositories/employee_repository.dart';
 import '../../../../data/repositories/workflow_repository.dart';
+import '../../../documents/providers.dart' show allDocumentsProvider;
 import '../providers.dart';
 import 'compensation_change_dialog.dart';
 
@@ -106,6 +107,7 @@ Future<void> runDeleteCompensationChange({
   container.invalidate(employeeListProvider);
   container.invalidate(timelineProvider(employee.id));
   container.invalidate(employeeDocumentsProvider(employee.id));
+  container.invalidate(allDocumentsProvider);
   container.invalidate(workflowListProvider);
   if (change.workflowId != null) {
     container.invalidate(compensationChangeByWorkflowProvider(change.workflowId!));

@@ -55,11 +55,13 @@ class ReleasedPayrollException implements Exception {
   String toString() => 'ReleasedPayrollException($runPeriod)';
 }
 
-/// Pure mapper: recognises the RPC's `RELEASED_PAYROLL` guard error.
-/// Returns null for every other error so callers can rethrow unchanged.
+/// Pure mapper: recognises the RPC's `RELEASED_PAYROLL` guard error. Matches
+/// the message exactly (not `contains`) so it never shadows another guard's
+/// wrapped error. Returns null for every other error so callers can rethrow
+/// unchanged.
 ReleasedPayrollException? releasedPayrollFrom(Object error) {
-  if (error is PostgrestException && error.message.contains('RELEASED_PAYROLL')) {
-    return ReleasedPayrollException(error.hint?.toString());
+  if (error is PostgrestException && error.message == 'RELEASED_PAYROLL') {
+    return ReleasedPayrollException(error.hint);
   }
   return null;
 }
