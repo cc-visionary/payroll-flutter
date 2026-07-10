@@ -10,6 +10,7 @@ import '../../../../data/models/role_scorecard.dart';
 import '../../../../data/repositories/compensation_change_repository.dart';
 import '../../../../data/repositories/role_scorecard_repository.dart';
 import '../../../auth/profile_provider.dart';
+import '../effective_pay.dart';
 import '../providers.dart';
 import '../widgets/compensation_change_action.dart';
 import '../widgets/compensation_change_dialog.dart';
@@ -101,6 +102,23 @@ class _RoleDetail extends ConsumerWidget {
     final pending =
         ref.watch(pendingCompensationChangesProvider(employee.id)).asData?.value ??
             const <CompensationChange>[];
+
+    // Pay is per-EMPLOYEE, not per-scorecard: two employees can share this role
+    // and be paid differently. Resolve the same way payroll does — the
+    // employee's effective compensation record wins; the scorecard is only the
+    // default for someone who has never had one. While the records load, fall
+    // back to the scorecard so the tile never flashes an empty value.
+    final changes =
+        ref.watch(compensationChangesByEmployeeProvider(employee.id)).asData?.value ??
+            const <CompensationChange>[];
+    final now = DateTime.now();
+    final pay = displayPayFor(
+      changes: changes,
+      asOf: DateTime(now.year, now.month, now.day),
+      scorecardBaseSalary: card.baseSalary,
+      scorecardWageType: card.wageType,
+    );
+
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 16),
       children: [
@@ -144,10 +162,12 @@ class _RoleDetail extends ConsumerWidget {
                       width: cardWidth,
                       child: _TintedCard(
                         label: 'BASE SALARY',
-                        value: card.baseSalary == null
+                        value: pay.baseSalary == null
                             ? '—'
-                            : Money.fmtPhp(card.baseSalary!),
-                        subtitle: card.wageType.toLowerCase(),
+                            : Money.fmtPhp(pay.baseSalary!),
+                        subtitle: pay.fromCompensationRecord
+                            ? '${pay.wageType.toLowerCase()} · compensation record'
+                            : '${pay.wageType.toLowerCase()} · role default',
                         bg: const Color(0xFFECFDF5),
                         fg: const Color(0xFF047857),
                       ),
