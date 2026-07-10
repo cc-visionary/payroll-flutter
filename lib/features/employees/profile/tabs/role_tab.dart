@@ -14,6 +14,7 @@ import '../effective_pay.dart';
 import '../providers.dart';
 import '../widgets/compensation_change_action.dart';
 import '../widgets/compensation_change_dialog.dart';
+import '../widgets/compensation_history_section.dart';
 
 class RoleTab extends ConsumerWidget {
   final Employee employee;
@@ -261,6 +262,8 @@ class _RoleDetail extends ConsumerWidget {
             ],
           ),
         ),
+        const SizedBox(height: 16),
+        CompensationHistorySection(employee: employee, canManage: canManage),
       ],
     );
   }
