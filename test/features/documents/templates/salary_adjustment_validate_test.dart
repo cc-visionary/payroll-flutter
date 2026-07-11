@@ -100,4 +100,35 @@ void main() {
       contains('newRoleScorecardId'),
     );
   });
+
+  test('blocks the employee signing their own notice (case/space-insensitive)', () {
+    final i = _base().copyWith(
+      employeeFullName: 'Jane Cruz',
+      hrManagerName: '  jane   cruz ',
+    );
+    expect(
+      validateSalaryAdjustment(i).map((e) => e.field),
+      contains('hrManager'),
+    );
+  });
+
+  test('a different signatory name has no self-approval error', () {
+    final i = _base().copyWith(
+      employeeFullName: 'Jane Cruz',
+      hrManagerName: 'Alex Reyes',
+    );
+    expect(
+      validateSalaryAdjustment(i).where((e) =>
+          e.field == 'hrManager' && e.message.contains('cannot be the employee')),
+      isEmpty,
+    );
+  });
+
+  test('a blank signatory role is rejected', () {
+    final i = _base().copyWith(signatoryRole: '   ');
+    expect(
+      validateSalaryAdjustment(i).map((e) => e.field),
+      contains('signatoryRole'),
+    );
+  });
 }

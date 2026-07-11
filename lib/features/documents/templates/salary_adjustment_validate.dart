@@ -21,6 +21,19 @@ List<ValidationError> validateSalaryAdjustment(SalaryAdjustmentInputs i) {
       const ValidationError('hrManager', 'HR manager name is required'),
     );
   }
+  if (i.signatoryRole.trim().isEmpty) {
+    errors.add(
+      const ValidationError('signatoryRole', 'Signatory title is required'),
+    );
+  }
+  final sigName = i.hrManagerName.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+  final empName = i.employeeFullName.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+  if (sigName.isNotEmpty && sigName == empName) {
+    errors.add(const ValidationError(
+      'hrManager',
+      'The signatory cannot be the employee being adjusted — choose another approver.',
+    ));
+  }
   if (i.oldSalary <= Decimal.zero) {
     errors.add(
       const ValidationError('oldSalary', 'Current salary must be positive'),
