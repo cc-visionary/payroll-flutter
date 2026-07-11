@@ -59,4 +59,42 @@ void main() {
       isNotEmpty,
     );
   });
+
+  test('workDaysPerMonth + signatoryRole round-trip through toJson/fromJson', () {
+    final original = SalaryAdjustmentInputs(
+      employeeId: 'E1',
+      employeeFullName: 'Jane Cruz',
+      companyId: 'CO1',
+      companyName: 'Luxium',
+      hrManagerName: 'Alex Reyes',
+      signatoryRole: 'Chief Operating Officer',
+      workDaysPerMonth: 22,
+      effectiveDate: DateTime(2026, 8, 1),
+      issueDate: DateTime(2026, 7, 11),
+    );
+    final round = SalaryAdjustmentInputs.fromJson(original.toJson());
+    expect(round.workDaysPerMonth, 22);
+    expect(round.signatoryRole, 'Chief Operating Officer');
+  });
+
+  test('a saved document without the new keys defaults to 26 / HR Manager', () {
+    // Simulate an OLD saved document's generation_options (keys absent).
+    final legacy = <String, dynamic>{
+      'type': 'salaryAdjustment',
+      'employeeId': 'E1',
+      'employeeFullName': 'Jane Cruz',
+      'companyId': 'CO1',
+      'companyName': 'Luxium',
+      'hrManagerName': 'Alex Reyes',
+      'oldSalary': '30000',
+      'newSalary': '32000',
+      'salaryPeriod': 'MONTHLY',
+      'effectiveDate': '2026-08-01T00:00:00.000',
+      'issueDate': '2026-07-11T00:00:00.000',
+      'reason': '',
+    };
+    final inputs = SalaryAdjustmentInputs.fromJson(legacy);
+    expect(inputs.workDaysPerMonth, 26);
+    expect(inputs.signatoryRole, 'HR Manager');
+  });
 }

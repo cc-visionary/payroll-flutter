@@ -31,6 +31,14 @@ class SalaryAdjustmentInputs extends TemplateInputs {
   final String companyName;
   final String companyAddress;
   final String hrManagerName;
+  /// Working days per month used to estimate monthly pay on DAILY-rate notices.
+  /// Defaults to 26 — payroll's `standardWorkDaysPerMonth` (compute_service).
+  final int workDaysPerMonth;
+
+  /// The signatory's title on the notice (the "From:" subtitle + signature
+  /// line). `hrManagerName` above holds the signatory's NAME, which may be a
+  /// COO/GM/etc. when the HR Manager is the one being adjusted.
+  final String signatoryRole;
   // Promotion-only role-change fields
   final String? oldRoleScorecardId;
   final String? newRoleScorecardId;
@@ -56,6 +64,8 @@ class SalaryAdjustmentInputs extends TemplateInputs {
     required this.companyName,
     this.companyAddress = '',
     this.hrManagerName = '',
+    this.workDaysPerMonth = 26,
+    this.signatoryRole = 'HR Manager',
     this.oldRoleScorecardId,
     this.newRoleScorecardId,
     this.oldPosition = '',
@@ -98,6 +108,8 @@ class SalaryAdjustmentInputs extends TemplateInputs {
       companyName: json['companyName'] as String? ?? '',
       companyAddress: json['companyAddress'] as String? ?? '',
       hrManagerName: json['hrManagerName'] as String? ?? '',
+      workDaysPerMonth: (json['workDaysPerMonth'] as num?)?.toInt() ?? 26,
+      signatoryRole: json['signatoryRole'] as String? ?? 'HR Manager',
       oldRoleScorecardId: json['oldRoleScorecardId'] as String?,
       newRoleScorecardId: json['newRoleScorecardId'] as String?,
       oldPosition: json['oldPosition'] as String? ?? '',
@@ -121,6 +133,8 @@ class SalaryAdjustmentInputs extends TemplateInputs {
     String? companyName,
     String? companyAddress,
     String? hrManagerName,
+    int? workDaysPerMonth,
+    String? signatoryRole,
     Object? oldRoleScorecardId = _undef,
     Object? newRoleScorecardId = _undef,
     String? oldPosition,
@@ -142,6 +156,8 @@ class SalaryAdjustmentInputs extends TemplateInputs {
     companyName: companyName ?? this.companyName,
     companyAddress: companyAddress ?? this.companyAddress,
     hrManagerName: hrManagerName ?? this.hrManagerName,
+    workDaysPerMonth: workDaysPerMonth ?? this.workDaysPerMonth,
+    signatoryRole: signatoryRole ?? this.signatoryRole,
     oldRoleScorecardId: identical(oldRoleScorecardId, _undef)
         ? this.oldRoleScorecardId
         : oldRoleScorecardId as String?,
@@ -177,6 +193,8 @@ class SalaryAdjustmentInputs extends TemplateInputs {
     'companyName': companyName,
     'companyAddress': companyAddress,
     'hrManagerName': hrManagerName,
+    'workDaysPerMonth': workDaysPerMonth,
+    'signatoryRole': signatoryRole,
     'oldRoleScorecardId': oldRoleScorecardId,
     'newRoleScorecardId': newRoleScorecardId,
     'oldPosition': oldPosition,
