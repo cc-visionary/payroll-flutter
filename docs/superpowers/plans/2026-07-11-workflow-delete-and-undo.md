@@ -4,7 +4,9 @@
 
 **Goal:** Let HR delete a CANCELLED workflow (removing the linked compensation change too, when there is one) and undo a mistakenly-COMPLETED workflow, from the workflow detail screen.
 
-**Architecture:** One new migration adds a `delete_workflow` RPC (standalone workflows) and refines the `delete_compensation_change` released-payroll guard so never-applied changes are deletable. Comp-linked deletes reuse the existing `delete_compensation_change` RPC. Undo is a client-side two-write revert in the repository. The workflow detail screen switches its trailing action on status.
+**Architecture:** One new migration adds a `delete_workflow` RPC (standalone workflows). Comp-linked deletes reuse the existing `delete_compensation_change` RPC. Undo is a client-side revert in the repository. The workflow detail screen switches its trailing action on status.
+
+> **⚠️ Task 2 was DROPPED after implementation.** It proposed gating the `delete_compensation_change` released-payroll guard on `applied_at is not null`. Final review proved this unsafe: the payroll resolver (`effective_compensation.dart:17`) selects changes by `status`+`effective_date`, ignoring `applied_at`, and an ahead-dated release (`compute_service.dart:672` resolves at `period_end` while `applyDue` clamps to today) lets a SCHEDULED change pay a RELEASED payslip with `applied_at` still null — so the gate would allow hard-deleting a change that real money was paid at. Task 2 was reverted (commit `9a0fc16`); the guard remains unconditional. **Do not reintroduce it.** See the design doc's "PROPOSED, THEN REJECTED AS UNSAFE" section.
 
 **Tech Stack:** Postgres (plpgsql RPCs, `security invoker` + RLS), Deno tests (`postgres` driver, rolled-back transactions), Flutter (Riverpod, GoRouter, Material 3), Supabase Dart client.
 
@@ -22,7 +24,7 @@
 
 ## File Structure
 
-- **Create** `supabase/migrations/20260711000001_delete_workflow.sql` — `delete_workflow` RPC (Task 1) + refined `delete_compensation_change` (Task 2).
+- **Create** `supabase/migrations/20260711000001_delete_workflow.sql` — `delete_workflow` RPC (Task 1). (Task 2's refined `delete_compensation_change` was reverted — see the warning above.)
 - **Create** `supabase/tests/delete_workflow_test.ts` — DB-integration tests for both RPCs (Tasks 1 & 2).
 - **Modify** `lib/data/repositories/workflow_repository.dart` — add `deleteWorkflow()` and `reopenInstance()` (Task 3).
 - **Modify** `lib/features/workflows/workflow_detail_screen.dart` — status-switched trailing action + `_deleteWorkflow` / `_reopenWorkflow` handlers (Task 4).
@@ -300,7 +302,13 @@ git commit -m "feat(workflows): delete_workflow RPC for standalone cancelled wor
 
 ---
 
-## Task 2: Refine the `delete_compensation_change` released-payroll guard
+## Task 2: ~~Refine the `delete_compensation_change` released-payroll guard~~ — DROPPED (unsafe)
+
+> **This task was implemented, then reverted in commit `9a0fc16`. Do not execute it.** The
+> `applied_at is not null` gate below is UNSAFE — a SCHEDULED change can pay a RELEASED payslip
+> without `applied_at` ever being set (ahead-dated release), so the gate would permit deleting a
+> compensation change that real money was paid at. The guard stays unconditional. The task text
+> is kept below only as a record of what was tried and why it was rejected.
 
 **Files:**
 - Modify: `supabase/migrations/20260711000001_delete_workflow.sql` (append the refined function)

@@ -99,13 +99,36 @@ if v_deleted = 0 then raise exception 'DELETE_FORBIDDEN'; end if;
 
 `revoke execute ... from public; grant execute ... to authenticated;` (mirrors the comp RPC).
 
-**Released-payroll guard refinement in `delete_compensation_change`** — the guard currently
-runs for *every* change whose effective date is covered by a RELEASED run, which over-blocks
-CANCELLED/SCHEDULED changes that never actually paid (this is exactly why deleting the
-screenshot's cancelled workflow would otherwise fail). Fix: fetch `applied_at` in the opening
-`select` and run the released-payroll lookup **only when `applied_at is not null`**. A change
-that never materialized cannot have produced a payslip, so deleting it cannot orphan one;
-changes that actually applied stay protected regardless of later status transitions.
+**Released-payroll guard: PROPOSED, THEN REJECTED AS UNSAFE — do not reintroduce.**
+
+An earlier draft of this design proposed "refining" `delete_compensation_change` so its
+released-payroll guard ran only when `applied_at is not null`, on the premise that *a change
+that never materialized cannot have produced a payslip*. **That premise is false.** It was
+implemented, caught in final review, and reverted. The guard stays exactly as it is in
+`20260710000001` — unconditional.
+
+Why the premise is false:
+
+- `effective_compensation.dart:17` resolves the change in force by
+  `status IN ('SCHEDULED','APPLIED')` and `effective_date <= asOf`. **`applied_at` plays no
+  part in whether a change drives pay.**
+- `compute_service.dart:672` resolves the rate at `payPeriod.endDate`, while `applyDue`
+  (`compute_service.dart:90`) clamps its `asOf` to **today**. So on an *ahead-dated* run
+  (`period_end` in the future — routine when a run is released a day or two early to cut bank
+  files), a SCHEDULED change effective in `(today, period_end]` is never materialized
+  (`applied_at` stays null) yet is still picked by the resolver and **pays the released
+  payslip**.
+
+Consequence: gating the guard on `applied_at` would let a change that a RELEASED payslip
+actually paid at be hard-deleted, leaving that payslip's rate unexplainable — silent,
+irreversible loss of payroll money history. There is also no safe narrower carve-out: a
+*now-CANCELLED* change could equally have paid while it was SCHEDULED under an ahead-dated
+release, so keying the skip on `status = 'CANCELLED'` is unsafe for the same reason.
+
+Accepted trade-off: deleting a comp-linked CANCELLED workflow is refused (`RELEASED_PAYROLL`)
+whenever a RELEASED run's period covers the change's effective date. That is the correct,
+conservative behaviour — that money may genuinely have been paid. Standalone (SEPARATION /
+HIRING) workflow deletion and the undo/reopen action are unaffected by this guard.
 
 ### 3. Undo / reopen (COMPLETED only)
 
@@ -149,8 +172,8 @@ error module unless a cleaner shared location is trivial during implementation.
 
 ## Files
 
-- `supabase/migrations/2026071100000X_delete_workflow.sql` — new `delete_workflow` RPC + the
-  `delete_compensation_change` guard refinement (drop-and-recreate `or replace`).
+- `supabase/migrations/20260711000001_delete_workflow.sql` — new `delete_workflow` RPC **only**.
+  `delete_compensation_change` is deliberately left untouched (see the rejected refinement above).
 - `lib/data/repositories/workflow_repository.dart` — `deleteWorkflow()`, `reopenInstance()`.
 - `lib/features/workflows/workflow_detail_screen.dart` — status-switched trailing action +
   `_deleteWorkflow` / `_reopenWorkflow` handlers.
@@ -161,16 +184,24 @@ error module unless a cleaner shared location is trivial during implementation.
   - standalone CANCELLED workflow → deleted, steps gone;
   - comp-linked workflow → `WORKFLOW_HAS_COMPENSATION_CHANGE`;
   - non-cancelled workflow → `WORKFLOW_NOT_CANCELLED`;
-  - RLS non-HR caller → `DELETE_FORBIDDEN`, nothing deleted.
-- `delete_compensation_change` guard: CANCELLED change over a released run → now deletes;
-  APPLIED change over a released run → still `RELEASED_PAYROLL`.
-- `flutter analyze` clean. Manual smoke: delete a cancelled comp workflow (verify comp history
-  gone), delete a cancelled separation workflow (docs remain), undo a completed workflow and
-  re-complete it.
+  - missing id → `WORKFLOW_NOT_FOUND`.
+  (The `DELETE_FORBIDDEN` path needs a non-HR caller; the Deno tests run as the postgres
+  superuser, which bypasses RLS, so that path is verified manually.)
+- `flutter analyze` clean. Manual smoke: delete a cancelled comp workflow (verify the change is
+  gone from the employee's compensation history, documents hub, and timeline **in the same
+  session**, without a restart), delete a cancelled separation workflow (its documents remain),
+  undo a completed workflow and re-complete it.
 
 ## Risks
 
-- **Guard refinement changes existing behavior** for the profile-side delete too — intended and
-  consistent (a never-applied change can always be safely erased). Covered by the RPC test.
+- **Comp-linked delete is refused under released payroll.** Because the guard stays
+  unconditional, deleting a comp-linked CANCELLED workflow fails with `RELEASED_PAYROLL`
+  whenever a RELEASED run covers the change's effective date. This is correct (the money may
+  have been paid) but the copy says "Cancel the change instead", which reads oddly for an
+  already-cancelled change. Cosmetic; revisit the message if it bites.
+- **Cross-surface staleness.** The comp-linked delete must invalidate the same provider set as
+  the profile-side `runDeleteCompensationChange` (compensation history, documents hub, timeline,
+  employee). These are non-autoDispose families, so a missed invalidation shows deleted data
+  until restart. Keep the two call sites' invalidation lists in sync.
 - **RLS parity** — `delete_workflow` relies on `workflow_instances` write policy = HR/ADMIN/
   SUPER_ADMIN. If that policy is ever narrowed, the `DELETE_FORBIDDEN` guard still fails safe.
