@@ -151,6 +151,28 @@ class _Body extends ConsumerWidget {
                 ),
               ),
             ],
+            if (w.status == 'CANCELLED') ...[
+              const SizedBox(height: 32),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  onPressed: () => _deleteWorkflow(context, ref),
+                  icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error, size: 18),
+                  label: Text('Delete workflow', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                ),
+              ),
+            ],
+            if (w.status == 'COMPLETED') ...[
+              const SizedBox(height: 32),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  onPressed: () => _reopenWorkflow(context, ref),
+                  icon: const Icon(Icons.undo, size: 18),
+                  label: const Text('Undo completion'),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -166,6 +188,111 @@ class _Body extends ConsumerWidget {
         );
     ref.invalidate(workflowByIdProvider(w.id));
     ref.invalidate(workflowListProvider);
+  }
+
+  Future<void> _deleteWorkflow(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    // Route comp-linked workflows through the compensation-change delete so the
+    // change + notice + timeline entry go with the workflow (symmetry with the
+    // profile-side delete). Standalone workflows use the workflow RPC.
+    final change =
+        await ref.read(compensationChangeByWorkflowProvider(w.id).future);
+    if (!context.mounted) return;
+
+    final body = change != null
+        ? 'This permanently deletes the workflow, its steps, and the linked '
+            'compensation change — including its notice document and timeline '
+            'entry. This cannot be undone.'
+        : 'This permanently deletes the workflow and its steps. This cannot be '
+            'undone.';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: const Text('Delete this workflow?'),
+        content: Text(body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dctx).colorScheme.error,
+              foregroundColor: Theme.of(dctx).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(dctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      if (change != null) {
+        await ref
+            .read(compensationChangeRepositoryProvider)
+            .deleteChange(change.id);
+      } else {
+        await ref.read(workflowRepositoryProvider).deleteWorkflow(w.id);
+      }
+    } on ReleasedPayrollException catch (e) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(
+          'Cannot delete: released payroll (${e.runPeriod ?? "a released run"}) '
+          'already paid at this rate. Cancel the change instead.',
+        ),
+      ));
+      return;
+    } on DeleteForbiddenException {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('You do not have permission to delete this workflow.'),
+      ));
+      return;
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+      return;
+    }
+
+    ref.invalidate(workflowListProvider);
+    if (change != null) {
+      ref.invalidate(compensationChangeByWorkflowProvider(w.id));
+      ref.invalidate(pendingCompensationChangesProvider(w.employeeId));
+      ref.invalidate(employeeByIdProvider(w.employeeId));
+    }
+    messenger.showSnackBar(const SnackBar(content: Text('Workflow deleted.')));
+    if (context.mounted) context.go('/workflows');
+  }
+
+  Future<void> _reopenWorkflow(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: const Text('Reopen this workflow?'),
+        content: const Text(
+          'It returns to in-progress and reopens the last completed step so you '
+          'can redo it. This does not un-apply any compensation change or '
+          'un-issue a generated document.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dctx, true),
+            child: const Text('Reopen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await ref.read(workflowRepositoryProvider).reopenInstance(w.id);
+    ref.invalidate(workflowStepsProvider(w.id));
+    ref.invalidate(workflowByIdProvider(w.id));
+    ref.invalidate(workflowListProvider);
+    messenger.showSnackBar(const SnackBar(content: Text('Workflow reopened.')));
   }
 }
 
