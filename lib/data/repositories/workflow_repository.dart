@@ -267,11 +267,22 @@ class WorkflowRepository {
 
   /// Undo a mistaken completion: revert the most-recently-finished step back to
   /// PENDING and flip the instance from COMPLETED back to IN_PROGRESS. Client-side
-  /// (no cascade/integrity to protect), mirroring [cancelInstance]. Step first,
-  /// then instance, so no transient auto-complete occurs; the instance flip is a
-  /// no-op unless it is still COMPLETED (idempotent). Does not touch any linked
+  /// (no cascade/integrity to protect), mirroring [cancelInstance]. Guarded up
+  /// front on the instance still being COMPLETED, so the whole operation —
+  /// step revert included — is idempotent: a repeat call is a no-op rather than
+  /// walking back a second finished step. Does not touch any linked
   /// compensation change or generated document.
   Future<void> reopenInstance(String instanceId) async {
+    // Reopening is only meaningful for a COMPLETED instance. Check first: the
+    // step revert below is NOT status-guarded, so without this a second call
+    // would walk back a second finished step.
+    final inst = await _client
+        .from('workflow_instances')
+        .select('status')
+        .eq('id', instanceId)
+        .maybeSingle();
+    if (inst == null || inst['status'] != 'COMPLETED') return;
+
     final stepRows = await _client
         .from('workflow_steps')
         .select('id')
