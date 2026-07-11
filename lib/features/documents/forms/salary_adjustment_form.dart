@@ -135,13 +135,23 @@ class _SalaryAdjustmentFormState extends ConsumerState<SalaryAdjustmentForm> {
           ),
           _error('company'),
           const SizedBox(height: 16),
-          _label('HR Manager Name'),
+          _label('Signatory Name'),
           const SizedBox(height: 4),
           EmployeeNameField(
             value: _i.hrManagerName,
             onChanged: (v) => _set(_i.copyWith(hrManagerName: v)),
           ),
           _error('hrManager'),
+          const SizedBox(height: 16),
+          TextFormField(
+            initialValue: _i.signatoryRole,
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              labelText: 'Signatory Title',
+            ),
+            onChanged: (v) => _set(_i.copyWith(signatoryRole: v)),
+          ),
+          _error('signatoryRole'),
           if (isPromotion) ...[
             const SizedBox(height: 24),
             const Divider(),
