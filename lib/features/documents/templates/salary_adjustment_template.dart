@@ -17,6 +17,10 @@ import 'document_template.dart';
 import 'salary_adjustment_inputs.dart';
 import 'salary_adjustment_validate.dart';
 
+/// Working days per month used to estimate monthly pay on DAILY-rate notices.
+/// Mirrors payroll's `standardWorkDaysPerMonth` (compute_service.dart).
+const kStandardWorkDaysPerMonth = 26;
+
 /// One template, two modes:
 ///   - [SalaryAdjustmentType.salaryAdjustment]: pure pay change.
 ///   - [SalaryAdjustmentType.promotion]: role + pay change.
@@ -153,6 +157,7 @@ class SalaryAdjustmentTemplate
               c.zipCode,
             ),
       hrManagerName: c?.hrManagerName ?? '',
+      workDaysPerMonth: kStandardWorkDaysPerMonth,
       oldRoleScorecardId: change?.prevScorecardId ?? e?.roleScorecardId,
       newRoleScorecardId: change?.newScorecardId,
       oldPosition: e?.jobTitle ?? scorecard?.jobTitle ?? '',
@@ -181,6 +186,11 @@ class SalaryAdjustmentTemplate
     final periodLabel = i.salaryPeriod == 'DAILY'
         ? 'daily rate'
         : 'monthly salary';
+    // On DAILY notices, help the employee estimate monthly pay. 26 is the
+    // divisor payroll actually uses, so the figure reconciles with the payslip.
+    final estimateClause = i.salaryPeriod == 'DAILY'
+        ? ' (estimated at ${i.workDaysPerMonth} working days per month)'
+        : '';
     final salutation = _salutation(i.employeeGender, i.employeeFullName);
     final subject = switch (i.type) {
       SalaryAdjustmentType.promotion => 'Notice of Promotion',
@@ -196,23 +206,24 @@ class SalaryAdjustmentTemplate
             '${i.oldPosition} to ${i.newPosition}. In line with this '
             'promotion, your $periodLabel will be adjusted from '
             '${cf.format(i.oldSalary.toDouble())} to '
-            '${cf.format(i.newSalary.toDouble())}. ${i.reason}',
+            '${cf.format(i.newSalary.toDouble())}$estimateClause. ${i.reason}',
       SalaryAdjustmentType.lateral =>
         'We wish to inform you that, effective '
             '${df.format(i.effectiveDate)}, you are being transferred from '
             '${i.oldPosition} to ${i.newPosition}. Your $periodLabel remains '
-            'unchanged at ${cf.format(i.oldSalary.toDouble())}. ${i.reason}',
+            'unchanged at ${cf.format(i.oldSalary.toDouble())}$estimateClause. '
+            '${i.reason}',
       SalaryAdjustmentType.demotion =>
         'We wish to inform you that, effective '
             '${df.format(i.effectiveDate)}, your role will change from '
             '${i.oldPosition} to ${i.newPosition}, and your $periodLabel '
             'will be adjusted from ${cf.format(i.oldSalary.toDouble())} to '
-            '${cf.format(i.newSalary.toDouble())}. ${i.reason}',
+            '${cf.format(i.newSalary.toDouble())}$estimateClause. ${i.reason}',
       SalaryAdjustmentType.salaryAdjustment =>
         'We are pleased to inform you that, effective '
             '${df.format(i.effectiveDate)}, your $periodLabel will be '
             'adjusted from ${cf.format(i.oldSalary.toDouble())} to '
-            '${cf.format(i.newSalary.toDouble())}. ${i.reason}',
+            '${cf.format(i.newSalary.toDouble())}$estimateClause. ${i.reason}',
     };
 
     return <Block>[

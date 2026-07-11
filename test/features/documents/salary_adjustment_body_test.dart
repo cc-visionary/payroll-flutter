@@ -55,4 +55,22 @@ void main() {
     final blocks = t.build(_i(SalaryAdjustmentType.salaryAdjustment));
     expect(_subject(blocks), 'Notice of Salary Adjustment');
   });
+
+  test('DAILY salary adjustment states the monthly-estimate clause', () {
+    final blocks = t.build(_i(SalaryAdjustmentType.salaryAdjustment)
+        .copyWith(salaryPeriod: 'DAILY'));
+    expect(_body(blocks), contains('estimated at 26 working days per month'));
+  });
+
+  test('MONTHLY salary adjustment has NO estimate clause', () {
+    final blocks = t.build(_i(SalaryAdjustmentType.salaryAdjustment)
+        .copyWith(salaryPeriod: 'MONTHLY'));
+    expect(_body(blocks), isNot(contains('working days per month')));
+  });
+
+  test('the clause also appears for a DAILY lateral transfer', () {
+    final blocks =
+        t.build(_i(SalaryAdjustmentType.lateral).copyWith(salaryPeriod: 'DAILY'));
+    expect(_body(blocks), contains('estimated at 26 working days per month'));
+  });
 }
