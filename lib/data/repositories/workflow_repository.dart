@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/workflow_instance.dart';
 import '../models/workflow_step.dart';
+import 'compensation_change_repository.dart'
+    show DeleteForbiddenException, deleteForbiddenFrom;
 
 /// Pure input shape for a new workflow_instance. Used by the seeders in
 /// `lib/features/workflows/seeders.dart` so kickoff handlers don't have to
@@ -243,6 +245,56 @@ class WorkflowRepository {
     })
     .eq('id', instanceId)
     .inFilter('status', ['DRAFT', 'IN_PROGRESS']);  // idempotent
+  }
+
+  /// Hard-deletes a CANCELLED, standalone (non-compensation) workflow together
+  /// with its steps (FK cascade), via the `delete_workflow` RPC. Comp-linked
+  /// workflows must be removed through `CompensationChangeRepository.deleteChange`
+  /// instead — the RPC refuses them (`WORKFLOW_HAS_COMPENSATION_CHANGE`) so the
+  /// change, notice document, and timeline event are cleaned up together.
+  ///
+  /// Throws [DeleteForbiddenException] when RLS permitted the read but not the
+  /// delete — nothing is deleted in that case.
+  Future<void> deleteWorkflow(String instanceId) async {
+    try {
+      await _client.rpc('delete_workflow', params: {'p_instance_id': instanceId});
+    } catch (e) {
+      final forbidden = deleteForbiddenFrom(e);
+      if (forbidden != null) throw forbidden;
+      rethrow;
+    }
+  }
+
+  /// Undo a mistaken completion: revert the most-recently-finished step back to
+  /// PENDING and flip the instance from COMPLETED back to IN_PROGRESS. Client-side
+  /// (no cascade/integrity to protect), mirroring [cancelInstance]. Step first,
+  /// then instance, so no transient auto-complete occurs; the instance flip is a
+  /// no-op unless it is still COMPLETED (idempotent). Does not touch any linked
+  /// compensation change or generated document.
+  Future<void> reopenInstance(String instanceId) async {
+    final stepRows = await _client
+        .from('workflow_steps')
+        .select('id')
+        .eq('workflow_instance_id', instanceId)
+        .inFilter('status', ['COMPLETED', 'SKIPPED'])
+        .order('completed_at', ascending: false)
+        .order('step_index', ascending: false)
+        .limit(1);
+    final rows = stepRows as List;
+    if (rows.isNotEmpty) {
+      final stepId = (rows.first as Map<String, dynamic>)['id'] as String;
+      await _client.from('workflow_steps').update({
+        'status': 'PENDING',
+        'completed_by_id': null,
+        'completed_at': null,
+        'remarks': null,
+      }).eq('id', stepId);
+    }
+    await _client
+        .from('workflow_instances')
+        .update({'status': 'IN_PROGRESS', 'completed_at': null})
+        .eq('id', instanceId)
+        .eq('status', 'COMPLETED');
   }
 }
 
