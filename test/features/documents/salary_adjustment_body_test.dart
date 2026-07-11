@@ -1,6 +1,7 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/features/documents/blocks/letter_meta_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/multi_signature_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/paragraph_block.dart';
 import 'package:payroll_flutter/features/documents/templates/salary_adjustment_inputs.dart';
 import 'package:payroll_flutter/features/documents/templates/salary_adjustment_template.dart';
@@ -72,5 +73,22 @@ void main() {
     final blocks =
         t.build(_i(SalaryAdjustmentType.lateral).copyWith(salaryPeriod: 'DAILY'));
     expect(_body(blocks), contains('estimated at 26 working days per month'));
+  });
+
+  test('signatory role + name flow into the From line and the signature', () {
+    final blocks = t.build(_i(SalaryAdjustmentType.salaryAdjustment).copyWith(
+      hrManagerName: 'Jane Cruz',
+      signatoryRole: 'Chief Operating Officer',
+    ));
+
+    final meta = blocks.whereType<LetterMetaBlock>().first;
+    expect(meta.from.name, 'Jane Cruz');
+    expect(meta.from.subtitle, 'Chief Operating Officer');
+
+    final sig = blocks.whereType<MultiSignatureBlock>().first.signatories;
+    // First signatory is the approver; second is the employee acknowledgement.
+    expect(sig.first.name, 'Jane Cruz');
+    expect(sig.first.role, 'Chief Operating Officer');
+    expect(sig.last.role, 'Employee (Acknowledged)');
   });
 }

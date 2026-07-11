@@ -157,6 +157,7 @@ class SalaryAdjustmentTemplate
               c.zipCode,
             ),
       hrManagerName: c?.hrManagerName ?? '',
+      signatoryRole: 'HR Manager',
       workDaysPerMonth: kStandardWorkDaysPerMonth,
       oldRoleScorecardId: change?.prevScorecardId ?? e?.roleScorecardId,
       newRoleScorecardId: change?.newScorecardId,
@@ -238,7 +239,7 @@ class SalaryAdjustmentTemplate
         date: i.issueDate,
         to: LetterParty(name: i.employeeFullName),
         position: i.employeePosition.isEmpty ? null : i.employeePosition,
-        from: LetterParty(name: i.hrManagerName, subtitle: 'HR Manager'),
+        from: LetterParty(name: i.hrManagerName, subtitle: i.signatoryRole),
         subject: subject,
         showDividers: false,
       ),
@@ -253,7 +254,7 @@ class SalaryAdjustmentTemplate
       ),
       const SpacerBlock(40),
       MultiSignatureBlock([
-        SignatoryParty(name: i.hrManagerName, role: 'HR Manager'),
+        SignatoryParty(name: i.hrManagerName, role: i.signatoryRole),
         SignatoryParty(
           name: i.employeeFullName,
           role: 'Employee (Acknowledged)',
