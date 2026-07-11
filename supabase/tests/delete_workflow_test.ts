@@ -173,10 +173,12 @@ async function seedReleasedRunWithPayslip(
       gross_pay, total_earnings, total_deductions, net_pay,
       sss_ee, sss_er, philhealth_ee, philhealth_er,
       pagibig_ee, pagibig_er, withholding_tax,
-      ytd_gross_pay, ytd_taxable_income, ytd_tax_withheld
+      ytd_gross_pay, ytd_taxable_income, ytd_tax_withheld,
+      pay_profile_snapshot
     ) values (
       ${run.rows[0].id}, ${args.employeeId},
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      '{}'::jsonb
     )`;
 }
 
