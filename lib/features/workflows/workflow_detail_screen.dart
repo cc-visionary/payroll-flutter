@@ -10,6 +10,8 @@ import '../../data/repositories/compensation_change_repository.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../data/repositories/workflow_repository.dart';
 import '../auth/profile_provider.dart';
+import '../documents/providers.dart' show allDocumentsProvider;
+import '../employees/profile/providers.dart' show employeeDocumentsProvider, timelineProvider;
 import 'generate_url.dart';
 
 class WorkflowDetailScreen extends ConsumerWidget {
@@ -256,9 +258,17 @@ class _Body extends ConsumerWidget {
 
     ref.invalidate(workflowListProvider);
     if (change != null) {
+      // Comp-linked delete also removed the change's notice document and
+      // timeline entry (delete_compensation_change RPC) — refresh every
+      // surface that reflected it, mirroring runDeleteCompensationChange.
       ref.invalidate(compensationChangeByWorkflowProvider(w.id));
+      ref.invalidate(compensationChangesByEmployeeProvider(w.employeeId));
       ref.invalidate(pendingCompensationChangesProvider(w.employeeId));
       ref.invalidate(employeeByIdProvider(w.employeeId));
+      ref.invalidate(employeeListProvider);
+      ref.invalidate(timelineProvider(w.employeeId));
+      ref.invalidate(employeeDocumentsProvider(w.employeeId));
+      ref.invalidate(allDocumentsProvider);
     }
     messenger.showSnackBar(const SnackBar(content: Text('Workflow deleted.')));
     if (context.mounted) context.go('/workflows');
