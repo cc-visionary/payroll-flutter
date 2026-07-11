@@ -156,3 +156,70 @@ Deno.test({
     assert(msg.includes('WORKFLOW_NOT_FOUND'), `got: ${msg}`);
   }),
 });
+
+// Insert a RELEASED payroll_run + a payslip for the employee. period covers the
+// change's effective date so the delete_compensation_change guard can see it.
+async function seedReleasedRunWithPayslip(
+  tx: Transaction,
+  args: { companyId: string; employeeId: string; periodStart: string; periodEnd: string; payDate: string },
+): Promise<void> {
+  const run = await tx.queryObject<{ id: string }>`
+    insert into payroll_runs (company_id, period_start, period_end, pay_date, pay_frequency, status)
+    values (${args.companyId}, ${args.periodStart}, ${args.periodEnd}, ${args.payDate}, 'SEMI_MONTHLY', 'RELEASED')
+    returning id`;
+  await tx.queryObject`
+    insert into payslips (
+      payroll_run_id, employee_id,
+      gross_pay, total_earnings, total_deductions, net_pay,
+      sss_ee, sss_er, philhealth_ee, philhealth_er,
+      pagibig_ee, pagibig_er, withholding_tax,
+      ytd_gross_pay, ytd_taxable_income, ytd_tax_withheld
+    ) values (
+      ${run.rows[0].id}, ${args.employeeId},
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    )`;
+}
+
+Deno.test({
+  name: 'delete_compensation_change deletes a never-applied CANCELLED change even under released payroll',
+  ignore: skip,
+  fn: () => withTx(async (tx) => {
+    const companyId = await pickCompanyId(tx);
+    const userId = await pickUserId(tx);
+    const employeeId = await seedEmployee(tx, companyId);
+    await seedReleasedRunWithPayslip(tx, {
+      companyId, employeeId, periodStart: '2026-01-01', periodEnd: '2026-01-15', payDate: '2026-01-16',
+    });
+    const changeId = await seedCompChange(tx, {
+      companyId, employeeId, userId, status: 'CANCELLED',
+      effectiveDate: '2026-01-10', appliedAt: null, workflowId: null,
+    });
+
+    await tx.queryObject`select delete_compensation_change(${changeId})`;
+
+    const c = await tx.queryObject`select 1 from compensation_changes where id = ${changeId}`;
+    assertEquals(c.rows.length, 0);
+  }),
+});
+
+Deno.test({
+  name: 'delete_compensation_change still refuses an APPLIED change under released payroll',
+  ignore: skip,
+  fn: () => withTx(async (tx) => {
+    const companyId = await pickCompanyId(tx);
+    const userId = await pickUserId(tx);
+    const employeeId = await seedEmployee(tx, companyId);
+    await seedReleasedRunWithPayslip(tx, {
+      companyId, employeeId, periodStart: '2026-01-01', periodEnd: '2026-01-15', payDate: '2026-01-16',
+    });
+    const changeId = await seedCompChange(tx, {
+      companyId, employeeId, userId, status: 'APPLIED',
+      effectiveDate: '2026-01-10', appliedAt: '2026-01-10T00:00:00Z', workflowId: null,
+    });
+
+    let msg = '';
+    try { await tx.queryObject`select delete_compensation_change(${changeId})`; }
+    catch (e) { msg = (e as Error).message; }
+    assert(msg.includes('RELEASED_PAYROLL'), `got: ${msg}`);
+  }),
+});
