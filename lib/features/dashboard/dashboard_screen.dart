@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../app/breakpoints.dart';
 import '../../app/shell.dart';
 import '../../app/tokens.dart';
+import '../../widgets/responsive_table.dart';
 import 'dashboard_metrics.dart';
 import 'dashboard_period.dart';
 import 'dashboard_providers.dart';
@@ -306,6 +307,13 @@ class _DashboardBody extends ConsumerWidget {
               child: _PayrollBlock(metrics: view.metrics),
             ),
           ],
+        ),
+        const SizedBox(height: 16),
+        _SectionCard(
+          title: 'Monthly Explorer — ${view.period.year}',
+          subtitle: 'Click a month to filter the dashboard',
+          icon: Icons.table_chart_outlined,
+          child: _MonthlyExplorer(view: view),
         ),
         const SizedBox(height: 24),
         const Center(
@@ -1079,65 +1087,102 @@ class _TenureBarsState extends State<_TenureBars> {
 }
 
 // ---------------------------------------------------------------------------
-// Attendance block — placeholder; Task 8 replaces this wholesale.
+// Attendance block — day-composition bar + mini-metric tiles.
 // ---------------------------------------------------------------------------
 class _AttendanceBlock extends StatelessWidget {
   final MonthMetrics metrics;
   const _AttendanceBlock({required this.metrics});
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox.shrink();
-  }
-}
 
-class _RingGauge extends StatelessWidget {
-  final int percent;
-  final Color color;
-  final String label;
-  final Map<String, String> tooltipRows;
-  const _RingGauge({
-    required this.percent,
-    required this.color,
-    required this.label,
-    required this.tooltipRows,
-  });
   @override
   Widget build(BuildContext context) {
-    final p = percent.clamp(0, 100);
-    final msg = tooltipRows.entries
-        .map((e) => '${e.key}: ${e.value}')
-        .join('\n');
-    return Tooltip(
-      message: msg,
-      waitDuration: const Duration(milliseconds: 150),
-      preferBelow: false,
-      textStyle: const TextStyle(fontSize: 12, color: Colors.white),
-      child: Column(
-        children: [
-          SizedBox(
-            width: 78,
-            height: 78,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox.expand(
-                  child: CircularProgressIndicator(
-                    value: p / 100.0,
-                    strokeWidth: 7,
-                    backgroundColor: color.withValues(alpha: 0.15),
-                    valueColor: AlwaysStoppedAnimation(color),
-                  ),
-                ),
-                Text('$p%',
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w700)),
-              ],
+    final m = metrics;
+    final segments = <({String label, int value, Color color})>[
+      (label: 'Present', value: m.presentDays, color: const Color(0xFF10B981)),
+      (label: 'Absent', value: m.absentDays, color: const Color(0xFFEF4444)),
+      (label: 'Leave', value: m.leaveDays.ceil(), color: const Color(0xFF8B5CF6)),
+      (label: 'Rest', value: m.restDays, color: const Color(0xFF94A3B8)),
+      (
+        label: 'Holiday',
+        value: m.regularHolidays + m.specialHolidays,
+        color: const Color(0xFFF59E0B)
+      ),
+    ].where((s) => s.value > 0).toList();
+    final total = segments.fold<int>(0, (s, e) => s + e.value);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (total == 0)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: Text('No attendance in this period',
+                  style: TextStyle(color: Colors.grey)),
+            ),
+          )
+        else ...[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(LuxiumRadius.lg),
+            child: SizedBox(
+              height: 14,
+              child: Row(
+                children: [
+                  for (final s in segments)
+                    Expanded(
+                      flex: s.value,
+                      child: Tooltip(
+                        message: '${s.label}: ${s.value} days',
+                        child: ColoredBox(color: s.color),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 12)),
+          const SizedBox(height: LuxiumSpacing.md),
+          Wrap(
+            spacing: LuxiumSpacing.lg,
+            runSpacing: LuxiumSpacing.sm,
+            children: [
+              for (final s in segments)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                          color: s.color, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 6),
+                    Text('${s.label} ${s.value}',
+                        style: const TextStyle(fontSize: 12)),
+                  ],
+                ),
+            ],
+          ),
         ],
-      ),
+        const SizedBox(height: LuxiumSpacing.lg),
+        _ResponsiveRow(
+          minColWidth: 130,
+          spacing: 12,
+          equalSize: false,
+          children: [
+            _MiniMetric(
+                label: 'Late / UT',
+                value: formatMinutes(m.lateUndertimeMinutes)),
+            _MiniMetric(
+                label: 'Avg late / work day',
+                value:
+                    '${m.avgLateMinutesPerWorkDay.toStringAsFixed(1)} min'),
+            _MiniMetric(
+                label: 'Overtime',
+                value: '${m.overtimeHours.toStringAsFixed(1)} hrs'),
+            _MiniMetric(
+                label: 'Leave Days', value: formatDays(m.leaveDays)),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -1279,4 +1324,137 @@ String formatMinutes(double minutes) {
 String formatDays(double days) {
   if (days == days.roundToDouble()) return days.toStringAsFixed(0);
   return days.toStringAsFixed(1);
+}
+
+// ---------------------------------------------------------------------------
+// Monthly Explorer — one row per month of the selected year, plus a year
+// total. Doubles as the period selector: clicking a row re-slices the whole
+// dashboard (no refetch — the year is already in memory).
+//
+// Only period-scoped metrics appear. Headcount / tenure / employment type are
+// point-in-time snapshots that do not sum across months, so they are
+// deliberately absent.
+// ---------------------------------------------------------------------------
+class _MonthlyExplorer extends ConsumerWidget {
+  final DashboardView view;
+  const _MonthlyExplorer({required this.view});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = LuxiumColors.of(context);
+    final period = view.period;
+    final currency =
+        NumberFormat.currency(locale: 'en_PH', symbol: '₱', decimalDigits: 0);
+    final now = DateTime.now();
+
+    Widget num_(String s, {bool strong = false, Color? color}) => Text(
+          s,
+          textAlign: TextAlign.right,
+          style: TextStyle(
+            fontFamily: 'GeistMono',
+            fontSize: 12.5,
+            fontWeight: strong ? FontWeight.w700 : FontWeight.w500,
+            color: color ?? p.foreground,
+          ),
+        );
+
+    DataRow monthRow(MonthMetrics m) {
+      final isFuture = m.year > now.year ||
+          (m.year == now.year && m.month! > now.month);
+      final selected = !period.isYear && period.month == m.month;
+      final label = DateFormat('MMM').format(DateTime(m.year, m.month!, 1));
+      final dim = isFuture ? p.subdued : null;
+
+      return DataRow(
+        selected: selected,
+        onSelectChanged: isFuture
+            ? null
+            : (_) {
+                ref.read(dashboardPeriodProvider.notifier).state =
+                    period.copyWith(
+                  mode: DashboardPeriodMode.month,
+                  month: m.month,
+                );
+              },
+        cells: [
+          DataCell(Text(
+            label,
+            style: TextStyle(
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: dim ?? p.foreground,
+            ),
+          )),
+          DataCell(num_(isFuture ? '—' : '${m.workDays}', color: dim)),
+          DataCell(num_(isFuture ? '—' : '${m.presentDays}', color: dim)),
+          DataCell(num_(isFuture ? '—' : '${m.absentDays}', color: dim)),
+          DataCell(num_(isFuture ? '—' : formatDays(m.leaveDays), color: dim)),
+          DataCell(num_(
+              isFuture ? '—' : formatMinutes(m.lateUndertimeMinutes),
+              color: dim)),
+          DataCell(num_(
+              isFuture ? '—' : '${m.overtimeHours.toStringAsFixed(0)}h',
+              color: dim)),
+          DataCell(num_(isFuture ? '—' : '${m.newHires}', color: dim)),
+          DataCell(num_(isFuture ? '—' : '${m.separations}', color: dim)),
+          DataCell(num_(
+              isFuture ? '—' : currency.format(m.payrollGross.toDouble()),
+              color: dim)),
+        ],
+      );
+    }
+
+    final year = view.yearTotal;
+    final yearSelected = period.isYear;
+    final yearRow = DataRow(
+      selected: yearSelected,
+      onSelectChanged: (_) {
+        ref.read(dashboardPeriodProvider.notifier).state =
+            period.copyWith(mode: DashboardPeriodMode.year);
+      },
+      cells: [
+        DataCell(Text('Year',
+            style: TextStyle(
+                fontWeight: FontWeight.w700, color: p.foreground))),
+        DataCell(num_('${year.workDays}', strong: true)),
+        DataCell(num_('${year.presentDays}', strong: true)),
+        DataCell(num_('${year.absentDays}', strong: true)),
+        DataCell(num_(formatDays(year.leaveDays), strong: true)),
+        DataCell(
+            num_(formatMinutes(year.lateUndertimeMinutes), strong: true)),
+        DataCell(num_('${year.overtimeHours.toStringAsFixed(0)}h',
+            strong: true)),
+        DataCell(num_('${year.newHires}', strong: true)),
+        DataCell(num_('${year.separations}', strong: true)),
+        DataCell(num_(currency.format(year.payrollGross.toDouble()),
+            strong: true)),
+      ],
+    );
+
+    return ResponsiveTable(
+      fullWidth: true,
+      child: DataTable(
+        columnSpacing: 20,
+        headingRowHeight: 40,
+        dataRowMinHeight: 40,
+        dataRowMaxHeight: 44,
+        showCheckboxColumn: false,
+        columns: const [
+          DataColumn(label: Text('Month')),
+          DataColumn(label: Text('Work'), numeric: true),
+          DataColumn(label: Text('Present'), numeric: true),
+          DataColumn(label: Text('Absent'), numeric: true),
+          DataColumn(label: Text('Leave'), numeric: true),
+          DataColumn(label: Text('Late / UT'), numeric: true),
+          DataColumn(label: Text('OT'), numeric: true),
+          DataColumn(label: Text('Hires'), numeric: true),
+          DataColumn(label: Text('Sep'), numeric: true),
+          DataColumn(label: Text('Payroll'), numeric: true),
+        ],
+        rows: [
+          for (final m in view.months) monthRow(m),
+          yearRow,
+        ],
+      ),
+    );
+  }
 }
