@@ -1,4 +1,5 @@
 import 'package:decimal/decimal.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -44,11 +45,12 @@ class DashboardYearData {
   });
 }
 
+// OFFER_ACCEPTED is deliberately excluded — an accepted offer isn't hired
+// yet, so it still counts as OPEN.
 const _kClosedApplicantStatuses = {
   'HIRED',
   'REJECTED',
   'WITHDRAWN',
-  'OFFER_DECLINED',
 };
 
 /// Fetch + derive one calendar year.
@@ -89,8 +91,12 @@ final dashboardYearDataProvider = FutureProvider<DashboardYearData>((ref) async 
     // 1: attendance for the whole year (paginated inside the repository).
     attendanceRepo.listByRange(
         start: yearStart, end: yearEnd, companyId: companyId),
-    // 2: shifts
-    shiftRepo.list(),
+    // 2: shifts — onlyActive:false, mirroring the scorecard note below: a
+    //    deactivated shift must still resolve historically, or the dashboard
+    //    silently reads zero late/OT for anyone on that shift while their
+    //    payslip (computed with no is_active filter) already paid the real
+    //    number — exactly the drift this dashboard exists to eliminate.
+    shiftRepo.list(onlyActive: false),
     // 3: scorecards — onlyActive:false, or a separated employee's superseded
     //    scorecard won't resolve and their shift/work-days go missing.
     scorecardRepo.list(onlyActive: false),
@@ -254,23 +260,29 @@ Future<List<LeaveDayAllocation>> _fetchLeave(
 
     final out = <LeaveDayAllocation>[];
     for (final r in rows) {
-      final t = r['leave_types'] as Map?;
-      final typeName =
-          (t?['name'] ?? t?['code'] ?? 'Leave').toString();
-      out.addAll(expandLeaveRequest(
-        employeeId: r['employee_id'] as String,
-        startDate: DateTime.parse(r['start_date'] as String),
-        endDate: DateTime.parse(r['end_date'] as String),
-        leaveDays:
-            double.tryParse((r['leave_days'] ?? '0').toString()) ?? 0,
-        startHalf: r['start_half'] as String?,
-        endHalf: r['end_half'] as String?,
-        leaveType: typeName,
-      ));
+      try {
+        final t = r['leave_types'] as Map?;
+        final typeName =
+            (t?['name'] ?? t?['code'] ?? 'Leave').toString();
+        out.addAll(expandLeaveRequest(
+          employeeId: r['employee_id'] as String,
+          startDate: DateTime.parse(r['start_date'] as String),
+          endDate: DateTime.parse(r['end_date'] as String),
+          leaveDays:
+              double.tryParse((r['leave_days'] ?? '0').toString()) ?? 0,
+          startHalf: r['start_half'] as String?,
+          endHalf: r['end_half'] as String?,
+          leaveType: typeName,
+        ));
+      } catch (e) {
+        // A single unparseable row must not blank all leave for the year.
+        debugPrint('dashboard: skipping unparseable leave_requests row: $e');
+      }
     }
     return out;
-  } catch (_) {
+  } catch (e) {
     // Degrade to zero leave rather than blanking the page.
+    debugPrint('dashboard: leave fetch failed, degrading to empty: $e');
     return const [];
   }
 }
@@ -296,9 +308,10 @@ Future<List<DashboardPayslip>> _fetchPayslips(
           .range(from, to);
       return (page as List<dynamic>).cast<Map<String, dynamic>>();
     });
-    return [
-      for (final r in rows)
-        DashboardPayslip(
+    final out = <DashboardPayslip>[];
+    for (final r in rows) {
+      try {
+        out.add(DashboardPayslip(
           employeeId: r['employee_id'] as String,
           payDate: DateTime.parse(
               (r['payroll_runs'] as Map)['pay_date'] as String),
@@ -307,11 +320,17 @@ Future<List<DashboardPayslip>> _fetchPayslips(
           philhealthEe: _dec(r['philhealth_ee']),
           pagibigEe: _dec(r['pagibig_ee']),
           withholdingTax: _dec(r['withholding_tax']),
-        ),
-    ];
-  } catch (_) {
+        ));
+      } catch (e) {
+        // A single unparseable row must not blank all payroll for the year.
+        debugPrint('dashboard: skipping unparseable payslips row: $e');
+      }
+    }
+    return out;
+  } catch (e) {
     // Older schemas may lack payroll_runs.pay_date. Zeroed payroll KPIs beat
     // a dead dashboard.
+    debugPrint('dashboard: payslips fetch failed, degrading to empty: $e');
     return const [];
   }
 }
@@ -333,10 +352,14 @@ Future<List<Applicant>> _fetchApplicants(
     for (final r in rows) {
       try {
         out.add(ApplicantFromRow.fromRow(r));
-      } catch (_) {}
+      } catch (e) {
+        // A single unparseable row must not blank all applicants.
+        debugPrint('dashboard: skipping unparseable applicants row: $e');
+      }
     }
     return out;
-  } catch (_) {
+  } catch (e) {
+    debugPrint('dashboard: applicants fetch failed, degrading to empty: $e');
     return const [];
   }
 }
@@ -350,7 +373,8 @@ Future<List<CalendarEvent>> _fetchHolidays(
     final cal = await repo.byYear(companyId, year);
     if (cal == null) return const [];
     return await repo.events(cal.id);
-  } catch (_) {
+  } catch (e) {
+    debugPrint('dashboard: holidays fetch failed, degrading to empty: $e');
     return const [];
   }
 }

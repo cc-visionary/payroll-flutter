@@ -7,12 +7,16 @@ class ShiftTemplateRepository {
   final SupabaseClient _client;
   ShiftTemplateRepository(this._client);
 
-  Future<List<ShiftTemplate>> list() async {
-    final rows = await _client
-        .from('shift_templates')
-        .select()
-        .eq('is_active', true)
-        .order('code');
+  /// [onlyActive] defaults to `true` so every existing caller keeps today's
+  /// behaviour unchanged. Pass `false` when a deactivated shift must still
+  /// resolve historically — e.g. the HR dashboard, which must read the same
+  /// shift set payroll used, or its late/OT figures diverge from the payslip
+  /// that already paid it (same class of bug as `roleScorecardRepo.list(
+  /// onlyActive: false)`).
+  Future<List<ShiftTemplate>> list({bool onlyActive = true}) async {
+    var q = _client.from('shift_templates').select();
+    if (onlyActive) q = q.eq('is_active', true);
+    final rows = await q.order('code');
     return rows.cast<Map<String, dynamic>>().map(ShiftTemplate.fromRow).toList();
   }
 
