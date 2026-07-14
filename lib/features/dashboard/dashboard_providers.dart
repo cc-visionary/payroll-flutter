@@ -1,117 +1,75 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../data/models/applicant.dart';
+import '../../data/models/attendance_day.dart';
+import '../../data/models/calendar_event.dart';
+import '../../data/models/department.dart';
+import '../../data/models/employee.dart';
+import '../../data/models/hiring_entity.dart';
+import '../../data/models/role_scorecard.dart';
+import '../../data/models/shift_template.dart';
+import '../../data/pagination.dart';
+import '../../data/repositories/attendance_repository.dart';
+import '../../data/repositories/department_repository.dart';
+import '../../data/repositories/hiring_entity_repository.dart';
+import '../../data/repositories/holiday_repository.dart';
+import '../../data/repositories/role_scorecard_repository.dart';
+import '../../data/repositories/shift_template_repository.dart';
+import '../attendance/attendance_row_vm.dart' show isoDate;
 import '../auth/profile_provider.dart';
+import 'dashboard_metrics.dart';
+import 'dashboard_period.dart';
+import 'leave_expansion.dart';
 
-/// Dashboard's selected year. Drives every yearly aggregation on the
-/// screen (Payroll Summary, Employee Movement totals, Attendance Overview
-/// period). Defaults to the current calendar year; the Dashboard header
-/// exposes a dropdown so HR can audit prior years.
-final dashboardYearProvider =
-    StateProvider<int>((ref) => DateTime.now().year);
-
-/// Aggregated dashboard snapshot for the selected period (default: current
-/// calendar month). All counts/amounts are computed on the server via single
-/// scoped queries; we fan out queries in parallel and assemble the snapshot
-/// here so the screen only watches one provider.
-class DashboardData {
-  // Workforce
-  final int activeEmployees;
-  final int totalEmployees;
-  final double avgTenureMonths;
-  final Map<String, int> headcountByDepartment;
-  final Map<String, int> employmentTypeCounts;
-  final Map<String, int> hiringEntityCounts;
-  final Map<String, int> tenureBuckets; // <1 year, 1-2, 2-5, 5+
-
-  // Recruitment
-  final int openPositions;
-  final int newApplicantsThisMonth;
-
-  // Attendance (period)
-  final int attendanceTotal;
-  final int attendancePresent;
-  final int attendanceAbsent;
-  final int attendanceOnLeave;
-  final int attendanceRestDay;
-  final double attendanceRatePct;
-  final double overtimeHours;
-  final int avgLateMinutes;
-
-  // Payroll (latest finalized run within period; falls back to most recent)
-  final Decimal totalPayrollCost;
-  final Decimal avgSalary;
-  final Decimal sssTotal;
-  final Decimal philhealthTotal;
-  final Decimal pagibigTotal;
-  final Decimal withholdingTaxTotal;
-
-  // Movement
-  final int newHiresThisMonth;
-  final int separationsThisMonth;
-  final int voluntaryYtd;
-  final int involuntaryYtd;
-
-  final DateTime periodStart;
-  final DateTime periodEnd;
+/// Everything the dashboard derived for one calendar year. Fetched once per
+/// year; the selected month is a pure slice of this (see
+/// [dashboardViewProvider]) so month-switching never hits the network.
+class DashboardYearData {
+  final int year;
+  final List<MonthMetrics> months; // 12, January first
+  final MonthMetrics yearTotal;
+  final DashboardYearInput input;
+  final int openApplicants;
   final DateTime generatedAt;
 
-  const DashboardData({
-    required this.activeEmployees,
-    required this.totalEmployees,
-    required this.avgTenureMonths,
-    required this.headcountByDepartment,
-    required this.employmentTypeCounts,
-    required this.hiringEntityCounts,
-    required this.tenureBuckets,
-    required this.openPositions,
-    required this.newApplicantsThisMonth,
-    required this.attendanceTotal,
-    required this.attendancePresent,
-    required this.attendanceAbsent,
-    required this.attendanceOnLeave,
-    required this.attendanceRestDay,
-    required this.attendanceRatePct,
-    required this.overtimeHours,
-    required this.avgLateMinutes,
-    required this.totalPayrollCost,
-    required this.avgSalary,
-    required this.sssTotal,
-    required this.philhealthTotal,
-    required this.pagibigTotal,
-    required this.withholdingTaxTotal,
-    required this.newHiresThisMonth,
-    required this.separationsThisMonth,
-    required this.voluntaryYtd,
-    required this.involuntaryYtd,
-    required this.periodStart,
-    required this.periodEnd,
+  const DashboardYearData({
+    required this.year,
+    required this.months,
+    required this.yearTotal,
+    required this.input,
+    required this.openApplicants,
     required this.generatedAt,
   });
 }
 
-String _isoDate(DateTime d) => d.toIso8601String().substring(0, 10);
+const _kClosedApplicantStatuses = {
+  'HIRED',
+  'REJECTED',
+  'WITHDRAWN',
+  'OFFER_DECLINED',
+};
 
-double _tenureMonths(DateTime hire, DateTime now) {
-  return now.difference(hire).inDays / 30.4375;
-}
+/// Fetch + derive one calendar year.
+///
+/// Keyed on the YEAR only — `.select((p) => p.year)` — so changing the month
+/// re-slices without refetching. Watching the whole period here would refetch
+/// the entire year on every month click.
+final dashboardYearDataProvider = FutureProvider<DashboardYearData>((ref) async {
+  // Subscribe to every reactive dependency BEFORE the first await. Riverpod
+  // only registers `ref.watch` calls that execute synchronously on the first
+  // pass; a watch after an await never subscribes, and the provider silently
+  // stops invalidating. (This exact bug shipped once already, with the year
+  // dropdown not refiltering.)
+  final year = ref.watch(dashboardPeriodProvider.select((p) => p.year));
+  final attendanceRepo = ref.watch(attendanceRepositoryProvider);
+  final shiftRepo = ref.watch(shiftTemplateRepositoryProvider);
+  final scorecardRepo = ref.watch(roleScorecardRepositoryProvider);
+  final deptRepo = ref.watch(departmentRepositoryProvider);
+  final entityRepo = ref.watch(hiringEntityRepositoryProvider);
+  final holidayRepo = ref.watch(holidayRepositoryProvider);
 
-String _tenureBucket(double months) {
-  if (months < 12) return '< 1 year';
-  if (months < 24) return '1-2 years';
-  if (months < 60) return '2-5 years';
-  return '5+ years';
-}
-
-final dashboardDataProvider = FutureProvider<DashboardData>((ref) async {
-  // IMPORTANT: subscribe to every reactive dependency *before* any await.
-  // Riverpod only tracks `ref.watch` calls that execute synchronously on
-  // the first pass — watches after an await don't register a subscription,
-  // so changes to them never invalidate this provider. That bit us with
-  // the year dropdown silently not refiltering.
-  final selectedYear = ref.watch(dashboardYearProvider);
   final profile = await ref.watch(userProfileProvider.future);
   final companyId = profile?.companyId;
   if (companyId == null || companyId.isEmpty) {
@@ -119,280 +77,280 @@ final dashboardDataProvider = FutureProvider<DashboardData>((ref) async {
   }
 
   final client = Supabase.instance.client;
-  final now = DateTime.now();
-  final isCurrentYear = selectedYear == now.year;
-  final periodStart = isCurrentYear
-      ? DateTime(now.year, now.month, 1)
-      : DateTime(selectedYear, 1, 1);
-  final periodEnd = isCurrentYear
-      ? DateTime(now.year, now.month + 1, 0)
-      : DateTime(selectedYear, 12, 31);
-  final ytdStart = DateTime(selectedYear, 1, 1);
-  final ytdEnd = DateTime(selectedYear, 12, 31);
-  final periodStartIso = _isoDate(periodStart);
-  final periodEndIso = _isoDate(periodEnd);
-  final ytdStartIso = _isoDate(ytdStart);
-  final ytdEndIso = _isoDate(ytdEnd);
+  final yearStart = DateTime(year, 1, 1);
+  final yearEnd = DateTime(year, 12, 31);
+  final startIso = _iso(yearStart);
+  final endIso = _iso(yearEnd);
 
-  // Payroll summary always spans the selected calendar year; monthly toggle
-  // removed per 2026-04 UX pass.
-  final payrollStartIso = ytdStartIso;
-  final payrollEndIso = ytdEndIso;
-
-  // Run independent queries in parallel.
   final results = await Future.wait<dynamic>([
-    // 0: employees — join department through role_scorecards so headcount
-    // reflects the currently linked role's department. Falls back to the
-    // employee's own department_id when no role is linked.
-    client
-        .from('employees')
-        .select(
-            'id, employment_type, employment_status, hire_date, separation_date, '
-            'department_id, hiring_entity_id, role_scorecard_id, deleted_at, '
-            'departments!employees_department_id_fkey(name), '
-            'hiring_entities!employees_hiring_entity_id_fkey(name), '
-            'role_scorecards(department_id, departments(name))')
-        .eq('company_id', companyId)
-        .isFilter('deleted_at', null),
-    // 1: applicants — open pipeline + new this month
-    client
-        .from('applicants')
-        .select('id, status, applied_at, deleted_at')
-        .eq('company_id', companyId)
-        .isFilter('deleted_at', null),
-    // 2: attendance for the period (joined to scoped employees)
-    client
-        .from('attendance_day_records')
-        .select(
-            'attendance_status, day_type, actual_time_in, actual_time_out, '
-            'approved_ot_minutes, employees!inner(company_id)')
-        .eq('employees.company_id', companyId)
-        .gte('attendance_date', periodStartIso)
-        .lte('attendance_date', periodEndIso),
-    // 3: payslips aggregated into the payroll KPI tile. Wrapped so a failure
-    //    here (e.g. migration 20260418000001 not yet applied → period_* columns
-    //    missing on payroll_runs) doesn't take down the whole dashboard.
-    _safePayslipsForPeriod(client, companyId, payrollStartIso, payrollEndIso),
-    // 4: employment events (movement)
-    client
-        .from('employment_events')
-        .select('event_type, event_date, payload, employees!inner(company_id)')
-        .eq('employees.company_id', companyId)
-        .gte('event_date', ytdStartIso),
-  ], eagerError: false);
+    // 0: employees — INCLUDING soft-deleted. Separation can stamp
+    //    deleted_at, so filtering here would hide the separations we report.
+    _fetchEmployees(client, companyId),
+    // 1: attendance for the whole year (paginated inside the repository).
+    attendanceRepo.listByRange(
+        start: yearStart, end: yearEnd, companyId: companyId),
+    // 2: shifts
+    shiftRepo.list(),
+    // 3: scorecards — onlyActive:false, or a separated employee's superseded
+    //    scorecard won't resolve and their shift/work-days go missing.
+    scorecardRepo.list(onlyActive: false),
+    // 4: departments
+    deptRepo.list(companyId),
+    // 5: hiring entities
+    entityRepo.list(companyId),
+    // 6: approved leave requests overlapping the year
+    _fetchLeave(client, companyId, startIso, endIso),
+    // 7: payslips of RELEASED runs paid within the year
+    _fetchPayslips(client, companyId, startIso, endIso),
+    // 8: applicants
+    _fetchApplicants(client, companyId),
+    // 9: holidays for the year
+    _fetchHolidays(holidayRepo, companyId, year),
+  ]);
 
-  // ---- 0. Employees ----
-  final emps = (results[0] as List).cast<Map<String, dynamic>>();
-  int active = 0;
-  final tenureSum = <double>[];
-  final dept = <String, int>{};
-  final type = <String, int>{};
-  final entity = <String, int>{};
-  final tenure = <String, int>{
-    '< 1 year': 0,
-    '1-2 years': 0,
-    '2-5 years': 0,
-    '5+ years': 0,
-  };
-  for (final e in emps) {
-    final status = e['employment_status'] as String? ?? '';
-    if (status == 'ACTIVE') active++;
-    final hire = DateTime.parse(e['hire_date'] as String);
-    final monthsT = _tenureMonths(hire, now);
-    if (status == 'ACTIVE') {
-      tenureSum.add(monthsT);
-      tenure[_tenureBucket(monthsT)] = (tenure[_tenureBucket(monthsT)] ?? 0) + 1;
-      // Prefer the role scorecard's department — that's the source of truth
-      // for "who belongs where". Fall back to the employee's own dept link,
-      // then 'Unassigned'.
-      final roleCard = e['role_scorecards'] as Map?;
-      final roleDeptName = (roleCard?['departments'] as Map?)?['name'] as String?;
-      final ownDeptName = (e['departments'] as Map?)?['name'] as String?;
-      final deptName = roleDeptName ?? ownDeptName ?? 'Unassigned';
-      dept[deptName] = (dept[deptName] ?? 0) + 1;
-      final t = (e['employment_type'] as String?) ?? 'UNKNOWN';
-      type[t] = (type[t] ?? 0) + 1;
-      final entName = (e['hiring_entities'] as Map?)?['name'] as String? ?? 'Unassigned';
-      entity[entName] = (entity[entName] ?? 0) + 1;
-    }
-  }
-  final avgTenure = tenureSum.isEmpty
-      ? 0.0
-      : tenureSum.reduce((a, b) => a + b) / tenureSum.length;
+  final employees = results[0] as List<Employee>;
+  final attendance = results[1] as List<AttendanceDay>;
+  final shifts = results[2] as List<ShiftTemplate>;
+  final scorecards = results[3] as List<RoleScorecard>;
+  final departments = results[4] as List<Department>;
+  final entities = results[5] as List<HiringEntity>;
+  final leaveDays = results[6] as List<LeaveDayAllocation>;
+  final payslips = results[7] as List<DashboardPayslip>;
+  final applicants = results[8] as List<Applicant>;
+  final holidays = results[9] as List<CalendarEvent>;
 
-  // ---- 1. Applicants ----
-  final applicants = (results[1] as List).cast<Map<String, dynamic>>();
-  int openPositions = 0;
-  int newApplicants = 0;
-  for (final a in applicants) {
-    final status = (a['status'] as String? ?? '').toUpperCase();
-    final isClosed = status == 'HIRED' ||
-        status == 'REJECTED' ||
-        status == 'WITHDRAWN' ||
-        status == 'OFFER_DECLINED';
-    if (!isClosed) openPositions++;
-    final applied = DateTime.parse(a['applied_at'] as String);
-    if (!applied.isBefore(periodStart) && !applied.isAfter(periodEnd)) {
-      newApplicants++;
-    }
-  }
+  final input = DashboardYearInput(
+    year: year,
+    employees: employees,
+    scorecardsById: {for (final s in scorecards) s.id: s},
+    shiftsById: {for (final s in shifts) s.id: s},
+    departmentNames: {for (final d in departments) d.id: d.name},
+    hiringEntityNames: {for (final e in entities) e.id: e.name},
+    // Keyed with the shared `isoDate` helper (attendance_row_vm.dart) — the
+    // same key format `buildAttendanceRows` uses to look holidays up. A
+    // hand-rolled `substring(0,10)` here would silently zero every holiday.
+    holidaysByDate: {for (final h in holidays) isoDate(h.date): h},
+    attendance: attendance,
+    leaveDays: leaveDays,
+    payslips: payslips,
+    applicants: applicants,
+    // Must be the real wall clock. Task 5 passes `skipFutureDays: false` to
+    // the attendance engine, relying on `today` here (not a fabricated one)
+    // to clip each employee's window.
+    today: DateTime.now(),
+  );
 
-  // ---- 2. Attendance ----
-  final attRows = (results[2] as List).cast<Map<String, dynamic>>();
-  int aTotal = 0, aPresent = 0, aAbsent = 0, aLeave = 0, aRestDay = 0;
-  int otMinutes = 0;
-  int latePresentSamples = 0;
-  int lateMinutesSum = 0;
-  for (final r in attRows) {
-    aTotal++;
-    final s = (r['attendance_status'] as String? ?? '').toUpperCase();
-    switch (s) {
-      case 'PRESENT':
-      case 'HALF_DAY':
-        aPresent++;
-        break;
-      case 'ABSENT':
-        aAbsent++;
-        break;
-      case 'ON_LEAVE':
-        aLeave++;
-        break;
-      case 'REST_DAY':
-        aRestDay++;
-        break;
-    }
-    final ot = r['approved_ot_minutes'];
-    if (ot is int) otMinutes += ot;
-    if (ot is num) otMinutes += ot.toInt();
+  final months = computeMonthMetrics(input);
+  final openApplicants = applicants
+      .where((a) =>
+          !_kClosedApplicantStatuses.contains(a.status.toUpperCase()))
+      .length;
 
-    // Rough "late" sample: clock in after 09:00 local on a workday.
-    final inRaw = r['actual_time_in'] as String?;
-    final dt = (r['day_type'] as String?)?.toUpperCase();
-    if (inRaw != null && dt == 'WORKDAY') {
-      final t = DateTime.parse(inRaw).toLocal();
-      if (t.hour > 9 || (t.hour == 9 && t.minute > 0)) {
-        latePresentSamples++;
-        lateMinutesSum +=
-            ((t.hour - 9) * 60 + t.minute).clamp(0, 8 * 60);
-      }
-    }
-  }
-  // Attendance rate: present out of (total minus rest day & on-leave) — i.e.
-  // chargeable working days only.
-  final chargeable = aTotal - aRestDay - aLeave;
-  final attendanceRate = chargeable <= 0
-      ? 0.0
-      : (aPresent / chargeable) * 100.0;
-  final avgLate = latePresentSamples == 0
-      ? 0
-      : (lateMinutesSum / latePresentSamples).round();
-
-  // ---- 3. Payroll (sum across payslips for the period) ----
-  final payslips = (results[3] as List).cast<Map<String, dynamic>>();
-  Decimal d(Object? v) => Decimal.parse((v ?? '0').toString());
-  Decimal totalGross = Decimal.zero;
-  Decimal sssTot = Decimal.zero;
-  Decimal phTot = Decimal.zero;
-  Decimal pgTot = Decimal.zero;
-  Decimal whTot = Decimal.zero;
-  for (final p in payslips) {
-    totalGross += d(p['gross_pay']);
-    sssTot += d(p['sss_ee']);
-    phTot += d(p['philhealth_ee']);
-    pgTot += d(p['pagibig_ee']);
-    whTot += d(p['withholding_tax']);
-  }
-  final avgSalary = payslips.isEmpty
-      ? Decimal.zero
-      : (totalGross / Decimal.fromInt(payslips.length))
-          .toDecimal(scaleOnInfinitePrecision: 2);
-
-  // ---- 4. Employment events ----
-  // All Employee Movement counts are now yearly (spans the selected year).
-  // The "This Month" framing was removed in the 2026-04 dashboard pass.
-  final events = (results[4] as List).cast<Map<String, dynamic>>();
-  int newHires = 0, separations = 0, voluntary = 0, involuntary = 0;
-  for (final ev in events) {
-    final t = (ev['event_type'] as String? ?? '').toUpperCase();
-    final dStr = ev['event_date'] as String;
-    final eventDate = DateTime.parse(dStr);
-    final inYear = !eventDate.isBefore(ytdStart) &&
-        !eventDate.isAfter(ytdEnd);
-    if (!inYear) continue;
-    if (t == 'HIRE' || t == 'NEW_HIRE') {
-      newHires++;
-    } else if (t == 'SEPARATION' ||
-        t == 'TERMINATION' ||
-        t == 'RESIGNATION' ||
-        t == 'END_OF_CONTRACT') {
-      separations++;
-      final payload = ev['payload'] as Map<String, dynamic>? ?? const {};
-      final kind = (payload['kind'] as String? ?? t).toUpperCase();
-      if (t == 'RESIGNATION' || kind.contains('VOLUNTARY')) {
-        voluntary++;
-      } else {
-        involuntary++;
-      }
-    }
-  }
-
-  return DashboardData(
-    activeEmployees: active,
-    totalEmployees: emps.length,
-    avgTenureMonths: avgTenure,
-    headcountByDepartment: dept,
-    employmentTypeCounts: type,
-    hiringEntityCounts: entity,
-    tenureBuckets: tenure,
-    openPositions: openPositions,
-    newApplicantsThisMonth: newApplicants,
-    attendanceTotal: aTotal,
-    attendancePresent: aPresent,
-    attendanceAbsent: aAbsent,
-    attendanceOnLeave: aLeave,
-    attendanceRestDay: aRestDay,
-    attendanceRatePct: attendanceRate,
-    overtimeHours: otMinutes / 60.0,
-    avgLateMinutes: avgLate,
-    totalPayrollCost: totalGross,
-    avgSalary: avgSalary,
-    sssTotal: sssTot,
-    philhealthTotal: phTot,
-    pagibigTotal: pgTot,
-    withholdingTaxTotal: whTot,
-    newHiresThisMonth: newHires,
-    separationsThisMonth: separations,
-    voluntaryYtd: voluntary,
-    involuntaryYtd: involuntary,
-    periodStart: periodStart,
-    periodEnd: periodEnd,
+  return DashboardYearData(
+    year: year,
+    months: months,
+    yearTotal: aggregateMonths(months, year),
+    input: input,
+    openApplicants: openApplicants,
     generatedAt: DateTime.now(),
   );
 });
 
-/// Defensive payslip fetch for RELEASED runs whose pay_date falls inside
-/// the given range. Joins through payroll_runs so the company + status
-/// filter is enforced server-side. Swallows join-shape failures (older
-/// schemas missing `period_start` / `pay_date`) so the rest of the
-/// dashboard still renders with 0-valued payroll KPIs.
-Future<List<dynamic>> _safePayslipsForPeriod(
+/// What the screen renders. A pure re-slice of [dashboardYearDataProvider] —
+/// clicking a month in the explorer costs nothing.
+class DashboardView {
+  final DashboardPeriod period;
+  final MonthMetrics metrics; // selected month, or the year total
+  final SnapshotMetrics snapshot;
+  final List<MonthMetrics> months; // for the explorer
+  final MonthMetrics yearTotal;
+  final int openApplicants;
+  final DateTime generatedAt;
+
+  const DashboardView({
+    required this.period,
+    required this.metrics,
+    required this.snapshot,
+    required this.months,
+    required this.yearTotal,
+    required this.openApplicants,
+    required this.generatedAt,
+  });
+}
+
+final dashboardViewProvider = Provider<AsyncValue<DashboardView>>((ref) {
+  final period = ref.watch(dashboardPeriodProvider);
+  final async = ref.watch(dashboardYearDataProvider);
+  return async.whenData((d) {
+    final metrics =
+        period.isYear ? d.yearTotal : d.months[period.month - 1];
+    final asOf = period.endOn(DateTime.now());
+    return DashboardView(
+      period: period,
+      metrics: metrics,
+      snapshot: computeSnapshot(d.input, asOf),
+      months: d.months,
+      yearTotal: d.yearTotal,
+      openApplicants: d.openApplicants,
+      generatedAt: d.generatedAt,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Fetch helpers
+// ---------------------------------------------------------------------------
+
+String _iso(DateTime d) => d.toIso8601String().substring(0, 10);
+
+Decimal _dec(Object? v) => Decimal.parse((v ?? '0').toString());
+
+Future<List<Employee>> _fetchEmployees(
+    SupabaseClient client, String companyId) async {
+  final rows = await fetchAllPages<Map<String, dynamic>>((from, to) async {
+    final page = await client
+        .from('employees')
+        .select()
+        .eq('company_id', companyId)
+        .order('id')
+        .range(from, to);
+    return (page as List<dynamic>).cast<Map<String, dynamic>>();
+  });
+  final out = <Employee>[];
+  for (final r in rows) {
+    try {
+      out.add(Employee.fromRow(r));
+    } catch (_) {
+      // A single unparseable row must not blank the whole dashboard.
+    }
+  }
+  return out;
+}
+
+/// Approved leave overlapping the year, expanded to per-date allocations.
+/// Overlap (not containment) so a request straddling Dec→Jan still lands.
+Future<List<LeaveDayAllocation>> _fetchLeave(
   SupabaseClient client,
   String companyId,
-  String periodStartIso,
-  String periodEndIso,
+  String startIso,
+  String endIso,
 ) async {
   try {
-    return await client
-        .from('payslips')
-        .select(
-            'gross_pay, total_deductions, sss_ee, philhealth_ee, pagibig_ee, '
-            'withholding_tax, '
-            'payroll_runs!inner(company_id, status, pay_date)')
-        .eq('payroll_runs.company_id', companyId)
-        .eq('payroll_runs.status', 'RELEASED')
-        .gte('payroll_runs.pay_date', periodStartIso)
-        .lte('payroll_runs.pay_date', periodEndIso) as List<dynamic>;
+    final rows = await fetchAllPages<Map<String, dynamic>>((from, to) async {
+      final page = await client
+          .from('leave_requests')
+          .select(
+              'employee_id, start_date, end_date, leave_days, start_half, '
+              'end_half, status, leave_types(name, code), '
+              'employees!inner(company_id)')
+          .eq('employees.company_id', companyId)
+          .eq('status', 'APPROVED')
+          .lte('start_date', endIso)
+          .gte('end_date', startIso)
+          .order('id')
+          .range(from, to);
+      return (page as List<dynamic>).cast<Map<String, dynamic>>();
+    });
+
+    final out = <LeaveDayAllocation>[];
+    for (final r in rows) {
+      final t = r['leave_types'] as Map?;
+      final typeName =
+          (t?['name'] ?? t?['code'] ?? 'Leave').toString();
+      out.addAll(expandLeaveRequest(
+        employeeId: r['employee_id'] as String,
+        startDate: DateTime.parse(r['start_date'] as String),
+        endDate: DateTime.parse(r['end_date'] as String),
+        leaveDays:
+            double.tryParse((r['leave_days'] ?? '0').toString()) ?? 0,
+        startHalf: r['start_half'] as String?,
+        endHalf: r['end_half'] as String?,
+        leaveType: typeName,
+      ));
+    }
+    return out;
   } catch (_) {
-    return const <dynamic>[];
+    // Degrade to zero leave rather than blanking the page.
+    return const [];
+  }
+}
+
+Future<List<DashboardPayslip>> _fetchPayslips(
+  SupabaseClient client,
+  String companyId,
+  String startIso,
+  String endIso,
+) async {
+  try {
+    final rows = await fetchAllPages<Map<String, dynamic>>((from, to) async {
+      final page = await client
+          .from('payslips')
+          .select('employee_id, gross_pay, sss_ee, philhealth_ee, '
+              'pagibig_ee, withholding_tax, '
+              'payroll_runs!inner(company_id, status, pay_date)')
+          .eq('payroll_runs.company_id', companyId)
+          .eq('payroll_runs.status', 'RELEASED')
+          .gte('payroll_runs.pay_date', startIso)
+          .lte('payroll_runs.pay_date', endIso)
+          .order('id')
+          .range(from, to);
+      return (page as List<dynamic>).cast<Map<String, dynamic>>();
+    });
+    return [
+      for (final r in rows)
+        DashboardPayslip(
+          employeeId: r['employee_id'] as String,
+          payDate: DateTime.parse(
+              (r['payroll_runs'] as Map)['pay_date'] as String),
+          grossPay: _dec(r['gross_pay']),
+          sssEe: _dec(r['sss_ee']),
+          philhealthEe: _dec(r['philhealth_ee']),
+          pagibigEe: _dec(r['pagibig_ee']),
+          withholdingTax: _dec(r['withholding_tax']),
+        ),
+    ];
+  } catch (_) {
+    // Older schemas may lack payroll_runs.pay_date. Zeroed payroll KPIs beat
+    // a dead dashboard.
+    return const [];
+  }
+}
+
+Future<List<Applicant>> _fetchApplicants(
+    SupabaseClient client, String companyId) async {
+  try {
+    final rows = await fetchAllPages<Map<String, dynamic>>((from, to) async {
+      final page = await client
+          .from('applicants')
+          .select()
+          .eq('company_id', companyId)
+          .isFilter('deleted_at', null)
+          .order('id')
+          .range(from, to);
+      return (page as List<dynamic>).cast<Map<String, dynamic>>();
+    });
+    final out = <Applicant>[];
+    for (final r in rows) {
+      try {
+        out.add(ApplicantFromRow.fromRow(r));
+      } catch (_) {}
+    }
+    return out;
+  } catch (_) {
+    return const [];
+  }
+}
+
+Future<List<CalendarEvent>> _fetchHolidays(
+  HolidayRepository repo,
+  String companyId,
+  int year,
+) async {
+  try {
+    final cal = await repo.byYear(companyId, year);
+    if (cal == null) return const [];
+    return await repo.events(cal.id);
+  } catch (_) {
+    return const [];
   }
 }
