@@ -56,7 +56,10 @@ List<LeaveDayAllocation> expandLeaveRequest({
   if (end.isBefore(start)) return const [];
 
   final dates = <DateTime>[];
-  for (var d = start; !d.isAfter(end); d = d.add(const Duration(days: 1))) {
+  // Iterate by calendar day, not duration. Duration(days: 1) can skip or repeat
+  // a calendar day across DST transitions. DateTime(year, month, day+1) is
+  // timezone-safe and normalises month/year overflow.
+  for (var d = start; !d.isAfter(end); d = DateTime(d.year, d.month, d.day + 1)) {
     dates.add(d);
   }
 
