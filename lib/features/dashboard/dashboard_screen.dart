@@ -7,17 +7,20 @@ import 'package:intl/intl.dart';
 import '../../app/breakpoints.dart';
 import '../../app/shell.dart';
 import '../../app/tokens.dart';
+import 'dashboard_metrics.dart';
+import 'dashboard_period.dart';
 import 'dashboard_providers.dart';
 
 /// HR analytics dashboard. Mirrors the PeopleOS reference layout:
-/// header → 4 KPI cards → headcount/distribution charts →
-/// attendance + payroll → movement → footer.
+/// header (with Month/Year period control) → 6 KPI cards →
+/// point-in-time snapshot charts ("as of" stamped) → attendance + payroll →
+/// footer. Employee movement now lives only in the Task 8 explorer.
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(dashboardDataProvider);
+    final async = ref.watch(dashboardViewProvider);
     final mobile = isMobile(context);
     return Scaffold(
       drawer: mobile ? const AppDrawer() : null,
@@ -25,7 +28,7 @@ class DashboardScreen extends ConsumerWidget {
           ? AppBar(title: const Text('Dashboard'))
           : null,
       body: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(dashboardDataProvider),
+        onRefresh: () async => ref.invalidate(dashboardYearDataProvider),
         child: async.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(
@@ -34,9 +37,9 @@ class DashboardScreen extends ConsumerWidget {
               child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
             ),
           ),
-          data: (d) => SingleChildScrollView(
+          data: (v) => SingleChildScrollView(
             padding: EdgeInsets.all(mobile ? 16 : 24),
-            child: _DashboardBody(data: d),
+            child: _DashboardBody(view: v),
           ),
         ),
       ),
@@ -45,21 +48,18 @@ class DashboardScreen extends ConsumerWidget {
 }
 
 class _DashboardBody extends ConsumerWidget {
-  final DashboardData data;
-  const _DashboardBody({required this.data});
+  final DashboardView view;
+  const _DashboardBody({required this.view});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selectedYear = ref.watch(dashboardYearProvider);
+    final period = ref.watch(dashboardPeriodProvider);
     final thisYear = DateTime.now().year;
-    // Year options: current year + 4 back. Dropdown lets HR audit prior
-    // years without touching query params.
-    final yearOptions = [
-      for (var y = thisYear; y >= thisYear - 4; y--) y,
-    ];
+    final yearOptions = [for (var y = thisYear; y >= thisYear - 4; y--) y];
     final updatedLabel =
-        DateFormat('MMM d, yyyy, h:mm a').format(data.generatedAt);
+        DateFormat('MMM d, yyyy, h:mm a').format(view.generatedAt);
     final mobile = isMobile(context);
+
     final headerTitle = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -67,27 +67,71 @@ class _DashboardBody extends ConsumerWidget {
             style: TextStyle(
                 fontSize: mobile ? 22 : 28, fontWeight: FontWeight.w700)),
         const SizedBox(height: 4),
-        Text('HR Analytics for $selectedYear',
+        Text('HR Analytics · ${period.label}',
             style: const TextStyle(color: Colors.grey)),
       ],
     );
+
     final headerMeta = Column(
       crossAxisAlignment:
           mobile ? CrossAxisAlignment.start : CrossAxisAlignment.end,
       children: [
-        // Year picker — drives every yearly aggregation on the page.
-        DropdownButton<int>(
-          value: selectedYear,
-          isDense: true,
-          underline: const SizedBox.shrink(),
-          items: [
-            for (final y in yearOptions)
-              DropdownMenuItem(value: y, child: Text('$y')),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SegmentedButton<DashboardPeriodMode>(
+              segments: const [
+                ButtonSegment(
+                    value: DashboardPeriodMode.month, label: Text('Month')),
+                ButtonSegment(
+                    value: DashboardPeriodMode.year, label: Text('Year')),
+              ],
+              selected: {period.mode},
+              showSelectedIcon: false,
+              onSelectionChanged: (s) {
+                ref.read(dashboardPeriodProvider.notifier).state =
+                    period.copyWith(mode: s.first);
+              },
+            ),
+            const SizedBox(width: LuxiumSpacing.md),
+            if (!period.isYear) ...[
+              DropdownButton<int>(
+                value: period.month,
+                isDense: true,
+                underline: const SizedBox.shrink(),
+                items: [
+                  for (var m = 1; m <= 12; m++)
+                    DropdownMenuItem(
+                      value: m,
+                      child: Text(
+                          DateFormat('MMMM').format(DateTime(2000, m, 1))),
+                    ),
+                ],
+                onChanged: (m) {
+                  if (m == null) return;
+                  ref.read(dashboardPeriodProvider.notifier).state =
+                      period.copyWith(month: m);
+                },
+              ),
+              const SizedBox(width: LuxiumSpacing.sm),
+            ],
+            DropdownButton<int>(
+              value: yearOptions.contains(period.year)
+                  ? period.year
+                  : yearOptions.first,
+              isDense: true,
+              underline: const SizedBox.shrink(),
+              items: [
+                for (final y in yearOptions)
+                  DropdownMenuItem(value: y, child: Text('$y')),
+              ],
+              onChanged: (y) {
+                if (y == null) return;
+                ref.read(dashboardPeriodProvider.notifier).state =
+                    period.copyWith(year: y);
+              },
+            ),
           ],
-          onChanged: (y) {
-            if (y == null) return;
-            ref.read(dashboardYearProvider.notifier).state = y;
-          },
         ),
         const SizedBox(height: 4),
         Text('Last updated: $updatedLabel',
@@ -123,117 +167,145 @@ class _DashboardBody extends ConsumerWidget {
               ? const Color(0xFFF59E0B)
               : const Color(0xFFFBBF24);
           final tertiary = Theme.of(context).colorScheme.tertiary;
+          final m = view.metrics;
+          final asOfLabel =
+              DateFormat('MMM d, yyyy').format(view.snapshot.asOf);
           return _ResponsiveRow(
-            minColWidth: 240,
+            minColWidth: 220,
             children: [
               _KpiCard(
                 icon: Icons.groups_outlined,
                 iconBg: p.ctaTint,
                 iconColor: p.cta,
                 label: 'Active Employees',
-                value: data.activeEmployees.toString(),
-                subtitle: '${data.totalEmployees} total',
-              ),
-              _KpiCard(
-                icon: Icons.trending_up,
-                iconBg: p.accentGreen.withValues(alpha: 0.14),
-                iconColor: p.accentGreen,
-                label: 'Avg Tenure',
-                value: '${data.avgTenureMonths.toStringAsFixed(1)} mo',
-                subtitle: 'across active staff',
-              ),
-              _KpiCard(
-                icon: Icons.work_outline,
-                iconBg: tertiary.withValues(alpha: 0.14),
-                iconColor: tertiary,
-                label: 'Open Positions',
-                value: data.openPositions.toString(),
-                subtitle:
-                    '${data.newApplicantsThisMonth} applicants this month',
+                value: view.snapshot.activeEmployees.toString(),
+                subtitle: 'as of $asOfLabel',
               ),
               _KpiCard(
                 icon: Icons.access_time,
+                iconBg: p.accentGreen.withValues(alpha: 0.14),
+                iconColor: p.accentGreen,
+                label: 'Attendance Rate',
+                value: '${m.attendanceRatePct.toStringAsFixed(1)}%',
+                subtitle:
+                    '${m.presentDays} present · ${m.absentDays} absent',
+              ),
+              _KpiCard(
+                icon: Icons.timer_outlined,
                 iconBg: amber.withValues(alpha: 0.14),
                 iconColor: amber,
-                label: 'Attendance Rate',
-                value: '${data.attendanceRatePct.toStringAsFixed(1)}%',
-                subtitle: '${data.overtimeHours.toStringAsFixed(1)} OT hours',
+                label: 'Late / UT',
+                value: formatMinutes(m.lateUndertimeMinutes),
+                subtitle:
+                    '${m.avgLateMinutesPerWorkDay.toStringAsFixed(1)} min/work day',
+              ),
+              _KpiCard(
+                icon: Icons.beach_access_outlined,
+                iconBg: const Color(0xFF8B5CF6).withValues(alpha: 0.14),
+                iconColor: const Color(0xFF8B5CF6),
+                label: 'Leave Days',
+                value: formatDays(m.leaveDays),
+                subtitle: 'approved leave taken',
+              ),
+              _KpiCard(
+                icon: Icons.trending_up,
+                iconBg: tertiary.withValues(alpha: 0.14),
+                iconColor: tertiary,
+                label: 'OT Hours',
+                value: '${m.overtimeHours.toStringAsFixed(1)} hrs',
+                subtitle: 'net of late absorption',
+              ),
+              _KpiCard(
+                icon: Icons.work_outline,
+                iconBg: p.cta.withValues(alpha: 0.14),
+                iconColor: p.cta,
+                label: 'Open Applicants',
+                value: view.openApplicants.toString(),
+                subtitle: '${m.newApplicants} new this period',
               ),
             ],
           );
         }),
         const SizedBox(height: 16),
-        // Row 2: Headcount + Employment Type
-        _ResponsiveRow(
-          minColWidth: 360,
-          children: [
-            _SectionCard(
-              title: 'Headcount by Department',
-              icon: Icons.bar_chart,
-              child: _DeptBars(counts: data.headcountByDepartment),
-            ),
-            _SectionCard(
-              title: 'Employment Type Distribution',
-              child: _DonutWithLegend(
-                counts: data.employmentTypeCounts,
-                centerLabel: 'Total',
-                palette: const [
-                  Color(0xFF3B82F6),
-                  Color(0xFF10B981),
-                  Color(0xFFF59E0B),
-                  Color(0xFFEF4444),
-                  Color(0xFF8B5CF6),
-                  Color(0xFF06B6D4),
+        Builder(builder: (context) {
+          final asOf =
+              'as of ${DateFormat('MMM d, yyyy').format(view.snapshot.asOf)}';
+          final s = view.snapshot;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _ResponsiveRow(
+                minColWidth: 360,
+                children: [
+                  _SectionCard(
+                    title: 'Headcount by Department',
+                    subtitle: asOf,
+                    icon: Icons.bar_chart,
+                    child: _DeptBars(counts: s.headcountByDepartment),
+                  ),
+                  _SectionCard(
+                    title: 'Employment Type Distribution',
+                    subtitle: asOf,
+                    child: _DonutWithLegend(
+                      counts: s.employmentTypeCounts,
+                      centerLabel: 'Total',
+                      palette: const [
+                        Color(0xFF3B82F6),
+                        Color(0xFF10B981),
+                        Color(0xFFF59E0B),
+                        Color(0xFFEF4444),
+                        Color(0xFF8B5CF6),
+                        Color(0xFF06B6D4),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        // Row 3: Hiring Entity + Tenure
-        _ResponsiveRow(
-          minColWidth: 360,
-          children: [
-            _SectionCard(
-              title: 'Employees by Hiring Entity',
-              child: _DonutWithLegend(
-                counts: data.hiringEntityCounts,
-                centerLabel: 'Total',
-                palette: const [
-                  Color(0xFF7C3AED),
-                  Color(0xFF14B8A6),
-                  Color(0xFFEC4899),
-                  Color(0xFFF59E0B),
-                  Color(0xFF3B82F6),
+              const SizedBox(height: 16),
+              _ResponsiveRow(
+                minColWidth: 360,
+                children: [
+                  _SectionCard(
+                    title: 'Employees by Hiring Entity',
+                    subtitle: asOf,
+                    child: _DonutWithLegend(
+                      counts: s.hiringEntityCounts,
+                      centerLabel: 'Total',
+                      palette: const [
+                        Color(0xFF7C3AED),
+                        Color(0xFF14B8A6),
+                        Color(0xFFEC4899),
+                        Color(0xFFF59E0B),
+                        Color(0xFF3B82F6),
+                      ],
+                    ),
+                  ),
+                  _SectionCard(
+                    title: 'Tenure Distribution',
+                    subtitle:
+                        'Avg ${s.avgTenureMonths.toStringAsFixed(1)} months · $asOf',
+                    child: _TenureBars(buckets: s.tenureBuckets),
+                  ),
                 ],
               ),
-            ),
-            _SectionCard(
-              title: 'Tenure Distribution',
-              child: _TenureBars(buckets: data.tenureBuckets),
-            ),
-          ],
-        ),
+            ],
+          );
+        }),
         const SizedBox(height: 16),
-        // Row 4: Attendance + Payroll
         _ResponsiveRow(
           minColWidth: 420,
           children: [
             _SectionCard(
               title: 'Attendance Overview',
-              child: _AttendanceBlock(data: data),
+              subtitle: period.label,
+              child: _AttendanceBlock(metrics: view.metrics),
             ),
             _SectionCard(
               title: 'Payroll Summary',
-              child: _PayrollBlock(data: data),
+              subtitle: period.label,
+              child: _PayrollBlock(metrics: view.metrics),
             ),
           ],
-        ),
-        const SizedBox(height: 16),
-        // Row 5: Employee Movement (yearly — year picker in header)
-        _SectionCard(
-          title: 'Employee Movement ($selectedYear)',
-          child: _MovementBlock(data: data),
         ),
         const SizedBox(height: 24),
         const Center(
@@ -322,10 +394,12 @@ class _ResponsiveRow extends StatelessWidget {
 
 class _SectionCard extends StatelessWidget {
   final String title;
+  final String? subtitle;
   final IconData? icon;
   final Widget child;
   const _SectionCard({
     required this.title,
+    this.subtitle,
     this.icon,
     required this.child,
   });
@@ -356,6 +430,13 @@ class _SectionCard extends StatelessWidget {
                 ),
               ),
             ]),
+            if (subtitle != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                subtitle!,
+                style: TextStyle(fontSize: 11.5, color: p.subdued),
+              ),
+            ],
             const SizedBox(height: LuxiumSpacing.lg),
             child,
           ],
@@ -998,81 +1079,14 @@ class _TenureBarsState extends State<_TenureBars> {
 }
 
 // ---------------------------------------------------------------------------
-// Attendance block — 3 ring gauges + 2 metric tiles
+// Attendance block — placeholder; Task 8 replaces this wholesale.
 // ---------------------------------------------------------------------------
 class _AttendanceBlock extends StatelessWidget {
-  final DashboardData data;
-  const _AttendanceBlock({required this.data});
+  final MonthMetrics metrics;
+  const _AttendanceBlock({required this.metrics});
   @override
   Widget build(BuildContext context) {
-    final chargeable = data.attendanceTotal -
-        data.attendanceRestDay -
-        data.attendanceOnLeave;
-    final presentPct = chargeable <= 0
-        ? 0
-        : ((data.attendancePresent / chargeable) * 100).round();
-    final leavePct = data.attendanceTotal == 0
-        ? 0
-        : ((data.attendanceOnLeave / data.attendanceTotal) * 100).round();
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _RingGauge(
-              percent: data.attendanceRatePct.round(),
-              color: const Color(0xFF10B981),
-              label: 'Attendance',
-              tooltipRows: {
-                'Rate': '${data.attendanceRatePct.toStringAsFixed(1)}%',
-                'Present': data.attendancePresent.toString(),
-                'Absent': data.attendanceAbsent.toString(),
-                'On leave': data.attendanceOnLeave.toString(),
-                'Rest days': data.attendanceRestDay.toString(),
-              },
-            ),
-            _RingGauge(
-              percent: presentPct,
-              color: const Color(0xFF3B82F6),
-              label: 'Present',
-              tooltipRows: {
-                'Present': '$presentPct%',
-                'Basis': 'present ÷ chargeable days',
-                'Chargeable': chargeable.toString(),
-              },
-            ),
-            _RingGauge(
-              percent: leavePct,
-              color: const Color(0xFF8B5CF6),
-              label: 'Leave Used',
-              tooltipRows: {
-                'Leave used': '$leavePct%',
-                'Basis': 'on-leave days ÷ total days',
-                'Total days': data.attendanceTotal.toString(),
-              },
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        Row(
-          children: [
-            Expanded(
-              child: _MiniMetric(
-                label: 'Avg Late Minutes',
-                value: '${data.avgLateMinutes} min',
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _MiniMetric(
-                label: 'Overtime Hours',
-                value: '${data.overtimeHours.toStringAsFixed(1)} hrs',
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
+    return const SizedBox.shrink();
   }
 }
 
@@ -1159,8 +1173,8 @@ class _MiniMetric extends StatelessWidget {
 // Payroll block — total + statutory tiles
 // ---------------------------------------------------------------------------
 class _PayrollBlock extends StatelessWidget {
-  final DashboardData data;
-  const _PayrollBlock({required this.data});
+  final MonthMetrics metrics;
+  const _PayrollBlock({required this.metrics});
   @override
   Widget build(BuildContext context) {
     final f = NumberFormat.currency(locale: 'en_PH', symbol: '₱', decimalDigits: 0);
@@ -1171,10 +1185,10 @@ class _PayrollBlock extends StatelessWidget {
         const Text('Total Payroll Cost',
             style: TextStyle(fontSize: 12, color: Colors.grey)),
         const SizedBox(height: 4),
-        Text(fmt(data.totalPayrollCost),
+        Text(fmt(metrics.payrollGross),
             style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700)),
         const SizedBox(height: 6),
-        Text('Avg Salary: ${fmt(data.avgSalary)}',
+        Text('Avg gross per employee: ${fmt(metrics.avgGrossPerEmployee)}',
             style: const TextStyle(fontSize: 12, color: Colors.grey)),
         const SizedBox(height: 16),
         _ResponsiveRow(
@@ -1184,25 +1198,25 @@ class _PayrollBlock extends StatelessWidget {
           children: [
             _StatTile(
               label: 'SSS',
-              value: fmt(data.sssTotal),
+              value: fmt(metrics.sssTotal),
               bg: const Color(0xFFE0F2FE),
               fg: const Color(0xFF0369A1),
             ),
             _StatTile(
               label: 'PhilHealth',
-              value: fmt(data.philhealthTotal),
+              value: fmt(metrics.philhealthTotal),
               bg: const Color(0xFFD1FADF),
               fg: const Color(0xFF12B76A),
             ),
             _StatTile(
               label: 'Pag-IBIG',
-              value: fmt(data.pagibigTotal),
+              value: fmt(metrics.pagibigTotal),
               bg: const Color(0xFFFEF3C7),
               fg: const Color(0xFFB45309),
             ),
             _StatTile(
               label: 'Withholding Tax',
-              value: fmt(data.withholdingTaxTotal),
+              value: fmt(metrics.withholdingTaxTotal),
               bg: const Color(0xFFFEE2E2),
               fg: const Color(0xFFB91C1C),
             ),
@@ -1247,75 +1261,22 @@ class _StatTile extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Employee movement
+// Formatters — shared with the explorer (Task 8).
 // ---------------------------------------------------------------------------
-class _MovementBlock extends StatelessWidget {
-  final DashboardData data;
-  const _MovementBlock({required this.data});
-  @override
-  Widget build(BuildContext context) {
-    return _ResponsiveRow(
-      minColWidth: 160,
-      spacing: 12,
-      equalSize: false,
-      children: [
-        _MovementTile(
-          label: 'New Hires',
-          value: data.newHiresThisMonth.toString(),
-          color: const Color(0xFF12B76A),
-          bg: const Color(0xFFD1FADF),
-        ),
-        _MovementTile(
-          label: 'Separations',
-          value: data.separationsThisMonth.toString(),
-          color: const Color(0xFFEF4444),
-          bg: const Color(0xFFFEE2E2),
-        ),
-        _MovementTile(
-          label: 'Voluntary (YTD)',
-          value: data.voluntaryYtd.toString(),
-          color: const Color(0xFFB45309),
-          bg: const Color(0xFFFEF3C7),
-        ),
-        _MovementTile(
-          label: 'Involuntary (YTD)',
-          value: data.involuntaryYtd.toString(),
-          color: const Color(0xFF7C3AED),
-          bg: const Color(0xFFEDE0FF),
-        ),
-      ],
-    );
-  }
+
+/// "6h 44m" / "44m" / "0m" — minutes are the natural unit for late/UT, but
+/// a month's worth of them is unreadable without the hour rollup.
+String formatMinutes(double minutes) {
+  final total = minutes.round();
+  if (total <= 0) return '0m';
+  final h = total ~/ 60;
+  final m = total % 60;
+  if (h == 0) return '${m}m';
+  return '${h}h ${m}m';
 }
 
-class _MovementTile extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  final Color bg;
-  const _MovementTile({
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.bg,
-  });
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          Text(value,
-              style: TextStyle(
-                  fontSize: 28, fontWeight: FontWeight.w700, color: color)),
-          const SizedBox(height: 4),
-          Text(label, style: const TextStyle(fontSize: 12)),
-        ],
-      ),
-    );
-  }
+/// Leave days carry halves, so "7.5" — but drop the ".0" on whole days.
+String formatDays(double days) {
+  if (days == days.roundToDouble()) return days.toStringAsFixed(0);
+  return days.toStringAsFixed(1);
 }
