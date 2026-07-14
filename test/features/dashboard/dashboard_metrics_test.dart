@@ -1,9 +1,12 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/data/models/attendance_day.dart';
+import 'package:payroll_flutter/data/models/calendar_event.dart';
 import 'package:payroll_flutter/data/models/employee.dart';
 import 'package:payroll_flutter/data/models/role_scorecard.dart';
 import 'package:payroll_flutter/data/models/shift_template.dart';
+import 'package:payroll_flutter/features/attendance/attendance_row_vm.dart'
+    show isoDate;
 import 'package:payroll_flutter/features/dashboard/dashboard_metrics.dart';
 import 'package:payroll_flutter/features/dashboard/leave_expansion.dart';
 
@@ -66,10 +69,12 @@ ShiftTemplate _shift() => const ShiftTemplate(
       isActive: true,
     );
 
-RoleScorecard _scorecard() => RoleScorecard(
-      id: 'sc1',
+RoleScorecard _scorecard({String id = 'sc1', String? departmentId}) =>
+    RoleScorecard(
+      id: id,
       companyId: 'c1',
       jobTitle: 'Staff',
+      departmentId: departmentId,
       missionStatement: '',
       responsibilities: const [],
       kpis: const [],
@@ -122,16 +127,19 @@ DashboardYearInput _input({
   List<AttendanceDay> attendance = const [],
   List<LeaveDayAllocation> leaveDays = const [],
   List<DashboardPayslip> payslips = const [],
+  Map<String, RoleScorecard>? scorecardsById,
+  Map<String, String>? departmentNames,
+  Map<String, CalendarEvent> holidaysByDate = const {},
   DateTime? today,
 }) {
   return DashboardYearInput(
     year: 2026,
     employees: employees,
-    scorecardsById: {'sc1': _scorecard()},
+    scorecardsById: scorecardsById ?? {'sc1': _scorecard()},
     shiftsById: {'sh1': _shift()},
-    departmentNames: const {'d1': 'Engineering'},
+    departmentNames: departmentNames ?? const {'d1': 'Engineering'},
     hiringEntityNames: const {'h1': 'Luxium HQ'},
-    holidaysByDate: const {},
+    holidaysByDate: holidaysByDate,
     attendance: attendance,
     leaveDays: leaveDays,
     payslips: payslips,
@@ -231,6 +239,25 @@ void main() {
       expect(months[6].workDays, greaterThan(0)); // July
     });
 
+    test('a mid-year separation accrues no work days after the last day', () {
+      // Separated 15 May. If the window were not clipped, June-December would
+      // fill with scheduled-but-absent work days.
+      final months = computeMonthMetrics(_input(
+        employees: [
+          _emp(
+            id: 'e1',
+            hireDate: DateTime(2020, 1, 1),
+            separationDate: DateTime(2026, 5, 15),
+            employmentStatus: 'RESIGNED',
+          ),
+        ],
+      ));
+      expect(months[4].workDays, greaterThan(0)); // May
+      for (var m = 5; m < 12; m++) {
+        expect(months[m].workDays, 0, reason: 'month ${m + 1}');
+      }
+    });
+
     test('attendance rate is present / (present + absent)', () {
       final months = computeMonthMetrics(_input(
         employees: [_emp(id: 'e1', hireDate: DateTime(2020, 1, 1))],
@@ -274,6 +301,29 @@ void main() {
       expect(july.restDays, 3);
       expect(july.absentDays, 0);
       expect(july.presentDays, 0);
+    });
+
+    test('an unworked regular holiday on a weekday counts as a holiday, not '
+        'an absence', () {
+      // 2026-07-06 is a Monday. No attendance record for it at all.
+      final holidayDate = DateTime(2026, 7, 6);
+      final event = CalendarEvent(
+        id: 'ev1',
+        calendarId: 'cal1',
+        date: holidayDate,
+        name: 'Test Holiday',
+        dayType: 'REGULAR_HOLIDAY',
+        source: 'MANUAL',
+      );
+      final months = computeMonthMetrics(_input(
+        employees: [_emp(id: 'e1', hireDate: holidayDate)],
+        holidaysByDate: {isoDate(holidayDate): event},
+        today: holidayDate,
+      ));
+      final july = months[6];
+      expect(july.regularHolidays, 1);
+      expect(july.absentDays, 0);
+      expect(july.workDays, 0); // unworked holiday is not a Work Day
     });
 
     test('rates return 0 rather than NaN when the denominator is empty', () {
@@ -354,6 +404,28 @@ void main() {
       expect(months[4].separations, 1); // May
       expect(months[4].voluntarySeparations, 1);
       expect(months[4].involuntarySeparations, 0);
+    });
+
+    test('an archived employee with NO separation date is not a hire and '
+        'accrues no work days in any month', () {
+      // deleted_at stamped via the standalone Archive button (not the
+      // "archive on separate" option), so separation_date stays null. This
+      // is a data cleanup, not a person leaving — it must not inflate hires
+      // or Work Days. Contrast with the sibling test above: a separated AND
+      // archived employee (separation_date set) DOES still count.
+      final months = computeMonthMetrics(_input(
+        employees: [
+          _emp(
+            id: 'e1',
+            hireDate: DateTime(2026, 2, 3),
+            deletedAt: DateTime(2026, 3, 1),
+          ),
+        ],
+      ));
+      for (final m in months) {
+        expect(m.newHires, 0, reason: 'month ${m.month}');
+        expect(m.workDays, 0, reason: 'month ${m.month}');
+      }
     });
 
     test('RESIGNED and RETIRED are voluntary; TERMINATED, END_OF_CONTRACT, '
@@ -533,6 +605,25 @@ void main() {
       expect(snap.headcountByDepartment['Engineering'], 1);
       expect(snap.headcountByDepartment['Unassigned'], 1);
       expect(snap.asOf, DateTime(2026, 7, 31));
+    });
+
+    test('when the scorecard department differs from the employee\'s own '
+        'department link, the scorecard wins', () {
+      final input = _input(
+        employees: [
+          _emp(
+            id: 'e1',
+            hireDate: DateTime(2020, 1, 1),
+            departmentId: 'd1', // employee's own link says Engineering
+            roleScorecardId: 'sc1',
+          ),
+        ],
+        scorecardsById: {'sc1': _scorecard(departmentId: 'd2')},
+        departmentNames: const {'d1': 'Engineering', 'd2': 'Sales'},
+      );
+      final snap = computeSnapshot(input, DateTime(2026, 7, 31));
+      expect(snap.headcountByDepartment['Sales'], 1);
+      expect(snap.headcountByDepartment.containsKey('Engineering'), isFalse);
     });
 
     test('separated employee drops out of the following month snapshot', () {

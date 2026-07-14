@@ -227,6 +227,13 @@ bool isActiveAsOf(Employee e, DateTime asOf) {
   return e.deletedAt == null;
 }
 
+/// An archived row with no separation date is a data cleanup, not a person —
+/// it must not accrue work days or count as a hire. (Employees archived AS
+/// PART OF separation keep their separation_date and DO still count, in the
+/// month they left.)
+bool _isRealEmployee(Employee e) =>
+    e.deletedAt == null || e.separationDate != null;
+
 double _tenureMonths(DateTime hire, DateTime asOf) =>
     asOf.difference(hire).inDays / 30.4375;
 
@@ -299,6 +306,7 @@ List<MonthMetrics> computeMonthMetrics(DashboardYearInput input) {
   }
 
   for (final e in input.employees) {
+    if (!_isRealEmployee(e)) continue;
     final sc = e.roleScorecardId == null
         ? null
         : input.scorecardsById[e.roleScorecardId!];
@@ -328,6 +336,10 @@ List<MonthMetrics> computeMonthMetrics(DashboardYearInput input) {
       holidays: input.holidaysByDate,
       defaultShift: defaultShift,
       workDaysPerWeek: workDaysPerWeek,
+      // input.today is authoritative and already clips `end` above; the
+      // wall-clock cutoff inside buildAttendanceRows would be redundant at
+      // best and, in tests, a silent dependency on the real clock.
+      skipFutureDays: false,
     );
 
     // Group this employee's rows by month, then hand each month's rows to
@@ -363,6 +375,7 @@ List<MonthMetrics> computeMonthMetrics(DashboardYearInput input) {
 
   // ---- Movement, from employees (NOT employment_events) ----
   for (final e in input.employees) {
+    if (!_isRealEmployee(e)) continue;
     if (e.hireDate.year == year) hires[e.hireDate.month - 1]++;
     final sep = e.separationDate;
     final status = e.employmentStatus.toUpperCase();
