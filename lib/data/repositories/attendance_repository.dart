@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/attendance_day.dart';
+import '../pagination.dart';
 
 class AttendanceRepository {
   final SupabaseClient _client;
@@ -72,6 +73,10 @@ class AttendanceRepository {
     await _client.from('attendance_day_records').delete().eq('id', id);
   }
 
+  /// Fetch every attendance row in [start]..[end], paging past postgrest's
+  /// `max_rows` cap. A month at ~40 staff already exceeds 1000 rows, so an
+  /// unpaged read here silently truncates and every consumer — payroll
+  /// compute, run warnings, the dashboard — computes on a partial slice.
   Future<List<AttendanceDay>> listByRange({
     required DateTime start,
     required DateTime end,
@@ -80,20 +85,30 @@ class AttendanceRepository {
   }) async {
     final startIso = start.toIso8601String().substring(0, 10);
     final endIso = end.toIso8601String().substring(0, 10);
-    var q = _client
-        .from('attendance_day_records')
-        .select('*, employees!inner(employee_number, first_name, last_name)')
-        .gte('attendance_date', startIso)
-        .lte('attendance_date', endIso);
-    if (employeeId != null) q = q.eq('employee_id', employeeId);
-    // Restrict to one company by filtering the inner-joined employee. `!inner`
-    // makes this an effective WHERE on the embedded resource.
-    if (companyId != null) q = q.eq('employees.company_id', companyId);
-    final rows = await q.order('attendance_date', ascending: false);
+
+    final rows = await fetchAllPages<Map<String, dynamic>>((from, to) async {
+      var q = _client
+          .from('attendance_day_records')
+          .select('*, employees!inner(employee_number, first_name, last_name)')
+          .gte('attendance_date', startIso)
+          .lte('attendance_date', endIso);
+      if (employeeId != null) q = q.eq('employee_id', employeeId);
+      // Restrict to one company by filtering the inner-joined employee.
+      // `!inner` makes this an effective WHERE on the embedded resource.
+      if (companyId != null) q = q.eq('employees.company_id', companyId);
+      // Order by a stable unique key so page boundaries can't drop or
+      // duplicate rows — attendance_date alone is not unique.
+      final page = await q
+          .order('attendance_date', ascending: false)
+          .order('id', ascending: false)
+          .range(from, to);
+      return (page as List<dynamic>).cast<Map<String, dynamic>>();
+    });
+
     final out = <AttendanceDay>[];
     for (final r in rows) {
       try {
-        out.add(AttendanceDay.fromRow(r as Map<String, dynamic>));
+        out.add(AttendanceDay.fromRow(r));
       } catch (e) {
         // ignore: avoid_print
         print('AttendanceDay.fromRow failed for ${r['id']}: $e\nrow=$r');

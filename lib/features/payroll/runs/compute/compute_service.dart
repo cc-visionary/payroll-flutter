@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../data/models/compensation_change.dart';
+import '../../../../data/pagination.dart';
 import '../../../../data/repositories/compensation_change_repository.dart';
 import '../../engine/compute_engine.dart';
 import '../../engine/daily_rate.dart';
@@ -437,12 +438,17 @@ class PayrollComputeService {
 
   Future<Map<String, List<Map<String, dynamic>>>> _loadAttendance(
       List<String> employeeIds, DateTime start, DateTime end) async {
-    final rows = await _client
-        .from('attendance_day_records')
-        .select()
-        .inFilter('employee_id', employeeIds)
-        .gte('attendance_date', start.toIso8601String().substring(0, 10))
-        .lte('attendance_date', end.toIso8601String().substring(0, 10));
+    final rows = await fetchAllPages<Map<String, dynamic>>((from, to) async {
+      final page = await _client
+          .from('attendance_day_records')
+          .select()
+          .inFilter('employee_id', employeeIds)
+          .gte('attendance_date', start.toIso8601String().substring(0, 10))
+          .lte('attendance_date', end.toIso8601String().substring(0, 10))
+          .order('id', ascending: true)
+          .range(from, to);
+      return (page as List<dynamic>).cast<Map<String, dynamic>>();
+    });
     return _groupBy(rows, 'employee_id');
   }
 
