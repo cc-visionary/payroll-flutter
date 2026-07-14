@@ -13,8 +13,12 @@
 ## Global Constraints
 
 - **Never run `dart format`.** This repo has mixed old/new formatter style and is NOT gated on it. Match the surrounding style of whatever file you edit.
-- The verification gate is **`flutter analyze`** (must be clean) plus **`flutter test`** (must pass).
+- **Measured baseline on this branch (`ddd2cd9`), before any of this work:**
+  - `flutter analyze` → **189 issues: 0 errors, 20 warnings, 169 infos.** All pre-existing.
+  - `flutter test` → **655 pass, 1 skip, 0 fail.**
+- The verification gate is therefore: **zero `error`-severity analyzer issues, and no NEW warnings or infos attributable to your files** (compare against the 189 baseline — do not try to drive it to zero, and do not "fix" unrelated pre-existing lints). Full `flutter test` must stay at **655+ passing, 0 failing**; every test you add is additive on top.
 - Run tests with `flutter test <path>` — not `dart test`.
+- The Dart package name for test imports is **`payroll_flutter`** (e.g. `import 'package:payroll_flutter/data/pagination.dart';`).
 - Tables must be wrapped in `ResponsiveTable` (`lib/widgets/responsive_table.dart`).
 - Design tokens come from `lib/app/tokens.dart` (`LuxiumColors.of(context)`, `LuxiumSpacing`, `LuxiumRadius`). Single CTA colour is Luxium purple; never introduce cyan/sky-blue accents. Numbers/IDs/dates/currency use the `GeistMono` font family.
 - Riverpod rule already learned the hard way in this file: **subscribe to every reactive dependency with `ref.watch` BEFORE the first `await`**, otherwise the subscription never registers and the provider silently stops invalidating.
@@ -270,10 +274,10 @@ Replace the `_loadAttendance` query (currently around lines 436-447 — the meth
 
 Keep the enclosing method signature and the `_groupBy` call exactly as they are. If the surrounding code names the client differently than `_client`, use whatever identifier that method already uses.
 
-- [ ] **Step 3: Verify the analyzer is clean**
+- [ ] **Step 3: Verify the analyzer gained no new issues**
 
 Run: `flutter analyze`
-Expected: "No issues found!" (or, at minimum, zero *new* issues versus the pre-change baseline — capture the baseline first with `git stash && flutter analyze && git stash pop` if the repo is not already clean).
+Expected: **189 issues (0 errors)** — unchanged from the baseline in Global Constraints. Any new `error` is a blocker. Do not attempt to reduce the 189.
 
 - [ ] **Step 4: Verify the existing engine tests still pass**
 
@@ -2925,12 +2929,12 @@ In `_DashboardBody.build`, where the `Employee Movement` `_SectionCard` was:
 - [ ] **Step 4: Analyze**
 
 Run: `flutter analyze`
-Expected: **"No issues found!"** The whole feature must analyze clean at this point.
+Expected: **zero `error`-severity issues.** The feature's own files must contribute no new warnings/infos on top of the 189-issue baseline. This is the point at which the whole feature must compile — `dashboard_screen.dart` has no remaining references to the deleted `DashboardData` / `dashboardYearProvider`.
 
 - [ ] **Step 5: Run the full test suite**
 
 Run: `flutter test`
-Expected: PASS — including the pre-existing engine and feature suites. A failure in `test/engine/` means the Task 2 pagination change altered payroll behaviour; stop and investigate rather than adjusting the expectation.
+Expected: **655 pre-existing tests still pass** (0 failures), plus every test added in Tasks 1/3/4/5. A failure in `test/engine/` means the Task 2 pagination change altered payroll behaviour; stop and investigate rather than adjusting the expectation.
 
 - [ ] **Step 6: Commit**
 
