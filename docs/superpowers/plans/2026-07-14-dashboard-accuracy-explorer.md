@@ -1027,19 +1027,27 @@ void main() {
       expect(july.attendanceRatePct, closeTo(50.0, 0.01));
     });
 
-    test('a scheduled-off day with no record is a rest day, not an absence',
-        () {
-      // The scorecard says Monday-Friday. 2026-07-11 is a Saturday with no
-      // attendance record at all. It must not read as a no-show.
+    test('scheduled-off days are rest days, and unrecorded work days are NOT '
+        'absences', () {
+      // The scorecard says Monday-Friday, and there are no attendance records
+      // at all. Two distinct guarantees:
+      //   1. Sat/Sun never land in `absent` — they are rest days.
+      //   2. An unrecorded WEEKDAY is not an absence either. AttendanceStats
+      //      gives it status NO_DATA (only an explicit ABSENT record counts),
+      //      so a month whose attendance has not been imported yet reports
+      //      zero absences rather than inventing a no-show for everyone.
+      //
+      // July 2026 starts on a Wednesday. Through the 11th: weekdays are
+      // 1,2,3,6,7,8,9,10 (8 of them); rest days are Sat 4, Sun 5, Sat 11 (3).
       final months = computeMonthMetrics(_input(
         employees: [_emp(id: 'e1', hireDate: DateTime(2020, 1, 1))],
         today: DateTime(2026, 7, 11),
       ));
       final july = months[6];
-      expect(july.restDays, greaterThan(0));
-      // Jul 1-10 are unrecorded weekdays => absent; the weekend days are not.
-      // What matters is that Saturday/Sunday never landed in `absent`.
-      expect(july.absentDays, july.workDays);
+      expect(july.workDays, 8);
+      expect(july.restDays, 3);
+      expect(july.absentDays, 0);
+      expect(july.presentDays, 0);
     });
 
     test('rates return 0 rather than NaN when the denominator is empty', () {
@@ -1549,7 +1557,10 @@ bool isActiveAsOf(Employee e, DateTime asOf) {
   final sep = e.separationDate;
   if (sep != null) {
     final s = DateTime(sep.year, sep.month, sep.day);
-    return s.isAfter(d);
+    // The separation date is the employee's LAST day, so they are still
+    // active ON it — active iff sep >= asOf. (`s.isAfter(d)` would be an
+    // off-by-one that drops them a day early.)
+    return !s.isBefore(d);
   }
   return e.deletedAt == null;
 }
