@@ -153,8 +153,15 @@ Future<PayslipPdfContext> loadPayslipPdfContext(
             end: periodEnd,
             employeeId: emp.id,
           );
-  final shiftsFuture = ref.read(shiftTemplateRepositoryProvider).list();
-  final scorecardsFuture = ref.read(roleScorecardRepositoryProvider).list();
+  // onlyActive:false — a shift or scorecard deactivated AFTER this payslip was
+  // released must still resolve, or page 2's attendance recomputes zero
+  // late/OT and the PDF silently disagrees with the amounts that were actually
+  // paid. ComputeService loads both without an is_active filter for the same
+  // reason.
+  final shiftsFuture =
+      ref.read(shiftTemplateRepositoryProvider).list(onlyActive: false);
+  final scorecardsFuture =
+      ref.read(roleScorecardRepositoryProvider).list(onlyActive: false);
 
   final holidays = await _loadHolidaysForRange(ref, periodStart, periodEnd);
   final records = await attendanceFuture;
