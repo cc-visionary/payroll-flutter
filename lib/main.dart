@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
@@ -54,20 +56,54 @@ void _installMouseTrackerDiagnostics() {
   };
 }
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  if (kDebugMode) _installMouseTrackerDiagnostics();
-  // Fail fast on release builds that forgot their `--dart-define` flags.
-  // In debug the call is a no-op so local `flutter run` stays convenient.
-  Env.assertConfigured(isRelease: kReleaseMode);
-  await initSupabase();
-  // Wire LOGIN / LOGOUT audit instrumentation before ProviderScope
-  // mounts — a persisted session may already be active by the time
-  // the first widget builds, and we want the subscription live for
-  // any auth event fired during/after restoration.
-  AuthAuditService(AuditRepository(Supabase.instance.client))
-      .start(Supabase.instance.client);
-  runApp(const ProviderScope(child: PayrollApp()));
+void main() {
+  // Run the whole bootstrap inside a guarded zone so uncaught *async* errors —
+  // in particular supabase_flutter's startup session recovery — are handled
+  // here instead of crashing the zone / flooding the console. ensureInitialized
+  // and runApp share this zone, as Flutter requires.
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    if (kDebugMode) _installMouseTrackerDiagnostics();
+    // Fail fast on release builds that forgot their `--dart-define` flags.
+    // In debug the call is a no-op so local `flutter run` stays convenient.
+    Env.assertConfigured(isRelease: kReleaseMode);
+    await initSupabase();
+    // Wire LOGIN / LOGOUT audit instrumentation before ProviderScope
+    // mounts — a persisted session may already be active by the time
+    // the first widget builds, and we want the subscription live for
+    // any auth event fired during/after restoration.
+    AuthAuditService(AuditRepository(Supabase.instance.client))
+        .start(Supabase.instance.client);
+    runApp(const ProviderScope(child: PayrollApp()));
+  }, _onUncaughtZoneError);
+}
+
+/// Handles uncaught async errors from the app's root zone.
+///
+/// On startup `Supabase.initialize` kicks off `recoverSession`, which refreshes
+/// the persisted session. When that refresh token is no longer valid on the
+/// server (rotated, expired, or revoked) GoTrue answers 400
+/// `refresh_token_not_found` ("Invalid Refresh Token"). The SDK throws it into
+/// an async gap with no handler, so it lands here. It is benign: the client
+/// falls back to a signed-out state and the login screen is shown. Swallow it
+/// (in release it would otherwise take down the zone) and let everything else
+/// keep its previous "report it" behaviour.
+void _onUncaughtZoneError(Object error, StackTrace stack) {
+  if (_isStaleRefreshTokenError(error)) {
+    debugPrint('[auth] ignoring stale persisted session on startup '
+        '(${error is AuthException ? error.code ?? error.message : error})');
+    return;
+  }
+  FlutterError.reportError(
+    FlutterErrorDetails(exception: error, stack: stack, library: 'root zone'),
+  );
+}
+
+bool _isStaleRefreshTokenError(Object error) {
+  if (error is! AuthException) return false;
+  final code = error.code?.toLowerCase() ?? '';
+  final message = error.message.toLowerCase();
+  return code.contains('refresh_token') || message.contains('refresh token');
 }
 
 class PayrollApp extends ConsumerWidget {
