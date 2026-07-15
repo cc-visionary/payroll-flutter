@@ -48,12 +48,16 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       // + RLS that can silently drop the row under some permission shapes —
       // the RPC avoids that trap so the flag always clears.
       await client.rpc('clear_must_change_password');
+      // Clearing the flag (and the auth userUpdated event) can make the
+      // router's redirect navigate away and dispose this screen while these
+      // awaits are in flight. Bail before touching ref/context/setState.
+      if (!mounted) return;
       ref.invalidate(userProfileProvider);
-      if (mounted) context.go('/dashboard');
+      context.go('/dashboard');
     } on AuthException catch (e) {
-      setState(() => _error = _friendlyAuthError(e));
+      if (mounted) setState(() => _error = _friendlyAuthError(e));
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _saving = false);
     }
