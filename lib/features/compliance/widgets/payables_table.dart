@@ -180,20 +180,27 @@ class _RowActions extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final paid = row.paid?.amountPaid ?? Decimal.zero;
     final hasPayments = paid > Decimal.zero;
+    // Hide "Mark Paid" once the payable is settled — a fully paid or overpaid
+    // row has nothing left to record. To reopen it, void a payment via View.
+    final status = classifyPayable(row.payable.amountDue, paid);
+    final showMarkPaid =
+        status == PayableStatus.unpaid || status == PayableStatus.partial;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        TextButton.icon(
-          icon: const Icon(Icons.payments_outlined, size: 16),
-          label: const Text('Mark Paid'),
-          onPressed: () => showDialog<void>(
-            context: context,
-            builder: (_) => MarkAsPaidDialog(payable: row.payable, brand: brand),
+        if (showMarkPaid)
+          TextButton.icon(
+            icon: const Icon(Icons.payments_outlined, size: 16),
+            label: const Text('Mark Paid'),
+            onPressed: () => showDialog<void>(
+              context: context,
+              builder: (_) =>
+                  MarkAsPaidDialog(payable: row.payable, brand: brand),
+            ),
           ),
-        ),
         if (hasPayments) ...[
-          const SizedBox(width: 4),
+          if (showMarkPaid) const SizedBox(width: 4),
           TextButton.icon(
             icon: const Icon(Icons.list_alt_outlined, size: 16),
             label: const Text('View'),
