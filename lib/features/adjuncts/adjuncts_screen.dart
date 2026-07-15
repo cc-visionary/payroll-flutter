@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../app/breakpoints.dart';
 import '../../app/shell.dart';
 import '../../core/money.dart';
+import '../../data/repositories/adjuncts_repository.dart';
 import '../auth/profile_provider.dart';
 
 /// Penalties / Cash Advances / Reimbursements — one tab each.
@@ -57,6 +58,31 @@ extension on _AdjunctKind {
         _AdjunctKind.cashAdvance => 'No cash advances yet.',
         _AdjunctKind.reimbursement => 'No reimbursements yet.',
       };
+  String get noun => switch (this) {
+        _AdjunctKind.penalty => 'penalty',
+        _AdjunctKind.cashAdvance => 'cash advance',
+        _AdjunctKind.reimbursement => 'reimbursement',
+      };
+}
+
+/// A record is deletable only while it has never touched payroll — not deducted
+/// / paid on a released run (is_deducted / is_paid) and not queued on a draft run
+/// (payroll_run_id). Mirrors the guards in the `delete_*` RPCs; the RPC stays the
+/// source of truth, this just hides the action for rows that would be rejected.
+bool _isDeletable(_AdjunctKind kind, Map<String, dynamic> row) {
+  switch (kind) {
+    case _AdjunctKind.penalty:
+      final insts = (row['penalty_installments'] as List<dynamic>?)
+              ?.cast<Map<String, dynamic>>() ??
+          const <Map<String, dynamic>>[];
+      return !insts.any(
+        (i) => i['is_deducted'] == true || i['payroll_run_id'] != null,
+      );
+    case _AdjunctKind.cashAdvance:
+      return row['is_deducted'] != true && row['payroll_run_id'] == null;
+    case _AdjunctKind.reimbursement:
+      return row['is_paid'] != true && row['payroll_run_id'] == null;
+  }
 }
 
 final _listProvider = FutureProvider.family<List<Map<String, dynamic>>,
@@ -83,6 +109,8 @@ class _AdjunctList extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(_listProvider(kind));
+    final isHrOrAdmin =
+        ref.watch(userProfileProvider).asData?.value?.isHrOrAdmin ?? false;
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(
@@ -116,7 +144,11 @@ class _AdjunctList extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 sliver: SliverList.builder(
                   itemCount: rows.length,
-                  itemBuilder: (_, i) => _AdjunctCard(kind: kind, row: rows[i]),
+                  itemBuilder: (_, i) => _AdjunctCard(
+                    kind: kind,
+                    row: rows[i],
+                    canDelete: isHrOrAdmin && _isDeletable(kind, rows[i]),
+                  ),
                 ),
               ),
           ],
@@ -327,13 +359,18 @@ _Stats _computeStats(_AdjunctKind kind, List<Map<String, dynamic>> rows) {
 // Row card — title + employee + date + settled-yet status + amount.
 // ---------------------------------------------------------------------------
 
-class _AdjunctCard extends StatelessWidget {
+class _AdjunctCard extends ConsumerWidget {
   final _AdjunctKind kind;
   final Map<String, dynamic> row;
-  const _AdjunctCard({required this.kind, required this.row});
+  final bool canDelete;
+  const _AdjunctCard({
+    required this.kind,
+    required this.row,
+    this.canDelete = false,
+  });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     final amount = row[kind.amountKey] == null
         ? '—'
@@ -383,6 +420,30 @@ class _AdjunctCard extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (canDelete)
+                  PopupMenuButton<String>(
+                    tooltip: 'Actions',
+                    padding: EdgeInsets.zero,
+                    icon: Icon(Icons.more_vert,
+                        size: 18, color: scheme.onSurfaceVariant),
+                    onSelected: (v) {
+                      if (v == 'delete') _confirmAndDelete(context, ref);
+                    },
+                    itemBuilder: (_) => [
+                      PopupMenuItem<String>(
+                        value: 'delete',
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.delete_outline,
+                                size: 18, color: scheme.error),
+                            const SizedBox(width: 8),
+                            const Text('Delete'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
             const SizedBox(height: 10),
@@ -419,6 +480,59 @@ class _AdjunctCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _confirmAndDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text('Delete this ${kind.noun}?'),
+        content: const Text("This can't be undone."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogCtx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final repo = AdjunctsRepository(Supabase.instance.client);
+    final id = row['id'] as String;
+    try {
+      switch (kind) {
+        case _AdjunctKind.penalty:
+          await repo.deletePenalty(id);
+        case _AdjunctKind.cashAdvance:
+          await repo.deleteCashAdvance(id);
+        case _AdjunctKind.reimbursement:
+          await repo.deleteReimbursement(id);
+      }
+      ref.invalidate(_listProvider(kind));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Deleted ${kind.noun}.')),
+        );
+      }
+    } on AdjunctDeleteException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+      }
+    }
   }
 
   String _title() {
