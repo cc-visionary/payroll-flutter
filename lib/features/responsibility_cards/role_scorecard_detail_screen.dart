@@ -16,7 +16,8 @@ class RoleScorecardDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(roleScorecardListProvider);
-    final counts = ref.watch(scorecardEmployeeCountProvider).asData?.value ?? const {};
+    final counts =
+        ref.watch(scorecardEmployeeCountProvider).asData?.value ?? const {};
     final profile = ref.watch(userProfileProvider).asData?.value;
     final canManage = profile?.isHrOrAdmin ?? false;
     final canDelete = profile?.appRole == AppRole.SUPER_ADMIN;
@@ -37,13 +38,13 @@ class RoleScorecardDetailScreen extends ConsumerWidget {
               child: mobile
                   ? IconButton(
                       tooltip: 'Edit',
-                      onPressed: () => context
-                          .push('/responsibility-cards/$cardId/edit'),
+                      onPressed: () =>
+                          context.push('/responsibility-cards/$cardId/edit'),
                       icon: const Icon(Icons.edit),
                     )
                   : FilledButton.icon(
-                      onPressed: () => context
-                          .push('/responsibility-cards/$cardId/edit'),
+                      onPressed: () =>
+                          context.push('/responsibility-cards/$cardId/edit'),
                       icon: const Icon(Icons.edit),
                       label: const Text('Edit'),
                     ),
@@ -104,19 +105,32 @@ class RoleScorecardDetailScreen extends ConsumerWidget {
         context: ctx,
         builder: (c) => AlertDialog(
           title: const Text('Cannot delete'),
-          content: Text('Reassign the $count employee(s) on "${card.jobTitle}" first.'),
-          actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('OK'))],
+          content: Text(
+            'Reassign the $count employee(s) on "${card.jobTitle}" first.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c),
+              child: const Text('OK'),
+            ),
+          ],
         ),
       );
       return;
     }
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: ctx,
           builder: (c) => AlertDialog(
             title: const Text('Delete card?'),
-            content: Text('This will delete "${card.jobTitle}". This cannot be undone.'),
+            content: Text(
+              'This will delete "${card.jobTitle}". This cannot be undone.',
+            ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+              TextButton(
+                onPressed: () => Navigator.pop(c, false),
+                child: const Text('Cancel'),
+              ),
               FilledButton(
                 onPressed: () => Navigator.pop(c, true),
                 style: FilledButton.styleFrom(backgroundColor: Colors.red),
@@ -151,8 +165,9 @@ class _DetailBody extends StatelessWidget {
           children: [
             Text(
               card.jobTitle,
-              style: t.textTheme.headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.w600),
+              style: t.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 8),
             Wrap(
@@ -170,11 +185,18 @@ class _DetailBody extends StatelessWidget {
                   ),
                 ),
                 if (card.baseSalary != null)
-                  Text('Base: ${Money.fmtPhp(card.baseSalary!)}',
-                      style: t.textTheme.bodyMedium),
+                  Text(
+                    'Base: ${Money.fmtPhp(card.baseSalary!)}',
+                    style: t.textTheme.bodyMedium,
+                  ),
                 Chip(
-                    label: Text(card.wageType),
-                    visualDensity: VisualDensity.compact),
+                  label: Text(card.wageType),
+                  visualDensity: VisualDensity.compact,
+                ),
+                Chip(
+                  label: Text('Version ${card.version}'),
+                  visualDensity: VisualDensity.compact,
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -191,7 +213,9 @@ class _DetailBody extends StatelessWidget {
               const SizedBox(height: 24),
               Text(
                 'Responsibilities',
-                style: t.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+                style: t.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 8),
               for (final area in card.responsibilities)
@@ -200,7 +224,10 @@ class _DetailBody extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('• ${area.area}', style: const TextStyle(fontWeight: FontWeight.w500)),
+                      Text(
+                        '• ${area.area}',
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
                       for (final task in area.tasks)
                         Padding(
                           padding: const EdgeInsets.only(left: 16, top: 2),
@@ -214,20 +241,65 @@ class _DetailBody extends StatelessWidget {
               const SizedBox(height: 24),
               Text(
                 'KPIs',
-                style: t.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+                style: t.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  for (final k in card.kpis)
-                    Chip(
-                      label: Text('${k.metric} (${k.frequency})'),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                ],
+              for (final k in card.kpis)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(k.name),
+                  subtitle: Text(
+                    [
+                      if (k.measurement.isNotEmpty) k.measurement,
+                      if (k.target.isNotEmpty) 'Target: ${k.target}',
+                    ].join('  •  '),
+                  ),
+                  trailing: Chip(
+                    label: Text(k.frequency),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+            ],
+            if (card.requiredSkills.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              Text(
+                'Required skills',
+                style: t.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
+              const SizedBox(height: 8),
+              for (final skill in card.requiredSkills)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(skill.name),
+                  subtitle: skill.description.isEmpty
+                      ? null
+                      : Text(skill.description),
+                ),
+            ],
+            if (card.behavioralExpectations.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              Text(
+                'Behavioral expectations',
+                style: t.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              for (final expectation in card.behavioralExpectations)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(expectation.name),
+                  subtitle: expectation.description.isEmpty
+                      ? null
+                      : Text(expectation.description),
+                ),
             ],
           ],
         ),

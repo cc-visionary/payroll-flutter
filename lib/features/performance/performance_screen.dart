@@ -9,6 +9,7 @@ import '../../data/repositories/performance_repository.dart';
 import '../auth/profile_provider.dart';
 import 'generate_batch_dialog.dart';
 import 'new_check_in_dialog.dart';
+import 'performance_dashboard.dart';
 
 class PerformanceScreen extends ConsumerStatefulWidget {
   const PerformanceScreen({super.key});
@@ -37,9 +38,11 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
     if (result == null || !mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(result.existed
-            ? 'Check-in already existed — opened it.'
-            : 'Check-in created.'),
+        content: Text(
+          result.existed
+              ? 'Check-in already existed — opened it.'
+              : 'Check-in created.',
+        ),
       ),
     );
     if (!mounted) return;
@@ -56,49 +59,79 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
         body: const Center(child: CircularProgressIndicator()),
       );
     }
-    return Scaffold(
-      drawer: isMobile(context) ? const AppDrawer() : null,
-      appBar: AppBar(
-        title: const Text('Performance'),
-        actions: [
-          if (profile.isHrOrAdmin) ...[
-            TextButton.icon(
-              onPressed: _onNewCheckIn,
-              icon: const Icon(Icons.add),
-              label: const Text('New check-in'),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(left: 8, right: 8),
-              child: FilledButton.icon(
-                onPressed: _onGenerateBatch,
-                icon: const Icon(Icons.group_add_outlined),
-                label: const Text('Generate check-ins'),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        drawer: isMobile(context) ? const AppDrawer() : null,
+        appBar: AppBar(
+          title: const Text('Performance'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Overview'),
+              Tab(text: 'Legacy check-ins'),
+            ],
+          ),
+          actions: [
+            if (profile.isHrOrAdmin) ...[
+              if (isMobile(context))
+                IconButton(
+                  tooltip: 'Review cycles',
+                  onPressed: () => context.go('/performance/review-cycles'),
+                  icon: const Icon(Icons.event_note_outlined),
+                )
+              else
+                TextButton.icon(
+                  onPressed: () => context.go('/performance/review-cycles'),
+                  icon: const Icon(Icons.event_note_outlined),
+                  label: const Text('Review cycles'),
+                ),
+              TextButton.icon(
+                onPressed: _onNewCheckIn,
+                icon: const Icon(Icons.add),
+                label: const Text('New legacy check-in'),
               ),
+              Padding(
+                padding: const EdgeInsets.only(left: 8, right: 8),
+                child: FilledButton.icon(
+                  onPressed: _onGenerateBatch,
+                  icon: const Icon(Icons.group_add_outlined),
+                  label: const Text('Generate legacy check-ins'),
+                ),
+              ),
+            ],
+          ],
+        ),
+        body: TabBarView(
+          children: [
+            const PerformanceDashboard(),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _FilterBar(
+                  statuses: _statuses,
+                  onStatusesChanged: (s) => setState(() => _statuses = s),
+                ),
+                Expanded(
+                  child: _CheckInsTable(
+                    statuses: _statuses,
+                    employeeId: profile.isHrOrAdmin ? null : profile.employeeId,
+                  ),
+                ),
+              ],
             ),
           ],
-        ],
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _FilterBar(
-            statuses: _statuses,
-            onStatusesChanged: (s) => setState(() => _statuses = s),
-          ),
-          Expanded(
-            child: _CheckInsTable(
-              statuses: _statuses,
-              employeeId: profile.isHrOrAdmin ? null : profile.employeeId,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
 const _kAllStatuses = <String>[
-  'DRAFT', 'SUBMITTED', 'UNDER_REVIEW', 'COMPLETED', 'SKIPPED',
+  'DRAFT',
+  'SUBMITTED',
+  'UNDER_REVIEW',
+  'COMPLETED',
+  'SKIPPED',
 ];
 
 class _FilterBar extends StatelessWidget {
@@ -146,23 +179,32 @@ class _CheckInsTable extends ConsumerWidget {
       employeeId: employeeId,
     );
     final async = ref.watch(performanceCheckInListProvider(q));
-    final employees = ref.watch(
-            employeeListProvider(const EmployeeListQuery(includeArchived: true)))
-        .asData
-        ?.value ?? const [];
+    final employees =
+        ref
+            .watch(
+              employeeListProvider(
+                const EmployeeListQuery(includeArchived: true),
+              ),
+            )
+            .asData
+            ?.value ??
+        const [];
     final empNameById = {for (final e in employees) e.id: e.fullName};
     final periodNames =
         ref.watch(checkInPeriodNamesProvider).asData?.value ??
-            const <String, String>{};
+        const <String, String>{};
     final isAdmin =
         ref.watch(userProfileProvider).asData?.value?.isHrOrAdmin ?? false;
     return async.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(
-          child: Text('Error: $e', style: const TextStyle(color: Colors.red))),
+        child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
+      ),
       data: (rows) {
         if (rows.isEmpty) {
-          return const Center(child: Text('No check-ins match the current filters.'));
+          return const Center(
+            child: Text('No check-ins match the current filters.'),
+          );
         }
         return ListView.builder(
           padding: const EdgeInsets.all(16),
@@ -177,7 +219,9 @@ class _CheckInsTable extends ConsumerWidget {
                 title: Text(empName),
                 subtitle: Text(
                   '$periodName · ${c.status}',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,

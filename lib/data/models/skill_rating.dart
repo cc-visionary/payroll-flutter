@@ -1,6 +1,6 @@
 /// Plain-Dart model mirroring the `skill_ratings` table.
 ///
-/// `skill_name` is a snapshot of the employee's `RoleScorecard.kpis[i].metric`
+/// `skill_name` is a snapshot of the employee's `RoleScorecard.kpis[i].name`
 /// at check-in creation time. This is intentional — historical reviews must
 /// not drift when KPIs are later edited on the scorecard.
 class SkillRating {
@@ -8,8 +8,8 @@ class SkillRating {
   final String checkInId;
   final String skillCategory;
   final String skillName;
-  final int? selfRating;     // 1-5
-  final int? managerRating;  // 1-5
+  final int? selfRating; // 1-5
+  final int? managerRating; // 1-5
   final String? comments;
   final String? developmentPlan;
   final DateTime createdAt;

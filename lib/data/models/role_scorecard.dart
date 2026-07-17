@@ -4,25 +4,77 @@ class ResponsibilityArea {
   final String area;
   final List<String> tasks;
   const ResponsibilityArea({required this.area, required this.tasks});
-  factory ResponsibilityArea.fromJson(Map<String, dynamic> j) => ResponsibilityArea(
+  factory ResponsibilityArea.fromJson(Map<String, dynamic> j) =>
+      ResponsibilityArea(
         area: j['area'] as String? ?? '',
-        tasks: (j['tasks'] as List<dynamic>? ??
-                (j['task'] != null ? <dynamic>[j['task']] : const <dynamic>[]))
-            .map((e) => e.toString())
-            .toList(),
+        tasks:
+            (j['tasks'] as List<dynamic>? ??
+                    (j['task'] != null
+                        ? <dynamic>[j['task']]
+                        : const <dynamic>[]))
+                .map((e) => e.toString())
+                .toList(),
       );
   Map<String, dynamic> toJson() => {'area': area, 'tasks': tasks};
 }
 
 class KpiItem {
-  final String metric;
+  final String name;
+  final String measurement;
+  final String target;
   final String frequency;
-  const KpiItem({required this.metric, required this.frequency});
+
+  const KpiItem({
+    required this.name,
+    required this.measurement,
+    required this.target,
+    required this.frequency,
+  });
+
+  /// Compatibility for employment-contract and legacy check-in consumers.
+  String get metric => name;
+
   factory KpiItem.fromJson(Map<String, dynamic> j) => KpiItem(
-        metric: j['metric'] as String? ?? '',
-        frequency: j['frequency'] as String? ?? '',
+    name: j['name'] as String? ?? j['metric'] as String? ?? '',
+    measurement: j['measurement'] as String? ?? '',
+    target: j['target'] as String? ?? '',
+    frequency: j['frequency'] as String? ?? '',
+  );
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'measurement': measurement,
+    'target': target,
+    'frequency': frequency,
+  };
+}
+
+class RequiredSkill {
+  final String name;
+  final String description;
+
+  const RequiredSkill({required this.name, required this.description});
+
+  factory RequiredSkill.fromJson(Map<String, dynamic> json) => RequiredSkill(
+    name: json['name'] as String? ?? '',
+    description: json['description'] as String? ?? '',
+  );
+
+  Map<String, dynamic> toJson() => {'name': name, 'description': description};
+}
+
+class BehavioralExpectation {
+  final String name;
+  final String description;
+
+  const BehavioralExpectation({required this.name, required this.description});
+
+  factory BehavioralExpectation.fromJson(Map<String, dynamic> json) =>
+      BehavioralExpectation(
+        name: json['name'] as String? ?? '',
+        description: json['description'] as String? ?? '',
       );
-  Map<String, dynamic> toJson() => {'metric': metric, 'frequency': frequency};
+
+  Map<String, dynamic> toJson() => {'name': name, 'description': description};
 }
 
 class RoleScorecard {
@@ -33,6 +85,9 @@ class RoleScorecard {
   final String missionStatement;
   final List<ResponsibilityArea> responsibilities;
   final List<KpiItem> kpis;
+  final List<RequiredSkill> requiredSkills;
+  final List<BehavioralExpectation> behavioralExpectations;
+  final int version;
   final Decimal? salaryRangeMin;
   final Decimal? salaryRangeMax;
   final Decimal? baseSalary;
@@ -53,6 +108,9 @@ class RoleScorecard {
     required this.missionStatement,
     required this.responsibilities,
     required this.kpis,
+    this.requiredSkills = const [],
+    this.behavioralExpectations = const [],
+    this.version = 1,
     this.salaryRangeMin,
     this.salaryRangeMax,
     this.baseSalary,
@@ -69,6 +127,8 @@ class RoleScorecard {
   factory RoleScorecard.fromRow(Map<String, dynamic> r) {
     final rawResp = r['key_responsibilities'];
     final rawKpis = r['kpis'];
+    final rawSkills = r['required_skills'];
+    final rawExpectations = r['behavioral_expectations'];
     List<ResponsibilityArea> responsibilities;
     if (rawResp is List) {
       responsibilities = rawResp
@@ -80,10 +140,32 @@ class RoleScorecard {
     }
     List<KpiItem> kpis;
     if (rawKpis is List) {
-      kpis = rawKpis.cast<Map<String, dynamic>>().map(KpiItem.fromJson).toList();
+      kpis = rawKpis
+          .cast<Map<String, dynamic>>()
+          .map(KpiItem.fromJson)
+          .toList();
     } else {
       kpis = const [];
     }
+    final requiredSkills = rawSkills is List
+        ? rawSkills
+              .whereType<Map>()
+              .map(
+                (item) =>
+                    RequiredSkill.fromJson(Map<String, dynamic>.from(item)),
+              )
+              .toList()
+        : const <RequiredSkill>[];
+    final behavioralExpectations = rawExpectations is List
+        ? rawExpectations
+              .whereType<Map>()
+              .map(
+                (item) => BehavioralExpectation.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+              )
+              .toList()
+        : const <BehavioralExpectation>[];
     Decimal? dec(Object? v) => v == null ? null : Decimal.parse(v.toString());
     return RoleScorecard(
       id: r['id'] as String,
@@ -93,12 +175,16 @@ class RoleScorecard {
       missionStatement: r['mission_statement'] as String? ?? '',
       responsibilities: responsibilities,
       kpis: kpis,
+      requiredSkills: requiredSkills,
+      behavioralExpectations: behavioralExpectations,
+      version: (r['version'] as num?)?.toInt() ?? 1,
       salaryRangeMin: dec(r['salary_range_min']),
       salaryRangeMax: dec(r['salary_range_max']),
       baseSalary: dec(r['base_salary']),
       wageType: r['wage_type'] as String? ?? 'MONTHLY',
       workHoursPerDay: r['work_hours_per_day'] as int? ?? 8,
-      workDaysPerWeek: r['work_days_per_week'] as String? ?? 'Monday to Saturday',
+      workDaysPerWeek:
+          r['work_days_per_week'] as String? ?? 'Monday to Saturday',
       isActive: r['is_active'] as bool? ?? true,
       effectiveDate: DateTime.parse(r['effective_date'] as String),
       supersededById: r['superseded_by_id'] as String?,
@@ -108,21 +194,26 @@ class RoleScorecard {
   }
 
   Map<String, dynamic> toUpsertPayload() => {
-        'id': id,
-        'company_id': companyId,
-        'job_title': jobTitle,
-        'department_id': departmentId,
-        'mission_statement': missionStatement,
-        'key_responsibilities': responsibilities.map((r) => r.toJson()).toList(),
-        'kpis': kpis.map((k) => k.toJson()).toList(),
-        'salary_range_min': salaryRangeMin?.toString(),
-        'salary_range_max': salaryRangeMax?.toString(),
-        'base_salary': baseSalary?.toString(),
-        'wage_type': wageType,
-        'work_hours_per_day': workHoursPerDay,
-        'work_days_per_week': workDaysPerWeek,
-        'is_active': isActive,
-        'effective_date': effectiveDate.toIso8601String().substring(0, 10),
-        'hiring_entity_id': hiringEntityId,
-      };
+    'id': id,
+    'company_id': companyId,
+    'job_title': jobTitle,
+    'department_id': departmentId,
+    'mission_statement': missionStatement,
+    'key_responsibilities': responsibilities.map((r) => r.toJson()).toList(),
+    'kpis': kpis.map((k) => k.toJson()).toList(),
+    'required_skills': requiredSkills.map((s) => s.toJson()).toList(),
+    'behavioral_expectations': behavioralExpectations
+        .map((e) => e.toJson())
+        .toList(),
+    'version': version,
+    'salary_range_min': salaryRangeMin?.toString(),
+    'salary_range_max': salaryRangeMax?.toString(),
+    'base_salary': baseSalary?.toString(),
+    'wage_type': wageType,
+    'work_hours_per_day': workHoursPerDay,
+    'work_days_per_week': workDaysPerWeek,
+    'is_active': isActive,
+    'effective_date': effectiveDate.toIso8601String().substring(0, 10),
+    'hiring_entity_id': hiringEntityId,
+  };
 }

@@ -24,11 +24,8 @@ class PerformanceListQuery {
           _eq(statuses, other.statuses);
 
   @override
-  int get hashCode => Object.hash(
-        periodId,
-        employeeId,
-        Object.hashAll(statuses ?? const []),
-      );
+  int get hashCode =>
+      Object.hash(periodId, employeeId, Object.hashAll(statuses ?? const []));
 
   static bool _eq(List<String>? a, List<String>? b) {
     if (a == null && b == null) return true;
@@ -58,7 +55,9 @@ class PerformanceRepository {
     }
     final rows = await builder.order('created_at', ascending: false);
     return (rows as List)
-        .map((r) => PerformanceCheckInFromRow.fromRow(r as Map<String, dynamic>))
+        .map(
+          (r) => PerformanceCheckInFromRow.fromRow(r as Map<String, dynamic>),
+        )
         .toList();
   }
 
@@ -270,7 +269,7 @@ class PerformanceRepository {
   }
 
   /// Auto-seed skill_ratings from the employee's RoleScorecard KPIs. Reads
-  /// the scorecard's `kpis` jsonb array; each KPI.metric becomes a skill_name
+  /// the scorecard's `kpis` jsonb array; each KPI name becomes a skill_name
   /// row with skill_category='KPI'. Idempotent via the (check_in_id,
   /// skill_category, skill_name) unique constraint — already-seeded rows
   /// stay untouched.
@@ -305,7 +304,7 @@ class PerformanceRepository {
     final toInsert = <Map<String, dynamic>>[];
     for (final k in rawKpis) {
       if (k is! Map) continue;
-      final metric = k['metric'] as String?;
+      final metric = (k['name'] ?? k['metric']) as String?;
       if (metric == null || metric.isEmpty) continue;
       if (existingNames.contains(metric)) continue;
       toInsert.add({
@@ -345,7 +344,8 @@ class PerformanceRepository {
     // of caller role. Fetch the prior status whenever any self-review field is
     // being set OR when we're about to transition status. Repository-level
     // guard (UI also gates this; trust both).
-    final touchesSelfReview = accomplishments != null ||
+    final touchesSelfReview =
+        accomplishments != null ||
         challenges != null ||
         learnings != null ||
         supportNeeded != null;
@@ -374,7 +374,8 @@ class PerformanceRepository {
     // Manager fields — always writable; UI gates by role + status.
     if (managerFeedback != null) payload['manager_feedback'] = managerFeedback;
     if (strengths != null) payload['strengths'] = strengths;
-    if (areasForImprovement != null) payload['areas_for_improvement'] = areasForImprovement;
+    if (areasForImprovement != null)
+      payload['areas_for_improvement'] = areasForImprovement;
     if (overallRating != null) payload['overall_rating'] = overallRating;
     if (overallComments != null) payload['overall_comments'] = overallComments;
 
@@ -389,7 +390,10 @@ class PerformanceRepository {
     }
 
     if (payload.isEmpty) return;
-    await _client.from('performance_check_ins').update(payload).eq('id', checkInId);
+    await _client
+        .from('performance_check_ins')
+        .update(payload)
+        .eq('id', checkInId);
   }
 
   /// Permanently deletes a check-in. Its `check_in_goals` and `skill_ratings`
@@ -439,7 +443,8 @@ class PerformanceRepository {
     final payload = <String, dynamic>{};
     if (title case final t?) payload['title'] = t;
     if (description case final d?) payload['description'] = d;
-    if (targetDate case final t?) payload['target_date'] = t.toIso8601String().substring(0, 10);
+    if (targetDate case final t?)
+      payload['target_date'] = t.toIso8601String().substring(0, 10);
     if (progress case final p?) payload['progress'] = p;
     if (status case final s?) payload['status'] = s;
     if (selfAssessment case final s?) payload['self_assessment'] = s;
@@ -493,25 +498,33 @@ class PerformanceRepository {
 }
 
 final performanceRepositoryProvider = Provider<PerformanceRepository>(
-    (ref) => PerformanceRepository(Supabase.instance.client));
+  (ref) => PerformanceRepository(Supabase.instance.client),
+);
 
 final performanceCheckInListProvider =
     FutureProvider.family<List<PerformanceCheckIn>, PerformanceListQuery>(
-        (ref, q) => ref.read(performanceRepositoryProvider).list(q));
+      (ref, q) => ref.read(performanceRepositoryProvider).list(q),
+    );
 
 final performanceCheckInByIdProvider =
     FutureProvider.family<PerformanceCheckIn?, String>(
-        (ref, id) => ref.read(performanceRepositoryProvider).byId(id));
+      (ref, id) => ref.read(performanceRepositoryProvider).byId(id),
+    );
 
-final checkInPeriodByIdProvider =
-    FutureProvider.family<CheckInPeriod?, String>(
-        (ref, id) => ref.read(performanceRepositoryProvider).periodById(id));
+final checkInPeriodByIdProvider = FutureProvider.family<CheckInPeriod?, String>(
+  (ref, id) => ref.read(performanceRepositoryProvider).periodById(id),
+);
 
 final checkInPeriodNamesProvider = FutureProvider<Map<String, String>>(
-    (ref) => ref.read(performanceRepositoryProvider).periodNames());
+  (ref) => ref.read(performanceRepositoryProvider).periodNames(),
+);
 
 final checkInGoalsProvider = FutureProvider.family<List<CheckInGoal>, String>(
-    (ref, checkInId) => ref.read(performanceRepositoryProvider).goalsFor(checkInId));
+  (ref, checkInId) =>
+      ref.read(performanceRepositoryProvider).goalsFor(checkInId),
+);
 
 final skillRatingsProvider = FutureProvider.family<List<SkillRating>, String>(
-    (ref, checkInId) => ref.read(performanceRepositoryProvider).skillRatingsFor(checkInId));
+  (ref, checkInId) =>
+      ref.read(performanceRepositoryProvider).skillRatingsFor(checkInId),
+);

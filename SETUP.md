@@ -184,6 +184,26 @@ supabase secrets set \
 # supabase secrets set LARK_WEBHOOK_TOKEN="<from step 5>"
 ```
 
+### Performance review module
+
+Required before activating a review cycle. `send-performance-self-reviews`
+builds each employee's form link as `<base>?review_id=…&employee_id=…` and
+throws if the base URL is missing, so **the first activation of every cycle
+fails with all requests marked FAILED until this is set** (recoverable with
+Retry failed once it is).
+
+`sync-performance-self-review` refuses every request with a 500 until the
+webhook token is set — it fails closed by design, because it is deployed with
+`verify_jwt = false` (Lark sends no Supabase JWT) and this shared token is the
+only thing in front of a service-role RPC. Use a long random value and set the
+same one in the Lark form automation's `x-performance-webhook-token` header.
+
+```bash
+supabase secrets set \
+  LARK_SELF_REVIEW_FORM_BASE_URL="https://<your-lark-domain>/share/base/form/<form-token>" \
+  LARK_PERFORMANCE_FORM_WEBHOOK_TOKEN="$(openssl rand -hex 32)"
+```
+
 > `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are **injected automatically** — you don't set them here.
 
 ---
@@ -201,6 +221,13 @@ supabase functions deploy sync-lark-cash-advances
 supabase functions deploy sync-lark-reimbursements
 supabase functions deploy sync-lark-calendar
 supabase functions deploy send-payslip-approvals
+
+# Performance review module. sync-performance-self-review is invoked by a Lark
+# form automation, which sends no Supabase JWT — config.toml pins
+# verify_jwt = false for it so the platform doesn't 401 the callback before the
+# handler's own token check runs. Deploy from the repo root so that config is picked up.
+supabase functions deploy send-performance-self-reviews
+supabase functions deploy sync-performance-self-review
 
 # Optional — only if you completed §5:
 supabase functions deploy lark-approval-webhook

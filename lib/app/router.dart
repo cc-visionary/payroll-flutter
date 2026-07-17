@@ -39,6 +39,13 @@ import '../features/hiring/listing_detail_screen.dart';
 import '../features/org_chart/org_chart_screen.dart';
 import '../features/performance/performance_screen.dart';
 import '../features/performance/performance_check_in_screen.dart';
+import '../features/performance/employee_review_detail_screen.dart';
+import '../features/performance/manager_evaluation_screen.dart';
+import '../features/performance/review_completion_screen.dart';
+import '../features/performance/monthly_development_checkin_screen.dart';
+import '../features/performance/review_cycle_detail_screen.dart';
+import '../features/performance/review_cycle_form_screen.dart';
+import '../features/performance/review_cycles_screen.dart';
 import '../features/workflows/workflows_screen.dart';
 import '../features/workflows/workflow_detail_screen.dart';
 import '../features/workforce_planning/workforce_planning_screen.dart';
@@ -97,6 +104,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           return '/dashboard';
         }
         if (loc.startsWith('/audit') && !profile.isAdmin) return '/dashboard';
+        if (loc.startsWith('/performance/review-cycles') &&
+            !profile.isHrOrAdmin) {
+          return '/performance';
+        }
       }
       return null;
     },
@@ -230,6 +241,40 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/performance',
             builder: (c, s) => const PerformanceScreen(),
+          ),
+          GoRoute(
+            path: '/performance/review-cycles',
+            builder: (c, s) => const ReviewCyclesScreen(),
+          ),
+          GoRoute(
+            path: '/performance/review-cycles/new',
+            builder: (c, s) => const ReviewCycleFormScreen(),
+          ),
+          GoRoute(
+            path: '/performance/review-cycles/:id',
+            builder: (c, s) =>
+                ReviewCycleDetailScreen(cycleId: s.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: '/performance/reviews/:id',
+            builder: (c, s) =>
+                EmployeeReviewDetailScreen(reviewId: s.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: '/performance/reviews/:id/evaluate',
+            builder: (c, s) =>
+                ManagerEvaluationScreen(reviewId: s.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: '/performance/reviews/:id/complete',
+            builder: (c, s) =>
+                ReviewCompletionScreen(reviewId: s.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: '/performance/reviews/:id/monthly-check-in',
+            builder: (c, s) => MonthlyDevelopmentCheckinScreen(
+              reviewId: s.pathParameters['id']!,
+            ),
           ),
           GoRoute(
             path: '/performance/:id',
