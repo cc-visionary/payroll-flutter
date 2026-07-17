@@ -533,7 +533,7 @@ class _NavTile extends ConsumerWidget {
 /// Numeric notification badge for sidebar nav tiles. Two render modes:
 ///
 ///   - `_NavBadge.expanded`  — right-aligned pill in the tile row, replaces
-///     the "Soon" badge slot. Tinted bg + darker text per `.impeccable.md`.
+///     the "Soon" badge slot. Tinted bg + darker text per `PRODUCT.md`.
 ///   - `_NavBadge.collapsed` — overlay dot at the top-right of the tile's
 ///     icon, with the number inside when it fits (single digit) or just a
 ///     filled dot otherwise.

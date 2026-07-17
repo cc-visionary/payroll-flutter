@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Luxium brand tokens — single source of truth for all colors, radii, and
-/// status palettes. Values mirror `.impeccable.md` and the canonical website
+/// status palettes. Values mirror `PRODUCT.md` and the canonical website
 /// (`luxium-website/src/app/globals.css`).
 ///
 /// Don't write `Color(0xFF...)` literals in feature code. Pull from

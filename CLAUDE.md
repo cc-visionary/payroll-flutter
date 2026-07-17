@@ -4,7 +4,7 @@ Flutter desktop payroll app for Luxium HQ. Backend: Supabase (Postgres + Edge Fu
 
 ## Design System
 
-This project uses the **Luxium brand** — full design context in `.impeccable.md`.
+This project uses the **Luxium brand** — full design context in `PRODUCT.md`.
 
 Quick rules (override Flutter defaults):
 
@@ -15,7 +15,7 @@ Quick rules (override Flutter defaults):
 - **Spacing:** 4px grid — `4 · 8 · 12 · 16 · 24 · 32 · 48 · 64`.
 - **Status chips:** tinted background + darker text, no colored borders.
 
-Before adding new screens, components, or chips, read `.impeccable.md`.
+Before adding new screens, components, or chips, read `PRODUCT.md`.
 Sibling brand reference: `/home/ccvisionary/Documents/Work/[07] Projects/luxium-website` (Next.js + Tailwind + shadcn).
 
 ## Tech stack

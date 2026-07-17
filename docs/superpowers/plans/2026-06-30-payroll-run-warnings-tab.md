@@ -12,7 +12,7 @@
 
 - **No database changes, no migrations, no stored state.** Warnings are recomputed live each load.
 - **No manual warnings, no acknowledge/resolve, no inline edit.** The only action is deep-linking to attendance.
-- **Single CTA color is Luxium purple** `#635BFF`/`#7F7DFC`; status chips use tinted background + darker text, **no colored borders** (per `.impeccable.md` / CLAUDE.md). Warning chips: amber `#FEF3C7`/`#92400E`, error red `#FEE2E2`/`#991B1B`.
+- **Single CTA color is Luxium purple** `#635BFF`/`#7F7DFC`; status chips use tinted background + darker text, **no colored borders** (per `PRODUCT.md` / CLAUDE.md). Warning chips: amber `#FEF3C7`/`#92400E`, error red `#FEE2E2`/`#991B1B`.
 - **Unapproved-OT threshold = 30 minutes**, held in a named constant `kUnapprovedOtThresholdMinutes`.
 - **Skip today + future days** in the scan; **both-null clock = normal absence, not flagged**; **overnight shifts and shiftless records skip only the OT check** (checks 1–3 still apply).
 - Attendance table is `attendance_day_records`; employee embed is `employees!inner(employee_number, first_name, last_name)` (what `AttendanceDay.fromRow` expects).

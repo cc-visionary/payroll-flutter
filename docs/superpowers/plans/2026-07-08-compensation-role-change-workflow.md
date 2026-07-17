@@ -1377,7 +1377,7 @@ Create `lib/features/employees/profile/widgets/compensation_change_dialog.dart`.
 - On "Confirm", build a `SalaryAdjustmentInputs` from the fields + current values and run `validateSalaryAdjustment`; if non-empty, show the first error under the offending field and do not pop. On success, `Navigator.pop(context, CompensationChangeRequest(...))`.
 - Currency parsing via `Decimal.parse` on the cleaned string; reject non-positive.
 
-Follow the visual conventions in `.impeccable.md` (6px radius, Luxium purple CTA, 4px spacing grid) — match the existing dialogs in `lib/features/employees/profile/widgets/`.
+Follow the visual conventions in `PRODUCT.md` (6px radius, Luxium purple CTA, 4px spacing grid) — match the existing dialogs in `lib/features/employees/profile/widgets/`.
 
 - [ ] **Step 4: Wire the Role tab**
 

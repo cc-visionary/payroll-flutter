@@ -188,7 +188,7 @@ A flat table (uses existing `ResponsiveTable` widget — `lib/widgets/responsive
 
 - **Filter bar**: search (title), brand picker, role picker, status picker (All / Open / Filled / Paused / Closed)
 - **Columns**: Title · Brand · Role · Filled/Target · Status chip · Applicants · Created
-- **Status chip colors** (per `.impeccable.md` tinted-bg pattern):
+- **Status chip colors** (per `PRODUCT.md` tinted-bg pattern):
   - OPEN: brand purple
   - FILLED: green-tinted
   - PAUSED: amber-tinted

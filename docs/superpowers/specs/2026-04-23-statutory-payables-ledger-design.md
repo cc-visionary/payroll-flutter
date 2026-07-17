@@ -160,7 +160,7 @@ Body table — one row per `(brand, month, agency)`:
 | Brand | Month | Agency | Employees | Amount Due | Paid? | Paid On | Reference | Amount Paid | Variance | Actions |
 |---|---|---|---|---|---|---|---|---|---|---|
 
-- **Paid?** chip uses Luxium status-chip rules (`.impeccable.md`): tinted bg + darker text, no border. States: `Unpaid` (neutral), `Partial` (warning), `Paid` (success), `Overpaid` (info). State derived from `sum(amount_paid) vs amount_due`.
+- **Paid?** chip uses Luxium status-chip rules (`PRODUCT.md`): tinted bg + darker text, no border. States: `Unpaid` (neutral), `Partial` (warning), `Paid` (success), `Overpaid` (info). State derived from `sum(amount_paid) vs amount_due`.
 - **Variance** = `amount_paid_total - amount_due`. Mono font (Geist Mono).
 - **Actions:** "Mark as Paid" (opens dialog) for unpaid/partial; "View Payments" for paid/partial/overpaid; "Export sheet" for one-row export.
 - Click a row → side drawer with per-employee breakdown (Last, First, MI, Employee ID, EE Share, ER Share, Total). This is the same data the XLSX export uses — single source so they stay in sync.

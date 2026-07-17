@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Design system per `.impeccable.md` / `CLAUDE.md`: Satoshi/Geist Mono, Luxium purple `#635BFF`, 6px radius, 4px spacing grid. No new accent colors.
+- Design system per `PRODUCT.md` / `CLAUDE.md`: Satoshi/Geist Mono, Luxium purple `#635BFF`, 6px radius, 4px spacing grid. No new accent colors.
 - Logo image types accepted: **PNG and JPG only** (render reliably in `pw.MemoryImage`). WebP excluded.
 - Logo upload size cap: **300 KB** of source bytes (pre-base64), enforced client-side with an inline error.
 - `logoBytes` is binary and MUST be excluded from every `*Inputs.toJson()` (it is re-resolved at view time). It is NOT a field in `fromJson`.
