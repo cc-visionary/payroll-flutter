@@ -256,25 +256,17 @@ git commit -m "feat(role-card): map role scorecard to PDF blocks"
 ### Task 2: `RoleCardPdfScreen` + by-id provider + route
 
 **Files:**
-- Modify: `lib/data/repositories/role_scorecard_repository.dart` (add one provider near `roleScorecardListProvider`, ~line 67)
 - Create: `lib/features/responsibility_cards/role_card_pdf_screen.dart`
 - Modify: `lib/app/router.dart` (add one import + one route)
 - Test: `test/features/responsibility_cards/role_card_pdf_screen_test.dart`
 
 **Interfaces:**
-- Consumes: `roleCardBlocks(...)` (Task 1); `RoleScorecardRepository.byId(String) -> Future<RoleScorecard?>` (exists); `hiringEntityByIdProvider` (in `lib/features/documents/providers.dart`); `loadCompanyLogoBytes(HiringEntity?)` (in `lib/features/documents/brand_logo.dart`); `buildDocumentPdf({required List<Block> blocks, required PdfTheme theme})` (in `lib/features/documents/pdf/pdf_builder.dart`); `PdfPreviewScaffold({required buildPdf, required filename})` (in `lib/core/pdf/pdf_preview_scaffold.dart`); `PdfTheme.defaults()` (in `lib/core/pdf/pdf_theme.dart`).
-- Produces: `RoleCardPdfScreen({required String cardId})` and `roleScorecardByIdProvider(String)` — consumed by Task 3 and the router.
+- Consumes: `roleCardBlocks(...)` (Task 1); `roleScorecardByIdProvider` — a `FutureProvider.family<RoleScorecard?, String>` that ALREADY EXISTS in `lib/features/documents/providers.dart` (delegates to `RoleScorecardRepository.byId`); `hiringEntityByIdProvider` (same file, `lib/features/documents/providers.dart`); `loadCompanyLogoBytes(HiringEntity?)` (in `lib/features/documents/brand_logo.dart`); `buildDocumentPdf({required List<Block> blocks, required PdfTheme theme})` (in `lib/features/documents/pdf/pdf_builder.dart`); `PdfPreviewScaffold({required buildPdf, required filename})` (in `lib/core/pdf/pdf_preview_scaffold.dart`); `PdfTheme.defaults()` (in `lib/core/pdf/pdf_theme.dart`).
+- Produces: `RoleCardPdfScreen({required String cardId})` — consumed by Task 3 and the router.
 
-- [ ] **Step 1: Add the by-id provider**
+- [ ] **Step 1: Reuse the existing by-id provider (no new provider)**
 
-In `lib/data/repositories/role_scorecard_repository.dart`, directly after `roleScorecardListProvider` (near line 67), add:
-
-```dart
-final roleScorecardByIdProvider =
-    FutureProvider.family<RoleScorecard?, String>((ref, id) {
-  return ref.watch(roleScorecardRepositoryProvider).byId(id);
-});
-```
+`roleScorecardByIdProvider` — `FutureProvider.family<RoleScorecard?, String>` delegating to `roleScorecardRepositoryProvider.byId(id)` — already exists in `lib/features/documents/providers.dart`. **Do not add a duplicate** (a second top-level provider with the same name causes an `ambiguous_import` compile error). The screen created in Step 4 already imports `../documents/providers.dart` (for `hiringEntityByIdProvider`), so the provider is in scope with no change. This step is a no-op; proceed to Step 2.
 
 - [ ] **Step 2: Write the failing widget test (not-found path)**
 
@@ -284,7 +276,7 @@ Create `test/features/responsibility_cards/role_card_pdf_screen_test.dart`:
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:payroll_flutter/data/repositories/role_scorecard_repository.dart';
+import 'package:payroll_flutter/features/documents/providers.dart';
 import 'package:payroll_flutter/features/responsibility_cards/role_card_pdf_screen.dart';
 
 void main() {
@@ -416,13 +408,13 @@ If there is no `/responsibility-cards/:id` route, add it anywhere in that routes
 
 - [ ] **Step 7: Verify analyze is clean**
 
-Run: `flutter analyze lib/features/responsibility_cards/role_card_pdf_screen.dart lib/data/repositories/role_scorecard_repository.dart lib/app/router.dart`
+Run: `flutter analyze lib/features/responsibility_cards/role_card_pdf_screen.dart lib/app/router.dart`
 Expected: No errors.
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add lib/features/responsibility_cards/role_card_pdf_screen.dart lib/data/repositories/role_scorecard_repository.dart lib/app/router.dart test/features/responsibility_cards/role_card_pdf_screen_test.dart
+git add lib/features/responsibility_cards/role_card_pdf_screen.dart lib/app/router.dart test/features/responsibility_cards/role_card_pdf_screen_test.dart
 git commit -m "feat(role-card): PDF preview screen, by-id provider, and route"
 ```
 
