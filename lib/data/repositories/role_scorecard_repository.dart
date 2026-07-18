@@ -10,7 +10,10 @@ import '../models/role_scorecard.dart';
 /// set by default); otherwise only the assigned KPIs that are still on the role.
 Set<String> initialCheckedKpiIds(Set<String> assigned, List<String> roleKpiIds) {
   if (assigned.isEmpty) return roleKpiIds.toSet();
-  return roleKpiIds.where(assigned.contains).toSet();
+  final inter = roleKpiIds.where(assigned.contains).toSet();
+  // A role change can leave assigned rows that no longer match the role; treat
+  // that like "no assignment" so the UI mirrors the migration's full-set fallback.
+  return inter.isEmpty ? roleKpiIds.toSet() : inter;
 }
 
 /// What to persist for [checked] out of [roleKpiIds]: only KPIs that are

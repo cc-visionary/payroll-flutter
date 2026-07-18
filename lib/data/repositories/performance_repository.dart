@@ -279,15 +279,33 @@ class PerformanceRepository {
   Future<void> seedSkillRatingsForCheckIn({
     required String checkInId,
     required String? roleScorecardId,
+    required String? employeeId,
   }) async {
     if (roleScorecardId == null) return;
-    // KPIs now live in role_scorecard_kpis (linked to the kpis library), not the
-    // legacy role_scorecards.kpis JSON.
+    // KPIs live in role_scorecard_kpis (linked to the kpis library).
     final links = await _client
         .from('role_scorecard_kpis')
-        .select('kpis(name)')
+        .select('kpi_id, kpis(name)')
         .eq('role_scorecard_id', roleScorecardId)
         .order('sort_order');
+    final roleRows = (links as List).cast<Map<String, dynamic>>();
+
+    // Phase 2: honor the employee's per-employee KPI subset. If they have any
+    // employee_kpis row on this role, seed only those; otherwise the full role
+    // set (mirrors generate_employee_review's fallback).
+    var assigned = <String>{};
+    if (employeeId != null) {
+      final ek = await _client
+          .from('employee_kpis')
+          .select('kpi_id')
+          .eq('employee_id', employeeId);
+      assigned = {
+        for (final r in (ek as List).cast<Map<String, dynamic>>())
+          r['kpi_id'] as String,
+      };
+    }
+    final roleKpiIds = {for (final r in roleRows) r['kpi_id'] as String};
+    final hasAssignment = assigned.any(roleKpiIds.contains);
 
     // Read existing skill_names to avoid PK violations on the unique constraint.
     final existing = await _client
@@ -301,8 +319,10 @@ class PerformanceRepository {
     };
 
     final toInsert = <Map<String, dynamic>>[];
-    for (final row in (links as List)) {
-      final kpi = (row as Map<String, dynamic>)['kpis'];
+    for (final row in roleRows) {
+      final kpiId = row['kpi_id'] as String;
+      if (hasAssignment && !assigned.contains(kpiId)) continue;
+      final kpi = row['kpis'];
       final metric = kpi is Map ? kpi['name'] as String? : null;
       if (metric == null || metric.isEmpty) continue;
       if (existingNames.contains(metric)) continue;

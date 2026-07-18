@@ -15,6 +15,9 @@ void main() {
         {'a'}, // 'z' not on the role is ignored
       );
     });
+    test('assignment with no on-role ids -> all checked (matches migration fallback)', () {
+      expect(initialCheckedKpiIds({'z'}, ['a', 'b', 'c']), {'a', 'b', 'c'});
+    });
   });
 
   group('kpiIdsToPersist', () {
