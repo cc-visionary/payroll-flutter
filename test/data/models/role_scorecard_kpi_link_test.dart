@@ -46,8 +46,8 @@ void main() {
     expect(card.kpis.single.name, 'Legacy');
   });
 
-  test('toUpsertPayload no longer includes kpis', () {
+  test('toUpsertPayload writes kpis as an empty array (NOT NULL column, legacy/unread)', () {
     final card = RoleScorecard.fromRow(baseRow(const []));
-    expect(card.toUpsertPayload().containsKey('kpis'), isFalse);
+    expect(card.toUpsertPayload()['kpis'], isEmpty);
   });
 }

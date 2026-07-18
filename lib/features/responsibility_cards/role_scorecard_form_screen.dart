@@ -614,6 +614,7 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
       ),
       TextFormField(
         initialValue: _kpis[index].measurement,
+        enabled: _kpis[index].kpiId == null,
         decoration: const InputDecoration(
           labelText: 'Measurement',
           hintText: 'How the KPI is measured',

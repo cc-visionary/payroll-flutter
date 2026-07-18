@@ -281,14 +281,13 @@ class PerformanceRepository {
     required String? roleScorecardId,
   }) async {
     if (roleScorecardId == null) return;
-    final scorecard = await _client
-        .from('role_scorecards')
-        .select('kpis')
-        .eq('id', roleScorecardId)
-        .maybeSingle();
-    if (scorecard == null) return;
-    final rawKpis = scorecard['kpis'];
-    if (rawKpis is! List) return;
+    // KPIs now live in role_scorecard_kpis (linked to the kpis library), not the
+    // legacy role_scorecards.kpis JSON.
+    final links = await _client
+        .from('role_scorecard_kpis')
+        .select('kpis(name)')
+        .eq('role_scorecard_id', roleScorecardId)
+        .order('sort_order');
 
     // Read existing skill_names to avoid PK violations on the unique constraint.
     final existing = await _client
@@ -302,9 +301,9 @@ class PerformanceRepository {
     };
 
     final toInsert = <Map<String, dynamic>>[];
-    for (final k in rawKpis) {
-      if (k is! Map) continue;
-      final metric = (k['name'] ?? k['metric']) as String?;
+    for (final row in (links as List)) {
+      final kpi = (row as Map<String, dynamic>)['kpis'];
+      final metric = kpi is Map ? kpi['name'] as String? : null;
       if (metric == null || metric.isEmpty) continue;
       if (existingNames.contains(metric)) continue;
       toInsert.add({

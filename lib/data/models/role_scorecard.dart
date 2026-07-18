@@ -215,6 +215,10 @@ class RoleScorecard {
     'department_id': departmentId,
     'mission_statement': missionStatement,
     'key_responsibilities': responsibilities.map((r) => r.toJson()).toList(),
+    // The kpis JSON column is NOT NULL and kept as read-only legacy (KPIs now
+    // live in role_scorecard_kpis). Write an empty array to satisfy the
+    // constraint on INSERT; it is never read for display.
+    'kpis': const <Map<String, dynamic>>[],
     'required_skills': requiredSkills.map((s) => s.toJson()).toList(),
     'behavioral_expectations': behavioralExpectations
         .map((e) => e.toJson())
