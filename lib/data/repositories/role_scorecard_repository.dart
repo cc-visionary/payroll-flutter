@@ -2,7 +2,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/kpi.dart';
+import '../models/role_kpi.dart';
 import '../models/role_scorecard.dart';
+
+/// The checkbox state to show when the assignment section opens: if the employee
+/// has no assignment, all role KPIs are checked (they're tracked on the full
+/// set by default); otherwise only the assigned KPIs that are still on the role.
+Set<String> initialCheckedKpiIds(Set<String> assigned, List<String> roleKpiIds) {
+  if (assigned.isEmpty) return roleKpiIds.toSet();
+  return roleKpiIds.where(assigned.contains).toSet();
+}
+
+/// What to persist for [checked] out of [roleKpiIds]: nothing when all (or none)
+/// are checked — both mean "default: full role set" — otherwise the subset in
+/// role order.
+List<String> kpiIdsToPersist(Set<String> checked, List<String> roleKpiIds) {
+  if (checked.isEmpty || checked.length == roleKpiIds.length) return const [];
+  return roleKpiIds.where(checked.contains).toList();
+}
 
 class RoleScorecardRepository {
   final SupabaseClient _client;
@@ -218,6 +235,40 @@ class RoleScorecardRepository {
       ], onConflict: 'role_scorecard_id,kpi_id');
     }
   }
+
+  Future<List<RoleKpi>> roleKpis(String roleScorecardId) async {
+    final rows = await _client
+        .from('role_scorecard_kpis')
+        .select('kpi_id, target, frequency, sort_order, kpis(name)')
+        .eq('role_scorecard_id', roleScorecardId)
+        .order('sort_order');
+    return (rows as List)
+        .cast<Map<String, dynamic>>()
+        .map(RoleKpi.fromRow)
+        .toList();
+  }
+
+  Future<Set<String>> employeeAssignedKpiIds(String employeeId) async {
+    final rows = await _client
+        .from('employee_kpis')
+        .select('kpi_id')
+        .eq('employee_id', employeeId);
+    return {
+      for (final r in (rows as List).cast<Map<String, dynamic>>())
+        r['kpi_id'] as String,
+    };
+  }
+
+  /// Replace the employee's KPI assignment with [kpiIds]. Empty clears it
+  /// (employee falls back to the full role set).
+  Future<void> saveEmployeeKpis(String employeeId, List<String> kpiIds) async {
+    await _client.from('employee_kpis').delete().eq('employee_id', employeeId);
+    if (kpiIds.isNotEmpty) {
+      await _client.from('employee_kpis').insert([
+        for (final id in kpiIds) {'employee_id': employeeId, 'kpi_id': id},
+      ]);
+    }
+  }
 }
 
 final roleScorecardRepositoryProvider =
@@ -233,4 +284,14 @@ final scorecardEmployeeCountProvider = FutureProvider<Map<String, int>>((ref) {
 
 final kpiLibraryProvider = FutureProvider<List<Kpi>>((ref) {
   return ref.watch(roleScorecardRepositoryProvider).listKpis();
+});
+
+final roleKpisProvider =
+    FutureProvider.family<List<RoleKpi>, String>((ref, roleScorecardId) {
+  return ref.watch(roleScorecardRepositoryProvider).roleKpis(roleScorecardId);
+});
+
+final employeeAssignedKpiIdsProvider =
+    FutureProvider.family<Set<String>, String>((ref, employeeId) {
+  return ref.watch(roleScorecardRepositoryProvider).employeeAssignedKpiIds(employeeId);
 });
