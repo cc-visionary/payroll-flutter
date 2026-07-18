@@ -75,9 +75,9 @@ create trigger _role_scorecard_kpis_updated before update on role_scorecard_kpis
 
 -- Seed: one library KPI per distinct name per company; one link per role-card KPI.
 insert into kpis (company_id, name, measurement_unit)
-select distinct on (rs.company_id, lower(trim(k->>'name')))
+select distinct on (rs.company_id, lower(trim(coalesce(k->>'name', k->>'metric'))))
   rs.company_id,
-  trim(k->>'name'),
+  trim(coalesce(k->>'name', k->>'metric')),
   nullif(trim(coalesce(k->>'measurement', '')), '')
 from role_scorecards rs
   cross join lateral jsonb_array_elements(coalesce(rs.kpis, '[]'::jsonb)) as k
