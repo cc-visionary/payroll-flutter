@@ -22,6 +22,7 @@ class KpiLibraryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(kpiLibraryProvider);
+    final assignedAsync = ref.watch(kpiAssignedEmployeesProvider);
     final companyId = ref.watch(userProfileProvider).asData?.value?.companyId;
     final mobile = isMobile(context);
 
@@ -79,6 +80,7 @@ class KpiLibraryScreen extends ConsumerWidget {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: _KpiTile(
                       kpi: kpi,
+                      assignedAsync: assignedAsync,
                       onEdit: companyId == null
                           ? null
                           : () =>
@@ -193,10 +195,12 @@ class KpiLibraryScreen extends ConsumerWidget {
 
 class _KpiTile extends StatelessWidget {
   final Kpi kpi;
+  final AsyncValue<Map<String, List<KpiAssignee>>> assignedAsync;
   final VoidCallback? onEdit;
   final VoidCallback onDeactivate;
   const _KpiTile({
     required this.kpi,
+    required this.assignedAsync,
     required this.onEdit,
     required this.onDeactivate,
   });
@@ -242,6 +246,10 @@ class _KpiTile extends StatelessWidget {
                       style: const TextStyle(color: Colors.grey, fontSize: 12),
                     ),
                   ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: _buildAssigneeLine(context),
+                ),
               ],
             ),
           ),
@@ -254,6 +262,40 @@ class _KpiTile extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// The muted "who's tracking this" subtitle. Loading renders a subtle
+  /// spinner (not a blocking state); errors render nothing so a failure in
+  /// this side provider never disrupts the rest of the KPI row.
+  Widget _buildAssigneeLine(BuildContext context) {
+    final mutedStyle = TextStyle(
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+      fontSize: 12,
+    );
+    return assignedAsync.when(
+      data: (map) {
+        final assignees = map[kpi.id] ?? const <KpiAssignee>[];
+        if (assignees.isEmpty) {
+          return Text('Not currently tracked by anyone', style: mutedStyle);
+        }
+        final names = assignees.map((a) => a.name).join(', ');
+        return Text(
+          'Assigned (${assignees.length}): $names',
+          style: mutedStyle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        );
+      },
+      loading: () => SizedBox(
+        height: 12,
+        width: 12,
+        child: CircularProgressIndicator(
+          strokeWidth: 1.5,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+      error: (_, _) => const SizedBox.shrink(),
     );
   }
 }

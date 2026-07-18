@@ -27,6 +27,38 @@ List<String> kpiIdsToPersist(Set<String> checked, List<String> roleKpiIds) {
   return onRole;
 }
 
+class KpiAssignee {
+  final String employeeId;
+  final String name;
+  final String? roleTitle;
+  const KpiAssignee({required this.employeeId, required this.name, this.roleTitle});
+}
+
+/// kpiId -> employees effectively tracked on it. An employee tracks a KPI if it
+/// is on their role card AND (no per-employee subset intersects their role -> the
+/// full role set, else only the subset). Mirrors generate_employee_review.
+Map<String, List<KpiAssignee>> employeesByKpi({
+  required List<({KpiAssignee assignee, String? roleScorecardId})> employees,
+  required Map<String, Set<String>> roleKpiIds,
+  required Map<String, Set<String>> employeeSubsets,
+}) {
+  final out = <String, List<KpiAssignee>>{};
+  for (final e in employees) {
+    final rsId = e.roleScorecardId;
+    if (rsId == null) continue;
+    final roleSet = roleKpiIds[rsId] ?? const <String>{};
+    if (roleSet.isEmpty) continue;
+    final subset = employeeSubsets[e.assignee.employeeId];
+    final onRoleSubset =
+        subset == null ? const <String>{} : subset.where(roleSet.contains).toSet();
+    final effective = onRoleSubset.isEmpty ? roleSet : onRoleSubset;
+    for (final kpiId in effective) {
+      (out[kpiId] ??= []).add(e.assignee);
+    }
+  }
+  return out;
+}
+
 class RoleScorecardRepository {
   final SupabaseClient _client;
   RoleScorecardRepository(this._client);
@@ -298,6 +330,44 @@ class RoleScorecardRepository {
       ]);
     }
   }
+
+  /// kpiId -> employees effectively tracked on it, across the whole company.
+  /// Powers the KPI Library screen's "who's tracking this" line. See
+  /// [employeesByKpi] for the assignment logic.
+  Future<Map<String, List<KpiAssignee>>> assignedEmployeesByKpi() async {
+    final emps = await _client
+        .from('employees')
+        .select('id, first_name, last_name, role_scorecard_id, role_scorecards(job_title)')
+        .isFilter('deleted_at', null);
+    final roleLinks =
+        await _client.from('role_scorecard_kpis').select('role_scorecard_id, kpi_id');
+    final ek = await _client.from('employee_kpis').select('employee_id, kpi_id');
+
+    final employees = [
+      for (final e in (emps as List).cast<Map<String, dynamic>>())
+        (
+          assignee: KpiAssignee(
+            employeeId: e['id'] as String,
+            name: '${e['first_name'] ?? ''} ${e['last_name'] ?? ''}'.trim(),
+            roleTitle: (e['role_scorecards'] as Map?)?['job_title'] as String?,
+          ),
+          roleScorecardId: e['role_scorecard_id'] as String?,
+        ),
+    ];
+    final roleKpiIds = <String, Set<String>>{};
+    for (final r in (roleLinks as List).cast<Map<String, dynamic>>()) {
+      (roleKpiIds[r['role_scorecard_id'] as String] ??= {}).add(r['kpi_id'] as String);
+    }
+    final employeeSubsets = <String, Set<String>>{};
+    for (final r in (ek as List).cast<Map<String, dynamic>>()) {
+      (employeeSubsets[r['employee_id'] as String] ??= {}).add(r['kpi_id'] as String);
+    }
+    return employeesByKpi(
+      employees: employees,
+      roleKpiIds: roleKpiIds,
+      employeeSubsets: employeeSubsets,
+    );
+  }
 }
 
 final roleScorecardRepositoryProvider =
@@ -313,6 +383,11 @@ final scorecardEmployeeCountProvider = FutureProvider<Map<String, int>>((ref) {
 
 final kpiLibraryProvider = FutureProvider<List<Kpi>>((ref) {
   return ref.watch(roleScorecardRepositoryProvider).listKpis();
+});
+
+final kpiAssignedEmployeesProvider =
+    FutureProvider<Map<String, List<KpiAssignee>>>((ref) {
+  return ref.watch(roleScorecardRepositoryProvider).assignedEmployeesByKpi();
 });
 
 final roleKpisProvider =
