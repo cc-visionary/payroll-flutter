@@ -172,3 +172,7 @@ final roleScorecardListProvider = FutureProvider<List<RoleScorecard>>((ref) {
 final scorecardEmployeeCountProvider = FutureProvider<Map<String, int>>((ref) {
   return ref.watch(roleScorecardRepositoryProvider).employeeCountByScorecard();
 });
+
+final kpiLibraryProvider = FutureProvider<List<Kpi>>((ref) {
+  return ref.watch(roleScorecardRepositoryProvider).listKpis();
+});

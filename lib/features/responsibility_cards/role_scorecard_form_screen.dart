@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app/breakpoints.dart';
+import '../../data/models/kpi.dart';
 import '../../data/models/role_scorecard.dart';
 import '../../data/repositories/hiring_entity_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
@@ -135,18 +136,9 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                 tasks: a.tasks.where((t) => t.trim().isNotEmpty).toList(),
               ),
         ],
-        kpis: [
-          for (final k in _kpis)
-            if (k.name.trim().isNotEmpty)
-              KpiItem(
-                name: k.name.trim(),
-                measurement: k.measurement.trim(),
-                target: k.target.trim(),
-                frequency: k.frequency.trim().isEmpty
-                    ? 'Monthly'
-                    : k.frequency.trim(),
-              ),
-        ],
+        // KPIs are no longer part of the jsonb payload — persisted separately
+        // via saveRoleScorecardKpis below.
+        kpis: const [],
         requiredSkills: [
           for (final skill in _skills)
             if (skill.name.trim().isNotEmpty)
@@ -181,8 +173,25 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
         effectiveDate: _effectiveDate,
       );
       final saved = await ref.read(roleScorecardRepositoryProvider).upsert(card);
+      await ref.read(roleScorecardRepositoryProvider).saveRoleScorecardKpis(
+        saved.id,
+        saved.companyId,
+        [
+          for (final k in _kpis)
+            if (k.name.trim().isNotEmpty)
+              KpiLinkInput(
+                kpiId: k.kpiId,
+                name: k.name.trim(),
+                measurementUnit: k.measurement.trim(),
+                category: k.category,
+                target: k.target.trim(),
+                frequency: k.frequency.trim(),
+              ),
+        ],
+      );
       ref.invalidate(roleScorecardListProvider);
       ref.invalidate(scorecardEmployeeCountProvider);
+      ref.invalidate(kpiLibraryProvider);
       // Keep the ephemeral PDF preview (RoleCardPdfScreen) fresh after an edit.
       ref.invalidate(roleScorecardByIdProvider(saved.id));
       if (mounted) context.pop();
@@ -195,6 +204,7 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final kpiLibrary = ref.watch(kpiLibraryProvider).asData?.value ?? const <Kpi>[];
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -534,7 +544,7 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                     for (int i = 0; i < _kpis.length; i++)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: _kpiEditor(i),
+                        child: _kpiEditor(i, kpiLibrary),
                       ),
                   ]),
                   if (_error != null) ...[
@@ -570,16 +580,37 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
     );
   }
 
-  Widget _kpiEditor(int index) {
+  Widget _kpiEditor(int index, List<Kpi> kpiLibrary) {
     final fields = [
-      TextFormField(
-        initialValue: _kpis[index].name,
-        decoration: const InputDecoration(
-          labelText: 'KPI name',
-          border: OutlineInputBorder(),
-          isDense: true,
-        ),
-        onChanged: (value) => _kpis[index].name = value,
+      Autocomplete<Kpi>(
+        initialValue: TextEditingValue(text: _kpis[index].name),
+        optionsBuilder: (v) => v.text.isEmpty
+            ? kpiLibrary
+            : kpiLibrary.where(
+                (k) => k.name.toLowerCase().contains(v.text.toLowerCase()),
+              ),
+        displayStringForOption: (k) => k.name,
+        onSelected: (k) => setState(() {
+          _kpis[index]
+            ..kpiId = k.id
+            ..name = k.name
+            ..measurement = k.measurementUnit ?? _kpis[index].measurement
+            ..category = k.category;
+        }),
+        fieldViewBuilder: (context, controller, focusNode, onSubmit) =>
+            TextFormField(
+              controller: controller,
+              focusNode: focusNode,
+              decoration: const InputDecoration(
+                labelText: 'KPI name',
+                border: OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: (value) => setState(() {
+                _kpis[index].name = value;
+                _kpis[index].kpiId = null; // typing a fresh name = new library KPI
+              }),
+            ),
       ),
       TextFormField(
         initialValue: _kpis[index].measurement,
@@ -727,8 +758,10 @@ class _AreaDraft {
 }
 
 class _KpiDraft {
+  String? kpiId; // null until picked from / saved to the library
   String name;
   String measurement;
+  String? category;
   String target;
   String frequency;
   _KpiDraft(this.name, this.measurement, this.target, this.frequency);
