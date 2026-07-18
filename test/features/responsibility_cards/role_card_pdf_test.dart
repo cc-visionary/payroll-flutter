@@ -1,8 +1,12 @@
+import 'package:decimal/decimal.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/data/models/role_scorecard.dart';
+import 'package:payroll_flutter/features/documents/blocks/block.dart';
 import 'package:payroll_flutter/features/documents/blocks/bullet_list_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/heading_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/key_value_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/labelled_bullet_list_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/paragraph_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/section_heading_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/table_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/title_block.dart';
@@ -105,6 +109,81 @@ void main() {
     for (final item in items) {
       expect(item.leadBold, isNotEmpty);
       expect(item.body, isNotEmpty);
+    }
+  });
+
+  test('never renders compensation fields', () {
+    Iterable<String> textOf(Block b) {
+      if (b is TitleBlock) return [b.text];
+      if (b is SectionHeadingBlock) return [b.title];
+      if (b is ParagraphBlock) return [b.text];
+      if (b is HeadingBlock) return [b.text];
+      if (b is BulletListBlock) return b.items;
+      if (b is KeyValueBlock) {
+        return b.rows.expand((r) => [r.label, r.value]);
+      }
+      if (b is TableBlock) {
+        return [...b.headers, ...b.rows.expand((r) => r)];
+      }
+      if (b is LabelledBulletListBlock) {
+        return b.items.expand(
+          (i) => [
+            i.leadBold,
+            i.body,
+            ...i.children.expand((c) => [c.leadBold, c.body]),
+          ],
+        );
+      }
+      return const [];
+    }
+
+    final card = RoleScorecard(
+      id: 'card-comp',
+      companyId: 'co-1',
+      jobTitle: 'Brand Associate',
+      missionStatement: 'Own the storefront experience.',
+      responsibilities: const [
+        ResponsibilityArea(
+            area: 'Merchandising', tasks: ['Curate weekly drops']),
+      ],
+      kpis: const [
+        KpiItem(
+            name: 'Conversion',
+            measurement: 'CVR %',
+            target: '3%',
+            frequency: 'Monthly'),
+      ],
+      requiredSkills: const [
+        RequiredSkill(name: 'Excel', description: 'Pivot tables'),
+      ],
+      behavioralExpectations: const [
+        BehavioralExpectation(name: 'Ownership', description: 'Sees issues through'),
+      ],
+      salaryRangeMin: Decimal.parse('111222333'),
+      salaryRangeMax: Decimal.parse('444555666'),
+      baseSalary: Decimal.parse('777888999'),
+      wageType: 'WAGETYPESENTINEL',
+      workHoursPerDay: 8,
+      workDaysPerWeek: 'DAYSSENTINEL',
+      isActive: true,
+      effectiveDate: DateTime(2026, 1, 1),
+    );
+
+    final rendered = roleCardBlocks(
+      card,
+      companyName: 'Acme',
+      companyAddress: '1 Main St',
+    ).expand(textOf).join(' | ');
+
+    for (final sentinel in [
+      'WAGETYPESENTINEL',
+      'DAYSSENTINEL',
+      '111222333',
+      '444555666',
+      '777888999',
+    ]) {
+      expect(rendered.contains(sentinel), isFalse,
+          reason: 'compensation leaked into the role-card PDF: $sentinel');
     }
   });
 }

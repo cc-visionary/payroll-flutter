@@ -92,7 +92,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (loc.startsWith('/settings') && !profile.isAdmin) {
           return '/dashboard';
         }
-        if (loc.startsWith('/responsibility-cards') && !profile.isHrOrAdmin) {
+        // The read-only role-card PDF (/responsibility-cards/:id/pdf) is reachable
+        // from the employee-review screen, which non-HR direct managers use, so
+        // exempt that leaf from the HR-only management-UI redirect. RLS on
+        // role_scorecards (company-wide read) still governs the actual fetch.
+        if (loc.startsWith('/responsibility-cards') &&
+            !loc.endsWith('/pdf') &&
+            !profile.isHrOrAdmin) {
           return '/dashboard';
         }
         if (loc.startsWith('/workforce-planning') && !profile.isHrOrAdmin) {
