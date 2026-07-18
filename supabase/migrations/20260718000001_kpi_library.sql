@@ -46,15 +46,16 @@ select distinct on (rs.company_id, lower(trim(coalesce(k->>'name', k->>'metric')
 from role_scorecards rs
   cross join lateral jsonb_array_elements(coalesce(rs.kpis, '[]'::jsonb)) as k
 where length(trim(coalesce(k->>'name', k->>'metric', ''))) > 0
+order by rs.company_id, lower(trim(coalesce(k->>'name', k->>'metric'))), rs.id
 on conflict (company_id, lower(trim(name))) do nothing;
 
 insert into role_scorecard_kpis (role_scorecard_id, kpi_id, target, frequency, sort_order)
-select
+select distinct on (rs.id, lib.id)
   rs.id,
   lib.id,
-  nullif(trim(coalesce(k->>'target', '')), ''),
-  nullif(trim(coalesce(k->>'frequency', '')), ''),
-  (k_index - 1)::int
+  nullif(trim(coalesce(arr.k->>'target', '')), ''),
+  nullif(trim(coalesce(arr.k->>'frequency', '')), ''),
+  (arr.k_index - 1)::int
 from role_scorecards rs
   cross join lateral jsonb_array_elements(coalesce(rs.kpis, '[]'::jsonb))
     with ordinality as arr(k, k_index)
@@ -62,6 +63,7 @@ from role_scorecards rs
     on lib.company_id = rs.company_id
     and lower(trim(lib.name)) = lower(trim(coalesce(arr.k->>'name', arr.k->>'metric', '')))
 where length(trim(coalesce(arr.k->>'name', arr.k->>'metric', ''))) > 0
+order by rs.id, lib.id, arr.k_index
 on conflict (role_scorecard_id, kpi_id) do nothing;
 
 -- RLS: company-scoped, mirroring role_scorecards.
@@ -85,6 +87,10 @@ create policy role_scorecard_kpis_write on role_scorecard_kpis for all
   using (auth_app_role() in ('SUPER_ADMIN','ADMIN','HR') and exists (
     select 1 from role_scorecards rs where rs.id = role_scorecard_id
       and (rs.company_id = auth_company_id() or auth_app_role() = 'SUPER_ADMIN')))
-  with check (auth_app_role() in ('SUPER_ADMIN','ADMIN','HR') and exists (
-    select 1 from role_scorecards rs where rs.id = role_scorecard_id
-      and (rs.company_id = auth_company_id() or auth_app_role() = 'SUPER_ADMIN')));
+  with check (auth_app_role() in ('SUPER_ADMIN','ADMIN','HR')
+    and exists (
+      select 1 from role_scorecards rs where rs.id = role_scorecard_id
+        and (rs.company_id = auth_company_id() or auth_app_role() = 'SUPER_ADMIN'))
+    and exists (
+      select 1 from kpis k where k.id = kpi_id
+        and (k.company_id = auth_company_id() or auth_app_role() = 'SUPER_ADMIN')));
