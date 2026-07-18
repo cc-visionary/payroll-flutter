@@ -1,5 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/data/models/role_scorecard.dart';
+import 'package:payroll_flutter/features/documents/blocks/bullet_list_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/heading_block.dart';
+import 'package:payroll_flutter/features/documents/blocks/labelled_bullet_list_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/section_heading_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/table_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/title_block.dart';
@@ -77,5 +80,31 @@ void main() {
   test('with no branding the first block is the title, not a letterhead', () {
     final blocks = roleCardBlocks(buildCard());
     expect(blocks.first, isA<TitleBlock>());
+  });
+
+  test('responsibilities render as a heading + bullet list per area', () {
+    final blocks = roleCardBlocks(buildCard(
+      responsibilities: const [
+        ResponsibilityArea(
+            area: 'Merchandising', tasks: ['Curate drops', 'Plan calendar']),
+      ],
+    ));
+    expect(blocks.whereType<HeadingBlock>().map((b) => b.text),
+        contains('Merchandising'));
+    final bullets = blocks.whereType<BulletListBlock>().toList();
+    expect(bullets, isNotEmpty);
+    expect(bullets.first.items, ['Curate drops', 'Plan calendar']);
+  });
+
+  test('labelled items (skills/behaviors) always have a non-empty label and body', () {
+    final items = roleCardBlocks(buildCard())
+        .whereType<LabelledBulletListBlock>()
+        .expand((b) => b.items)
+        .toList();
+    expect(items, isNotEmpty);
+    for (final item in items) {
+      expect(item.leadBold, isNotEmpty);
+      expect(item.body, isNotEmpty);
+    }
   });
 }

@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import '../../data/models/role_scorecard.dart';
 import '../documents/blocks/block.dart';
+import '../documents/blocks/bullet_list_block.dart';
+import '../documents/blocks/heading_block.dart';
 import '../documents/blocks/key_value_block.dart';
 import '../documents/blocks/labelled_bullet_list_block.dart';
 import '../documents/blocks/letterhead_block.dart';
@@ -29,7 +31,7 @@ List<Block> roleCardBlocks(
       logoBytes: logoBytes,
       companyName: companyName,
       companyAddress:
-          (companyAddress?.isEmpty ?? true) ? null : companyAddress,
+          (companyAddress?.trim().isEmpty ?? true) ? null : companyAddress,
     ));
     blocks.add(const SpacerBlock(16));
   }
@@ -51,19 +53,12 @@ List<Block> roleCardBlocks(
   if (card.responsibilities.isNotEmpty) {
     blocks.add(SectionHeadingBlock(
         number: ++section, title: 'Key Responsibilities'));
-    blocks.add(LabelledBulletListBlock(
-      items: [
-        for (final area in card.responsibilities)
-          LabelledBulletItem(
-            leadBold: area.area,
-            body: '',
-            children: [
-              for (final task in area.tasks)
-                LabelledBulletItem(leadBold: '', body: task),
-            ],
-          ),
-      ],
-    ));
+    for (final area in card.responsibilities) {
+      blocks.add(HeadingBlock(area.area));
+      if (area.tasks.isNotEmpty) {
+        blocks.add(BulletListBlock(area.tasks));
+      }
+    }
   }
 
   if (card.kpis.isNotEmpty) {
