@@ -278,8 +278,12 @@ Set<String> initialCheckedKpiIds(Set<String> assigned, List<String> roleKpiIds) 
 /// are checked — both mean "default: full role set" — otherwise the subset in
 /// role order.
 List<String> kpiIdsToPersist(Set<String> checked, List<String> roleKpiIds) {
-  if (checked.isEmpty || checked.length == roleKpiIds.length) return const [];
-  return roleKpiIds.where(checked.contains).toList();
+  // Only KPIs actually on the role count (a concurrent role edit can leave a
+  // stale checked id). None-on-role or all-on-role checked -> persist nothing
+  // (both mean "default: full role set"); else the on-role subset in role order.
+  final onRole = roleKpiIds.where(checked.contains).toList();
+  if (onRole.isEmpty || onRole.length == roleKpiIds.length) return const [];
+  return onRole;
 }
 ```
 
