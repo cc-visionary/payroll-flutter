@@ -182,7 +182,11 @@ Create `supabase/migrations/20260718000002_generate_review_from_kpi_link.sql` as
 ```sql
   v_index := 0;
   for v_item in
-    select rsk.target as target, k.name as name, k.measurement_unit as measurement
+    select jsonb_build_object(
+      'name', k.name,
+      'measurement', k.measurement_unit,
+      'target', rsk.target
+    ) as value
     from role_scorecard_kpis rsk
       join kpis k on k.id = rsk.kpi_id
     where rsk.role_scorecard_id = v_card.id
@@ -193,15 +197,15 @@ Create `supabase/migrations/20260718000002_generate_review_from_kpi_link.sql` as
       measurement_unit, target_value, is_qualitative
     ) values (
       v_review_id, v_index,
-      coalesce(v_item.name, ''),
-      null, v_item.measurement, v_item.target,
+      coalesce(v_item->>'name', ''),
+      null, v_item->>'measurement', v_item->>'target',
       false
     );
     v_index := v_index + 1;
   end loop;
 ```
 
-(Replace the existing `for v_item in select value from jsonb_array_elements(v_card.kpis)` loop. `v_item` is now a record with `.name/.measurement/.target` — keep the surrounding `v_index` init exactly where the original had it. Preserve the entire rest of the function verbatim by copying it from the sed output in Step 1; do NOT retype it from memory.)
+**Critical boundary note.** In the current function, `v_index integer;` and `v_item` are shared: `v_index := 0;` appears at line 53 (before the KPI loop) AND again at line 70 (before the skills loops), and the two skills loops that follow use `v_item` **as jsonb** (`v_item->>'name'`). So `v_item` MUST stay whatever type it is declared as (jsonb) — that is why the new KPI loop yields a single `value` jsonb column (via `jsonb_build_object`) exactly like the original `select value from jsonb_array_elements(...)`, rather than a multi-column record. Replace ONLY the block from the KPI-loop's `v_index := 0;` (line 53) through its matching `end loop;` (line 68) with the block above. Leave the second `v_index := 0;` and both skills loops untouched. Preserve the ENTIRE rest of the function verbatim by copying it from the sed output in Step 1 — do NOT retype it from memory (the `create or replace` restates the whole body; a transcription slip corrupts a live function reviews depend on).
 
 - [ ] **Step 3: Apply on the replica + verify identical snapshot**
 
