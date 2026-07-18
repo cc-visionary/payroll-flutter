@@ -146,7 +146,9 @@ select
      from role_scorecards rs, jsonb_array_elements(coalesce(rs.kpis,'[]'::jsonb)) k
      where length(trim(coalesce(k->>'name',k->>'metric','')))>0) d) as distinct_names;
 ```
-Expected: `links == json_kpis` (minus any blank-name entries) and `lib_rows == distinct_names`. Spot-check that a role card's targets survive: `select target, frequency, sort_order from role_scorecard_kpis where role_scorecard_id = '<id>' order by sort_order;`
+Expected: `links == json_kpis` minus (a) blank-name entries and (b) any **intra-card duplicate-normalized names** — a card links a library KPI at most once, so duplicates collapse to the first (lowest index) occurrence, deterministically. `lib_rows == distinct_names`. Spot-check targets survive: `select target, frequency, sort_order from role_scorecard_kpis where role_scorecard_id = '<id>' order by sort_order;`
+
+**Controller gate (before prod push):** run the intra-card duplicate check — `select role_scorecard_id, lower(trim(coalesce(k->>'name',k->>'metric'))) nm, count(*) from role_scorecards, jsonb_array_elements(coalesce(kpis,'[]'::jsonb)) k group by 1,2 having count(*)>1;`. If it returns rows, a real target would be dropped — surface those cards to the user (data to clean up) rather than silently pushing.
 
 - [ ] **Step 3: Commit**
 
