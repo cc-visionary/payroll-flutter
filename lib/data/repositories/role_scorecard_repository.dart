@@ -338,7 +338,8 @@ class RoleScorecardRepository {
     final emps = await _client
         .from('employees')
         .select('id, first_name, last_name, role_scorecard_id, role_scorecards(job_title)')
-        .isFilter('deleted_at', null);
+        .isFilter('deleted_at', null)
+        .order('first_name');
     final roleLinks =
         await _client.from('role_scorecard_kpis').select('role_scorecard_id, kpi_id');
     final ek = await _client.from('employee_kpis').select('employee_id, kpi_id');
