@@ -10,6 +10,8 @@ import 'package:payroll_flutter/features/documents/blocks/paragraph_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/section_heading_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/table_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/title_block.dart';
+import 'package:payroll_flutter/core/pdf/pdf_theme.dart';
+import 'package:payroll_flutter/features/documents/pdf/pdf_builder.dart';
 import 'package:payroll_flutter/features/responsibility_cards/role_card_pdf.dart';
 
 RoleScorecard buildCard({
@@ -48,6 +50,21 @@ RoleScorecard buildCard({
     );
 
 void main() {
+  test('renders a valid, non-empty PDF through the document pipeline', () async {
+    // Exercises every block's toPdf() end to end. testStub() uses built-in
+    // Helvetica so no fonts are fetched over the network under flutter_test.
+    final bytes = await buildDocumentPdf(
+      blocks: roleCardBlocks(
+        buildCard(),
+        companyName: 'Acme',
+        companyAddress: '1 Main St',
+      ),
+      theme: PdfTheme.testStub(),
+    );
+    expect(bytes.length, greaterThan(1000));
+    expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
+  });
+
   test('a populated card renders every section in order', () {
     final blocks = roleCardBlocks(buildCard());
     expect(blocks.whereType<TitleBlock>().length, 1);
