@@ -2,6 +2,34 @@
 -- into a first-class library + link, losslessly. The legacy JSON column is kept
 -- for rollback; a later migration drops it once this path is proven.
 
+-- Pre-flight safety gate: the seed links a role card to a given KPI at most once
+-- (unique role_scorecard_id, kpi_id). If a single card lists two KPIs whose names
+-- normalize to the same value, one entry's target/frequency would be silently
+-- dropped. Refuse to migrate in that case (the whole migration is transactional,
+-- so nothing is changed) and name the offending cards; clean the data and re-run.
+do $$
+declare
+  v_dupes text;
+begin
+  select string_agg(format('card %s -> "%s" (x%s)', role_scorecard_id, nm, cnt), '; ')
+    into v_dupes
+  from (
+    select rs.id as role_scorecard_id,
+           lower(trim(coalesce(k->>'name', k->>'metric'))) as nm,
+           count(*) as cnt
+    from role_scorecards rs
+      cross join lateral jsonb_array_elements(coalesce(rs.kpis, '[]'::jsonb)) as k
+    where length(trim(coalesce(k->>'name', k->>'metric', ''))) > 0
+    group by rs.id, lower(trim(coalesce(k->>'name', k->>'metric')))
+    having count(*) > 1
+  ) d;
+  if v_dupes is not null then
+    raise exception
+      'KPI library migration aborted: role card(s) have duplicate KPI names that would lose a target on unify. Clean these, then re-run: %',
+      v_dupes;
+  end if;
+end $$;
+
 create table kpis (
   id                uuid primary key default gen_random_uuid(),
   company_id        uuid not null references companies(id),
