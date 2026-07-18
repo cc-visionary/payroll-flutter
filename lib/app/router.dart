@@ -11,6 +11,7 @@ import '../features/employees/employee_form_screen.dart';
 import '../features/employees/employees_screen.dart';
 import '../features/employees/profile/employee_profile_screen.dart';
 import '../features/responsibility_cards/responsibility_cards_screen.dart';
+import '../features/responsibility_cards/role_card_pdf_screen.dart';
 import '../features/responsibility_cards/role_scorecard_detail_screen.dart';
 import '../features/responsibility_cards/role_scorecard_form_screen.dart';
 import '../features/attendance/attendance_screen.dart';
@@ -149,6 +150,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/responsibility-cards/new',
             builder: (c, s) => const RoleScorecardFormScreen(),
+          ),
+          GoRoute(
+            path: '/responsibility-cards/:id/pdf',
+            builder: (c, s) =>
+                RoleCardPdfScreen(cardId: s.pathParameters['id']!),
           ),
           GoRoute(
             path: '/responsibility-cards/:id',
