@@ -62,6 +62,14 @@ class EmployeeReviewDetailScreen extends ConsumerWidget {
               icon: const Icon(Icons.task_alt),
               label: const Text('Complete review'),
             ),
+          if (review.value != null)
+            TextButton.icon(
+              onPressed: () => context.push(
+                '/responsibility-cards/${review.value!.responsibilityCardId}/pdf',
+              ),
+              icon: const Icon(Icons.description_outlined),
+              label: const Text('Role reference'),
+            ),
           const SizedBox(width: 8),
           if (canEvaluate)
             Padding(

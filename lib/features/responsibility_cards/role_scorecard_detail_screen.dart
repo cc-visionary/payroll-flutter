@@ -32,6 +32,11 @@ class RoleScorecardDetailScreen extends ConsumerWidget {
           onPressed: () => context.go('/responsibility-cards'),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Download / Print PDF',
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            onPressed: () => context.push('/responsibility-cards/$cardId/pdf'),
+          ),
           if (canManage)
             Padding(
               padding: const EdgeInsets.only(right: 8),
