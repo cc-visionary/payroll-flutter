@@ -124,14 +124,28 @@ class KpiLibraryScreen extends ConsumerWidget {
       builder: (_) => KpiFormDialog(existing: existing),
     );
     if (result == null) return;
-    await ref.read(roleScorecardRepositoryProvider).saveLibraryKpi(
-      id: existing?.id,
-      companyId: companyId,
-      name: result.name,
-      category: result.category,
-      description: result.description,
-      measurementUnit: result.measurementUnit,
-    );
+    try {
+      await ref.read(roleScorecardRepositoryProvider).saveLibraryKpi(
+        id: existing?.id,
+        companyId: companyId,
+        name: result.name,
+        category: result.category,
+        description: result.description,
+        measurementUnit: result.measurementUnit,
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+      final duplicate = e.toString().contains('23505') ||
+          e.toString().toLowerCase().contains('duplicate');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(duplicate
+              ? 'A KPI with that name already exists.'
+              : 'Could not save KPI: $e'),
+        ),
+      );
+      return;
+    }
     ref.invalidate(kpiLibraryProvider);
   }
 
@@ -164,7 +178,15 @@ class KpiLibraryScreen extends ConsumerWidget {
       ),
     );
     if (ok != true) return;
-    await ref.read(roleScorecardRepositoryProvider).deactivateKpi(kpi.id);
+    try {
+      await ref.read(roleScorecardRepositoryProvider).deactivateKpi(kpi.id);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not deactivate KPI: $e')),
+      );
+      return;
+    }
     ref.invalidate(kpiLibraryProvider);
   }
 }
