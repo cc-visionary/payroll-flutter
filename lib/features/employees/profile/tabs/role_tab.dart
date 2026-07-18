@@ -6,6 +6,7 @@ import '../../../../app/status_colors.dart';
 import '../../../../core/money.dart';
 import '../../../../data/models/compensation_change.dart';
 import '../../../../data/models/employee.dart';
+import '../../../../data/models/role_kpi.dart';
 import '../../../../data/models/role_scorecard.dart';
 import '../../../../data/repositories/compensation_change_repository.dart';
 import '../../../../data/repositories/role_scorecard_repository.dart';
@@ -261,6 +262,12 @@ class _RoleDetail extends ConsumerWidget {
               ],
             ],
           ),
+        ),
+        const SizedBox(height: 16),
+        EmployeeKpiAssignmentSection(
+          employeeId: employee.id,
+          roleScorecardId: card.id,
+          canManage: canManage,
         ),
         const SizedBox(height: 16),
         CompensationHistorySection(employee: employee, canManage: canManage),
@@ -557,5 +564,125 @@ class _EmptyCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// HR-facing checklist of the role's KPIs; ticked ones are the KPIs this
+/// employee is tracked/reviewed on. Un-curated (no rows) shows all ticked —
+/// "tracking the full role set." Saving all (or none) clears to the default.
+class EmployeeKpiAssignmentSection extends ConsumerStatefulWidget {
+  final String employeeId;
+  final String roleScorecardId;
+  final bool canManage;
+  const EmployeeKpiAssignmentSection({
+    super.key,
+    required this.employeeId,
+    required this.roleScorecardId,
+    required this.canManage,
+  });
+
+  @override
+  ConsumerState<EmployeeKpiAssignmentSection> createState() =>
+      _EmployeeKpiAssignmentSectionState();
+}
+
+class _EmployeeKpiAssignmentSectionState
+    extends ConsumerState<EmployeeKpiAssignmentSection> {
+  Set<String>? _checked; // null until loaded
+  List<RoleKpi> _roleKpis = const [];
+  bool _saving = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final roleKpis = ref.watch(roleKpisProvider(widget.roleScorecardId));
+    final assigned = ref.watch(employeeAssignedKpiIdsProvider(widget.employeeId));
+    return roleKpis.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text('Could not load KPIs: $e'),
+      ),
+      data: (kpis) => assigned.when(
+        loading: () => const Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+        error: (e, _) => Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text('Could not load assignment: $e'),
+        ),
+        data: (assignedIds) {
+          _roleKpis = kpis;
+          _checked ??= initialCheckedKpiIds(
+            assignedIds,
+            [for (final k in kpis) k.kpiId],
+          );
+          final checked = _checked!;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: Text('KPIs this employee is tracked on',
+                    style: Theme.of(context).textTheme.titleMedium),
+              ),
+              if (assignedIds.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text('Tracking all role KPIs (default). Untick any that '
+                      "can't be realistically measured for this person."),
+                ),
+              for (final k in kpis)
+                CheckboxListTile(
+                  value: checked.contains(k.kpiId),
+                  title: Text(k.name),
+                  subtitle: k.target == null ? null : Text('Target: ${k.target}'),
+                  onChanged: widget.canManage && !_saving
+                      ? (v) => setState(() {
+                          if (v == true) {
+                            checked.add(k.kpiId);
+                          } else {
+                            checked.remove(k.kpiId);
+                          }
+                        })
+                      : null,
+                ),
+              if (widget.canManage)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: FilledButton(
+                    onPressed: _saving ? null : _save,
+                    child: Text(_saving ? 'Saving...' : 'Save KPI selection'),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      await ref.read(roleScorecardRepositoryProvider).saveEmployeeKpis(
+            widget.employeeId,
+            kpiIdsToPersist(_checked!, [for (final k in _roleKpis) k.kpiId]),
+          );
+      ref.invalidate(employeeAssignedKpiIdsProvider(widget.employeeId));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('KPI selection saved.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Could not save: $e')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 }
