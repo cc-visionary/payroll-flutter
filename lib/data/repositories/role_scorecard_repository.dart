@@ -82,6 +82,29 @@ class RoleScorecardRepository {
     await _client.from('kpis').update({'is_active': false}).eq('id', kpiId);
   }
 
+  /// The target/frequency this KPI is typically used with on role cards — the
+  /// most recent role_scorecard_kpis link that has a target. Used to pre-fill
+  /// the role-card editor when a library KPI is picked (target is per-role, so
+  /// the library entry has none of its own). Returns nulls when the KPI is not
+  /// yet used with a target anywhere.
+  Future<({String? target, String? frequency})> kpiDefaultsFromUsage(
+    String kpiId,
+  ) async {
+    final rows = await _client
+        .from('role_scorecard_kpis')
+        .select('target, frequency')
+        .eq('kpi_id', kpiId)
+        .not('target', 'is', null)
+        .order('updated_at', ascending: false)
+        .limit(1);
+    final list = (rows as List).cast<Map<String, dynamic>>();
+    if (list.isEmpty) return (target: null, frequency: null);
+    return (
+      target: list.first['target'] as String?,
+      frequency: list.first['frequency'] as String?,
+    );
+  }
+
   Future<Kpi> upsertKpi(String companyId, Kpi kpi) async {
     // The library dedupes case-insensitively (unique index on
     // company_id, lower(trim(name))), a functional index PostgREST's onConflict

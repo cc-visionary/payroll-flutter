@@ -590,13 +590,27 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                 (k) => k.name.toLowerCase().contains(v.text.toLowerCase()),
               ),
         displayStringForOption: (k) => k.name,
-        onSelected: (k) => setState(() {
-          _kpis[index]
-            ..kpiId = k.id
-            ..name = k.name
-            ..measurement = k.measurementUnit ?? _kpis[index].measurement
-            ..category = k.category;
-        }),
+        onSelected: (k) async {
+          setState(() {
+            _kpis[index]
+              ..kpiId = k.id
+              ..name = k.name
+              ..measurement = k.measurementUnit ?? _kpis[index].measurement
+              ..category = k.category;
+          });
+          // Target/frequency are per-role, so the library KPI has none — pull
+          // the values it's typically used with on other role cards.
+          final d = await ref
+              .read(roleScorecardRepositoryProvider)
+              .kpiDefaultsFromUsage(k.id);
+          if (!mounted) return;
+          setState(() {
+            if ((d.target ?? '').isNotEmpty) _kpis[index].target = d.target!;
+            if ((d.frequency ?? '').isNotEmpty) {
+              _kpis[index].frequency = d.frequency!;
+            }
+          });
+        },
         fieldViewBuilder: (context, controller, focusNode, onSubmit) =>
             TextFormField(
               controller: controller,
@@ -613,6 +627,9 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
             ),
       ),
       TextFormField(
+        // Keyed on the value so a programmatic auto-fill (onSelected) re-inits
+        // the field; unchanged during typing (onChanged doesn't setState).
+        key: ValueKey('kpi-measure-$index-${_kpis[index].measurement}'),
         initialValue: _kpis[index].measurement,
         enabled: _kpis[index].kpiId == null,
         decoration: const InputDecoration(
@@ -624,6 +641,7 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
         onChanged: (value) => _kpis[index].measurement = value,
       ),
       TextFormField(
+        key: ValueKey('kpi-target-$index-${_kpis[index].target}'),
         initialValue: _kpis[index].target,
         decoration: const InputDecoration(
           labelText: 'Target',
@@ -634,6 +652,7 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
         onChanged: (value) => _kpis[index].target = value,
       ),
       TextFormField(
+        key: ValueKey('kpi-freq-$index-${_kpis[index].frequency}'),
         initialValue: _kpis[index].frequency,
         decoration: const InputDecoration(
           labelText: 'Check frequency',
