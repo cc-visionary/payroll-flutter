@@ -9,6 +9,7 @@ import '../../data/models/role_scorecard.dart';
 import '../../data/repositories/hiring_entity_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../auth/profile_provider.dart';
+import '../documents/providers.dart';
 import 'scorecard_base_salary.dart';
 
 class RoleScorecardFormScreen extends ConsumerStatefulWidget {
@@ -179,9 +180,11 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
         isActive: _isActive,
         effectiveDate: _effectiveDate,
       );
-      await ref.read(roleScorecardRepositoryProvider).upsert(card);
+      final saved = await ref.read(roleScorecardRepositoryProvider).upsert(card);
       ref.invalidate(roleScorecardListProvider);
       ref.invalidate(scorecardEmployeeCountProvider);
+      // Keep the ephemeral PDF preview (RoleCardPdfScreen) fresh after an edit.
+      ref.invalidate(roleScorecardByIdProvider(saved.id));
       if (mounted) context.pop();
     } catch (e) {
       setState(() => _error = e.toString());

@@ -9,7 +9,9 @@ import '../documents/providers.dart';
 import 'role_card_pdf.dart';
 
 /// Ephemeral, on-the-fly PDF preview of the current role scorecard. Nothing is
-/// persisted — the PDF is rebuilt from the live card every time this opens.
+/// persisted — the PDF is rebuilt from the live card each time this opens. The
+/// role-card edit flow invalidates roleScorecardByIdProvider on save, so a
+/// re-opened preview reflects the latest saved card.
 class RoleCardPdfScreen extends ConsumerWidget {
   final String cardId;
   const RoleCardPdfScreen({super.key, required this.cardId});
@@ -32,7 +34,7 @@ class RoleCardPdfScreen extends ConsumerWidget {
               .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
               .replaceAll(RegExp(r'(^-|-$)'), '');
           return PdfPreviewScaffold(
-            filename: '${slug.isEmpty ? 'role' : slug}-role-card.pdf',
+            filename: slug.isEmpty ? 'role-card.pdf' : '$slug-role-card.pdf',
             buildPdf: (format) async {
               final theme = await PdfTheme.defaults();
               final entityId = card.hiringEntityId;
@@ -63,7 +65,13 @@ class RoleCardPdfScreen extends ConsumerWidget {
   Widget _message(BuildContext context, String text) => Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
-          child: Text(text, textAlign: TextAlign.center),
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
         ),
       );
 }
