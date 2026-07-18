@@ -139,11 +139,26 @@ class RoleScorecard {
       responsibilities = const [];
     }
     List<KpiItem> kpis;
-    if (rawKpis is List) {
-      kpis = rawKpis
-          .cast<Map<String, dynamic>>()
-          .map(KpiItem.fromJson)
-          .toList();
+    final embeddedKpis = r['role_scorecard_kpis'];
+    if (embeddedKpis is List) {
+      // Authoritative source post-KPI-library migration: the link table,
+      // ordered by sort_order. measurement comes from the library KPI.
+      final links = embeddedKpis.whereType<Map>().toList()
+        ..sort((a, b) =>
+            (a['sort_order'] as int? ?? 0).compareTo(b['sort_order'] as int? ?? 0));
+      kpis = [
+        for (final link in links)
+          KpiItem(
+            name: (link['kpis'] as Map?)?['name'] as String? ?? '',
+            measurement:
+                (link['kpis'] as Map?)?['measurement_unit'] as String? ?? '',
+            target: link['target'] as String? ?? '',
+            frequency: link['frequency'] as String? ?? '',
+          ),
+      ];
+    } else if (rawKpis is List) {
+      // Back-compat: the upsert-return row and any pre-migration read.
+      kpis = rawKpis.cast<Map<String, dynamic>>().map(KpiItem.fromJson).toList();
     } else {
       kpis = const [];
     }
@@ -200,7 +215,6 @@ class RoleScorecard {
     'department_id': departmentId,
     'mission_statement': missionStatement,
     'key_responsibilities': responsibilities.map((r) => r.toJson()).toList(),
-    'kpis': kpis.map((k) => k.toJson()).toList(),
     'required_skills': requiredSkills.map((s) => s.toJson()).toList(),
     'behavioral_expectations': behavioralExpectations
         .map((e) => e.toJson())
