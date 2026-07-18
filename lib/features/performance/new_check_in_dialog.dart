@@ -83,6 +83,7 @@ class _NewCheckInDialogState extends ConsumerState<_NewCheckInDialog> {
         await repo.seedSkillRatingsForCheckIn(
           checkInId: checkInId,
           roleScorecardId: emp.roleScorecardId,
+          employeeId: emp.id,
         );
         result = (id: checkInId, existed: false);
       }

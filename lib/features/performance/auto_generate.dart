@@ -57,6 +57,7 @@ Future<BatchGenResult> generatePerformanceCheckInsForQuarter(
     await repo.seedSkillRatingsForCheckIn(
       checkInId: checkInId,
       roleScorecardId: emp.roleScorecardId,
+      employeeId: emp.id,
     );
     if (pre == null) {
       created++;
