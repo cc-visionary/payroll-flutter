@@ -27,5 +27,11 @@ void main() {
     test('none checked -> persist none (falls back to default all)', () {
       expect(kpiIdsToPersist(<String>{}, ['a', 'b', 'c']), isEmpty);
     });
+    test('checked contains a stale off-role id -> persist only the on-role subset', () {
+      expect(kpiIdsToPersist({'a', 'b', 'z'}, ['a', 'b', 'c']), ['a', 'b']);
+    });
+    test('only off-role ids checked -> persist none (default all)', () {
+      expect(kpiIdsToPersist({'x', 'y'}, ['a', 'b', 'c']), isEmpty);
+    });
   });
 }
