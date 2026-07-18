@@ -37,6 +37,7 @@ import '../features/hiring/applicant_form_screen.dart';
 import '../features/hiring/applicant_detail_screen.dart';
 import '../features/hiring/listing_form_screen.dart';
 import '../features/hiring/listing_detail_screen.dart';
+import '../features/kpi_library/kpi_library_screen.dart';
 import '../features/org_chart/org_chart_screen.dart';
 import '../features/performance/performance_screen.dart';
 import '../features/performance/performance_check_in_screen.dart';
@@ -99,6 +100,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (loc.startsWith('/responsibility-cards') &&
             !loc.endsWith('/pdf') &&
             !profile.isHrOrAdmin) {
+          return '/dashboard';
+        }
+        if (loc.startsWith('/kpi-library') && !profile.isHrOrAdmin) {
           return '/dashboard';
         }
         if (loc.startsWith('/workforce-planning') && !profile.isHrOrAdmin) {
@@ -171,6 +175,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/responsibility-cards/:id/edit',
             builder: (c, s) =>
                 RoleScorecardFormScreen(cardId: s.pathParameters['id']),
+          ),
+          GoRoute(
+            path: '/kpi-library',
+            builder: (c, s) => const KpiLibraryScreen(),
           ),
           GoRoute(
             path: '/attendance',

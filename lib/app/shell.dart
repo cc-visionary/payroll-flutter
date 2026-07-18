@@ -99,6 +99,7 @@ final _groups = <_NavGroup>[
   _NavGroup('Work & Performance', [
     _NavItem('Responsibility Cards', Icons.badge_outlined,
         '/responsibility-cards', _hrOrAdmin),
+    _NavItem('KPI Library', Icons.speed_outlined, '/kpi-library', _hrOrAdmin),
     _NavItem('Workforce Planning', Icons.insights_outlined,
         '/workforce-planning', _hrOrAdmin,
         comingSoon: true),

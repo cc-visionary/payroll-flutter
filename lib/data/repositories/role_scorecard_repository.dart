@@ -78,6 +78,10 @@ class RoleScorecardRepository {
     return rows.cast<Map<String, dynamic>>().map(Kpi.fromRow).toList();
   }
 
+  Future<void> deactivateKpi(String kpiId) async {
+    await _client.from('kpis').update({'is_active': false}).eq('id', kpiId);
+  }
+
   Future<Kpi> upsertKpi(String companyId, Kpi kpi) async {
     // The library dedupes case-insensitively (unique index on
     // company_id, lower(trim(name))), a functional index PostgREST's onConflict
