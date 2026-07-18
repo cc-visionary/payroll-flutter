@@ -424,9 +424,20 @@ In `lib/data/repositories/role_scorecard_repository.dart`:
   }
 
   Future<Kpi> upsertKpi(String companyId, Kpi kpi) async {
+    // The library dedupes case-insensitively via a FUNCTIONAL unique index
+    // (company_id, lower(trim(name))), which PostgREST's onConflict cannot
+    // target — so find-then-insert, not upsert. Stored names are trimmed on
+    // write, so a lower-case compare suffices.
+    final name = kpi.name.trim();
+    final rows = await _client.from('kpis').select().eq('company_id', companyId);
+    for (final r in (rows as List).cast<Map<String, dynamic>>()) {
+      if ((r['name'] as String).trim().toLowerCase() == name.toLowerCase()) {
+        return Kpi.fromRow(r);
+      }
+    }
     final row = await _client
         .from('kpis')
-        .upsert(kpi.toInsert(companyId), onConflict: 'company_id,name')
+        .insert(kpi.toInsert(companyId))
         .select()
         .single();
     return Kpi.fromRow(row);
@@ -453,8 +464,16 @@ In `lib/data/repositories/role_scorecard_repository.dart`:
       }
       resolved.add((kpiId: kpiId, target: link.target, frequency: link.frequency));
     }
+    // Collapse duplicate kpi_ids (same library KPI attached twice) to the first
+    // occurrence — matches (role_scorecard_id, kpi_id) uniqueness and avoids
+    // Postgres 21000 ("ON CONFLICT DO UPDATE cannot affect row a second time").
+    final seen = <String>{};
+    final deduped = [
+      for (final r in resolved)
+        if (seen.add(r.kpiId)) r,
+    ];
     // 2. Delete links no longer present.
-    final keepIds = resolved.map((r) => r.kpiId).toList();
+    final keepIds = deduped.map((r) => r.kpiId).toList();
     var del = _client.from('role_scorecard_kpis').delete()
         .eq('role_scorecard_id', roleScorecardId);
     if (keepIds.isNotEmpty) {
@@ -462,14 +481,14 @@ In `lib/data/repositories/role_scorecard_repository.dart`:
     }
     await del;
     // 3. Upsert the current links with their order.
-    if (resolved.isNotEmpty) {
+    if (deduped.isNotEmpty) {
       await _client.from('role_scorecard_kpis').upsert([
-        for (var i = 0; i < resolved.length; i++)
+        for (var i = 0; i < deduped.length; i++)
           {
             'role_scorecard_id': roleScorecardId,
-            'kpi_id': resolved[i].kpiId,
-            'target': resolved[i].target.trim().isEmpty ? null : resolved[i].target.trim(),
-            'frequency': resolved[i].frequency.trim().isEmpty ? null : resolved[i].frequency.trim(),
+            'kpi_id': deduped[i].kpiId,
+            'target': deduped[i].target.trim().isEmpty ? null : deduped[i].target.trim(),
+            'frequency': deduped[i].frequency.trim().isEmpty ? null : deduped[i].frequency.trim(),
             'sort_order': i,
           },
       ], onConflict: 'role_scorecard_id,kpi_id');
