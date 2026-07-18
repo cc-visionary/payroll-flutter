@@ -102,6 +102,60 @@ class RoleScorecardRepository {
     return Kpi.fromRow(row);
   }
 
+  /// Create or update a library KPI from the management screen. When [id] is
+  /// non-null it updates that row in place (rename + fields + reactivate).
+  /// When [id] is null it finds an existing row by case-insensitive name
+  /// (active OR inactive) and updates+reactivates it, else inserts — so
+  /// re-adding a deactivated name reactivates it rather than silently no-op'ing.
+  Future<Kpi> saveLibraryKpi({
+    String? id,
+    required String companyId,
+    required String name,
+    String? category,
+    String? description,
+    String? measurementUnit,
+  }) async {
+    final fields = <String, dynamic>{
+      'name': name.trim(),
+      'category': (category?.trim().isEmpty ?? true) ? null : category!.trim(),
+      'description':
+          (description?.trim().isEmpty ?? true) ? null : description!.trim(),
+      'measurement_unit': (measurementUnit?.trim().isEmpty ?? true)
+          ? null
+          : measurementUnit!.trim(),
+      'is_active': true,
+    };
+    if (id != null && id.isNotEmpty) {
+      final row = await _client
+          .from('kpis')
+          .update(fields)
+          .eq('id', id)
+          .select()
+          .single();
+      return Kpi.fromRow(row);
+    }
+    final existingRows =
+        await _client.from('kpis').select().eq('company_id', companyId);
+    final target = name.trim().toLowerCase();
+    for (final r in (existingRows as List).cast<Map<String, dynamic>>()) {
+      if ((r['name'] as String).trim().toLowerCase() == target) {
+        final row = await _client
+            .from('kpis')
+            .update(fields)
+            .eq('id', r['id'])
+            .select()
+            .single();
+        return Kpi.fromRow(row);
+      }
+    }
+    final row = await _client
+        .from('kpis')
+        .insert({'company_id': companyId, ...fields})
+        .select()
+        .single();
+    return Kpi.fromRow(row);
+  }
+
   /// Replaces a role card's KPI links with [links]. Creates library KPIs for
   /// entries with a null kpiId (find-or-create by name), then reconciles the
   /// link rows (insert new, update target/frequency/order, delete removed).

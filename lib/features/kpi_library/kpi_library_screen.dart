@@ -124,7 +124,14 @@ class KpiLibraryScreen extends ConsumerWidget {
       builder: (_) => KpiFormDialog(existing: existing),
     );
     if (result == null) return;
-    await ref.read(roleScorecardRepositoryProvider).upsertKpi(companyId, result);
+    await ref.read(roleScorecardRepositoryProvider).saveLibraryKpi(
+      id: existing?.id,
+      companyId: companyId,
+      name: result.name,
+      category: result.category,
+      description: result.description,
+      measurementUnit: result.measurementUnit,
+    );
     ref.invalidate(kpiLibraryProvider);
   }
 

@@ -21,4 +21,18 @@ void main() {
     expect(find.text('Ops'), findsOneWidget);
     expect(find.text('Retention'), findsOneWidget);
   });
+
+  testWidgets('KPIs with no category render under Uncategorized', (tester) async {
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        kpiLibraryProvider.overrideWith((ref) async => const [
+          Kpi(id: '1', companyId: 'c', name: 'Ad-hoc Score'),
+        ]),
+      ],
+      child: const MaterialApp(home: KpiLibraryScreen()),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Uncategorized'), findsOneWidget);
+    expect(find.text('Ad-hoc Score'), findsOneWidget);
+  });
 }
