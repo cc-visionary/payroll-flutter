@@ -46,7 +46,7 @@ class DriversScenarioTab extends ConsumerWidget {
 
     final drivers = driversAsync.asData!.value;
     final rates = ratesAsync.asData!.value;
-    final multiplier = configAsync.asData?.value?.growthMultiplier ?? 1.0;
+    final multiplier = ref.watch(wpGrowthMultiplierProvider);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
