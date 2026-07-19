@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../app/theme.dart';
 import '../../../data/models/employee.dart';
 import '../../../data/models/workforce_planning.dart';
 
@@ -212,7 +213,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
             ),
             const SizedBox(height: 8),
             if (_timesSource == 'manual')
-              TextField(controller: _timesManual, keyboardType: TextInputType.number, decoration: _dec('Times / month'))
+              TextField(controller: _timesManual, keyboardType: TextInputType.number, style: AppTheme.mono(context), decoration: _dec('Times / month'))
             else
               Row(children: [
                 Expanded(
@@ -229,7 +230,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                SizedBox(width: 110, child: TextField(controller: _driverFactor, keyboardType: TextInputType.number, decoration: _dec('× factor'))),
+                SizedBox(width: 110, child: TextField(controller: _driverFactor, keyboardType: TextInputType.number, style: AppTheme.mono(context), decoration: _dec('× factor'))),
               ]),
             const SizedBox(height: 16),
             // Minutes source
@@ -244,7 +245,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
             ),
             const SizedBox(height: 8),
             if (_minutesSource == 'manual')
-              TextField(controller: _minutesManual, keyboardType: TextInputType.number, decoration: _dec('Minutes each'))
+              TextField(controller: _minutesManual, keyboardType: TextInputType.number, style: AppTheme.mono(context), decoration: _dec('Minutes each'))
             else
               DropdownButtonFormField<String?>(
                 initialValue: _present(_rateId, widget.rates.map((r) => r.id)),
@@ -260,7 +261,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
             Row(children: [
               Expanded(
                 child: DropdownButtonFormField<String?>(
-                  initialValue: _tier,
+                  initialValue: _present(_tier, _tiers),
                   isExpanded: true,
                   decoration: _dec('Skill tier'),
                   items: [
@@ -273,7 +274,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
               const SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<String?>(
-                  initialValue: _risk,
+                  initialValue: _present(_risk, _risks),
                   isExpanded: true,
                   decoration: _dec('Risk'),
                   items: [
