@@ -6,6 +6,15 @@ import '../../../data/models/workforce_planning.dart';
 const _tiers = ['Transactional', 'Operational', 'Managerial', 'Strategic'];
 const _risks = ['Low', 'Medium', 'High'];
 
+/// Guards a `DropdownButtonFormField`'s `initialValue` against an id that
+/// isn't among its current `items` (e.g. a task owned by a now-separated
+/// employee, absent from the active roster passed in) — the widget asserts
+/// if `initialValue` isn't found among `items`, which would otherwise crash
+/// the dialog on open. The underlying state field keeps the original value
+/// regardless, so an untouched Save still preserves it.
+String? _present(String? id, Iterable<String> ids) =>
+    (id != null && ids.contains(id)) ? id : null;
+
 /// Validates the task form. Returns an error message, or null when OK.
 String? validateTaskForm({
   required String name,
@@ -175,7 +184,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
             TextField(controller: _name, autofocus: true, decoration: _dec('Name')),
             const SizedBox(height: 12),
             DropdownButtonFormField<String?>(
-              initialValue: _nodeId,
+              initialValue: _present(_nodeId, widget.nodes.map((n) => n.id)),
               isExpanded: true,
               decoration: _dec('Value-chain node'),
               items: [
@@ -208,7 +217,8 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
               Row(children: [
                 Expanded(
                   child: DropdownButtonFormField<String?>(
-                    initialValue: _driverId,
+                    initialValue:
+                        _present(_driverId, widget.drivers.map((d) => d.id)),
                     isExpanded: true,
                     decoration: _dec('Driver'),
                     items: [
@@ -237,7 +247,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
               TextField(controller: _minutesManual, keyboardType: TextInputType.number, decoration: _dec('Minutes each'))
             else
               DropdownButtonFormField<String?>(
-                initialValue: _rateId,
+                initialValue: _present(_rateId, widget.rates.map((r) => r.id)),
                 isExpanded: true,
                 decoration: _dec('Rate'),
                 items: [
@@ -278,7 +288,8 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
             TextField(controller: _capability, decoration: _dec('Capability requirement')),
             const SizedBox(height: 12),
             DropdownButtonFormField<String?>(
-              initialValue: _ownerId,
+              initialValue:
+                  _present(_ownerId, widget.employees.map((e) => e.id)),
               isExpanded: true,
               decoration: _dec('Owner'),
               items: [
