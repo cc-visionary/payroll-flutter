@@ -98,7 +98,7 @@ class WpTask {
     'minutes_source': minutesSource,
     'minutes_manual': minutesSource == 'rate' ? null : minutesManual,
     'rate_id': minutesSource == 'rate' ? rateId : null,
-    'skill_tier': skillTier, 'risk': risk, 'capability': _s(capability),
+    'skill_tier': _s(skillTier), 'risk': _s(risk), 'capability': _s(capability),
     'owner_employee_id': ownerEmployeeId, 'role_scorecard_id': roleScorecardId,
     'responsibility_area': _s(responsibilityArea), 'notes': _s(notes)};
 }

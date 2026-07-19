@@ -24,4 +24,17 @@ void main() {
     expect(m['times_manual'], isNull);
     expect(m['minutes_manual'], 12);
   });
+
+  test('WpTask.toUpsert normalizes empty skill_tier/risk to null', () {
+    const t = WpTask(id: '', companyId: 'c1', name: 'x',
+      skillTier: '', risk: '');
+    final m = t.toUpsert('c1');
+    expect(m['skill_tier'], isNull);
+    expect(m['risk'], isNull);
+    const t2 = WpTask(id: '', companyId: 'c1', name: 'x',
+      skillTier: 'Managerial', risk: 'High');
+    final m2 = t2.toUpsert('c1');
+    expect(m2['skill_tier'], 'Managerial');
+    expect(m2['risk'], 'High');
+  });
 }
