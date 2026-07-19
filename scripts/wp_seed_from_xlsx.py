@@ -130,7 +130,7 @@ for t in tasks:
         f"v_company, {q(t['ref'])}, {q(t['name'])}, {node}, {q(t['brand'])}, {q(t['cadence'])}, "
         f"{tsrc}, {tman}, {drv}, 'manual', {num(t['minutes'])}, {tier}, {risk}, "
         f"{q(t['capability'])}, {owner}) "
-        "on conflict (company_id, external_ref) do update set "
+        "on conflict (company_id, external_ref) where external_ref is not null do update set "
         "name=excluded.name, node_id=excluded.node_id, brand_scope=excluded.brand_scope, "
         "cadence=excluded.cadence, times_source=excluded.times_source, times_manual=excluded.times_manual, "
         "driver_id=excluded.driver_id, minutes_source=excluded.minutes_source, "
