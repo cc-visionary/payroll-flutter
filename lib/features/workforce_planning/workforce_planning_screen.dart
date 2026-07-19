@@ -1,24 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../widgets/coming_soon_screen.dart';
+import '../../app/breakpoints.dart';
+import '../../app/shell.dart';
+import 'tabs/balance_tab.dart';
+import 'tabs/drivers_scenario_tab.dart';
+import 'tabs/role_view_tab.dart';
+import 'tabs/structure_tab.dart';
+import 'tabs/tasks_tab.dart';
 
-class WorkforcePlanningScreen extends StatelessWidget {
+/// Workforce Planning hub. HR/Admin-only (route guard in app/router.dart also
+/// redirects). Five tabs; Balance + Role View are live, the rest are filled by
+/// later plans. See docs/superpowers/specs/2026-07-19-workforce-capacity-planning-design.md.
+class WorkforcePlanningScreen extends ConsumerWidget {
   const WorkforcePlanningScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const ComingSoonScreen(
-      title: 'Workforce Planning',
-      icon: Icons.insights_outlined,
-      tagline:
-          'Plan headcount against budget and business goals. Map every role to a Responsibility Card, allocate salary envelopes, and track filled-vs-open against the plan.',
-      plannedFeatures: [
-        'Annual and quarterly headcount plan per brand with budget envelopes',
-        'Role slots linked to Responsibility Cards (skills, outcomes, comp band)',
-        'Filled / open / pending-approval status per slot',
-        'Variance report: planned spend vs actual payroll',
-        'Scenario modelling for expansion, hiring freezes, and reorgs',
-      ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mobile = isMobile(context);
+    return DefaultTabController(
+      length: 5,
+      child: Scaffold(
+        drawer: mobile ? const AppDrawer() : null,
+        appBar: AppBar(
+          title: const Text('Workforce Planning'),
+          bottom: const TabBar(
+            isScrollable: true,
+            tabs: [
+              Tab(text: 'Balance'),
+              Tab(text: 'Role View'),
+              Tab(text: 'Structure'),
+              Tab(text: 'Tasks'),
+              Tab(text: 'Drivers & Scenario'),
+            ],
+          ),
+        ),
+        body: const TabBarView(
+          children: [
+            BalanceTab(),
+            RoleViewTab(),
+            StructureTab(),
+            TasksTab(),
+            DriversScenarioTab(),
+          ],
+        ),
+      ),
     );
   }
 }
