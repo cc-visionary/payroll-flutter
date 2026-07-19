@@ -70,6 +70,13 @@ class EmployeeRepository {
         .eq('id', id);
   }
 
+  /// Sets an employee's manager (or clears it when [managerId] is null). Used by
+  /// the Workforce Planning Structure tab's reporting drag. HR/Admin-gated by the
+  /// employees table's `employees_admin_write` RLS policy.
+  Future<void> updateReportsTo(String employeeId, String? managerId) async {
+    await _client.from('employees').update({'reports_to_id': managerId}).eq('id', employeeId);
+  }
+
   Future<void> restore(String id) async {
     await _client.from('employees').update({'deleted_at': null}).eq('id', id);
   }
