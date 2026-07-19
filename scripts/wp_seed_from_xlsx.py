@@ -94,9 +94,9 @@ L.append("  if (select count(*) from companies) <> 1 then")
 L.append("    raise exception 'wp seed: expected exactly one company; set v_company explicitly';")
 L.append("  end if;")
 L.append("  select id into v_company from companies limit 1;")
-for code, name in nodes:
-    L.append(f"  insert into wp_value_chain_nodes(company_id, code, name) "
-             f"select v_company, {q(code)}, {q(name)} "
+for i, (code, name) in enumerate(nodes):
+    L.append(f"  insert into wp_value_chain_nodes(company_id, code, name, sort_order) "
+             f"select v_company, {q(code)}, {q(name)}, {i} "
              f"where not exists (select 1 from wp_value_chain_nodes n "
              f"where n.company_id=v_company and lower(trim(n.name))=lower(trim({q(name)})));")
 for n, v, g in drivers:
@@ -112,7 +112,8 @@ for n, m in rates:
 for t in tasks:
     owner = (f"(select id from employees where company_id=v_company and "
              f"lower(trim(first_name||' '||last_name))=lower(trim({q(t['owner'])})) limit 1)") \
-             if t['owner'] and str(t['owner']).strip() else "null"
+             if t['owner'] and str(t['owner']).strip() and str(t['owner']).strip().upper() != 'UNASSIGNED' \
+             else "null"
     node = (f"(select id from wp_value_chain_nodes where company_id=v_company and "
             f"lower(trim(name))=lower(trim({q(t['node'])})) limit 1)") if t['node'] else "null"
     if t['bind_driver']:

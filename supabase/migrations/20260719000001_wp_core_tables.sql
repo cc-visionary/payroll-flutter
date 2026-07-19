@@ -111,3 +111,10 @@ create policy wp_capacity_overrides_write on wp_capacity_overrides for all
   with check (auth_app_role() in ('SUPER_ADMIN','ADMIN','HR') and exists (
     select 1 from employees e where e.id = employee_id
       and (e.company_id = auth_company_id() or auth_app_role() = 'SUPER_ADMIN')));
+
+-- keep updated_at fresh on every UPDATE (codebase convention)
+create trigger _wp_drivers_updated before update on wp_drivers for each row execute function set_updated_at();
+create trigger _wp_rates_updated before update on wp_rates for each row execute function set_updated_at();
+create trigger _wp_config_updated before update on wp_config for each row execute function set_updated_at();
+create trigger _wp_tasks_updated before update on wp_tasks for each row execute function set_updated_at();
+create trigger _wp_capacity_overrides_updated before update on wp_capacity_overrides for each row execute function set_updated_at();

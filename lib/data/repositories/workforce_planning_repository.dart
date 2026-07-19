@@ -8,7 +8,7 @@ class WorkforcePlanningRepository {
   WorkforcePlanningRepository(this._client);
 
   Future<List<WpNode>> nodes() async {
-    final rows = await _client.from('wp_value_chain_nodes').select().order('sort_order');
+    final rows = await _client.from('wp_value_chain_nodes').select().order('sort_order').order('code');
     return rows.cast<Map<String, dynamic>>().map(WpNode.fromRow).toList();
   }
 
