@@ -253,15 +253,17 @@ implementation time), not an in-app importer:
 - `wp_drivers` ← the Drivers "Block 1 — Volumes" rows (name, value, `grows` from
   the "Grows?" flag). `wp_rates` ← the Drivers "Block 2 — Rates" rows.
 - `wp_tasks` ← the Tasks sheet (~160 rows), keyed on the sheet's `ID` as
-  `external_ref` for idempotency. `times_source`/`minutes_source` inferred: a task
-  whose cadence is volume/per-unit and whose frequency equals a driver binds to
-  that `driver_id`; otherwise `times_manual`. Minutes bind to a `rate_id` when the
-  task matches a named rate; otherwise `minutes_manual`.
+  `external_ref` for idempotency. **Times:** best-effort driver bind — a
+  volume/per-unit task whose frequency uniquely matches one driver's value binds to
+  that `driver_id` (so the multiplier moves it day one); otherwise `times_manual`
+  holds the sheet's exact figure. **Minutes:** always `minutes_manual` (the exact
+  sheet value, preserving hours); rates are imported as a **library** for HR to bind
+  in-app later, not auto-bound.
 - **Owner matching:** `Current owner` name → `employees` by
-  `lower(trim(first_name || ' ' || last_name))`. **Card matching:** task ↔
-  `role_scorecards` by job title / area name where they align. **Unmatched owners
-  and cards are left null** and reported after import for in-app cleanup — the
-  migration must not fail on a missing name.
+  `lower(trim(first_name || ' ' || last_name))`; unmatched → null. **Card linking**
+  (`role_scorecard_id`) is **not** attempted at seed time (the xlsx has no reliable
+  card key) — left null for in-app linking (Plan 2). The migration must not fail on
+  a missing name; unmatched owners are reported after import for cleanup.
 - The migration re-runs safely: tasks upsert on `(company_id, external_ref)`;
   nodes/drivers/rates are find-or-insert by name. Because the tasks unique index is
   **partial** (`where external_ref is not null`), PostgREST/`ON CONFLICT` can't
