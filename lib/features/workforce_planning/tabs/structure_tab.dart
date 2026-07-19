@@ -26,20 +26,28 @@ class StructureTab extends ConsumerWidget {
     final tasksAsync = ref.watch(wpTasksProvider);
     final mult = ref.watch(wpGrowthMultiplierProvider);
 
-    if (empsAsync.isLoading || loadsAsync.isLoading || tasksAsync.isLoading) {
+    // Use .value (nullable, not isLoading) so a post-drop ref.invalidate —
+    // which puts the watched provider back into AsyncLoading — doesn't
+    // unmount OrgTreeView and lose its _expanded state. Riverpod retains the
+    // previous value across a reload, so only the very first load (no value
+    // yet) shows a spinner; loads/tasks fall back to empty for the brief
+    // refetch window.
+    final emps = empsAsync.value;
+    if (emps == null) {
+      if (empsAsync.hasError) {
+        return Center(
+            child: Text('Error: ${empsAsync.error}', style: const TextStyle(color: Colors.red)));
+      }
       return const Center(child: CircularProgressIndicator());
     }
-    final err = empsAsync.error ?? loadsAsync.error ?? tasksAsync.error;
-    if (err != null) {
-      return Center(child: Text('Error: $err', style: const TextStyle(color: Colors.red)));
-    }
+    final loads = loadsAsync.value ?? const <WpPersonLoad>[];
+    final tasks = tasksAsync.value ?? const <WpTask>[];
 
-    final emps = empsAsync.asData!.value;
     final empById = {for (final e in emps) e.id: e};
     final people = [for (final e in emps) (id: e.id, parentId: e.reportsToId)];
-    final loadById = {for (final l in loadsAsync.asData!.value) l.employeeId: l};
+    final loadById = {for (final l in loads) l.employeeId: l};
     final tasksByOwner = <String, List<WpTask>>{};
-    for (final t in tasksAsync.asData!.value) {
+    for (final t in tasks) {
       final owner = t.ownerEmployeeId;
       if (owner == null) continue;
       (tasksByOwner[owner] ??= []).add(t);

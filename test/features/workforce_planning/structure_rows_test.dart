@@ -17,4 +17,7 @@ void main() {
   test('allows a valid re-parent', () {
     expect(reportingDropError(movingId: 'gm', newParentId: 'ops', people: people), isNull);
   });
+  test('drop onto the current manager is a no-op (returns null)', () {
+    expect(reportingDropError(movingId: 'gm', newParentId: 'coo', people: people), isNull);
+  });
 }
