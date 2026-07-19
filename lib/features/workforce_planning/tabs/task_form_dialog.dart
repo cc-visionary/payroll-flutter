@@ -24,6 +24,55 @@ String? validateTaskForm({
   return null;
 }
 
+/// Builds the WpTask to persist from the raw form values. Pure + testable:
+/// nulls the unused times/minutes source field, preserves the read-only
+/// columns the dialog does not edit (id/companyId/externalRef/roleScorecardId/
+/// responsibilityArea/notes) from [existing].
+WpTask buildTaskFromForm({
+  WpTask? existing,
+  required String companyId,
+  required String name,
+  String? nodeId,
+  String? brandScope,
+  String? cadence,
+  required String timesSource,
+  String? timesManualText,
+  String? driverId,
+  String? driverFactorText,
+  required String minutesSource,
+  String? minutesManualText,
+  String? rateId,
+  String? skillTier,
+  String? risk,
+  String? capability,
+  String? ownerEmployeeId,
+}) {
+  String? clean(String? v) => (v == null || v.trim().isEmpty) ? null : v.trim();
+  return WpTask(
+    id: existing?.id ?? '',
+    companyId: existing?.companyId ?? companyId,
+    name: name.trim(),
+    nodeId: nodeId,
+    brandScope: clean(brandScope),
+    cadence: clean(cadence),
+    timesSource: timesSource,
+    timesManual: timesSource == 'manual' ? double.tryParse((timesManualText ?? '').trim()) : null,
+    driverId: timesSource == 'driver' ? driverId : null,
+    driverFactor: double.tryParse((driverFactorText ?? '').trim()) ?? 1,
+    minutesSource: minutesSource,
+    minutesManual: minutesSource == 'manual' ? double.tryParse((minutesManualText ?? '').trim()) : null,
+    rateId: minutesSource == 'rate' ? rateId : null,
+    skillTier: skillTier,
+    risk: risk,
+    capability: clean(capability),
+    ownerEmployeeId: ownerEmployeeId,
+    externalRef: existing?.externalRef,
+    roleScorecardId: existing?.roleScorecardId,
+    responsibilityArea: existing?.responsibilityArea,
+    notes: existing?.notes,
+  );
+}
+
 /// Create/edit dialog for a `wp_tasks` row. Caller supplies the dropdown data
 /// (nodes/drivers/rates/employees) and persists the returned [WpTask] via
 /// `WorkforcePlanningRepository.saveTask`, then invalidates the read providers.
@@ -90,25 +139,24 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
       setState(() => _error = err);
       return;
     }
-    final task = WpTask(
-      id: widget.existing?.id ?? '',
-      companyId: widget.existing?.companyId ?? widget.companyId,
-      name: _name.text.trim(),
+    final task = buildTaskFromForm(
+      existing: widget.existing,
+      companyId: widget.companyId,
+      name: _name.text,
       nodeId: _nodeId,
-      brandScope: _brand.text.trim().isEmpty ? null : _brand.text.trim(),
-      cadence: _cadence.text.trim().isEmpty ? null : _cadence.text.trim(),
+      brandScope: _brand.text,
+      cadence: _cadence.text,
       timesSource: _timesSource,
-      timesManual: _timesSource == 'manual' ? double.tryParse(_timesManual.text.trim()) : null,
-      driverId: _timesSource == 'driver' ? _driverId : null,
-      driverFactor: double.tryParse(_driverFactor.text.trim()) ?? 1,
+      timesManualText: _timesManual.text,
+      driverId: _driverId,
+      driverFactorText: _driverFactor.text,
       minutesSource: _minutesSource,
-      minutesManual: _minutesSource == 'manual' ? double.tryParse(_minutesManual.text.trim()) : null,
-      rateId: _minutesSource == 'rate' ? _rateId : null,
+      minutesManualText: _minutesManual.text,
+      rateId: _rateId,
       skillTier: _tier,
       risk: _risk,
-      capability: _capability.text.trim().isEmpty ? null : _capability.text.trim(),
+      capability: _capability.text,
       ownerEmployeeId: _ownerId,
-      externalRef: widget.existing?.externalRef,
     );
     Navigator.pop(context, task);
   }
