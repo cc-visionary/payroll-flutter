@@ -1,24 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../widgets/coming_soon_screen.dart';
+import '../../app/breakpoints.dart';
+import '../../app/shell.dart';
+import '../workforce_planning/org_tree_view.dart';
+import '../workforce_planning/wp_providers.dart';
 
-class OrgChartScreen extends StatelessWidget {
+/// Live reporting structure across the company, from employees.reports_to_id.
+/// Read-only (name + title); the Workforce Planning Structure tab adds load +
+/// drag-to-restructure for HR/Admin.
+class OrgChartScreen extends ConsumerWidget {
   const OrgChartScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const ComingSoonScreen(
-      title: 'Org Chart',
-      icon: Icons.account_tree_outlined,
-      tagline:
-          'Live reporting structure across every brand under Luxium. See who reports to whom, spot span-of-control issues, and drill into any team.',
-      plannedFeatures: [
-        'Interactive tree view grouped by brand (HAVIT, GAMECOVE, OGKILZ, etc.)',
-        'Manager / direct report relationships driven by the Employee record',
-        'Vacant roles from Workforce Planning shown in-line',
-        'Filter by brand, department, or location',
-        'Export as PDF or PNG for investor and stakeholder decks',
-      ],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final empsAsync = ref.watch(wpActiveEmployeesProvider);
+    return Scaffold(
+      drawer: isMobile(context) ? const AppDrawer() : null,
+      appBar: AppBar(title: const Text('Org Chart')),
+      body: empsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.red))),
+        data: (emps) {
+          if (emps.isEmpty) return const Center(child: Text('No employees to show.'));
+          final empById = {for (final e in emps) e.id: e};
+          final people = [for (final e in emps) (id: e.id, parentId: e.reportsToId)];
+          return OrgTreeView(people: people, empById: empById);
+        },
+      ),
     );
   }
 }
