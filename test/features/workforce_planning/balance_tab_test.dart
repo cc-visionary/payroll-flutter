@@ -33,5 +33,6 @@ void main() {
     expect(find.text('Marvin Ong'), findsOneWidget);
     expect(find.text('Over'), findsOneWidget);   // 210/160 = 131%
     expect(find.text('131%'), findsOneWidget);
+    expect(find.text('4'), findsWidgets);        // KPIs column
   });
 }

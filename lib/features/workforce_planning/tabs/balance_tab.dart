@@ -4,8 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme.dart';
 import '../../../widgets/responsive_table.dart';
 import '../balance_rows.dart';
-import '../capacity_math.dart';
 import '../wp_providers.dart';
+import 'load_chip.dart';
 
 class BalanceTab extends ConsumerWidget {
   const BalanceTab({super.key});
@@ -62,40 +62,12 @@ class BalanceTab extends ConsumerWidget {
                 DataCell(Text(r.hoursScaled.toStringAsFixed(1), style: AppTheme.mono(context))),
                 DataCell(Text(r.capacityHours.toStringAsFixed(0), style: AppTheme.mono(context))),
                 DataCell(Text('${(r.loadScaled * 100).round()}%', style: AppTheme.mono(context))),
-                DataCell(_LoadChip(status: r.status)),
+                DataCell(LoadStatusChip(status: r.status)),
                 DataCell(Text('${r.kpiCount}', style: AppTheme.mono(context))),
               ]),
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Tinted status chip (no border) per PRODUCT.md.
-class _LoadChip extends StatelessWidget {
-  final LoadStatus status;
-  const _LoadChip({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final (String label, MaterialColor base) = switch (status) {
-      LoadStatus.over => ('Over', Colors.red),
-      LoadStatus.ok => ('OK', Colors.green),
-      LoadStatus.under => ('Under', Colors.orange),
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: base.withValues(alpha: dark ? 0.22 : 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(label,
-          style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: dark ? base.shade200 : base.shade700)),
     );
   }
 }
