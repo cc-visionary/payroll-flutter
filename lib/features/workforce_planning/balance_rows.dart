@@ -62,6 +62,9 @@ List<BalanceRow> buildBalanceRows({
       kpiCount: kpiCounts[l.employeeId] ?? 0,
     ));
   }
-  rows.sort((a, b) => b.loadScaled.compareTo(a.loadScaled));
+  rows.sort((a, b) {
+    final byLoad = b.loadScaled.compareTo(a.loadScaled);
+    return byLoad != 0 ? byLoad : a.name.compareTo(b.name);
+  });
   return rows;
 }

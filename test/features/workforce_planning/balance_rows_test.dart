@@ -36,4 +36,20 @@ void main() {
     expect(e2.roleTitle, isNull);
     expect(e2.kpiCount, 0);
   });
+
+  test('buildBalanceRows breaks equal-load ties by name (stable order)', () {
+    final loads = [
+      const WpPersonLoad(employeeId: 'e2', companyId: 'c', tasksOwned: 1,
+          hoursFixed: 80, hoursGrowingBase: 0, capacityHours: 160, growthMultiplier: 1),
+      const WpPersonLoad(employeeId: 'e1', companyId: 'c', tasksOwned: 1,
+          hoursFixed: 80, hoursGrowingBase: 0, capacityHours: 160, growthMultiplier: 1),
+    ];
+    final rows = buildBalanceRows(
+      loads: loads,
+      employeeById: {'e1': (name: 'Ann', title: null), 'e2': (name: 'Zed', title: null)},
+      kpiCounts: const {},
+      multiplier: 1,
+    );
+    expect(rows.map((r) => r.name).toList(), ['Ann', 'Zed']); // equal load → alphabetical
+  });
 }
