@@ -434,7 +434,7 @@ for t in tasks:
         f"v_company, {q(t['ref'])}, {q(t['name'])}, {node}, {q(t['brand'])}, {q(t['cadence'])}, "
         f"{tsrc}, {tman}, {drv}, 'manual', {num(t['minutes'])}, {tier}, {risk}, "
         f"{q(t['capability'])}, {owner}) "
-        "on conflict (company_id, external_ref) do update set "
+        "on conflict (company_id, external_ref) where external_ref is not null do update set "
         "name=excluded.name, node_id=excluded.node_id, brand_scope=excluded.brand_scope, "
         "cadence=excluded.cadence, times_source=excluded.times_source, times_manual=excluded.times_manual, "
         "driver_id=excluded.driver_id, minutes_source=excluded.minutes_source, "
@@ -447,7 +447,13 @@ open(OUT, 'w').write("\n".join(L) + "\n")
 print(f"Wrote {OUT}: {len(nodes)} nodes, {len(drivers)} drivers, {len(rates)} rates, {len(tasks)} tasks")
 ```
 
-> Note: `on conflict (company_id, external_ref)` targets the **partial** unique index; every seeded task has a non-null `external_ref`, so the predicate is always satisfied and the conflict target is valid. Tasks created in-app (Plan 2) leave `external_ref` null and never collide.
+> Note: the conflict target must **repeat the index predicate** —
+> `on conflict (company_id, external_ref) where external_ref is not null` — because
+> Postgres selects a *partial* unique index as the arbiter only when the ON CONFLICT
+> clause carries the same `WHERE`; the data being non-null is not enough (verified:
+> omitting the predicate errors with "no unique or exclusion constraint matching the
+> ON CONFLICT specification" and rolls the whole `do $$` block back). Tasks created
+> in-app (Plan 2) leave `external_ref` null and never collide.
 
 - [ ] **Step 2: Generate the seed migration**
 
