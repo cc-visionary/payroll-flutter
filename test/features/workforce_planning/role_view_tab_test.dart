@@ -28,7 +28,10 @@ void main() {
           WpTask(id: 't1', companyId: 'c', name: 'SD flash', nodeId: 'n2',
               ownerEmployeeId: 'e1', cadence: 'Per-unit', skillTier: 'Transactional')]),
         wpConfigProvider.overrideWith((ref) async => null),
-        ownerComputedProvider('e1').overrideWith((ref) async => const [
+        // Role View now prices tasks from ALL computed rows, not just the
+        // selected owner's — derived (role-card) tasks have no
+        // owner_employee_id, so the per-owner provider can't return them.
+        wpAllTaskComputedProvider.overrideWith((ref) async => const [
           WpTaskComputed(taskId: 't1', companyId: 'c', hoursPerMonthBase: 20,
               isGrowing: true, skillTier: 'Transactional'),
         ]),

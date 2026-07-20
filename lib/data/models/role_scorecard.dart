@@ -18,6 +18,47 @@ class ResponsibilityArea {
   Map<String, dynamic> toJson() => {'area': area, 'tasks': tasks};
 }
 
+/// Rebuilds a card's ordered responsibility tree from its wp_tasks rows.
+/// Areas order by their smallest `area_sort` (ties by name); tasks by
+/// `task_sort`, tied-broken by `id` (Dart's `List.sort` is not stable, so two
+/// rows sharing a `task_sort` — e.g. two areas typed with the same name that
+/// merge into one bucket on reload — would otherwise render in a
+/// non-deterministic order between builds, shifting PDF/contract order;
+/// mirrors the same tie-break in tasks_rows.dart's `_groupByArea`).
+/// Rows with no area or no name are not card responsibilities and are skipped.
+List<ResponsibilityArea> responsibilitiesFromTaskRows(List<Map<String, dynamic>> rows) {
+  final areaSort = <String, int>{};
+  final byArea = <String, List<({int sort, String name, String id})>>{};
+  for (final r in rows) {
+    final area = (r['responsibility_area'] as String?)?.trim() ?? '';
+    final name = (r['name'] as String?)?.trim() ?? '';
+    if (area.isEmpty || name.isEmpty) continue;
+    final aSort = (r['area_sort'] as num?)?.toInt() ?? 0;
+    final tSort = (r['task_sort'] as num?)?.toInt() ?? 0;
+    final id = (r['id'] as String?) ?? '';
+    final prev = areaSort[area];
+    areaSort[area] = prev == null || aSort < prev ? aSort : prev;
+    (byArea[area] ??= []).add((sort: tSort, name: name, id: id));
+  }
+  final areas = byArea.keys.toList()
+    ..sort((a, b) {
+      final c = areaSort[a]!.compareTo(areaSort[b]!);
+      return c != 0 ? c : a.compareTo(b);
+    });
+  return [
+    for (final a in areas)
+      ResponsibilityArea(
+        area: a,
+        tasks: (byArea[a]!..sort((x, y) {
+          final c = x.sort.compareTo(y.sort);
+          return c != 0 ? c : x.id.compareTo(y.id);
+        }))
+            .map((e) => e.name)
+            .toList(),
+      ),
+  ];
+}
+
 class KpiItem {
   final String name;
   final String measurement;
@@ -129,8 +170,33 @@ class RoleScorecard {
     final rawKpis = r['kpis'];
     final rawSkills = r['required_skills'];
     final rawExpectations = r['behavioral_expectations'];
+    final rawTasks = r['wp_tasks'];
     List<ResponsibilityArea> responsibilities;
-    if (rawResp is List) {
+    // An empty wp_tasks embed is authoritative ONLY for an active card: an
+    // active card can't be edited down to zero without also clearing
+    // key_responsibilities (see saveResponsibilities), so [] there really
+    // means "deleted to zero" and must not resurrect stale JSON. An INACTIVE
+    // card has no such guarantee — every card gets wp_tasks rows now (see
+    // 20260720000002), but a pre-unification inactive/superseded card row
+    // that predates this migration, or one whose promotion is still pending,
+    // can legitimately have an empty embed with real legacy JSON still on
+    // it. Falling back there keeps payslip PDFs, dashboards, and employment
+    // contracts — which all resolve inactive cards via
+    // list(onlyActive:false)/byId() — from rendering an empty duties annex.
+    final embedIsEmptyOnInactiveCard =
+        rawTasks is List && rawTasks.isEmpty && r['is_active'] == false;
+    if (rawTasks is List && !embedIsEmptyOnInactiveCard) {
+      // Authoritative source post-responsibility-unification: wp_tasks rows,
+      // grouped/ordered by area_sort/task_sort (see responsibilitiesFromTaskRows).
+      // The embed key is present (even as []) whenever it was requested — an
+      // empty embed means "no responsibilities", NOT "fall back to the JSON
+      // column" (PostgREST returns [] for a requested-but-empty embed, it does
+      // not omit the key; a deleted-to-zero card must not resurrect stale JSON).
+      responsibilities =
+          responsibilitiesFromTaskRows(rawTasks.cast<Map<String, dynamic>>());
+    } else if (rawResp is List) {
+      // Legacy fallback: the JSON column, for pre-unification rows or any
+      // select that doesn't embed wp_tasks.
       responsibilities = rawResp
           .cast<Map<String, dynamic>>()
           .map(ResponsibilityArea.fromJson)
@@ -214,7 +280,10 @@ class RoleScorecard {
     'job_title': jobTitle,
     'department_id': departmentId,
     'mission_statement': missionStatement,
-    'key_responsibilities': responsibilities.map((r) => r.toJson()).toList(),
+    // Responsibilities now live in wp_tasks (see 20260720000002). The column is
+    // NOT NULL and kept read-only for rollback — write [] to satisfy it on
+    // INSERT; omitting the key raises 23502.
+    'key_responsibilities': const [],
     // The kpis JSON column is NOT NULL and kept as read-only legacy (KPIs now
     // live in role_scorecard_kpis). Write an empty array to satisfy the
     // constraint on INSERT; it is never read for display.
