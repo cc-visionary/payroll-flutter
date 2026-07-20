@@ -11,6 +11,8 @@ import '../../data/repositories/hiring_entity_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../auth/profile_provider.dart';
 import '../documents/providers.dart';
+import '../workforce_planning/wp_providers.dart';
+import 'responsibility_rows.dart';
 import 'scorecard_base_salary.dart';
 
 class RoleScorecardFormScreen extends ConsumerStatefulWidget {
@@ -43,6 +45,12 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
   final List<_SkillDraft> _skills = [];
   final List<_ExpectationDraft> _expectations = [];
   List<Map<String, dynamic>> _departments = const [];
+  // The card's own wp_tasks responsibility rows (id, name, responsibility_area,
+  // area_sort, task_sort), captured on load so diffResponsibilities can turn a
+  // rename into an UPDATE (never delete+insert, which would drop the row's
+  // cadence/minutes/owner) and a removed line into a delete. Never trust
+  // upsert()'s return for this — its select has no wp_tasks embed.
+  List<Map<String, dynamic>> _existingResponsibilityRows = const [];
 
   bool get _isEdit => widget.cardId != null;
 
@@ -83,10 +91,36 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
         _hiringEntityId = e.hiringEntityId;
         _effectiveDate = e.effectiveDate;
         _isActive = e.isActive;
+
+        // Raw wp_tasks rows carry the row id — RoleScorecard.responsibilities
+        // (built via responsibilitiesFromTaskRows) does not, so it can't be
+        // diffed against on save. Query directly rather than through byId(),
+        // whose embed is consumed into the id-less grouped shape.
+        final taskRows = await client
+            .from('wp_tasks')
+            .select('id, name, responsibility_area, area_sort, task_sort')
+            .eq('role_scorecard_id', widget.cardId!)
+            .not('responsibility_area', 'is', null)
+            .order('area_sort')
+            .order('task_sort');
+        _existingResponsibilityRows = taskRows.cast<Map<String, dynamic>>();
         _areas.clear();
-        for (final a in e.responsibilities) {
-          _areas.add(_AreaDraft(a.area, a.tasks.toList()));
+        final areaOrder = <String>[];
+        final grouped = <String, List<RespDraft>>{};
+        for (final r in _existingResponsibilityRows) {
+          final area = (r['responsibility_area'] as String?)?.trim() ?? '';
+          final name = (r['name'] as String?)?.trim() ?? '';
+          if (area.isEmpty || name.isEmpty) continue;
+          final tasks = grouped.putIfAbsent(area, () {
+            areaOrder.add(area);
+            return [];
+          });
+          tasks.add(RespDraft(id: r['id'] as String, name: name));
         }
+        for (final area in areaOrder) {
+          _areas.add(_AreaDraft(area, grouped[area]!));
+        }
+
         _kpis.clear();
         for (final k in e.kpis) {
           _kpis.add(_KpiDraft(k.name, k.measurement, k.target, k.frequency));
@@ -128,14 +162,11 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
         departmentId: _departmentId,
         hiringEntityId: _hiringEntityId,
         missionStatement: _mission.text.trim(),
-        responsibilities: [
-          for (final a in _areas)
-            if (a.area.trim().isNotEmpty)
-              ResponsibilityArea(
-                area: a.area.trim(),
-                tasks: a.tasks.where((t) => t.trim().isNotEmpty).toList(),
-              ),
-        ],
+        // Responsibilities now persist as wp_tasks rows (see saveResponsibilities
+        // below) — toUpsertPayload writes key_responsibilities: const [] itself,
+        // so this value is never read for persistence. Kept as [] to satisfy the
+        // required constructor param.
+        responsibilities: const [],
         // KPIs are no longer part of the jsonb payload — persisted separately
         // via saveRoleScorecardKpis below.
         kpis: const [],
@@ -189,11 +220,31 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
               ),
         ],
       );
+
+      // Diff against the raw rows captured on load (never against upsert()'s
+      // return — its select has no wp_tasks embed, so it always reports
+      // responsibilities: [] and would misread every existing line as new).
+      final diff = diffResponsibilities(
+        draft: [for (final a in _areas) (area: a.area, tasks: a.tasks)],
+        existingRows: _existingResponsibilityRows,
+        cardId: saved.id,
+        companyId: saved.companyId,
+      );
+      await ref.read(roleScorecardRepositoryProvider).saveResponsibilities(
+        cardId: saved.id,
+        inserts: diff.inserts,
+        updates: diff.updates,
+        deleteIds: diff.deleteIds,
+      );
+
       ref.invalidate(roleScorecardListProvider);
       ref.invalidate(scorecardEmployeeCountProvider);
       ref.invalidate(kpiLibraryProvider);
       // Keep the ephemeral PDF preview (RoleCardPdfScreen) fresh after an edit.
       ref.invalidate(roleScorecardByIdProvider(saved.id));
+      // Responsibilities are now tasks — refresh the workforce planning views.
+      ref.invalidate(wpTasksProvider);
+      ref.invalidate(wpPersonLoadsProvider);
       if (mounted) context.pop();
     } catch (e) {
       setState(() => _error = e.toString());
@@ -493,14 +544,14 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                                   children: [
                                     Expanded(
                                       child: TextFormField(
-                                        initialValue: _areas[i].tasks[j],
+                                        initialValue: _areas[i].tasks[j].name,
                                         decoration: const InputDecoration(
                                           labelText: 'Task',
                                           border: OutlineInputBorder(),
                                           isDense: true,
                                         ),
                                         onChanged: (v) =>
-                                            _areas[i].tasks[j] = v,
+                                            _areas[i].tasks[j].name = v,
                                       ),
                                     ),
                                     IconButton(
@@ -515,8 +566,11 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                             Padding(
                               padding: const EdgeInsets.only(left: 16, top: 4),
                               child: TextButton.icon(
-                                onPressed: () =>
-                                    setState(() => _areas[i].tasks.add('')),
+                                onPressed: () => setState(
+                                  () => _areas[i].tasks.add(
+                                    RespDraft(id: null, name: ''),
+                                  ),
+                                ),
                                 icon: const Icon(Icons.add, size: 16),
                                 label: const Text('Add task'),
                               ),
@@ -773,7 +827,9 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
 
 class _AreaDraft {
   String area;
-  List<String> tasks;
+  // Each line's wp_tasks row id (null for a new, unsaved line) — carried so a
+  // rename diffs as an UPDATE, not a delete+insert (see RespDraft).
+  List<RespDraft> tasks;
   _AreaDraft(this.area, this.tasks);
 }
 
