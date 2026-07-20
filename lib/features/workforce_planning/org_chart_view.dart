@@ -9,9 +9,8 @@ import 'org_tree.dart';
 /// several people who report to nobody).
 ///
 /// Read-only by default (name + title). Optional hooks let feature-specific
-/// consumers layer on a trailing widget (e.g. a load chip), wrap each box
-/// (e.g. Draggable/DragTarget for the Structure tab), or supply extra widgets
-/// shown in a panel under the box (e.g. task chips).
+/// consumers layer on a trailing widget (e.g. a load chip) or wrap each box
+/// (e.g. Draggable/DragTarget for the Structure tab).
 ///
 /// Layout note: each child subtree is measured with [IntrinsicWidth] so the
 /// elbow connector can span exactly that subtree's width and meet its
@@ -24,14 +23,12 @@ class OrgChartView extends StatefulWidget {
     required this.empById,
     this.trailing,
     this.nodeWrapper,
-    this.expandedExtras,
   });
 
   final List<({String id, String? parentId})> people;
   final Map<String, Employee> empById;
   final Widget Function(Employee emp)? trailing;
   final Widget Function(Employee emp, Widget box)? nodeWrapper;
-  final List<Widget> Function(Employee emp)? expandedExtras;
 
   @override
   State<OrgChartView> createState() => _OrgChartViewState();
@@ -47,9 +44,6 @@ class _OrgChartViewState extends State<OrgChartView> {
   /// load (tasks and loads resolve after people do) is not stuck collapsed
   /// because it did not exist when this state was first built.
   final Set<String> _collapsed = {};
-
-  /// Ids whose task panel is open. Closed by default to keep the chart compact.
-  final Set<String> _openTasks = {};
 
   @override
   Widget build(BuildContext context) {
@@ -69,13 +63,7 @@ class _OrgChartViewState extends State<OrgChartView> {
 
   Widget _subtree(OrgNode node) {
     final emp = widget.empById[node.id];
-    final extras = emp == null
-        ? const <Widget>[]
-        : (widget.expandedExtras?.call(emp) ?? const <Widget>[]);
-    final box = _box(node, emp, extras.length);
-    // The person drag source wraps the box only, so the task chips below stay
-    // outside it — nesting a Draggable inside a Draggable makes the gesture
-    // arena ambiguous and can swallow the chip drag.
+    final box = _box(node, emp);
     final wrapped =
         (emp != null && widget.nodeWrapper != null) ? widget.nodeWrapper!(emp, box) : box;
 
@@ -87,7 +75,6 @@ class _OrgChartViewState extends State<OrgChartView> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         wrapped,
-        if (_openTasks.contains(node.id) && extras.isNotEmpty) _taskPanel(extras),
         if (showKids) ...[
           _stub(),
           Row(
@@ -128,11 +115,10 @@ class _OrgChartViewState extends State<OrgChartView> {
 
   Widget _stub() => Container(width: 1.5, height: _drop, color: _lineColor(context));
 
-  Widget _box(OrgNode node, Employee? emp, int taskCount) {
+  Widget _box(OrgNode node, Employee? emp) {
     final cs = Theme.of(context).colorScheme;
     final kids = node.children;
     final collapsed = _collapsed.contains(node.id);
-    final tasksOpen = _openTasks.contains(node.id);
 
     return Container(
       width: _boxW,
@@ -171,27 +157,17 @@ class _OrgChartViewState extends State<OrgChartView> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-          if (taskCount > 0 || kids.isNotEmpty)
+          if (kids.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Row(
-                children: [
-                  if (taskCount > 0)
-                    _footerButton(
-                      icon: tasksOpen ? Icons.expand_more : Icons.chevron_right,
-                      label: '$taskCount ${taskCount == 1 ? 'task' : 'tasks'}',
-                      onTap: () => setState(() =>
-                          tasksOpen ? _openTasks.remove(node.id) : _openTasks.add(node.id)),
-                    ),
-                  const Spacer(),
-                  if (kids.isNotEmpty)
-                    _footerButton(
-                      icon: collapsed ? Icons.add_circle_outline : Icons.remove_circle_outline,
-                      label: '${kids.length} ${kids.length == 1 ? 'report' : 'reports'}',
-                      onTap: () => setState(() =>
-                          collapsed ? _collapsed.remove(node.id) : _collapsed.add(node.id)),
-                    ),
-                ],
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: _footerButton(
+                  icon: collapsed ? Icons.add_circle_outline : Icons.remove_circle_outline,
+                  label: '${kids.length} ${kids.length == 1 ? 'report' : 'reports'}',
+                  onTap: () => setState(() =>
+                      collapsed ? _collapsed.remove(node.id) : _collapsed.add(node.id)),
+                ),
               ),
             ),
         ],
@@ -222,16 +198,6 @@ class _OrgChartViewState extends State<OrgChartView> {
     );
   }
 
-  Widget _taskPanel(List<Widget> extras) => Container(
-        width: _boxW,
-        margin: const EdgeInsets.only(top: 4),
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Wrap(spacing: 6, runSpacing: 6, children: extras),
-      );
 }
 
 /// Draws one child's connector: a horizontal bar along the top edge that meets

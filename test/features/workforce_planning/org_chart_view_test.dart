@@ -84,20 +84,15 @@ void main() {
     }
   });
 
-  testWidgets('task panel is closed by default and opens on tap', (tester) async {
+  testWidgets('the trailing hook renders beside the name', (tester) async {
     final emps = {'a': _e('a', 'A', 'One', null)};
     await tester.pumpWidget(_host(OrgChartView(
       people: const [(id: 'a', parentId: null)],
       empById: emps,
-      expandedExtras: (_) => const [Chip(label: Text('Do the thing'))],
+      trailing: (_) => const Text('Under'),
     )));
     await tester.pumpAndSettle();
-    expect(find.text('Do the thing'), findsNothing);
-    expect(find.text('1 task'), findsOneWidget);
-
-    await tester.tap(find.text('1 task'));
-    await tester.pumpAndSettle();
-    expect(find.text('Do the thing'), findsOneWidget);
+    expect(find.text('Under'), findsOneWidget);
   });
 
   testWidgets('a person with no employee record still renders as its id', (tester) async {
