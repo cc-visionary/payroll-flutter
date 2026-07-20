@@ -93,16 +93,14 @@ final _groups = <_NavGroup>[
   _NavGroup('People', [
     _NavItem('Employees', Icons.people_outline, '/employees', _always),
     _NavItem('Hiring', Icons.person_search_outlined, '/hiring', _always),
-    _NavItem('Org Chart', Icons.account_tree_outlined, '/org-chart', _always,
-        comingSoon: true),
+    _NavItem('Org Chart', Icons.account_tree_outlined, '/org-chart', _always),
   ]),
   _NavGroup('Work & Performance', [
     _NavItem('Responsibility Cards', Icons.badge_outlined,
         '/responsibility-cards', _hrOrAdmin),
     _NavItem('KPI Library', Icons.speed_outlined, '/kpi-library', _hrOrAdmin),
     _NavItem('Workforce Planning', Icons.insights_outlined,
-        '/workforce-planning', _hrOrAdmin,
-        comingSoon: true),
+        '/workforce-planning', _hrOrAdmin),
     _NavItem('Performance', Icons.stacked_line_chart_outlined, '/performance', _always),
   ]),
   _NavGroup('Time & Pay', [
