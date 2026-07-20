@@ -4,9 +4,11 @@ import 'package:payroll_flutter/data/models/role_scorecard.dart';
 import 'package:payroll_flutter/data/models/workforce_planning.dart';
 import 'package:payroll_flutter/features/workforce_planning/tasks_rows.dart';
 
-Employee _emp(String id, String first, String last, {String? roleScorecardId}) => Employee(
+Employee _emp(String id, String first, String last,
+        {String? roleScorecardId, String employmentStatus = 'ACTIVE'}) =>
+    Employee(
       id: id, companyId: 'c', employeeNumber: id, firstName: first, lastName: last,
-      jobTitle: 'Sys', employmentType: 'FULL_TIME', employmentStatus: 'ACTIVE',
+      jobTitle: 'Sys', employmentType: 'FULL_TIME', employmentStatus: employmentStatus,
       hireDate: DateTime(2024, 1, 1), isRankAndFile: true, isOtEligible: false,
       isNdEligible: false, isHolidayPayEligible: false, sssEligibilityOverride: false,
       philhealthEligibilityOverride: false, pagibigEligibilityOverride: false,
@@ -319,6 +321,59 @@ void main() {
       );
       expect(owner.label, 'Unassigned');
       expect(owner.derived, isFalse);
+    });
+
+    test('a TERMINATED holder is excluded — one ACTIVE + one TERMINATED '
+        'resolves to ONE holder, matching wp_person_load (which gives the '
+        'ACTIVE holder 100% of the hours, not a 2-way split)', () {
+      const t = WpTask(id: 't1', companyId: 'c', name: 'x', roleScorecardId: 'rc1');
+      final owner = resolveEffectiveOwner(
+        task: t,
+        employeeNameById: const {},
+        employees: [
+          _emp('e1', 'Marvin', 'Ong', roleScorecardId: 'rc1'),
+          _emp('e2', 'Gone', 'Person', roleScorecardId: 'rc1', employmentStatus: 'TERMINATED'),
+        ],
+      );
+      expect(owner.label, 'Marvin Ong');
+      expect(owner.derived, isTrue);
+    });
+
+    test('all holders separated (non-ACTIVE): zero-holder outcome — '
+        'Unassigned, not derived', () {
+      const t = WpTask(id: 't1', companyId: 'c', name: 'x', roleScorecardId: 'rc1');
+      final owner = resolveEffectiveOwner(
+        task: t,
+        employeeNameById: const {},
+        employees: [
+          _emp('e1', 'Gone', 'One', roleScorecardId: 'rc1', employmentStatus: 'RESIGNED'),
+          _emp('e2', 'Gone', 'Two', roleScorecardId: 'rc1', employmentStatus: 'AWOL'),
+        ],
+      );
+      expect(owner.label, 'Unassigned');
+      expect(owner.derived, isFalse);
+    });
+  });
+
+  group('groupTasks task ordering tie-break', () {
+    test('equal task_sort within an area is tie-broken by id for a '
+        'deterministic order (List.sort is not stable in Dart)', () {
+      final tasks = [
+        WpTask.fromRow({
+          'id': 'tz', 'company_id': 'c', 'name': 'z-name',
+          'role_scorecard_id': 'rc1', 'responsibility_area': 'Area',
+          'area_sort': 0, 'task_sort': 0,
+        }),
+        WpTask.fromRow({
+          'id': 'ta', 'company_id': 'c', 'name': 'a-name',
+          'role_scorecard_id': 'rc1', 'responsibility_area': 'Area',
+          'area_sort': 0, 'task_sort': 0,
+        }),
+      ];
+      final groups = groupTasks(tasks, [_card('rc1', 'Ops Lead')]);
+      final ids = groups.cardGroups.single.areas.single.tasks.map((t) => t.id).toList();
+      // Same task_sort (0) for both -> tie-break by id ascending: 'ta' < 'tz'.
+      expect(ids, ['ta', 'tz']);
     });
   });
 }

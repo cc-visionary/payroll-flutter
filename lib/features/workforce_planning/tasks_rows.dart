@@ -120,7 +120,10 @@ List<TaskAreaGroup> _groupByArea(List<WpTask> tasks) {
     for (final a in areas)
       TaskAreaGroup(
         area: a,
-        tasks: (byArea[a]!..sort((x, y) => x.taskSort.compareTo(y.taskSort))),
+        tasks: (byArea[a]!..sort((x, y) {
+          final c = x.taskSort.compareTo(y.taskSort);
+          return c != 0 ? c : x.id.compareTo(y.id);
+        })),
       ),
   ];
 }
@@ -176,8 +179,18 @@ class EffectiveOwner {
 /// - Explicit `ownerEmployeeId`: that employee's name (falling back to
 ///   'Unassigned' if they're not in [employeeNameById], e.g. separated), not
 ///   derived.
-/// - Else, a `roleScorecardId`: the card's holders
-///   (`employees.where((e) => e.roleScorecardId == task.roleScorecardId)`).
+/// - Else, a `roleScorecardId`: the card's holders — `employees` filtered to
+///   `roleScorecardId == task.roleScorecardId` AND `employmentStatus ==
+///   'ACTIVE'`. The ACTIVE filter matters: `employees` here comes from
+///   `wpActiveEmployeesProvider`, which only excludes `deleted_at`-set rows,
+///   not separated-but-undeleted ones (there are six non-ACTIVE statuses —
+///   RESIGNED, TERMINATED, AWOL, DECEASED, END_OF_CONTRACT, RETIRED — and
+///   nothing clears `role_scorecard_id` on separation). The migration's
+///   `wp_person_load` holders CTE requires both `employment_status =
+///   'ACTIVE'` and `deleted_at is null`; without the same filter here, a
+///   card with one ACTIVE and one TERMINATED holder would show "2 holders /
+///   Derived" while the view gives 100% of the hours to the one ACTIVE
+///   holder — a visible disagreement between this tab and Balance/Role-View.
 ///   One holder -> their name, derived. Multiple -> "N holders", derived.
 ///   Zero holders -> 'Unassigned', NOT derived (nothing was actually
 ///   derived from anything).
@@ -193,7 +206,9 @@ EffectiveOwner resolveEffectiveOwner({
   }
   final cardId = task.roleScorecardId;
   if (cardId != null) {
-    final holders = employees.where((e) => e.roleScorecardId == cardId).toList();
+    final holders = employees
+        .where((e) => e.roleScorecardId == cardId && e.employmentStatus == 'ACTIVE')
+        .toList();
     if (holders.isEmpty) {
       return const EffectiveOwner(label: 'Unassigned', derived: false);
     }
