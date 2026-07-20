@@ -1,3 +1,11 @@
+-- !! SINGLE-APPLY ONLY !!
+-- Promotion is idempotent only against UNEDITED rows: the NOT EXISTS check keys on
+-- the CURRENT (area, name). If a promoted responsibility is renamed in the app and
+-- this file is re-applied (manual psql / DR replay / reused as a template), the
+-- check misses the original name and re-inserts a DUPLICATE — both rows then count
+-- toward the role's hours and silently inflate load. Supabase's migration ledger
+-- runs this once per environment; never re-run it by hand after go-live.
+
 -- Unify role-card responsibilities with wp_tasks: a responsibility IS a task.
 -- 1) ordering columns (the card PDF + contract prefill render in authored order)
 -- 2) promote each active card's key_responsibilities into wp_tasks (uncosted)
@@ -19,7 +27,7 @@ begin
       for t in select * from jsonb_array_elements(coalesce(a->'tasks', '[]'::jsonb)) loop
         insert into wp_tasks (company_id, name, role_scorecard_id, responsibility_area,
                               area_sort, task_sort, times_source, minutes_source)
-        select c.company_id, trim(t #>> '{}'), c.id, a->>'area', ai, ti, 'manual', 'manual'
+        select c.company_id, trim(t #>> '{}'), c.id, trim(a->>'area'), ai, ti, 'manual', 'manual'
         where trim(coalesce(t #>> '{}', '')) <> ''
           and not exists (
             select 1 from wp_tasks w
