@@ -113,9 +113,16 @@ Every downstream consumer then keeps working untouched: role-card detail screen,
 `role_card_pdf.dart`, employee `role_tab.dart`, and the employment-contract
 prefill in `employment_contract_form.dart`.
 
-**`key_responsibilities` is kept** (NOT NULL) for rollback and written as `[]` by
-`toUpsert` — omitting the key causes a `23502` insert failure. This is a recorded
-lesson from the KPI work; do not remove the key.
+**`key_responsibilities` is kept** (NOT NULL) and written as `[]` by `toUpsert` —
+omitting the key causes a `23502` insert failure. This is a recorded lesson from
+the KPI work; do not remove the key.
+
+> **Correction (post-implementation).** An earlier draft of this section claimed
+> the column was retained *for rollback*. It is not a rollback path: `toUpsert`
+> writes `[]` and `saveResponsibilities` clears the column on every card update,
+> so a card's legacy JSON is gone the first time it is edited. The column is kept
+> only because it is `NOT NULL`. **Rolling back after any card edit means
+> re-deriving the JSON from `wp_tasks`, not restoring it.**
 
 ## Editor
 
