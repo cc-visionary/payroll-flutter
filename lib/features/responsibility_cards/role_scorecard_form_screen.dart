@@ -96,30 +96,7 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
         // (built via responsibilitiesFromTaskRows) does not, so it can't be
         // diffed against on save. Query directly rather than through byId(),
         // whose embed is consumed into the id-less grouped shape.
-        final taskRows = await client
-            .from('wp_tasks')
-            .select('id, name, responsibility_area, area_sort, task_sort')
-            .eq('role_scorecard_id', widget.cardId!)
-            .not('responsibility_area', 'is', null)
-            .order('area_sort')
-            .order('task_sort');
-        _existingResponsibilityRows = taskRows.cast<Map<String, dynamic>>();
-        _areas.clear();
-        final areaOrder = <String>[];
-        final grouped = <String, List<RespDraft>>{};
-        for (final r in _existingResponsibilityRows) {
-          final area = (r['responsibility_area'] as String?)?.trim() ?? '';
-          final name = (r['name'] as String?)?.trim() ?? '';
-          if (area.isEmpty || name.isEmpty) continue;
-          final tasks = grouped.putIfAbsent(area, () {
-            areaOrder.add(area);
-            return [];
-          });
-          tasks.add(RespDraft(id: r['id'] as String, name: name));
-        }
-        for (final area in areaOrder) {
-          _areas.add(_AreaDraft(area, grouped[area]!));
-        }
+        await _loadResponsibilityRows(widget.cardId!);
 
         _kpis.clear();
         for (final k in e.kpis) {
@@ -142,6 +119,66 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
     } finally {
       setState(() => _loading = false);
     }
+  }
+
+  /// Fetches [cardId]'s wp_tasks responsibility rows and rebuilds BOTH
+  /// `_existingResponsibilityRows` (raw) and `_areas` (editable) from them.
+  /// Used on initial load, and to resync after a failed saveResponsibilities
+  /// call (see `_save()`) — a retry must diff against what the server
+  /// actually holds, not against drafts whose ids may already be stale
+  /// because the failed call partially inserted some of them.
+  Future<void> _loadResponsibilityRows(String cardId) async {
+    final rows = await Supabase.instance.client
+        .from('wp_tasks')
+        .select('id, name, responsibility_area, area_sort, task_sort')
+        .eq('role_scorecard_id', cardId)
+        .not('responsibility_area', 'is', null)
+        .order('area_sort')
+        .order('task_sort');
+    // Blank-safe, not just NULL-safe: responsibility_area has no NOT-NULL/
+    // CHECK constraint, so an empty-string area would pass the `.not(...,
+    // 'is', null)` filter above. Left in _existingResponsibilityRows, such a
+    // row would never be grouped into _areas (below skips blank areas) and so
+    // would never be "kept" by diffResponsibilities — silently DELETED on the
+    // next save. Excluding it here means it can never become a delete
+    // candidate in the first place.
+    _existingResponsibilityRows = [
+      for (final r in rows.cast<Map<String, dynamic>>())
+        if (((r['responsibility_area'] as String?) ?? '').trim().isNotEmpty)
+          r,
+    ];
+    _areas.clear();
+    final areaOrder = <String>[];
+    final grouped = <String, List<RespDraft>>{};
+    for (final r in _existingResponsibilityRows) {
+      final area = (r['responsibility_area'] as String).trim();
+      final name = (r['name'] as String?)?.trim() ?? '';
+      if (name.isEmpty) continue;
+      final tasks = grouped.putIfAbsent(area, () {
+        areaOrder.add(area);
+        return [];
+      });
+      tasks.add(RespDraft(id: r['id'] as String, name: name));
+    }
+    for (final area in areaOrder) {
+      _areas.add(_AreaDraft(area, grouped[area]!));
+    }
+  }
+
+  /// Refreshes every provider a role-card save can affect. Shared by both the
+  /// success path and the responsibilities-partial-failure path in `_save()`
+  /// — a partial failure can still have changed server state (some rows may
+  /// have been inserted/updated/deleted before the failure), so downstream
+  /// views need refreshing either way.
+  void _invalidateAfterSave(String cardId) {
+    ref.invalidate(roleScorecardListProvider);
+    ref.invalidate(scorecardEmployeeCountProvider);
+    ref.invalidate(kpiLibraryProvider);
+    // Keep the ephemeral PDF preview (RoleCardPdfScreen) fresh after an edit.
+    ref.invalidate(roleScorecardByIdProvider(cardId));
+    // Responsibilities are now tasks — refresh the workforce planning views.
+    ref.invalidate(wpTasksProvider);
+    ref.invalidate(wpPersonLoadsProvider);
   }
 
   Future<void> _save() async {
@@ -221,30 +258,50 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
         ],
       );
 
-      // Diff against the raw rows captured on load (never against upsert()'s
-      // return — its select has no wp_tasks embed, so it always reports
-      // responsibilities: [] and would misread every existing line as new).
-      final diff = diffResponsibilities(
-        draft: [for (final a in _areas) (area: a.area, tasks: a.tasks)],
-        existingRows: _existingResponsibilityRows,
-        cardId: saved.id,
-        companyId: saved.companyId,
-      );
-      await ref.read(roleScorecardRepositoryProvider).saveResponsibilities(
-        cardId: saved.id,
-        inserts: diff.inserts,
-        updates: diff.updates,
-        deleteIds: diff.deleteIds,
-      );
+      try {
+        // Diff against the raw rows captured on load (never against
+        // upsert()'s return — its select has no wp_tasks embed, so it always
+        // reports responsibilities: [] and would misread every existing line
+        // as new).
+        final diff = diffResponsibilities(
+          draft: [for (final a in _areas) (area: a.area, tasks: a.tasks)],
+          existingRows: _existingResponsibilityRows,
+          cardId: saved.id,
+          companyId: saved.companyId,
+        );
+        await ref.read(roleScorecardRepositoryProvider).saveResponsibilities(
+          cardId: saved.id,
+          inserts: diff.inserts,
+          updates: diff.updates,
+          deleteIds: diff.deleteIds,
+        );
+      } catch (_) {
+        // saveResponsibilities is multi-statement and non-transactional
+        // (insert -> per-row update -> delete -> legacy-column clear). A
+        // partial failure can leave some drafted lines — still id == null in
+        // _areas — already INSERTED server-side. Simply reloading
+        // _existingResponsibilityRows would NOT fix this: the drafts
+        // themselves would still have null ids and diffResponsibilities
+        // would insert them a SECOND time on retry, duplicating hours/load.
+        // Resync BOTH _existingResponsibilityRows and _areas from the server
+        // so a retry diffs against what's actually there — this discards the
+        // user's unsaved responsibility edits, which is the correct
+        // trade-off (a duplicated responsibility silently inflates load and
+        // is hard to spot; re-applying edits is visible and recoverable).
+        await _loadResponsibilityRows(saved.id);
+        _invalidateAfterSave(saved.id);
+        if (mounted) {
+          setState(() {
+            _error =
+                'Some responsibility changes may not have saved. The list '
+                'was refreshed from the server — please re-apply your '
+                'changes and save again.';
+          });
+        }
+        return;
+      }
 
-      ref.invalidate(roleScorecardListProvider);
-      ref.invalidate(scorecardEmployeeCountProvider);
-      ref.invalidate(kpiLibraryProvider);
-      // Keep the ephemeral PDF preview (RoleCardPdfScreen) fresh after an edit.
-      ref.invalidate(roleScorecardByIdProvider(saved.id));
-      // Responsibilities are now tasks — refresh the workforce planning views.
-      ref.invalidate(wpTasksProvider);
-      ref.invalidate(wpPersonLoadsProvider);
+      _invalidateAfterSave(saved.id);
       if (mounted) context.pop();
     } catch (e) {
       setState(() => _error = e.toString());
