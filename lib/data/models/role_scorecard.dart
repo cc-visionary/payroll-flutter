@@ -19,20 +19,26 @@ class ResponsibilityArea {
 }
 
 /// Rebuilds a card's ordered responsibility tree from its wp_tasks rows.
-/// Areas order by their smallest `area_sort` (ties by name); tasks by `task_sort`.
+/// Areas order by their smallest `area_sort` (ties by name); tasks by
+/// `task_sort`, tied-broken by `id` (Dart's `List.sort` is not stable, so two
+/// rows sharing a `task_sort` — e.g. two areas typed with the same name that
+/// merge into one bucket on reload — would otherwise render in a
+/// non-deterministic order between builds, shifting PDF/contract order;
+/// mirrors the same tie-break in tasks_rows.dart's `_groupByArea`).
 /// Rows with no area or no name are not card responsibilities and are skipped.
 List<ResponsibilityArea> responsibilitiesFromTaskRows(List<Map<String, dynamic>> rows) {
   final areaSort = <String, int>{};
-  final byArea = <String, List<({int sort, String name})>>{};
+  final byArea = <String, List<({int sort, String name, String id})>>{};
   for (final r in rows) {
     final area = (r['responsibility_area'] as String?)?.trim() ?? '';
     final name = (r['name'] as String?)?.trim() ?? '';
     if (area.isEmpty || name.isEmpty) continue;
     final aSort = (r['area_sort'] as num?)?.toInt() ?? 0;
     final tSort = (r['task_sort'] as num?)?.toInt() ?? 0;
+    final id = (r['id'] as String?) ?? '';
     final prev = areaSort[area];
     areaSort[area] = prev == null || aSort < prev ? aSort : prev;
-    (byArea[area] ??= []).add((sort: tSort, name: name));
+    (byArea[area] ??= []).add((sort: tSort, name: name, id: id));
   }
   final areas = byArea.keys.toList()
     ..sort((a, b) {
@@ -43,7 +49,10 @@ List<ResponsibilityArea> responsibilitiesFromTaskRows(List<Map<String, dynamic>>
     for (final a in areas)
       ResponsibilityArea(
         area: a,
-        tasks: (byArea[a]!..sort((x, y) => x.sort.compareTo(y.sort)))
+        tasks: (byArea[a]!..sort((x, y) {
+          final c = x.sort.compareTo(y.sort);
+          return c != 0 ? c : x.id.compareTo(y.id);
+        }))
             .map((e) => e.name)
             .toList(),
       ),
@@ -163,7 +172,20 @@ class RoleScorecard {
     final rawExpectations = r['behavioral_expectations'];
     final rawTasks = r['wp_tasks'];
     List<ResponsibilityArea> responsibilities;
-    if (rawTasks is List) {
+    // An empty wp_tasks embed is authoritative ONLY for an active card: an
+    // active card can't be edited down to zero without also clearing
+    // key_responsibilities (see saveResponsibilities), so [] there really
+    // means "deleted to zero" and must not resurrect stale JSON. An INACTIVE
+    // card has no such guarantee — every card gets wp_tasks rows now (see
+    // 20260720000002), but a pre-unification inactive/superseded card row
+    // that predates this migration, or one whose promotion is still pending,
+    // can legitimately have an empty embed with real legacy JSON still on
+    // it. Falling back there keeps payslip PDFs, dashboards, and employment
+    // contracts — which all resolve inactive cards via
+    // list(onlyActive:false)/byId() — from rendering an empty duties annex.
+    final embedIsEmptyOnInactiveCard =
+        rawTasks is List && rawTasks.isEmpty && r['is_active'] == false;
+    if (rawTasks is List && !embedIsEmptyOnInactiveCard) {
       // Authoritative source post-responsibility-unification: wp_tasks rows,
       // grouped/ordered by area_sort/task_sort (see responsibilitiesFromTaskRows).
       // The embed key is present (even as []) whenever it was requested — an

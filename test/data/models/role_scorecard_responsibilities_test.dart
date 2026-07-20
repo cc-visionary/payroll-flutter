@@ -2,7 +2,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/data/models/role_scorecard.dart';
 import 'package:payroll_flutter/features/documents/templates/employment_contract_inputs.dart';
 
-Map<String, dynamic> baseRow({Object? wpTasks, Object? keyResponsibilities}) => {
+Map<String, dynamic> baseRow({
+  Object? wpTasks,
+  Object? keyResponsibilities,
+  bool isActive = true,
+}) => {
   'id': 'card-1',
   'company_id': 'co-1',
   'job_title': 'Brand Associate',
@@ -12,7 +16,7 @@ Map<String, dynamic> baseRow({Object? wpTasks, Object? keyResponsibilities}) => 
   'wage_type': 'MONTHLY',
   'work_hours_per_day': 8,
   'work_days_per_week': 'Monday to Saturday',
-  'is_active': true,
+  'is_active': isActive,
   'effective_date': '2026-01-01',
   'wp_tasks': wpTasks,
 };
@@ -90,6 +94,26 @@ void main() {
         ],
       ));
       expect(card.responsibilities, isEmpty);
+    },
+  );
+
+  test(
+    'an empty wp_tasks embed on an INACTIVE card falls back to legacy JSON — a '
+    'superseded/deactivated card must still resolve its duties, because payslip '
+    'PDFs, dashboards and the employment contract read inactive cards via '
+    'list(onlyActive: false)/byId(); treating [] as authoritative there would '
+    'render an EMPTY Annex A duties clause with no error',
+    () {
+      final card = RoleScorecard.fromRow(baseRow(
+        isActive: false,
+        wpTasks: const [],
+        keyResponsibilities: [
+          {'area': 'Sales', 'tasks': ['Greet customers', 'Process returns']},
+        ],
+      ));
+      expect(card.responsibilities.single.area, 'Sales');
+      expect(card.responsibilities.single.tasks,
+          ['Greet customers', 'Process returns']);
     },
   );
 

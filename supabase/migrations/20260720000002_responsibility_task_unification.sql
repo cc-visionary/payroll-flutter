@@ -8,7 +8,13 @@
 
 -- Unify role-card responsibilities with wp_tasks: a responsibility IS a task.
 -- 1) ordering columns (the card PDF + contract prefill render in authored order)
--- 2) promote each active card's key_responsibilities into wp_tasks (uncosted)
+-- 2) promote EVERY card's (active or not) key_responsibilities into wp_tasks
+--    (uncosted) — an inactive/superseded card still needs its Annex A to
+--    resolve (payslip PDFs, dashboards, and employment contracts all read
+--    inactive cards via list(onlyActive: false)/byId()), and
+--    RoleScorecard.fromRow treats a present-but-empty wp_tasks embed as
+--    authoritative, so promoting only active cards would leave every
+--    inactive card's responsibilities permanently empty.
 -- 3) wp_person_load attributes hours: explicit owner -> else split across role
 --    holders -> else unattributed. Column list is UNCHANGED so Dart is unaffected.
 
@@ -20,7 +26,7 @@ alter table wp_tasks
 do $$
 declare c record; a jsonb; t jsonb; ai int; ti int;
 begin
-  for c in select id, company_id, key_responsibilities from role_scorecards where is_active loop
+  for c in select id, company_id, key_responsibilities from role_scorecards loop
     ai := 0;
     for a in select * from jsonb_array_elements(coalesce(c.key_responsibilities, '[]'::jsonb)) loop
       ti := 0;
