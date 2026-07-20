@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme.dart';
 import '../../../data/models/employee.dart';
+import '../../../data/models/role_scorecard.dart';
 import '../../../data/models/workforce_planning.dart';
 
 const _tiers = ['Transactional', 'Operational', 'Managerial', 'Strategic'];
@@ -35,13 +36,20 @@ String? validateTaskForm({
 }
 
 /// Builds the WpTask to persist from the raw form values. Pure + testable:
-/// nulls the unused times/minutes source field, preserves the read-only
-/// columns the dialog does not edit (id/companyId/externalRef/roleScorecardId/
-/// responsibilityArea/notes) from [existing].
+/// nulls the unused times/minutes source field, and preserves the columns the
+/// dialog genuinely does not edit (id/companyId/externalRef/notes) from
+/// [existing].
+///
+/// [roleScorecardId] and [responsibilityArea] ARE form-driven — a task IS a role
+/// card responsibility, so this dialog can link one to a card + area (or unlink
+/// it by passing nulls). They are not preserved from [existing]; pass the
+/// existing values through when the form didn't change them.
 WpTask buildTaskFromForm({
   WpTask? existing,
   required String companyId,
   required String name,
+  String? roleScorecardId,
+  String? responsibilityArea,
   String? nodeId,
   String? brandScope,
   String? cadence,
@@ -77,8 +85,10 @@ WpTask buildTaskFromForm({
     capability: clean(capability),
     ownerEmployeeId: ownerEmployeeId,
     externalRef: existing?.externalRef,
-    roleScorecardId: existing?.roleScorecardId,
-    responsibilityArea: existing?.responsibilityArea,
+    // An area only means something in the context of a card — clearing the card
+    // clears the area too, so a task can never carry an orphan area string.
+    roleScorecardId: roleScorecardId,
+    responsibilityArea: roleScorecardId == null ? null : clean(responsibilityArea),
     notes: existing?.notes,
   );
 }
@@ -93,6 +103,11 @@ class TaskFormDialog extends StatefulWidget {
   final List<WpDriver> drivers;
   final List<WpRate> rates;
   final List<Employee> employees;
+
+  /// Role cards, for linking this task to a card + responsibility area. A task
+  /// IS a card responsibility, so this is what makes the Tasks tab a peer of the
+  /// card editor rather than a read-mostly view.
+  final List<RoleScorecard> cards;
   const TaskFormDialog({
     super.key,
     this.existing,
@@ -101,6 +116,7 @@ class TaskFormDialog extends StatefulWidget {
     required this.drivers,
     required this.rates,
     required this.employees,
+    this.cards = const [],
   });
 
   @override
@@ -127,6 +143,17 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
   late String? _tier = widget.existing?.skillTier;
   late String? _risk = widget.existing?.risk;
   late String? _ownerId = widget.existing?.ownerEmployeeId;
+  late String? _cardId = widget.existing?.roleScorecardId;
+  late String? _area = widget.existing?.responsibilityArea;
+
+  /// The selected card's responsibility areas, in authored order.
+  List<String> get _areasForCard {
+    if (_cardId == null) return const [];
+    for (final c in widget.cards) {
+      if (c.id == _cardId) return [for (final a in c.responsibilities) a.area];
+    }
+    return const [];
+  }
   String? _error;
 
   @override
@@ -153,6 +180,8 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
       existing: widget.existing,
       companyId: widget.companyId,
       name: _name.text,
+      roleScorecardId: _cardId,
+      responsibilityArea: _area,
       nodeId: _nodeId,
       brandScope: _brand.text,
       cadence: _cadence.text,
@@ -300,6 +329,43 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
               ],
               onChanged: (v) => setState(() => _ownerId = v),
             ),
+            if (widget.cards.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text('Responsibility', style: Theme.of(context).textTheme.labelLarge),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String?>(
+                initialValue: _present(_cardId, widget.cards.map((c) => c.id)),
+                isExpanded: true,
+                decoration: _dec('Role card'),
+                items: [
+                  const DropdownMenuItem<String?>(
+                      value: null, child: Text('— Not a card responsibility —')),
+                  ...widget.cards.map((c) => DropdownMenuItem<String?>(
+                      value: c.id, child: Text(c.jobTitle))),
+                ],
+                // Areas belong to a card, so changing the card invalidates the
+                // area — clear it rather than carry a stale one across.
+                onChanged: (v) => setState(() {
+                  _cardId = v;
+                  _area = null;
+                }),
+              ),
+              if (_cardId != null) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String?>(
+                  initialValue: _present(_area, _areasForCard),
+                  isExpanded: true,
+                  decoration: _dec('Responsibility area'),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                        value: null, child: Text('— None —')),
+                    ..._areasForCard.map((a) =>
+                        DropdownMenuItem<String?>(value: a, child: Text(a))),
+                  ],
+                  onChanged: (v) => setState(() => _area = v),
+                ),
+              ],
+            ],
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12),

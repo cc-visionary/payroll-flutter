@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/status_colors.dart';
 import '../../../app/theme.dart';
 import '../../../data/models/employee.dart';
+import '../../../data/models/role_scorecard.dart';
 import '../../../data/models/workforce_planning.dart';
 import '../../../data/repositories/role_scorecard_repository.dart';
 import '../../../data/repositories/workforce_planning_repository.dart';
@@ -83,6 +84,7 @@ class TasksTab extends ConsumerWidget {
           drivers: drivers,
           rates: rates,
           employees: employees,
+          cards: cards,
           nodeNameById: nodeNameById,
           driverById: driverById,
           rateById: rateById,
@@ -107,6 +109,7 @@ class TasksTab extends ConsumerWidget {
                         drivers,
                         rates,
                         employees,
+                        cards,
                       ),
               icon: const Icon(Icons.add),
               label: const Text('New task'),
@@ -179,6 +182,7 @@ class TasksTab extends ConsumerWidget {
     required List<WpDriver> drivers,
     required List<WpRate> rates,
     required List<Employee> employees,
+    required List<RoleScorecard> cards,
     required Map<String, String> nodeNameById,
     required Map<String, WpDriver> driverById,
     required Map<String, WpRate> rateById,
@@ -218,6 +222,7 @@ class TasksTab extends ConsumerWidget {
                               drivers,
                               rates,
                               employees,
+                              cards,
                               existing: t,
                             ),
                   ),
@@ -337,7 +342,8 @@ class TasksTab extends ConsumerWidget {
     List<WpNode> nodes,
     List<WpDriver> drivers,
     List<WpRate> rates,
-    List<Employee> employees, {
+    List<Employee> employees,
+    List<RoleScorecard> cards, {
     WpTask? existing,
   }) async {
     final result = await showDialog<WpTask>(
@@ -349,6 +355,7 @@ class TasksTab extends ConsumerWidget {
         drivers: drivers,
         rates: rates,
         employees: employees,
+        cards: cards,
       ),
     );
     if (result == null) return;

@@ -41,9 +41,37 @@ void main() {
         timesSource: 'manual', minutesSource: 'manual');
     expect(t.id, 't1');
     expect(t.externalRef, 'T5');
-    expect(t.roleScorecardId, 'rs1');
-    expect(t.responsibilityArea, 'Area');
     expect(t.notes, 'keep me');
+  });
+
+  // The card link is form-driven, not carried over from `existing`: the Tasks
+  // tab now edits the same (card, area) placement the role-card editor does.
+  test('buildTaskFromForm takes the card link from the form, not from existing', () {
+    const existing = WpTask(id: 't1', companyId: 'c', name: 'old',
+        roleScorecardId: 'rs1', responsibilityArea: 'Area');
+    final moved = buildTaskFromForm(existing: existing, companyId: 'c', name: 'new',
+        timesSource: 'manual', minutesSource: 'manual',
+        roleScorecardId: 'rs2', responsibilityArea: 'Other');
+    expect(moved.roleScorecardId, 'rs2');
+    expect(moved.responsibilityArea, 'Other');
+
+    final unlinked = buildTaskFromForm(existing: existing, companyId: 'c', name: 'new',
+        timesSource: 'manual', minutesSource: 'manual');
+    expect(unlinked.roleScorecardId, isNull);
+    expect(unlinked.responsibilityArea, isNull,
+        reason: 'clearing the card must clear the area too');
+  });
+
+  test('buildTaskFromForm drops a blank area and trims a real one', () {
+    final blank = buildTaskFromForm(companyId: 'c', name: 'n',
+        timesSource: 'manual', minutesSource: 'manual',
+        roleScorecardId: 'rs1', responsibilityArea: '   ');
+    expect(blank.responsibilityArea, isNull);
+
+    final padded = buildTaskFromForm(companyId: 'c', name: 'n',
+        timesSource: 'manual', minutesSource: 'manual',
+        roleScorecardId: 'rs1', responsibilityArea: '  Area  ');
+    expect(padded.responsibilityArea, 'Area');
   });
 
   testWidgets('dialog shows the name-required error on empty Save', (tester) async {
