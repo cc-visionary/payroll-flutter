@@ -7,6 +7,7 @@ import '../../../data/repositories/workforce_planning_repository.dart';
 import '../capacity_math.dart';
 import '../org_tree_view.dart';
 import '../structure_rows.dart';
+import '../tasks_rows.dart' show AttributedTask, tasksForPerson;
 import '../wp_providers.dart';
 import 'load_chip.dart';
 import 'role_view_tab.dart' show ownerComputedProvider;
@@ -46,12 +47,19 @@ class StructureTab extends ConsumerWidget {
     final empById = {for (final e in emps) e.id: e};
     final people = [for (final e in emps) (id: e.id, parentId: e.reportsToId)];
     final loadById = {for (final l in loads) l.employeeId: l};
-    final tasksByOwner = <String, List<WpTask>>{};
-    for (final t in tasks) {
-      final owner = t.ownerEmployeeId;
-      if (owner == null) continue;
-      (tasksByOwner[owner] ??= []).add(t);
-    }
+    // Explicitly-owned tasks PLUS the unowned responsibilities on each person's
+    // role card — the same rule wp_person_load uses for the load chip rendered
+    // beside them. Filtering on ownerEmployeeId alone would show a person with
+    // a non-zero load% and no task chips at all.
+    final attributedByPerson = <String, List<AttributedTask>>{
+      for (final e in emps)
+        e.id: tasksForPerson(
+          employeeId: e.id,
+          roleScorecardId: e.roleScorecardId,
+          allTasks: tasks,
+          employees: emps,
+        ),
+    };
 
     if (people.isEmpty) {
       return const Center(child: Text('No active people to show.'));
@@ -67,13 +75,22 @@ class StructureTab extends ConsumerWidget {
             : LoadStatusChip(status: loadStatus(personLoad(l, multiplier: mult)));
       },
       expandedExtras: (emp) => [
-        for (final t in tasksByOwner[emp.id] ?? const <WpTask>[])
-          Draggable<_TaskPayload>(
-            data: _TaskPayload(t.id),
-            feedback: Material(color: Colors.transparent, child: Chip(label: Text(t.name))),
-            childWhenDragging: Opacity(opacity: 0.4, child: Chip(label: Text(t.name))),
-            child: Chip(label: Text(t.name)),
-          ),
+        for (final a in attributedByPerson[emp.id] ?? const <AttributedTask>[])
+          Builder(builder: (_) {
+            // Derived chips are marked so it's clear the task reaches this
+            // person through their role card rather than an explicit owner.
+            // Dragging one is still meaningful — it pins the task to whoever
+            // it's dropped on, converting derived into explicit ownership.
+            final label = a.derived ? '${a.task.name} · role' : a.task.name;
+            return Draggable<_TaskPayload>(
+              data: _TaskPayload(a.task.id),
+              feedback: Material(
+                  color: Colors.transparent, child: Chip(label: Text(label))),
+              childWhenDragging:
+                  Opacity(opacity: 0.4, child: Chip(label: Text(label))),
+              child: Chip(label: Text(label)),
+            );
+          }),
       ],
       nodeWrapper: (emp, row) => DragTarget<Object>(
         onAcceptWithDetails: (d) => _onDrop(ref, context, d.data, emp.id, people),

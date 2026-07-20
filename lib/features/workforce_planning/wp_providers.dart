@@ -22,6 +22,12 @@ final wpRatesProvider = FutureProvider<List<WpRate>>(
 final wpConfigProvider = FutureProvider<WpConfig?>(
     (ref) => ref.watch(workforcePlanningRepositoryProvider).config());
 
+/// All computed task rows (hours per task). Used where DERIVED tasks must be
+/// priced too — `ownerComputedProvider` can't serve them, it filters on
+/// `owner_employee_id` server-side.
+final wpAllTaskComputedProvider = FutureProvider<List<WpTaskComputed>>(
+    (ref) => ref.watch(workforcePlanningRepositoryProvider).allTaskComputed());
+
 final wpTasksProvider = FutureProvider<List<WpTask>>(
     (ref) => ref.watch(workforcePlanningRepositoryProvider).tasks());
 

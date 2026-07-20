@@ -9,6 +9,7 @@ import '../../../data/repositories/workforce_planning_repository.dart';
 import '../../../widgets/responsive_table.dart';
 import '../capacity_math.dart';
 import '../role_view_rows.dart';
+import '../tasks_rows.dart' show tasksForPerson;
 import '../wp_providers.dart';
 import 'load_chip.dart';
 
@@ -61,8 +62,24 @@ class _RoleViewTabState extends ConsumerState<RoleViewTab> {
     final selected = employees.firstWhere((e) => e.id == selectedId);
 
     final nodeNameById = {for (final n in nodesAsync.asData!.value) n.id: n.name};
-    final ownerTasks =
-        tasksAsync.asData!.value.where((t) => t.ownerEmployeeId == selected.id).toList();
+    // Explicitly-owned tasks PLUS the unowned responsibilities on this person's
+    // role card (split across its ACTIVE holders) — the same rule wp_person_load
+    // uses. Filtering on ownerEmployeeId alone would show "No owned tasks."
+    // directly beneath a non-zero load%.
+    final attributed = tasksForPerson(
+      employeeId: selected.id,
+      roleScorecardId: selected.roleScorecardId,
+      allTasks: tasksAsync.asData!.value,
+      employees: employees,
+    );
+    final ownerTasks = [for (final a in attributed) a.task];
+    final holderCountByTaskId = {
+      for (final a in attributed) a.task.id: a.holderCount,
+    };
+    final derivedTaskIds = {
+      for (final a in attributed)
+        if (a.derived) a.task.id,
+    };
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -75,7 +92,8 @@ class _RoleViewTabState extends ConsumerState<RoleViewTab> {
           const SizedBox(height: 24),
           Text('Owned tasks', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
-          _tasksSection(context, ownerTasks, nodeNameById, multiplier, selected.id),
+          _tasksSection(context, ownerTasks, nodeNameById, multiplier,
+              holderCountByTaskId, derivedTaskIds),
           const SizedBox(height: 24),
           Text('KPIs', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
@@ -120,9 +138,16 @@ class _RoleViewTabState extends ConsumerState<RoleViewTab> {
     );
   }
 
-  Widget _tasksSection(BuildContext context, List<WpTask> ownerTasks,
-      Map<String, String> nodeNameById, double multiplier, String employeeId) {
-    final computedAsync = ref.watch(ownerComputedProvider(employeeId));
+  Widget _tasksSection(
+      BuildContext context,
+      List<WpTask> ownerTasks,
+      Map<String, String> nodeNameById,
+      double multiplier,
+      Map<String, int> holderCountByTaskId,
+      Set<String> derivedTaskIds) {
+    // All computed rows, not just this owner's — derived tasks have no
+    // owner_employee_id, so ownerComputedProvider would omit their hours.
+    final computedAsync = ref.watch(wpAllTaskComputedProvider);
     if (computedAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -135,6 +160,8 @@ class _RoleViewTabState extends ConsumerState<RoleViewTab> {
       computedById: computedById,
       nodeNameById: nodeNameById,
       multiplier: multiplier,
+      holderCountByTaskId: holderCountByTaskId,
+      derivedTaskIds: derivedTaskIds,
     );
     final tierHours = hoursByTier(rows);
 

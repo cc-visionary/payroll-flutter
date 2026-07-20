@@ -575,6 +575,13 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                               children: [
                                 Expanded(
                                   child: TextFormField(
+                                    // Keyed by draft identity, not list position.
+                                    // Unkeyed fields are matched positionally, so
+                                    // removing an area (or the resync after a failed
+                                    // save) would leave the OLD text on screen while
+                                    // the drafts hold different values — and an edit
+                                    // could then be written to the wrong wp_tasks row.
+                                    key: ValueKey(identityHashCode(_areas[i])),
                                     initialValue: _areas[i].area,
                                     decoration: const InputDecoration(
                                       labelText: 'Area',
@@ -601,6 +608,12 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                                   children: [
                                     Expanded(
                                       child: TextFormField(
+                                        // Keyed by row id (or draft identity for a
+                                        // not-yet-saved line) so the field follows
+                                        // its responsibility, not its index — see
+                                        // the note on the Area field above.
+                                        key: ValueKey(_areas[i].tasks[j].id ??
+                                            identityHashCode(_areas[i].tasks[j])),
                                         initialValue: _areas[i].tasks[j].name,
                                         decoration: const InputDecoration(
                                           labelText: 'Task',

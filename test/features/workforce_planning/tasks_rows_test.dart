@@ -376,4 +376,74 @@ void main() {
       expect(ids, ['ta', 'tz']);
     });
   });
+
+  group('tasksForPerson (mirrors wp_person_load attribution)', () {
+    const explicit = WpTask(
+        id: 'x1', companyId: 'c', name: 'Explicit', ownerEmployeeId: 'e1');
+    const onCard = WpTask(
+        id: 'd1', companyId: 'c', name: 'Derived', roleScorecardId: 'card1');
+    const otherCard = WpTask(
+        id: 'o1', companyId: 'c', name: 'Other', roleScorecardId: 'card2');
+
+    test('includes explicitly-owned tasks, wholly (holderCount 1)', () {
+      final out = tasksForPerson(
+        employeeId: 'e1',
+        roleScorecardId: 'card1',
+        allTasks: const [explicit],
+        employees: [_emp('e1', 'A', 'One', roleScorecardId: 'card1')],
+      );
+      expect(out.single.task.id, 'x1');
+      expect(out.single.derived, isFalse);
+      expect(out.single.holderCount, 1);
+    });
+
+    test('includes UNOWNED tasks on the person\'s card, split across holders', () {
+      final out = tasksForPerson(
+        employeeId: 'e1',
+        roleScorecardId: 'card1',
+        allTasks: const [onCard],
+        employees: [
+          _emp('e1', 'A', 'One', roleScorecardId: 'card1'),
+          _emp('e2', 'B', 'Two', roleScorecardId: 'card1'),
+        ],
+      );
+      expect(out.single.task.id, 'd1');
+      expect(out.single.derived, isTrue);
+      expect(out.single.holderCount, 2); // each carries half
+    });
+
+    test('a separated holder does not dilute the split (ACTIVE only)', () {
+      final out = tasksForPerson(
+        employeeId: 'e1',
+        roleScorecardId: 'card1',
+        allTasks: const [onCard],
+        employees: [
+          _emp('e1', 'A', 'One', roleScorecardId: 'card1'),
+          _emp('e2', 'B', 'Two',
+              roleScorecardId: 'card1', employmentStatus: 'TERMINATED'),
+        ],
+      );
+      expect(out.single.holderCount, 1);
+    });
+
+    test('excludes unowned tasks belonging to a different card', () {
+      final out = tasksForPerson(
+        employeeId: 'e1',
+        roleScorecardId: 'card1',
+        allTasks: const [otherCard],
+        employees: [_emp('e1', 'A', 'One', roleScorecardId: 'card1')],
+      );
+      expect(out, isEmpty);
+    });
+
+    test('a person with no role card gets only their explicit tasks', () {
+      final out = tasksForPerson(
+        employeeId: 'e1',
+        roleScorecardId: null,
+        allTasks: const [explicit, onCard],
+        employees: [_emp('e1', 'A', 'One')],
+      );
+      expect(out.map((a) => a.task.id), ['x1']);
+    });
+  });
 }

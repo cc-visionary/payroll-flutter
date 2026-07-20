@@ -9,6 +9,7 @@ import '../../../data/repositories/role_scorecard_repository.dart';
 import '../../../data/repositories/workforce_planning_repository.dart';
 import '../../../widgets/responsive_table.dart';
 import '../../auth/profile_provider.dart';
+import '../../documents/providers.dart' show roleScorecardByIdProvider;
 import '../tasks_rows.dart';
 import '../wp_providers.dart';
 import 'role_view_tab.dart' show ownerComputedProvider;
@@ -269,6 +270,21 @@ class TasksTab extends ConsumerWidget {
     );
   }
 
+  /// Refreshes the workforce views AND the role-card views. A card-linked task
+  /// IS a role-card responsibility now, so renaming or deleting one here also
+  /// changes that card's detail screen, its PDF, and future contract prefills —
+  /// without these invalidations they'd keep showing the old wording until an
+  /// app restart. (The card editor already invalidates in the other direction.)
+  void _invalidateAfterTaskChange(WidgetRef ref, Iterable<String?> cardIds) {
+    ref.invalidate(wpTasksProvider);
+    ref.invalidate(wpPersonLoadsProvider);
+    ref.invalidate(ownerComputedProvider);
+    ref.invalidate(roleScorecardListProvider);
+    for (final id in cardIds.whereType<String>().toSet()) {
+      ref.invalidate(roleScorecardByIdProvider(id));
+    }
+  }
+
   Future<void> _confirmBulkDeleteLegacy(
     BuildContext context,
     WidgetRef ref,
@@ -310,9 +326,8 @@ class TasksTab extends ConsumerWidget {
       );
       return;
     }
-    ref.invalidate(wpTasksProvider);
-    ref.invalidate(wpPersonLoadsProvider);
-    ref.invalidate(ownerComputedProvider);
+    // Legacy bucket rows have no role_scorecard_id, so no card to refresh.
+    _invalidateAfterTaskChange(ref, const []);
   }
 
   Future<void> _openForm(
@@ -346,9 +361,12 @@ class TasksTab extends ConsumerWidget {
       );
       return;
     }
-    ref.invalidate(wpTasksProvider);
-    ref.invalidate(wpPersonLoadsProvider);
-    ref.invalidate(ownerComputedProvider);
+    // Both cards: an edit can move a task from one card to another, and the
+    // card it LEFT needs refreshing just as much as the one it joined.
+    _invalidateAfterTaskChange(
+      ref,
+      [result.roleScorecardId, existing?.roleScorecardId],
+    );
   }
 
   Future<void> _confirmDelete(
@@ -389,8 +407,6 @@ class TasksTab extends ConsumerWidget {
       );
       return;
     }
-    ref.invalidate(wpTasksProvider);
-    ref.invalidate(wpPersonLoadsProvider);
-    ref.invalidate(ownerComputedProvider);
+    _invalidateAfterTaskChange(ref, [task.roleScorecardId]);
   }
 }

@@ -43,6 +43,15 @@ class WorkforcePlanningRepository {
     return rows.cast<Map<String, dynamic>>().map(WpTaskComputed.fromRow).toList();
   }
 
+  /// Every computed task row. Needed because a person's task list now includes
+  /// DERIVED tasks (unowned rows on their role card), which
+  /// `taskComputedForOwner` cannot return — it filters on `owner_employee_id`
+  /// server-side.
+  Future<List<WpTaskComputed>> allTaskComputed() async {
+    final rows = await _client.from('wp_task_computed').select();
+    return rows.cast<Map<String, dynamic>>().map(WpTaskComputed.fromRow).toList();
+  }
+
   Future<void> saveTask(WpTask task) async {
     final payload = task.toUpsert(task.companyId);
     if (task.id.isEmpty) {
