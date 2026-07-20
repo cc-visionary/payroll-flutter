@@ -38,7 +38,6 @@ import '../features/hiring/applicant_detail_screen.dart';
 import '../features/hiring/listing_form_screen.dart';
 import '../features/hiring/listing_detail_screen.dart';
 import '../features/kpi_library/kpi_library_screen.dart';
-import '../features/org_chart/org_chart_screen.dart';
 import '../features/performance/performance_screen.dart';
 import '../features/performance/performance_check_in_screen.dart';
 import '../features/performance/employee_review_detail_screen.dart';
@@ -249,10 +248,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/hiring/:id/edit',
             builder: (c, s) =>
                 ApplicantFormScreen(applicantId: s.pathParameters['id']),
-          ),
-          GoRoute(
-            path: '/org-chart',
-            builder: (c, s) => const OrgChartScreen(),
           ),
           GoRoute(
             path: '/workforce-planning',
