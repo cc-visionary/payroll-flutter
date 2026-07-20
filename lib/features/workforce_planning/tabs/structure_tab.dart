@@ -5,17 +5,17 @@ import '../../../data/models/workforce_planning.dart';
 import '../../../data/repositories/employee_repository.dart';
 import '../../../data/repositories/workforce_planning_repository.dart';
 import '../capacity_math.dart';
-import '../org_tree_view.dart';
+import '../org_chart_view.dart';
 import '../structure_rows.dart';
 import '../tasks_rows.dart' show AttributedTask, tasksForPerson;
 import '../wp_providers.dart';
 import 'load_chip.dart';
 import 'role_view_tab.dart' show ownerComputedProvider;
 
-/// Draggable version of the shared [OrgTreeView]: a load chip per person,
-/// task chips under each expanded node, and two drag/drop interactions —
-/// dragging a task chip onto a person reassigns its owner, dragging a person
-/// row onto another re-parents the reporting line (guarded against
+/// Draggable version of the shared [OrgChartView]: a load chip per person,
+/// task chips in a panel under each opened box, and two drag/drop interactions
+/// — dragging a task chip onto a person reassigns its owner, dragging a person
+/// box onto another re-parents the reporting line (guarded against
 /// self/cycles by [reportingDropError]).
 class StructureTab extends ConsumerWidget {
   const StructureTab({super.key});
@@ -29,7 +29,7 @@ class StructureTab extends ConsumerWidget {
 
     // Use .value (nullable, not isLoading) so a post-drop ref.invalidate —
     // which puts the watched provider back into AsyncLoading — doesn't
-    // unmount OrgTreeView and lose its _expanded state. Riverpod retains the
+    // unmount OrgChartView and lose its collapse state. Riverpod retains the
     // previous value across a reload, so only the very first load (no value
     // yet) shows a spinner; loads/tasks fall back to empty for the brief
     // refetch window.
@@ -65,7 +65,7 @@ class StructureTab extends ConsumerWidget {
       return const Center(child: Text('No active people to show.'));
     }
 
-    return OrgTreeView(
+    return OrgChartView(
       people: people,
       empById: empById,
       trailing: (emp) {
