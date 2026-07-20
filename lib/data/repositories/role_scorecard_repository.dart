@@ -67,7 +67,8 @@ class RoleScorecardRepository {
     var q = _client
         .from('role_scorecards')
         .select(
-          '*, role_scorecard_kpis(target, frequency, sort_order, kpis(name, measurement_unit))',
+          '*, role_scorecard_kpis(target, frequency, sort_order, kpis(name, measurement_unit)), '
+          'wp_tasks(id, name, responsibility_area, area_sort, task_sort)',
         );
     if (onlyActive) q = q.eq('is_active', true);
     final rows = await q.order('job_title');
@@ -78,7 +79,8 @@ class RoleScorecardRepository {
     final row = await _client
         .from('role_scorecards')
         .select(
-          '*, role_scorecard_kpis(target, frequency, sort_order, kpis(name, measurement_unit))',
+          '*, role_scorecard_kpis(target, frequency, sort_order, kpis(name, measurement_unit)), '
+          'wp_tasks(id, name, responsibility_area, area_sort, task_sort)',
         )
         .eq('id', id)
         .maybeSingle();
@@ -294,6 +296,22 @@ class RoleScorecardRepository {
             'sort_order': i,
           },
       ], onConflict: 'role_scorecard_id,kpi_id');
+    }
+  }
+
+  /// Applies a responsibility diff (see diffResponsibilities) for one card.
+  Future<void> saveResponsibilities({
+    required List<Map<String, dynamic>> inserts,
+    required List<Map<String, dynamic>> updates,
+    required List<String> deleteIds,
+  }) async {
+    if (inserts.isNotEmpty) await _client.from('wp_tasks').insert(inserts);
+    for (final u in updates) {
+      final id = u.remove('id') as String;
+      await _client.from('wp_tasks').update(u).eq('id', id);
+    }
+    if (deleteIds.isNotEmpty) {
+      await _client.from('wp_tasks').delete().inFilter('id', deleteIds);
     }
   }
 

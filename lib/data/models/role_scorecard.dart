@@ -1,5 +1,7 @@
 import 'package:decimal/decimal.dart';
 
+import '../../features/responsibility_cards/responsibility_rows.dart';
+
 class ResponsibilityArea {
   final String area;
   final List<String> tasks;
@@ -129,8 +131,16 @@ class RoleScorecard {
     final rawKpis = r['kpis'];
     final rawSkills = r['required_skills'];
     final rawExpectations = r['behavioral_expectations'];
+    final rawTasks = r['wp_tasks'];
     List<ResponsibilityArea> responsibilities;
-    if (rawResp is List) {
+    if (rawTasks is List && rawTasks.isNotEmpty) {
+      // Authoritative source post-responsibility-unification: wp_tasks rows,
+      // grouped/ordered by area_sort/task_sort (see responsibilitiesFromTaskRows).
+      responsibilities =
+          responsibilitiesFromTaskRows(rawTasks.cast<Map<String, dynamic>>());
+    } else if (rawResp is List) {
+      // Legacy fallback: the JSON column, for pre-unification rows or any
+      // select that doesn't embed wp_tasks.
       responsibilities = rawResp
           .cast<Map<String, dynamic>>()
           .map(ResponsibilityArea.fromJson)
@@ -214,7 +224,10 @@ class RoleScorecard {
     'job_title': jobTitle,
     'department_id': departmentId,
     'mission_statement': missionStatement,
-    'key_responsibilities': responsibilities.map((r) => r.toJson()).toList(),
+    // Responsibilities now live in wp_tasks (see 20260720000002). The column is
+    // NOT NULL and kept read-only for rollback — write [] to satisfy it on
+    // INSERT; omitting the key raises 23502.
+    'key_responsibilities': const [],
     // The kpis JSON column is NOT NULL and kept as read-only legacy (KPIs now
     // live in role_scorecard_kpis). Write an empty array to satisfy the
     // constraint on INSERT; it is never read for display.
