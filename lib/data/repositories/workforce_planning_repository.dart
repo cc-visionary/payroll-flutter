@@ -64,6 +64,27 @@ class WorkforcePlanningRepository {
   Future<void> deleteTask(String id) async =>
       _client.from('wp_tasks').delete().eq('id', id);
 
+  /// Writes only the costing columns for a batch of tasks (the Tasks tab's bulk
+  /// grid). Deliberately NOT a full `toUpsert` — that would round-trip every
+  /// other column and let a stale in-memory row clobber a concurrent edit to,
+  /// say, the owner or the responsibility area.
+  ///
+  /// Applied one row at a time and reported per row: PostgREST has no
+  /// multi-row-different-values update, and a partial failure must leave the
+  /// successful rows saved rather than silently rolling the batch back.
+  /// Returns the ids that failed, so the caller can keep them dirty.
+  Future<List<String>> updateTaskCosts(Map<String, Map<String, dynamic>> byId) async {
+    final failed = <String>[];
+    for (final entry in byId.entries) {
+      try {
+        await _client.from('wp_tasks').update(entry.value).eq('id', entry.key);
+      } catch (_) {
+        failed.add(entry.key);
+      }
+    }
+    return failed;
+  }
+
   Future<void> reassignTaskOwner(String taskId, String? ownerEmployeeId) async =>
       _client.from('wp_tasks').update({'owner_employee_id': ownerEmployeeId}).eq('id', taskId);
 

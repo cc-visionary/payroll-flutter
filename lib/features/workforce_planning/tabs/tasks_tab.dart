@@ -11,6 +11,7 @@ import '../../../data/repositories/workforce_planning_repository.dart';
 import '../../../widgets/responsive_table.dart';
 import '../../auth/profile_provider.dart';
 import '../../documents/providers.dart' show roleScorecardByIdProvider;
+import '../task_costing.dart';
 import '../tasks_rows.dart';
 import '../wp_providers.dart';
 import 'role_view_tab.dart' show ownerComputedProvider;
@@ -28,11 +29,39 @@ import 'task_form_dialog.dart';
 /// "From capacity model" bucket for legacy imports, and an "Unattributed"
 /// bucket that is the true complement of the first two — never just "no
 /// owner" — so a task is never silently dropped from the inventory.
-class TasksTab extends ConsumerWidget {
+class TasksTab extends ConsumerStatefulWidget {
   const TasksTab({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TasksTab> createState() => _TasksTabState();
+}
+
+class _TasksTabState extends ConsumerState<TasksTab> {
+  /// Bulk-costing mode: rows become editable so a long uncosted backlog can be
+  /// filled in one pass instead of one dialog at a time.
+  bool _costMode = false;
+
+  /// Edited-but-unsaved costing per task id. Only rows the user actually
+  /// touched appear here; a row equal to its task is dropped so "N changes"
+  /// never counts a no-op edit.
+  final Map<String, CostDraft> _drafts = {};
+
+  bool _saving = false;
+
+  CostDraft _draftFor(WpTask t) => _drafts[t.id] ?? CostDraft.fromTask(t);
+
+  void _edit(WpTask t, CostDraft next) {
+    setState(() {
+      if (next == CostDraft.fromTask(t)) {
+        _drafts.remove(t.id);
+      } else {
+        _drafts[t.id] = next;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final tasksAsync = ref.watch(wpTasksProvider);
     final nodesAsync = ref.watch(wpNodesProvider);
     final driversAsync = ref.watch(wpDriversProvider);
@@ -75,46 +104,41 @@ class TasksTab extends ConsumerWidget {
     };
     final groups = groupTasks(tasks, cards);
 
-    Widget table(List<WpTask> rows) => _taskTable(
-          context,
-          ref,
-          rows,
-          companyId: companyId,
-          nodes: nodes,
-          drivers: drivers,
-          rates: rates,
-          employees: employees,
-          cards: cards,
-          nodeNameById: nodeNameById,
-          driverById: driverById,
-          rateById: rateById,
-          employeeNameById: employeeNameById,
-        );
+    Widget table(List<WpTask> rows) => _costMode
+        ? _costTable(
+            context,
+            rows,
+            nodes: nodes,
+            drivers: drivers,
+            rates: rates,
+            driverById: driverById,
+            rateById: rateById,
+          )
+        : _taskTable(
+            context,
+            ref,
+            rows,
+            companyId: companyId,
+            nodes: nodes,
+            drivers: drivers,
+            rates: rates,
+            employees: employees,
+            cards: cards,
+            nodeNameById: nodeNameById,
+            driverById: driverById,
+            rateById: rateById,
+            employeeNameById: employeeNameById,
+          );
+
+    final uncosted = tasks.where(isTaskNotCosted).length;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Align(
-            alignment: Alignment.topRight,
-            child: FilledButton.icon(
-              onPressed: companyId == null
-                  ? null
-                  : () => _openForm(
-                        context,
-                        ref,
-                        companyId,
-                        nodes,
-                        drivers,
-                        rates,
-                        employees,
-                        cards,
-                      ),
-              icon: const Icon(Icons.add),
-              label: const Text('New task'),
-            ),
-          ),
+          _header(context, tasks, uncosted, companyId, nodes, drivers, rates,
+              employees, cards),
           const SizedBox(height: 16),
           if (tasks.isEmpty)
             const Text('No tasks yet. Click "New task".')
@@ -172,6 +196,348 @@ class TasksTab extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _header(
+    BuildContext context,
+    List<WpTask> tasks,
+    int uncosted,
+    String? companyId,
+    List<WpNode> nodes,
+    List<WpDriver> drivers,
+    List<WpRate> rates,
+    List<Employee> employees,
+    List<RoleScorecard> cards,
+  ) {
+    final cs = Theme.of(context).colorScheme;
+    if (_costMode) {
+      final n = _drafts.length;
+      return Row(
+        children: [
+          Expanded(
+            child: Text(
+              n == 0
+                  ? 'Costing — edit the cells, then save.'
+                  : '$n unsaved ${n == 1 ? 'change' : 'changes'}',
+              style: TextStyle(color: n == 0 ? cs.onSurfaceVariant : cs.primary),
+            ),
+          ),
+          TextButton(
+            onPressed: _saving ? null : _exitCostMode,
+            child: const Text('Cancel'),
+          ),
+          const SizedBox(width: 8),
+          FilledButton.icon(
+            onPressed: (_saving || n == 0) ? null : () => _saveCosts(tasks),
+            icon: _saving
+                ? const SizedBox(
+                    width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.save_outlined),
+            label: Text(_saving ? 'Saving…' : (n == 0 ? 'Save' : 'Save $n')),
+          ),
+        ],
+      );
+    }
+    return Row(
+      children: [
+        if (uncosted > 0)
+          Expanded(
+            child: Text(
+              '$uncosted of ${tasks.length} tasks are not costed — they contribute 0 hours to load.',
+              style: TextStyle(color: cs.onSurfaceVariant),
+            ),
+          )
+        else
+          const Spacer(),
+        OutlinedButton.icon(
+          onPressed: () => setState(() => _costMode = true),
+          icon: const Icon(Icons.calculate_outlined),
+          label: const Text('Cost tasks'),
+        ),
+        const SizedBox(width: 8),
+        FilledButton.icon(
+          onPressed: companyId == null
+              ? null
+              : () => _openForm(
+                    context, ref, companyId, nodes, drivers, rates, employees, cards),
+          icon: const Icon(Icons.add),
+          label: const Text('New task'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _exitCostMode() async {
+    if (_drafts.isNotEmpty) {
+      final discard = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Discard changes?'),
+          content: Text(
+              '${_drafts.length} edited ${_drafts.length == 1 ? 'row has' : 'rows have'} not been saved.'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep editing')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true), child: const Text('Discard')),
+          ],
+        ),
+      );
+      if (discard != true) return;
+    }
+    setState(() {
+      _drafts.clear();
+      _costMode = false;
+    });
+  }
+
+  Future<void> _saveCosts(List<WpTask> tasks) async {
+    final byId = {for (final t in tasks) t.id: t};
+    final patches = <String, Map<String, dynamic>>{
+      for (final e in _drafts.entries)
+        if (byId.containsKey(e.key)) e.key: draftPatch(e.value),
+    };
+    setState(() => _saving = true);
+    List<String> failed;
+    try {
+      failed = await ref.read(workforcePlanningRepositoryProvider).updateTaskCosts(patches);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Could not save: $e')));
+      return;
+    }
+    if (!mounted) return;
+    // Keep only the rows that failed still dirty, so a retry re-sends exactly
+    // those and the user can see which ones did not land.
+    setState(() {
+      _saving = false;
+      _drafts.removeWhere((id, _) => !failed.contains(id));
+    });
+    _invalidateAfterTaskChange(ref, patches.keys.map((id) => byId[id]?.roleScorecardId));
+    final saved = patches.length - failed.length;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(failed.isEmpty
+          ? 'Saved $saved ${saved == 1 ? 'task' : 'tasks'}.'
+          : 'Saved $saved, ${failed.length} failed — the failed rows are still highlighted.'),
+    ));
+  }
+
+  /// Bulk costing grid. Times and minutes each have a source picker (manual, or
+  /// a driver/rate) plus a value cell, and hours recompute live using the same
+  /// formula as `wp_task_computed` so the number here matches what the Balance
+  /// tab will show after saving.
+  Widget _costTable(
+    BuildContext context,
+    List<WpTask> rows, {
+    required List<WpNode> nodes,
+    required List<WpDriver> drivers,
+    required List<WpRate> rates,
+    required Map<String, WpDriver> driverById,
+    required Map<String, WpRate> rateById,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    return ResponsiveTable(
+      child: DataTable(
+        columnSpacing: 16,
+        columns: const [
+          DataColumn(label: Text('Task')),
+          DataColumn(label: Text('Node')),
+          DataColumn(label: Text('Times/mo')),
+          DataColumn(label: Text('Minutes each')),
+          DataColumn(label: Text('Hours/mo')),
+        ],
+        rows: [
+          for (final t in rows)
+            DataRow(
+              color: _drafts.containsKey(t.id)
+                  ? WidgetStatePropertyAll(cs.primaryContainer.withValues(alpha: 0.25))
+                  : null,
+              cells: [
+                DataCell(ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 340),
+                  child: Text(t.name, overflow: TextOverflow.ellipsis),
+                )),
+                DataCell(_nodeCell(t, nodes)),
+                DataCell(_timesCell(t, drivers, driverById)),
+                DataCell(_minutesCell(t, rates, rateById)),
+                DataCell(_costedHoursCell(context, t, driverById, rateById)),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _nodeCell(WpTask t, List<WpNode> nodes) {
+    final d = _draftFor(t);
+    return SizedBox(
+      width: 170,
+      child: DropdownButton<String?>(
+        isExpanded: true,
+        value: nodes.any((n) => n.id == d.nodeId) ? d.nodeId : null,
+        hint: const Text('—'),
+        underline: const SizedBox.shrink(),
+        items: [
+          const DropdownMenuItem<String?>(value: null, child: Text('—')),
+          for (final n in nodes)
+            DropdownMenuItem<String?>(value: n.id, child: Text(n.name, overflow: TextOverflow.ellipsis)),
+        ],
+        onChanged: (v) => _edit(t, v == null ? d.copyWith(clearNodeId: true) : d.copyWith(nodeId: v)),
+      ),
+    );
+  }
+
+  Widget _timesCell(WpTask t, List<WpDriver> drivers, Map<String, WpDriver> driverById) {
+    final d = _draftFor(t);
+    final isDriver = d.timesSource == 'driver';
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 190,
+          child: DropdownButton<String>(
+            isExpanded: true,
+            value: isDriver && driverById.containsKey(d.driverId) ? d.driverId! : 'manual',
+            underline: const SizedBox.shrink(),
+            items: [
+              const DropdownMenuItem(value: 'manual', child: Text('Manual')),
+              for (final dr in drivers)
+                DropdownMenuItem(
+                  value: dr.id,
+                  child: Text(
+                    dr.grows ? '${dr.name} ↗' : dr.name,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+            onChanged: (v) => _edit(
+              t,
+              v == 'manual'
+                  ? d.copyWith(timesSource: 'manual', clearDriverId: true)
+                  : d.copyWith(timesSource: 'driver', driverId: v, driverFactor: d.driverFactor),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        SizedBox(
+          width: 66,
+          child: TextFormField(
+            // The source is part of the key: switching manual<->driver changes
+            // what this field means (a count vs a factor), and without it the
+            // field would keep showing the previous number while editing the
+            // other column.
+            key: ValueKey('times-${t.id}-${isDriver ? 'driver' : 'manual'}'),
+            initialValue: isDriver
+                ? _num(d.driverFactor)
+                : (d.timesManual == null ? '' : _num(d.timesManual!)),
+            decoration: InputDecoration(
+              isDense: true,
+              labelText: isDriver ? '×' : null,
+              hintText: isDriver ? '1' : '0',
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (raw) {
+              final v = parseCostField(raw);
+              _edit(
+                t,
+                isDriver
+                    ? d.copyWith(driverFactor: v ?? 1)
+                    : (v == null
+                        ? d.copyWith(clearTimesManual: true)
+                        : d.copyWith(timesManual: v)),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _minutesCell(WpTask t, List<WpRate> rates, Map<String, WpRate> rateById) {
+    final d = _draftFor(t);
+    final isRate = d.minutesSource == 'rate';
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          width: 190,
+          child: DropdownButton<String>(
+            isExpanded: true,
+            value: isRate && rateById.containsKey(d.rateId) ? d.rateId! : 'manual',
+            underline: const SizedBox.shrink(),
+            items: [
+              const DropdownMenuItem(value: 'manual', child: Text('Manual')),
+              for (final r in rates)
+                DropdownMenuItem(value: r.id, child: Text(r.name, overflow: TextOverflow.ellipsis)),
+            ],
+            onChanged: (v) => _edit(
+              t,
+              v == 'manual'
+                  ? d.copyWith(minutesSource: 'manual', clearRateId: true)
+                  : d.copyWith(minutesSource: 'rate', rateId: v),
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        SizedBox(
+          width: 66,
+          // A rate defines its own minutes, so the cell is read-only there —
+          // showing an editable field would imply an override that the schema
+          // does not have.
+          child: isRate
+              ? Text(
+                  _num(rateById[d.rateId]?.minutesEach ?? 0),
+                  style: AppTheme.mono(context),
+                )
+              : TextFormField(
+                  key: ValueKey('mins-${t.id}-manual'),
+                  initialValue: d.minutesManual == null ? '' : _num(d.minutesManual!),
+                  decoration: const InputDecoration(isDense: true, hintText: '0'),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (raw) {
+                    final v = parseCostField(raw);
+                    _edit(
+                      t,
+                      v == null
+                          ? d.copyWith(clearMinutesManual: true)
+                          : d.copyWith(minutesManual: v),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _costedHoursCell(
+    BuildContext context,
+    WpTask t,
+    Map<String, WpDriver> driverById,
+    Map<String, WpRate> rateById,
+  ) {
+    final d = _draftFor(t);
+    if (!draftIsCosted(d, driverById, rateById)) {
+      return const StatusChip(label: 'Not costed', tone: StatusTone.neutral);
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          draftHoursPerMonth(d, driverById, rateById).toStringAsFixed(1),
+          style: AppTheme.mono(context),
+        ),
+        if (draftIsGrowing(d, driverById)) ...[
+          const SizedBox(width: 6),
+          const StatusChip(label: 'Scales', tone: StatusTone.info),
+        ],
+      ],
+    );
+  }
+
+  /// Trims a trailing `.0` so whole numbers read as "20" not "20.0" in inputs.
+  static String _num(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
 
   Widget _taskTable(
     BuildContext context,
