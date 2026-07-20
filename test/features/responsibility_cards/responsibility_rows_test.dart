@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:payroll_flutter/data/models/role_scorecard.dart';
 import 'package:payroll_flutter/features/responsibility_cards/responsibility_rows.dart';
 
 void main() {

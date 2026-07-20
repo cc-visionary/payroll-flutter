@@ -77,15 +77,21 @@ void main() {
     expect(card.responsibilities.single.tasks, ['Greet customers', 'Process returns']);
   });
 
-  test('falls back to the legacy JSON when wp_tasks is an empty list', () {
-    final card = RoleScorecard.fromRow(baseRow(
-      wpTasks: const [],
-      keyResponsibilities: [
-        {'area': 'Sales', 'tasks': ['Greet customers']},
-      ],
-    ));
-    expect(card.responsibilities.single.area, 'Sales');
-  });
+  test(
+    'an empty wp_tasks embed is authoritative — does NOT fall back to stale '
+    'legacy JSON (PostgREST returns [] for a requested-but-empty embed, not a '
+    'missing key; a card whose responsibilities were all deleted must show [], '
+    'not resurrect the old JSON)',
+    () {
+      final card = RoleScorecard.fromRow(baseRow(
+        wpTasks: const [],
+        keyResponsibilities: [
+          {'area': 'Sales', 'tasks': ['Greet customers']},
+        ],
+      ));
+      expect(card.responsibilities, isEmpty);
+    },
+  );
 
   test('toUpsertPayload writes key_responsibilities as an empty array (NOT NULL, read-only)', () {
     final card = RoleScorecard.fromRow(baseRow(

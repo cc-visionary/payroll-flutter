@@ -1,7 +1,5 @@
 import 'package:decimal/decimal.dart';
 
-import '../../features/responsibility_cards/responsibility_rows.dart';
-
 class ResponsibilityArea {
   final String area;
   final List<String> tasks;
@@ -18,6 +16,38 @@ class ResponsibilityArea {
                 .toList(),
       );
   Map<String, dynamic> toJson() => {'area': area, 'tasks': tasks};
+}
+
+/// Rebuilds a card's ordered responsibility tree from its wp_tasks rows.
+/// Areas order by their smallest `area_sort` (ties by name); tasks by `task_sort`.
+/// Rows with no area or no name are not card responsibilities and are skipped.
+List<ResponsibilityArea> responsibilitiesFromTaskRows(List<Map<String, dynamic>> rows) {
+  final areaSort = <String, int>{};
+  final byArea = <String, List<({int sort, String name})>>{};
+  for (final r in rows) {
+    final area = (r['responsibility_area'] as String?)?.trim() ?? '';
+    final name = (r['name'] as String?)?.trim() ?? '';
+    if (area.isEmpty || name.isEmpty) continue;
+    final aSort = (r['area_sort'] as num?)?.toInt() ?? 0;
+    final tSort = (r['task_sort'] as num?)?.toInt() ?? 0;
+    final prev = areaSort[area];
+    areaSort[area] = prev == null || aSort < prev ? aSort : prev;
+    (byArea[area] ??= []).add((sort: tSort, name: name));
+  }
+  final areas = byArea.keys.toList()
+    ..sort((a, b) {
+      final c = areaSort[a]!.compareTo(areaSort[b]!);
+      return c != 0 ? c : a.compareTo(b);
+    });
+  return [
+    for (final a in areas)
+      ResponsibilityArea(
+        area: a,
+        tasks: (byArea[a]!..sort((x, y) => x.sort.compareTo(y.sort)))
+            .map((e) => e.name)
+            .toList(),
+      ),
+  ];
 }
 
 class KpiItem {
@@ -133,9 +163,13 @@ class RoleScorecard {
     final rawExpectations = r['behavioral_expectations'];
     final rawTasks = r['wp_tasks'];
     List<ResponsibilityArea> responsibilities;
-    if (rawTasks is List && rawTasks.isNotEmpty) {
+    if (rawTasks is List) {
       // Authoritative source post-responsibility-unification: wp_tasks rows,
       // grouped/ordered by area_sort/task_sort (see responsibilitiesFromTaskRows).
+      // The embed key is present (even as []) whenever it was requested — an
+      // empty embed means "no responsibilities", NOT "fall back to the JSON
+      // column" (PostgREST returns [] for a requested-but-empty embed, it does
+      // not omit the key; a deleted-to-zero card must not resurrect stale JSON).
       responsibilities =
           responsibilitiesFromTaskRows(rawTasks.cast<Map<String, dynamic>>());
     } else if (rawResp is List) {
