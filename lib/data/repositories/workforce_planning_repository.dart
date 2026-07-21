@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/workforce_planning.dart';
+import '../pagination.dart';
 
 class WorkforcePlanningRepository {
   final SupabaseClient _client;
@@ -27,15 +28,24 @@ class WorkforcePlanningRepository {
     return row == null ? null : WpConfig.fromRow(row);
   }
 
-  Future<List<WpTask>> tasks() async {
-    final rows = await _client.from('wp_tasks').select().order('name');
-    return rows.cast<Map<String, dynamic>>().map(WpTask.fromRow).toList();
-  }
+  /// Paged: PostgREST caps a response at `max_rows` (1000). `wp_tasks` is
+  /// already at 282 and grows with every responsibility added, so an
+  /// unpaged select would eventually return a silent truncated slice — and a
+  /// missing task reads as "this work does not exist" rather than as an error.
+  Future<List<WpTask>> tasks() => fetchAllPages((from, to) async {
+        final rows =
+            await _client.from('wp_tasks').select().order('name').range(from, to);
+        return rows.cast<Map<String, dynamic>>().map(WpTask.fromRow).toList();
+      });
 
-  Future<List<WpPersonLoad>> personLoads() async {
-    final rows = await _client.from('wp_person_load').select();
-    return rows.cast<Map<String, dynamic>>().map(WpPersonLoad.fromRow).toList();
-  }
+  Future<List<WpPersonLoad>> personLoads() => fetchAllPages((from, to) async {
+        final rows = await _client
+            .from('wp_person_load')
+            .select()
+            .order('employee_id')
+            .range(from, to);
+        return rows.cast<Map<String, dynamic>>().map(WpPersonLoad.fromRow).toList();
+      });
 
   Future<List<WpTaskComputed>> taskComputedForOwner(String employeeId) async {
     final rows = await _client
@@ -47,10 +57,17 @@ class WorkforcePlanningRepository {
   /// DERIVED tasks (unowned rows on their role card), which
   /// `taskComputedForOwner` cannot return — it filters on `owner_employee_id`
   /// server-side.
-  Future<List<WpTaskComputed>> allTaskComputed() async {
-    final rows = await _client.from('wp_task_computed').select();
-    return rows.cast<Map<String, dynamic>>().map(WpTaskComputed.fromRow).toList();
-  }
+  /// Paged for the same reason as [tasks] — this view has one row per task, so
+  /// it crosses `max_rows` at exactly the same point, and a truncated slice
+  /// here silently under-reports everyone's hours.
+  Future<List<WpTaskComputed>> allTaskComputed() => fetchAllPages((from, to) async {
+        final rows = await _client
+            .from('wp_task_computed')
+            .select()
+            .order('task_id')
+            .range(from, to);
+        return rows.cast<Map<String, dynamic>>().map(WpTaskComputed.fromRow).toList();
+      });
 
   Future<void> saveTask(WpTask task) async {
     final payload = task.toUpsert(task.companyId);
