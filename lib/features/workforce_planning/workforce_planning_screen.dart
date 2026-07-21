@@ -9,8 +9,17 @@ import 'tabs/structure_tab.dart';
 import 'tabs/tasks_tab.dart';
 
 /// Workforce Planning hub. HR/Admin-only (route guard in app/router.dart also
-/// redirects). Five tabs; Balance + Role View are live, the rest are filled by
-/// later plans. See docs/superpowers/specs/2026-07-19-workforce-capacity-planning-design.md.
+/// redirects).
+///
+/// Four tabs, each answering a different question — no two overlap:
+///   Balance   — plan and rebalance PEOPLE (drag work between them)
+///   Roles     — cost and load per ROLE CARD (compare roles, whoever holds them)
+///   Structure — reporting shape with load (the org)
+///   Tasks     — the inventory and its costing (the data)
+///
+/// Drivers & rates moved off the tab bar into a settings dialog: they are
+/// configuration read by the other tabs, not a view of the workforce.
+/// See docs/superpowers/specs/2026-07-19-workforce-capacity-planning-design.md.
 class WorkforcePlanningScreen extends StatelessWidget {
   const WorkforcePlanningScreen({super.key});
 
@@ -18,19 +27,47 @@ class WorkforcePlanningScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final mobile = isMobile(context);
     return DefaultTabController(
-      length: 5,
+      length: 4,
       child: Scaffold(
         drawer: mobile ? const AppDrawer() : null,
         appBar: AppBar(
           title: const Text('Workforce Planning'),
+          actions: [
+            IconButton(
+              tooltip: 'Drivers, rates & scenario',
+              icon: const Icon(Icons.tune),
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (ctx) => Dialog(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1000, maxHeight: 720),
+                    child: Column(
+                      children: [
+                        AppBar(
+                          title: const Text('Drivers, rates & scenario'),
+                          automaticallyImplyLeading: false,
+                          actions: [
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => Navigator.pop(ctx),
+                            ),
+                          ],
+                        ),
+                        const Expanded(child: DriversScenarioTab()),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
           bottom: const TabBar(
             isScrollable: true,
             tabs: [
               Tab(text: 'Balance'),
-              Tab(text: 'Role View'),
+              Tab(text: 'Roles'),
               Tab(text: 'Structure'),
               Tab(text: 'Tasks'),
-              Tab(text: 'Drivers & Scenario'),
             ],
           ),
         ),
@@ -40,7 +77,6 @@ class WorkforcePlanningScreen extends StatelessWidget {
             RoleViewTab(),
             StructureTab(),
             TasksTab(),
-            DriversScenarioTab(),
           ],
         ),
       ),

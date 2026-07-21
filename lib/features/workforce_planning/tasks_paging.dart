@@ -1,5 +1,6 @@
 import '../../data/models/role_scorecard.dart';
 import '../../data/models/workforce_planning.dart';
+import 'task_costing.dart';
 import 'tasks_rows.dart';
 
 /// What subset of the inventory the Tasks tab is showing.
@@ -69,6 +70,91 @@ List<WpTask> tasksInScope(
     default:
       return [for (final t in ordered) if (t.roleScorecardId == scopeKey) t];
   }
+}
+
+/// Free-text + status filtering applied before paging.
+///
+/// 282 sentence-long responsibilities across six pages cannot be found by
+/// scrolling; without search the inventory is effectively write-only.
+class TaskFilter {
+  const TaskFilter({this.query = '', this.state, this.nodeId, this.ownerId});
+
+  /// Matched case-insensitively against the task name and its area.
+  final String query;
+
+  /// Costing state, or null for any.
+  final TaskCostState? state;
+  final String? nodeId;
+
+  /// Explicit owner id, or the sentinel [unownedKey] for rows with none.
+  final String? ownerId;
+
+  static const unownedKey = '__unowned__';
+
+  bool get isEmpty =>
+      query.trim().isEmpty && state == null && nodeId == null && ownerId == null;
+}
+
+List<WpTask> applyTaskFilter(
+  List<WpTask> tasks,
+  TaskFilter f,
+  Map<String, WpDriver> driverById,
+  Map<String, WpRate> rateById,
+) {
+  if (f.isEmpty) return tasks;
+  final q = f.query.trim().toLowerCase();
+  return [
+    for (final t in tasks)
+      if ((q.isEmpty ||
+              t.name.toLowerCase().contains(q) ||
+              (t.responsibilityArea ?? '').toLowerCase().contains(q)) &&
+          (f.state == null || taskCostState(t, driverById, rateById) == f.state) &&
+          (f.nodeId == null || t.nodeId == f.nodeId) &&
+          (f.ownerId == null ||
+              (f.ownerId == TaskFilter.unownedKey
+                  ? t.ownerEmployeeId == null
+                  : t.ownerEmployeeId == f.ownerId)))
+        t,
+  ];
+}
+
+/// Costing progress across the whole inventory. Expectations count as RESOLVED,
+/// not outstanding — that is what lets the queue reach zero instead of being a
+/// permanent banner nobody reads.
+class CostingProgress {
+  const CostingProgress({
+    required this.costed,
+    required this.toCost,
+    required this.expectation,
+  });
+
+  final int costed;
+  final int toCost;
+  final int expectation;
+
+  int get total => costed + toCost + expectation;
+  int get resolved => costed + expectation;
+  double get fraction => total == 0 ? 1 : resolved / total;
+  bool get done => toCost == 0;
+}
+
+CostingProgress costingProgress(
+  List<WpTask> tasks,
+  Map<String, WpDriver> driverById,
+  Map<String, WpRate> rateById,
+) {
+  var costed = 0, toCost = 0, expectation = 0;
+  for (final t in tasks) {
+    switch (taskCostState(t, driverById, rateById)) {
+      case TaskCostState.costed:
+        costed++;
+      case TaskCostState.toCost:
+        toCost++;
+      case TaskCostState.expectation:
+        expectation++;
+    }
+  }
+  return CostingProgress(costed: costed, toCost: toCost, expectation: expectation);
 }
 
 /// One page of rows plus the numbers the pager needs to describe itself.

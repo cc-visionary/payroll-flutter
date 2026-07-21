@@ -72,10 +72,14 @@ Future<void> _enterCostMode(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('uncosted count is surfaced before entering cost mode', (tester) async {
+  // The header now reports costing PROGRESS rather than a raw uncosted count:
+  // expectations count as resolved, so the number can actually reach zero
+  // instead of being a permanent banner.
+  testWidgets('costing progress is surfaced before entering cost mode', (tester) async {
     await tester.pumpWidget(_host(_FakeRepo()));
     await tester.pumpAndSettle();
-    expect(find.textContaining('1 of 1 tasks are not costed'), findsOneWidget);
+    expect(find.textContaining('0 of 1 resolved'), findsOneWidget);
+    expect(find.textContaining('1 still to cost'), findsOneWidget);
   });
 
   testWidgets('typing manual times + minutes computes hours live and saves the patch',

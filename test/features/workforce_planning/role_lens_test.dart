@@ -50,26 +50,25 @@ Widget _host({
       child: const MaterialApp(home: Scaffold(body: RoleViewTab())),
     );
 
+// The person/role toggle is gone: the tab IS the role lens now, because
+// Balance answers the per-person question better.
 Future<void> _toRoleLens(WidgetTester tester) async {
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('By role'));
   await tester.pumpAndSettle();
 }
 
 void main() {
-  testWidgets('starts on the person lens and switches to roles', (tester) async {
+  testWidgets('renders the role rollup directly, with no person lens',
+      (tester) async {
     await tester.pumpWidget(_host(
       cards: [_card('rs1', 'Operations Manager', base: '1000')],
       employees: [_emp('e1', 'Jeremy', 'rs1')],
       tasks: const [], computed: const [],
     ));
     await tester.pumpAndSettle();
-    expect(find.text('Owned tasks'), findsOneWidget, reason: 'person lens by default');
-
-    await tester.tap(find.text('By role'));
-    await tester.pumpAndSettle();
     expect(find.text('Operations Manager'), findsOneWidget);
-    expect(find.text('Owned tasks'), findsNothing);
+    expect(find.text('Owned tasks'), findsNothing,
+        reason: 'the per-person view lives on Balance now');
+    expect(find.text('By role'), findsNothing, reason: 'no toggle to switch');
   });
 
   testWidgets('shows hours, load, cost and cost-per-hour for a costed role',

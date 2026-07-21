@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/data/models/role_scorecard.dart';
 import 'package:payroll_flutter/data/models/workforce_planning.dart';
+import 'package:payroll_flutter/features/workforce_planning/task_costing.dart';
 import 'package:payroll_flutter/features/workforce_planning/tasks_paging.dart';
 
 RoleScorecard _card(String id, String title) => RoleScorecard(
@@ -125,6 +126,117 @@ void main() {
       }
       expect(seen, hasLength(5));
       expect(seen.toSet(), hasLength(5));
+    });
+  });
+
+  group('filtering', () {
+    const drivers = <String, WpDriver>{};
+    const rates = <String, WpRate>{};
+    final tasks = [
+      const WpTask(id: 'a', companyId: 'c', name: 'Pack and label orders',
+          responsibilityArea: 'Fulfilment', ownerEmployeeId: 'e1', nodeId: 'n1',
+          timesSource: 'manual', timesManual: 10,
+          minutesSource: 'manual', minutesManual: 30),
+      const WpTask(id: 'b', companyId: 'c', name: 'Train new staff',
+          responsibilityArea: 'Development', isExpectation: true),
+      const WpTask(id: 'c', companyId: 'c', name: 'Reconcile the bank',
+          responsibilityArea: 'Finance', nodeId: 'n2'),
+    ];
+
+    test('an empty filter returns everything untouched', () {
+      expect(applyTaskFilter(tasks, const TaskFilter(), drivers, rates), tasks);
+    });
+
+    test('search matches the name', () {
+      expect(
+          applyTaskFilter(tasks, const TaskFilter(query: 'label'), drivers, rates)
+              .map((t) => t.id),
+          ['a']);
+    });
+
+    test('search also matches the responsibility area', () {
+      expect(
+          applyTaskFilter(tasks, const TaskFilter(query: 'finance'), drivers, rates)
+              .map((t) => t.id),
+          ['c'],
+          reason: 'area is how you find work you cannot name exactly');
+    });
+
+    test('search is case-insensitive and trims', () {
+      expect(
+          applyTaskFilter(tasks, const TaskFilter(query: '  PACK '), drivers, rates)
+              .map((t) => t.id),
+          ['a']);
+    });
+
+    test('status filter separates costed, to-cost and expectation', () {
+      List<String> ids(TaskCostState s) =>
+          applyTaskFilter(tasks, TaskFilter(state: s), drivers, rates)
+              .map((t) => t.id)
+              .toList();
+      expect(ids(TaskCostState.costed), ['a']);
+      expect(ids(TaskCostState.expectation), ['b']);
+      expect(ids(TaskCostState.toCost), ['c']);
+    });
+
+    test('node and owner filters, including the unowned sentinel', () {
+      expect(
+          applyTaskFilter(tasks, const TaskFilter(nodeId: 'n2'), drivers, rates)
+              .map((t) => t.id),
+          ['c']);
+      expect(
+          applyTaskFilter(tasks, const TaskFilter(ownerId: 'e1'), drivers, rates)
+              .map((t) => t.id),
+          ['a']);
+      expect(
+          applyTaskFilter(
+                  tasks, const TaskFilter(ownerId: TaskFilter.unownedKey), drivers, rates)
+              .map((t) => t.id),
+          ['b', 'c']);
+    });
+
+    test('filters combine (AND, not OR)', () {
+      expect(
+        applyTaskFilter(tasks,
+            const TaskFilter(query: 'the', state: TaskCostState.toCost), drivers, rates)
+            .map((t) => t.id),
+        ['c'],
+      );
+    });
+  });
+
+  group('costingProgress', () {
+    const drivers = <String, WpDriver>{};
+    const rates = <String, WpRate>{};
+
+    test('expectations count as RESOLVED so the queue can finish', () {
+      final p = costingProgress([
+        const WpTask(id: 'a', companyId: 'c', name: 'costed',
+            timesSource: 'manual', timesManual: 2,
+            minutesSource: 'manual', minutesManual: 30),
+        const WpTask(id: 'b', companyId: 'c', name: 'expectation', isExpectation: true),
+        const WpTask(id: 'c', companyId: 'c', name: 'todo'),
+      ], drivers, rates);
+      expect(p.costed, 1);
+      expect(p.expectation, 1);
+      expect(p.toCost, 1);
+      expect(p.resolved, 2, reason: 'an expectation needs no estimate');
+      expect(p.done, isFalse);
+    });
+
+    test('done once nothing is left to cost, even with expectations present', () {
+      final p = costingProgress([
+        const WpTask(id: 'a', companyId: 'c', name: 'e1', isExpectation: true),
+        const WpTask(id: 'b', companyId: 'c', name: 'e2', isExpectation: true),
+      ], drivers, rates);
+      expect(p.done, isTrue, reason: 'otherwise the banner is permanent wallpaper');
+      expect(p.fraction, 1.0);
+    });
+
+    test('an empty inventory is complete, not divided by zero', () {
+      final p = costingProgress(const [], drivers, rates);
+      expect(p.fraction, 1.0);
+      expect(p.done, isTrue);
     });
   });
 }
