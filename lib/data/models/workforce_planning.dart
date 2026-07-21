@@ -67,13 +67,20 @@ class WpTask {
   final double? timesManual, minutesManual;
   final double driverFactor;
   final int areaSort, taskSort;
+
+  /// A behavioural expectation from the job description rather than costable
+  /// monthly workload ("participate in training", "take broader ownership").
+  /// Excluded from the costing queue and the understated-load warning; still a
+  /// real responsibility on the card and in the contract annex.
+  final bool isExpectation;
   const WpTask({required this.id, required this.companyId, required this.name,
     this.nodeId, this.brandScope, this.cadence,
     this.timesSource = 'manual', this.timesManual, this.driverId,
     this.driverFactor = 1, this.minutesSource = 'manual', this.minutesManual,
     this.rateId, this.skillTier, this.risk, this.capability,
     this.ownerEmployeeId, this.roleScorecardId, this.responsibilityArea,
-    this.notes, this.externalRef, this.areaSort = 0, this.taskSort = 0});
+    this.notes, this.externalRef, this.areaSort = 0, this.taskSort = 0,
+    this.isExpectation = false});
   factory WpTask.fromRow(Map<String, dynamic> r) => WpTask(
     id: r['id'] as String, companyId: r['company_id'] as String,
     name: r['name'] as String, nodeId: r['node_id'] as String?,
@@ -89,7 +96,8 @@ class WpTask {
     roleScorecardId: r['role_scorecard_id'] as String?,
     responsibilityArea: r['responsibility_area'] as String?,
     notes: r['notes'] as String?, externalRef: r['external_ref'] as String?,
-    areaSort: _i(r['area_sort']), taskSort: _i(r['task_sort']));
+    areaSort: _i(r['area_sort']), taskSort: _i(r['task_sort']),
+    isExpectation: r['is_expectation'] as bool? ?? false);
   Map<String, dynamic> toUpsert(String companyId) => {
     'company_id': companyId, 'name': name.trim(), 'node_id': nodeId,
     'brand_scope': _s(brandScope), 'cadence': _s(cadence),
@@ -102,7 +110,8 @@ class WpTask {
     'rate_id': minutesSource == 'rate' ? rateId : null,
     'skill_tier': _s(skillTier), 'risk': _s(risk), 'capability': _s(capability),
     'owner_employee_id': ownerEmployeeId, 'role_scorecard_id': roleScorecardId,
-    'responsibility_area': _s(responsibilityArea), 'notes': _s(notes)};
+    'responsibility_area': _s(responsibilityArea), 'notes': _s(notes),
+    'is_expectation': isExpectation};
 }
 
 class WpTaskComputed {

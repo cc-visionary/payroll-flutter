@@ -200,6 +200,87 @@ void main() {
       ],
     ));
     await tester.pumpAndSettle();
-    expect(find.textContaining('12.0h unattributed'), findsOneWidget);
+    // Wording is now "unassigned" with an FTE readout, and it counts only
+    // GENUINE orphans — legacy reference rows are reported separately.
+    expect(find.textContaining('12.0h unassigned'), findsOneWidget);
+  });
+
+  // Regression: _drop selects the destination, which unmounts the card being
+  // dragged; a disposed Draggable never fires onDragEnd, so a hover preview
+  // cleared only there stayed set and kept rendering a move Reset could not
+  // undo.
+  testWidgets('the drag preview does not survive the drop', (tester) async {
+    await tester.pumpWidget(_host(employees: _people, tasks: _tasks, computed: _computed));
+    await tester.pumpAndSettle();
+    await _drag(tester, 'Device QC', 'Brixter Del Mundo');
+    await tester.tap(find.text('Reset'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('131%'), findsOneWidget, reason: 'back to the original split');
+    expect(find.textContaining('was '), findsNothing,
+        reason: 'no phantom before/after left over');
+  });
+
+  testWidgets('the unassigned pool is a row in the rail you can open',
+      (tester) async {
+    await tester.pumpWidget(_host(
+      employees: _people,
+      tasks: const [
+        WpTask(id: 't1', companyId: 'c', name: 'Orphan work'),
+        WpTask(id: 't2', companyId: 'c', name: 'Owned work', ownerEmployeeId: 'e1'),
+      ],
+      computed: const [
+        WpTaskComputed(taskId: 't1', companyId: 'c', hoursPerMonthBase: 12),
+        WpTaskComputed(taskId: 't2', companyId: 'c', hoursPerMonthBase: 40),
+      ],
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Unassigned'), findsOneWidget);
+    expect(find.textContaining('1 task reaching nobody'), findsOneWidget);
+
+    await tester.tap(find.text('Unassigned'));
+    await tester.pumpAndSettle();
+    expect(find.text('Orphan work'), findsOneWidget);
+    expect(find.textContaining('Drag onto a person'), findsOneWidget);
+  });
+
+  testWidgets('legacy reference rows are not reported as unassigned debt',
+      (tester) async {
+    await tester.pumpWidget(_host(
+      employees: _people,
+      tasks: const [
+        // No owner, no card, but an external_ref: the capacity-model copy whose
+        // hours already live on a role-card responsibility.
+        WpTask(id: 'L1', companyId: 'c', name: 'Legacy row', externalRef: 'T1'),
+      ],
+      computed: const [
+        WpTaskComputed(taskId: 'L1', companyId: 'c', hoursPerMonthBase: 800),
+      ],
+    ));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('800.0h unassigned'), findsNothing,
+        reason: 'that work is already counted on the responsibilities');
+    expect(find.textContaining('reference (not counted)'), findsOneWidget);
+    expect(find.text('Unassigned'), findsNothing, reason: 'nothing to hand out');
+  });
+
+  testWidgets('a person with uncosted work is flagged as understated',
+      (tester) async {
+    await tester.pumpWidget(_host(
+      employees: _people,
+      tasks: const [
+        WpTask(id: 't1', companyId: 'c', name: 'Costed', ownerEmployeeId: 'e1'),
+        WpTask(id: 't2', companyId: 'c', name: 'No hours', ownerEmployeeId: 'e1'),
+        WpTask(id: 't3', companyId: 'c', name: 'Just an expectation',
+            ownerEmployeeId: 'e1', isExpectation: true),
+      ],
+      computed: const [
+        WpTaskComputed(taskId: 't1', companyId: 'c', hoursPerMonthBase: 40),
+      ],
+    ));
+    await tester.pumpAndSettle();
+    // 3 tasks, 1 costed, 1 expectation -> 1 of 2 costable is missing.
+    expect(find.textContaining('1 of 2 uncosted — understated'), findsOneWidget,
+        reason: 'expectations must not be counted as missing estimates');
   });
 }

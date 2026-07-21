@@ -149,6 +149,34 @@ bool draftIsCosted(
 bool draftIsGrowing(CostDraft d, Map<String, WpDriver> driverById) =>
     d.timesSource == 'driver' && (driverById[d.driverId]?.grows ?? false);
 
+/// Where a responsibility sits in the costing workflow.
+///
+/// `costed` is DERIVED from having hours, never stored — a stored three-way
+/// status would let a row claim it is costed while its times/minutes are null,
+/// and then the queue and the load math would disagree about the same task.
+enum TaskCostState {
+  /// Carries hours and contributes to load.
+  costed,
+
+  /// Real workload that nobody has estimated yet — the costing queue's backlog.
+  toCost,
+
+  /// A behavioural expectation from the job description. Will never have hours,
+  /// and excluding it is what lets the queue reach zero.
+  expectation,
+}
+
+TaskCostState taskCostState(
+  WpTask t,
+  Map<String, WpDriver> driverById,
+  Map<String, WpRate> rateById,
+) {
+  if (draftIsCosted(CostDraft.fromTask(t), driverById, rateById)) {
+    return TaskCostState.costed;
+  }
+  return t.isExpectation ? TaskCostState.expectation : TaskCostState.toCost;
+}
+
 /// Parses a user-typed number, treating blank/garbage as "not set" rather than
 /// as zero — zero is a meaningful costing answer and must stay distinguishable
 /// from an empty cell.

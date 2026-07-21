@@ -43,6 +43,8 @@ class LoadProjection {
     required this.currentHours,
     required this.plannedHours,
     required this.taskCount,
+    required this.costedCount,
+    required this.expectationCount,
   });
 
   final String employeeId;
@@ -53,6 +55,19 @@ class LoadProjection {
   final double plannedHours;
   final int taskCount;
 
+  /// How many of [taskCount] carry hours. The capacity model only ever costed
+  /// transactional work, so managerial responsibilities (training, process
+  /// improvement, coordination) largely have none — which means a manager's
+  /// load can be badly understated. Every load figure has to travel with the
+  /// share of work it actually covers, or people plan off a number that is
+  /// missing most of the job.
+  final int costedCount;
+
+  /// Responsibilities flagged as behavioural expectations. They will never
+  /// carry hours, so counting them as "missing" would make the warning
+  /// permanent and therefore ignorable.
+  final int expectationCount;
+
   double get currentLoad => loadFraction(currentHours, capacityHours);
   double get plannedLoad => loadFraction(plannedHours, capacityHours);
   LoadStatus get currentStatus => loadStatus(currentLoad);
@@ -61,6 +76,21 @@ class LoadProjection {
 
   /// Hours of headroom left under the plan; negative when over capacity.
   double get headroom => capacityHours - plannedHours;
+
+  /// Real workload still awaiting an estimate — expectations excluded, so this
+  /// can actually reach zero.
+  int get uncostedCount => taskCount - costedCount - expectationCount;
+
+  /// Work that SHOULD carry hours (everything but the expectations).
+  int get costableCount => taskCount - expectationCount;
+
+  /// True when some costable work has no estimate, so the load understates the
+  /// real job.
+  bool get understated => uncostedCount > 0;
+
+  /// Share of costable responsibilities that carry hours (1.0 when there are
+  /// none, so a person of pure expectations is not flagged as incomplete).
+  double get coverage => costableCount == 0 ? 1 : costedCount / costableCount;
 }
 
 List<Employee> _activeHolders(List<Employee> employees, String cardId) => [
@@ -115,6 +145,50 @@ Map<String, double> hoursByEmployee({
   return out;
 }
 
+/// Hours that reach nobody, split by WHY.
+///
+/// The 118 rows imported from the capacity spreadsheet have neither an owner
+/// nor a role card, so they are technically unattributed — but their costing
+/// was already transferred onto the responsibilities they describe. Counting
+/// them as orphaned work reports ~800h of debt that does not exist. Only rows
+/// with no `external_ref` are genuinely orphaned.
+class OrphanHours {
+  const OrphanHours({required this.genuine, required this.legacyReference});
+
+  /// Costed work with no owner and no staffed role — a real gap.
+  final double genuine;
+
+  /// The capacity-model reference bucket, already counted elsewhere.
+  final double legacyReference;
+}
+
+OrphanHours orphanHours({
+  required List<WpTask> tasks,
+  required Map<String, WpTaskComputed> computedByTaskId,
+  required List<Employee> employees,
+  required double multiplier,
+  MoveDrafts moves = const {},
+}) {
+  var genuine = 0.0;
+  var legacy = 0.0;
+  final holdersByCard = <String, List<Employee>>{};
+  for (final t in tasks) {
+    final hours = _hoursOf(computedByTaskId[t.id], multiplier);
+    if (hours <= 0) continue;
+    if (moves[t.id] != null || t.ownerEmployeeId != null) continue;
+    final cardId = t.roleScorecardId;
+    final orphaned = cardId == null ||
+        (holdersByCard[cardId] ??= _activeHolders(employees, cardId)).isEmpty;
+    if (!orphaned) continue;
+    if (t.externalRef != null && cardId == null) {
+      legacy += hours;
+    } else {
+      genuine += hours;
+    }
+  }
+  return OrphanHours(genuine: genuine, legacyReference: legacy);
+}
+
 /// Hours that reach nobody: no explicit owner and either no role card or a card
 /// with no active holder. Surfaced so work is never silently dropped.
 double unattributedHours({
@@ -162,16 +236,28 @@ List<LoadProjection> buildProjections({
           employees: employees, multiplier: multiplier, moves: moves);
 
   final counts = <String, int>{};
+  final costed = <String, int>{};
+  final expectations = <String, int>{};
   for (final t in tasks) {
+    final hasHours = (computedByTaskId[t.id]?.hoursPerMonthBase ?? 0) > 0;
+    void tally(String id) {
+      counts[id] = (counts[id] ?? 0) + 1;
+      if (hasHours) {
+        costed[id] = (costed[id] ?? 0) + 1;
+      } else if (t.isExpectation) {
+        expectations[id] = (expectations[id] ?? 0) + 1;
+      }
+    }
+
     final owner = moves[t.id] ?? t.ownerEmployeeId;
     if (owner != null) {
-      counts[owner] = (counts[owner] ?? 0) + 1;
+      tally(owner);
       continue;
     }
     final cardId = t.roleScorecardId;
     if (cardId == null) continue;
     for (final h in _activeHolders(employees, cardId)) {
-      counts[h.id] = (counts[h.id] ?? 0) + 1;
+      tally(h.id);
     }
   }
 
@@ -186,6 +272,8 @@ List<LoadProjection> buildProjections({
           currentHours: now[e.id] ?? 0,
           plannedHours: planned[e.id] ?? 0,
           taskCount: counts[e.id] ?? 0,
+          costedCount: costed[e.id] ?? 0,
+          expectationCount: expectations[e.id] ?? 0,
         ),
   ];
   rows.sort((a, b) {
@@ -235,6 +323,64 @@ List<PlannedTask> plannedTasksFor({
     return c != 0 ? c : a.task.name.toLowerCase().compareTo(b.task.name.toLowerCase());
   });
   return out;
+}
+
+/// Sentinel id for the unassigned pool, so it can be a drag SOURCE in the same
+/// rail as the people. Triaging orphaned work then uses the same mechanic as
+/// every other move, instead of being an invisible number in a header.
+const String kUnassignedId = '__unassigned__';
+
+/// The orphan pool as a task list: costed work reaching nobody, heaviest first.
+/// Legacy reference rows are excluded — their costing already lives on the
+/// responsibilities they describe, so offering them for assignment would
+/// double-count the work.
+List<PlannedTask> unassignedTasks({
+  required List<Employee> employees,
+  required List<WpTask> tasks,
+  required Map<String, WpTaskComputed> computedByTaskId,
+  required double multiplier,
+  MoveDrafts moves = const {},
+}) {
+  final out = <PlannedTask>[];
+  final holdersByCard = <String, List<Employee>>{};
+  for (final t in tasks) {
+    if (moves[t.id] != null || t.ownerEmployeeId != null) continue;
+    final cardId = t.roleScorecardId;
+    if (cardId == null && t.externalRef != null) continue; // legacy reference
+    final orphaned = cardId == null ||
+        (holdersByCard[cardId] ??= _activeHolders(employees, cardId)).isEmpty;
+    if (!orphaned) continue;
+    final hours = _hoursOf(computedByTaskId[t.id], multiplier);
+    out.add(PlannedTask(
+        task: t, hours: hours, derived: false, holderCount: 0, moved: false));
+  }
+  out.sort((a, b) {
+    final c = b.hours.compareTo(a.hours);
+    return c != 0 ? c : a.task.name.toLowerCase().compareTo(b.task.name.toLowerCase());
+  });
+  return out;
+}
+
+/// A drag in flight: what is being dragged, from whom, and where it is
+/// currently hovering. Held while the pointer is down so the rail can show the
+/// resulting load on BOTH ends before the user commits — deciding a move
+/// without seeing the delta is deciding blind.
+class HoverPreview {
+  const HoverPreview({required this.taskId, required this.fromEmployeeId, this.overEmployeeId});
+
+  final String taskId;
+  final String fromEmployeeId;
+  final String? overEmployeeId;
+
+  HoverPreview over(String? id) => HoverPreview(
+      taskId: taskId, fromEmployeeId: fromEmployeeId, overEmployeeId: id);
+
+  /// The moves to apply on top of the drafts to render the preview. Empty while
+  /// the pointer is over nothing, or back over the source.
+  MoveDrafts get asMove =>
+      (overEmployeeId == null || overEmployeeId == fromEmployeeId)
+          ? const {}
+          : {taskId: overEmployeeId!};
 }
 
 /// Why a drop is not allowed, or null when it is fine.

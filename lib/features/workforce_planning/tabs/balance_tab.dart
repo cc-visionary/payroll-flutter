@@ -31,6 +31,11 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
   final MoveDrafts _moves = {};
   bool _applying = false;
 
+  /// The drag in flight. Held while the pointer is down so both ends of the
+  /// move can show their resulting load BEFORE the drop — committing a move
+  /// without seeing the delta is committing blind.
+  HoverPreview? _hover;
+
   @override
   Widget build(BuildContext context) {
     final empsAsync = ref.watch(wpActiveEmployeesProvider);
@@ -65,26 +70,38 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
     final defaultCapacity = configAsync.asData?.value?.defaultCapacityHours ?? 160;
 
     final moves = prunedMoves(_moves, tasks);
+    // What the rail RENDERS includes the hovered move, so the bars move under
+    // the cursor. What Apply writes is `moves` only — the preview is never
+    // committed by hovering.
+    final preview = {...moves, ...?_hover?.asMove};
     final projections = buildProjections(
       employees: employees, tasks: tasks, computedByTaskId: computed,
       capacityByEmployee: capacity, multiplier: multiplier,
-      defaultCapacity: defaultCapacity, moves: moves,
+      defaultCapacity: defaultCapacity, moves: preview,
     );
     if (projections.isEmpty) {
       return const Center(child: Text('No active people to show.'));
     }
-    final selectedId = projections.any((p) => p.employeeId == _selectedId)
-        ? _selectedId!
-        : projections.first.employeeId;
-    final selected = projections.firstWhere((p) => p.employeeId == selectedId);
-    final orphan = unattributedHours(
+    final orphans = orphanHours(
         tasks: tasks, computedByTaskId: computed, employees: employees,
-        multiplier: multiplier, moves: moves);
+        multiplier: multiplier, moves: preview);
+    final pool = unassignedTasks(
+        employees: employees, tasks: tasks, computedByTaskId: computed,
+        multiplier: multiplier, moves: preview);
+
+    final selectedId = (_selectedId == kUnassignedId && pool.isNotEmpty)
+        ? kUnassignedId
+        : (projections.any((p) => p.employeeId == _selectedId)
+            ? _selectedId!
+            : projections.first.employeeId);
+    final selected = selectedId == kUnassignedId
+        ? projections.first
+        : projections.firstWhere((p) => p.employeeId == selectedId);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _planBar(context, moves, projections, orphan),
+        _planBar(context, moves, projections, orphans),
         const Divider(height: 1),
         Expanded(
           child: Row(
@@ -93,13 +110,15 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
               SizedBox(
                 width: 340,
                 child: _peopleList(context, projections, selectedId, tasks,
-                    computed, employees, moves,
+                    computed, employees, preview, pool,
                     ref.watch(wpKpiCountByEmployeeProvider).asData?.value ?? const {}),
               ),
               const VerticalDivider(width: 1),
               Expanded(
-                child: _taskPanel(context, selected, employees, tasks, computed,
-                    multiplier, moves),
+                child: selectedId == kUnassignedId
+                    ? _poolPanel(context, pool, orphans)
+                    : _taskPanel(context, selected, employees, tasks, computed,
+                        multiplier, preview),
               ),
             ],
           ),
@@ -111,7 +130,7 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
   // ---- header ----------------------------------------------------------
 
   Widget _planBar(BuildContext context, MoveDrafts moves,
-      List<LoadProjection> projections, double orphan) {
+      List<LoadProjection> projections, OrphanHours orphans) {
     final cs = Theme.of(context).colorScheme;
     final over = projections.where((p) => p.plannedStatus == LoadStatus.over).length;
     return Padding(
@@ -137,19 +156,43 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
                   Text('$over over capacity',
                       style: TextStyle(
                           color: StatusPalette.of(context, StatusTone.danger).foreground)),
-                if (orphan > 0)
+                // Only GENUINE orphans are reported. The legacy capacity-model
+                // rows are also technically unattributed, but their costing
+                // already lives on the responsibilities they describe, so
+                // counting them announced ~800h of debt that does not exist.
+                if (orphans.genuine > 0)
                   Tooltip(
                     message: 'Costed work with no owner and no staffed role card. '
-                        'It reaches nobody, so it is missing from every load figure.',
-                    child: Text('${orphan.toStringAsFixed(1)}h unattributed',
-                        style: TextStyle(color: cs.onSurfaceVariant)),
+                        'It reaches nobody, so it is missing from every load figure. '
+                        'Open Unassigned in the rail to hand it out.',
+                    child: Text(
+                        '${orphans.genuine.toStringAsFixed(1)}h unassigned '
+                        '(${(orphans.genuine / 160).toStringAsFixed(1)} FTE)',
+                        style: TextStyle(
+                            color:
+                                StatusPalette.of(context, StatusTone.warning).foreground)),
+                  ),
+                if (orphans.legacyReference > 0)
+                  Tooltip(
+                    message: 'The original capacity-model rows. Their hours were '
+                        'transferred onto the role-card responsibilities, so they are '
+                        'a reference copy and are NOT counted anywhere. Delete them '
+                        'from the Tasks tab once these numbers are trusted.',
+                    child: Text(
+                        '${orphans.legacyReference.toStringAsFixed(0)}h reference (not counted)',
+                        style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
                   ),
               ],
             ),
           ),
           if (moves.isNotEmpty) ...[
             TextButton(
-              onPressed: _applying ? null : () => setState(_moves.clear),
+              onPressed: _applying
+                  ? null
+                  : () => setState(() {
+                        _moves.clear();
+                        _hover = null;
+                      }),
               child: const Text('Reset'),
             ),
             const SizedBox(width: 8),
@@ -178,13 +221,21 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
     Map<String, WpTaskComputed> computed,
     List<Employee> employees,
     MoveDrafts moves,
+    List<PlannedTask> pool,
     Map<String, int> kpiCounts,
   ) {
+    // The pool is pinned first: it is the largest single block of work in the
+    // system, and as a header footnote it read as an accounting curiosity
+    // rather than a queue somebody has to empty.
+    final showPool = pool.isNotEmpty;
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: projections.length,
+      itemCount: projections.length + (showPool ? 1 : 0),
       itemBuilder: (context, i) {
-        final p = projections[i];
+        if (showPool && i == 0) {
+          return _poolRow(context, pool, selectedId == kUnassignedId);
+        }
+        final p = projections[i - (showPool ? 1 : 0)];
         return DragTarget<String>(
           onWillAcceptWithDetails: (d) {
             final t = tasks.where((x) => x.id == d.data);
@@ -195,12 +246,102 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
                 ) ==
                 null;
           },
+          // Hovering re-renders the rail with the move applied, so both the
+          // source and the target show their resulting load before the drop.
+          onMove: (_) {
+            if (_hover?.overEmployeeId != p.employeeId) {
+              setState(() => _hover = _hover?.over(p.employeeId));
+            }
+          },
+          onLeave: (_) {
+            if (_hover?.overEmployeeId == p.employeeId) {
+              setState(() => _hover = _hover?.over(null));
+            }
+          },
           onAcceptWithDetails: (d) =>
               _drop(d.data, p.employeeId, tasks, employees, computed),
           builder: (ctx, cand, _) => _personRow(ctx, p,
               p.employeeId == selectedId, cand.isNotEmpty, kpiCounts[p.employeeId] ?? 0),
         );
       },
+    );
+  }
+
+  /// The unassigned pool as the first row in the rail — a place you can open
+  /// and drag work out of, not a number in a header.
+  Widget _poolRow(BuildContext context, List<PlannedTask> pool, bool selected) {
+    final cs = Theme.of(context).colorScheme;
+    final warn = StatusPalette.of(context, StatusTone.warning);
+    final hours = pool.fold(0.0, (s, p) => s + p.hours);
+    return InkWell(
+      onTap: () => setState(() => _selectedId = kUnassignedId),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? warn.background : warn.background.withValues(alpha: 0.45),
+          border: Border(
+            left: BorderSide(
+                width: 3, color: selected ? warn.foreground : Colors.transparent),
+            bottom: BorderSide(color: cs.outlineVariant),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.inbox_outlined, size: 16, color: warn.foreground),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text('Unassigned',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600, color: warn.foreground)),
+                ),
+                Text('${hours.toStringAsFixed(1)}h', style: AppTheme.mono(context)),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${pool.length} ${pool.length == 1 ? 'task' : 'tasks'} reaching nobody'
+              '${hours > 0 ? ' · ${(hours / 160).toStringAsFixed(1)} FTE' : ''}',
+              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// The pool's contents, draggable onto anyone in the rail.
+  Widget _poolPanel(
+      BuildContext context, List<PlannedTask> pool, OrphanHours orphans) {
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Unassigned', style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                '${pool.length} ${pool.length == 1 ? 'task' : 'tasks'} · '
+                '${orphans.genuine.toStringAsFixed(1)}h reaching nobody. '
+                'Drag onto a person in the rail to hand it out.',
+                style: TextStyle(color: cs.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            itemCount: pool.length,
+            itemBuilder: (context, i) => _taskCard(context, pool[i]),
+          ),
+        ),
+      ],
     );
   }
 
@@ -240,6 +381,28 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
             const SizedBox(height: 6),
             _loadBar(context, p),
             const SizedBox(height: 4),
+            if (p.understated)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded,
+                        size: 12,
+                        color: StatusPalette.of(context, StatusTone.warning).foreground),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        '${p.uncostedCount} of ${p.costableCount} uncosted — understated',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color:
+                                StatusPalette.of(context, StatusTone.warning).foreground),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Row(
               children: [
                 Text('${(p.plannedLoad * 100).round()}%', style: AppTheme.mono(context)),
@@ -432,6 +595,14 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
     if (!movable) return Opacity(opacity: 0.55, child: card);
     return Draggable<String>(
       data: t.task.id,
+      onDragStarted: () => setState(() => _hover = HoverPreview(
+            taskId: t.task.id,
+            fromEmployeeId: _selectedId ?? kUnassignedId,
+          )),
+      // Cleared on BOTH completion and cancellation — a preview left behind
+      // would render a move that was never made.
+      onDragEnd: (_) => setState(() => _hover = null),
+      onDraggableCanceled: (_, _) => setState(() => _hover = null),
       feedback: Material(
         elevation: 4,
         borderRadius: BorderRadius.circular(6),
@@ -463,6 +634,11 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
     }
     setState(() {
       _moves[taskId] = toEmployeeId;
+      // Clear the preview HERE, not only in Draggable.onDragEnd: selecting the
+      // destination unmounts the card being dragged, and a disposed Draggable
+      // never fires onDragEnd — the stale hover would then keep rendering a
+      // move that Reset could not clear.
+      _hover = null;
       // Follow the work: after a move, show where it landed.
       _selectedId = toEmployeeId;
     });

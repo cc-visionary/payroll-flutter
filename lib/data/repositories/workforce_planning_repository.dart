@@ -102,6 +102,23 @@ class WorkforcePlanningRepository {
     return failed;
   }
 
+  /// Marks a responsibility as a behavioural expectation (or back to costable).
+  ///
+  /// Clears the costing columns in the SAME statement when setting the flag:
+  /// the DB constraint forbids an expectation that carries hours, and doing it
+  /// in two writes would leave a window where the row violates the rule.
+  Future<void> setTaskExpectation(String taskId, bool isExpectation) async {
+    await _client.from('wp_tasks').update({
+      'is_expectation': isExpectation,
+      if (isExpectation) ...{
+        'times_manual': null,
+        'driver_id': null,
+        'minutes_manual': null,
+        'rate_id': null,
+      },
+    }).eq('id', taskId);
+  }
+
   Future<void> reassignTaskOwner(String taskId, String? ownerEmployeeId) async =>
       _client.from('wp_tasks').update({'owner_employee_id': ownerEmployeeId}).eq('id', taskId);
 
