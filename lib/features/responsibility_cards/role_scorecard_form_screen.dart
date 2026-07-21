@@ -11,6 +11,7 @@ import '../../data/repositories/hiring_entity_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../auth/profile_provider.dart';
 import '../documents/providers.dart';
+import '../workforce_planning/tabs/role_view_tab.dart' show ownerComputedProvider;
 import '../workforce_planning/wp_providers.dart';
 import 'responsibility_rows.dart';
 import 'scorecard_base_salary.dart';
@@ -179,6 +180,12 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
     // Responsibilities are now tasks — refresh the workforce planning views.
     ref.invalidate(wpTasksProvider);
     ref.invalidate(wpPersonLoadsProvider);
+    // A responsibility IS a wp_tasks row, so editing the card changes what the
+    // workforce views compute from. wp_task_computed feeds the HOURS on Balance
+    // and Roles; without this, adding or deleting a responsibility here left
+    // both reading a stale computed set.
+    ref.invalidate(wpAllTaskComputedProvider);
+    ref.invalidate(ownerComputedProvider);
   }
 
   Future<void> _save() async {

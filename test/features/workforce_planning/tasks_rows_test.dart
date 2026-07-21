@@ -377,4 +377,88 @@ void main() {
     });
   });
 
+
+  group('nextSortFor / needsResort (document ordering)', () {
+    // area_sort/task_sort decide the order of the role-card PDF and the
+    // employment-contract Annex A, so a wrong position rewords a document.
+    final existing = [
+      const WpTask(id: 'a1', companyId: 'c', name: 'A first',
+          roleScorecardId: 'rs1', responsibilityArea: 'Setup',
+          areaSort: 0, taskSort: 0),
+      const WpTask(id: 'a2', companyId: 'c', name: 'A second',
+          roleScorecardId: 'rs1', responsibilityArea: 'Setup',
+          areaSort: 0, taskSort: 1),
+      const WpTask(id: 'b1', companyId: 'c', name: 'B first',
+          roleScorecardId: 'rs1', responsibilityArea: 'Research',
+          areaSort: 1, taskSort: 0),
+      const WpTask(id: 'x', companyId: 'c', name: 'other card',
+          roleScorecardId: 'rs2', responsibilityArea: 'Setup',
+          areaSort: 9, taskSort: 9),
+    ];
+
+    test('joining an existing area appends, keeping the area heading in place', () {
+      final p = nextSortFor(allTasks: existing, cardId: 'rs1', area: 'Setup');
+      expect(p.areaSort, 0, reason: 'moving a task must not reorder the headings');
+      expect(p.taskSort, 2, reason: 'last, which is what "add" means');
+    });
+
+    test('a brand-new area goes after the last one', () {
+      final p = nextSortFor(allTasks: existing, cardId: 'rs1', area: 'Training');
+      expect(p.areaSort, 2);
+      expect(p.taskSort, 0);
+    });
+
+    test('the very first responsibility on a card starts at 0/0', () {
+      final p = nextSortFor(allTasks: existing, cardId: 'brand-new', area: 'Any');
+      expect(p.areaSort, 0);
+      expect(p.taskSort, 0);
+    });
+
+    test('area matching ignores case and padding', () {
+      final p = nextSortFor(allTasks: existing, cardId: 'rs1', area: '  setup ');
+      expect(p.areaSort, 0);
+      expect(p.taskSort, 2, reason: 'must not create a duplicate area heading');
+    });
+
+    test('another card\'s positions are ignored', () {
+      final p = nextSortFor(allTasks: existing, cardId: 'rs1', area: 'Research');
+      expect(p.taskSort, 1, reason: 'rs2 has taskSort 9 but is irrelevant');
+    });
+
+    test('a new row always needs a position', () {
+      expect(needsResort(null, existing.first), isTrue);
+    });
+
+    test('a rename does NOT reposition — that would reword the contract annex', () {
+      final renamed = WpTask(
+          id: 'a2', companyId: 'c', name: 'A second, reworded',
+          roleScorecardId: 'rs1', responsibilityArea: 'Setup',
+          areaSort: 0, taskSort: 1);
+      expect(needsResort(existing[1], renamed), isFalse);
+    });
+
+    test('moving to another area or card does need one', () {
+      expect(
+        needsResort(existing[1],
+            const WpTask(id: 'a2', companyId: 'c', name: 'A second',
+                roleScorecardId: 'rs1', responsibilityArea: 'Research')),
+        isTrue,
+      );
+      expect(
+        needsResort(existing[1],
+            const WpTask(id: 'a2', companyId: 'c', name: 'A second',
+                roleScorecardId: 'rs2', responsibilityArea: 'Setup')),
+        isTrue,
+      );
+    });
+
+    test('a case-only area change is not a move', () {
+      expect(
+        needsResort(existing[1],
+            const WpTask(id: 'a2', companyId: 'c', name: 'A second',
+                roleScorecardId: 'rs1', responsibilityArea: ' SETUP ')),
+        isFalse,
+      );
+    });
+  });
 }

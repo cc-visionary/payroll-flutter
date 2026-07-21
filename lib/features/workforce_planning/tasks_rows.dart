@@ -225,3 +225,48 @@ EffectiveOwner resolveEffectiveOwner({
 /// share it. [holderCount] is 1 for an explicitly-owned task and N for a task
 /// derived from a role card held by N people (so that person carries 1/N of
 /// its hours).
+
+/// Where a responsibility should sit when it joins a card's area.
+///
+/// The role-card PDF and the employment-contract Annex A render
+/// responsibilities in `area_sort` / `task_sort` order, so position is not
+/// cosmetic — it decides the wording of a document. `WpTask.toUpsert` used to
+/// omit these columns, which left every row created from the Tasks tab at 0/0,
+/// i.e. jumping to the TOP of its area ahead of the responsibility the card
+/// author put first.
+///
+/// An existing area keeps its `area_sort` (moving a task into it must not
+/// reorder the card's headings); a new area goes after the last one. Within the
+/// area the task goes last, which is what "add a responsibility" means.
+({int areaSort, int taskSort}) nextSortFor({
+  required List<WpTask> allTasks,
+  required String cardId,
+  required String area,
+}) {
+  final key = area.trim().toLowerCase();
+  var areaSort = -1;
+  var maxAreaSort = -1;
+  var maxTaskSort = -1;
+  for (final t in allTasks) {
+    if (t.roleScorecardId != cardId) continue;
+    if (t.areaSort > maxAreaSort) maxAreaSort = t.areaSort;
+    if ((t.responsibilityArea ?? '').trim().toLowerCase() != key) continue;
+    areaSort = t.areaSort;
+    if (t.taskSort > maxTaskSort) maxTaskSort = t.taskSort;
+  }
+  return (
+    areaSort: areaSort >= 0 ? areaSort : maxAreaSort + 1,
+    taskSort: maxTaskSort + 1,
+  );
+}
+
+/// True when [next] lands in a different (card, area) than [previous], and so
+/// needs a fresh position. A rename or a costing edit must NOT reposition the
+/// row — that would silently reorder a contract annex.
+bool needsResort(WpTask? previous, WpTask next) {
+  if (previous == null) return true;
+  if (previous.roleScorecardId != next.roleScorecardId) return true;
+  final a = (previous.responsibilityArea ?? '').trim().toLowerCase();
+  final b = (next.responsibilityArea ?? '').trim().toLowerCase();
+  return a != b;
+}

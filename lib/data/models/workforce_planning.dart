@@ -98,6 +98,19 @@ class WpTask {
     notes: r['notes'] as String?, externalRef: r['external_ref'] as String?,
     areaSort: _i(r['area_sort']), taskSort: _i(r['task_sort']),
     isExpectation: r['is_expectation'] as bool? ?? false);
+  /// Same task at a new position in its card/area. Used when a responsibility
+  /// is created or moved, so it lands at the END of its area.
+  WpTask copyWithSort({required int areaSort, required int taskSort}) => WpTask(
+    id: id, companyId: companyId, name: name, nodeId: nodeId,
+    brandScope: brandScope, cadence: cadence, timesSource: timesSource,
+    timesManual: timesManual, driverId: driverId, driverFactor: driverFactor,
+    minutesSource: minutesSource, minutesManual: minutesManual, rateId: rateId,
+    skillTier: skillTier, risk: risk, capability: capability,
+    ownerEmployeeId: ownerEmployeeId, roleScorecardId: roleScorecardId,
+    responsibilityArea: responsibilityArea, notes: notes,
+    externalRef: externalRef, areaSort: areaSort, taskSort: taskSort,
+    isExpectation: isExpectation);
+
   Map<String, dynamic> toUpsert(String companyId) => {
     'company_id': companyId, 'name': name.trim(), 'node_id': nodeId,
     'brand_scope': _s(brandScope), 'cadence': _s(cadence),
@@ -111,7 +124,12 @@ class WpTask {
     'skill_tier': _s(skillTier), 'risk': _s(risk), 'capability': _s(capability),
     'owner_employee_id': ownerEmployeeId, 'role_scorecard_id': roleScorecardId,
     'responsibility_area': _s(responsibilityArea), 'notes': _s(notes),
-    'is_expectation': isExpectation};
+    'is_expectation': isExpectation,
+    // Position is load-bearing: the role-card PDF and contract Annex A render
+    // responsibilities in this order. Omitting these left every row created
+    // from the Tasks tab at 0/0 — jumping ahead of the card's first
+    // responsibility.
+    'area_sort': areaSort, 'task_sort': taskSort};
 }
 
 class WpTaskComputed {
