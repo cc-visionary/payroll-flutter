@@ -149,7 +149,24 @@ class _TasksTabState extends ConsumerState<TasksTab> {
               for (final areaGroup in cardGroup.areas) ...[
                 Padding(
                   padding: const EdgeInsets.only(left: 4, bottom: 6),
-                  child: Text(areaGroup.area, style: Theme.of(context).textTheme.labelLarge),
+                  child: Row(
+                    children: [
+                      Text(areaGroup.area, style: Theme.of(context).textTheme.labelLarge),
+                      if (_costMode) ...[
+                        const SizedBox(width: 12),
+                        TextButton.icon(
+                          onPressed: () => _fillArea(areaGroup.area, areaGroup.tasks,
+                              driverById, rateById),
+                          icon: const Icon(Icons.playlist_add_check, size: 16),
+                          label: const Text('Fill area'),
+                          style: TextButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
                 table(areaGroup.tasks),
                 const SizedBox(height: 16),
@@ -266,6 +283,82 @@ class _TasksTabState extends ConsumerState<TasksTab> {
     );
   }
 
+  /// One estimate applied to every uncosted task in a responsibility area.
+  /// Costing 164 responsibilities one cell at a time is 328 entries; most
+  /// responsibilities inside an area take roughly the same effort, so this
+  /// turns it into ~42 estimates plus the exceptions HR chooses to override.
+  Future<void> _fillArea(
+    String area,
+    List<WpTask> tasks,
+    Map<String, WpDriver> driverById,
+    Map<String, WpRate> rateById,
+  ) async {
+    double? times;
+    double? minutes;
+    var onlyUncosted = true;
+
+    final apply = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: Text('Fill “$area”'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Applies to ${tasks.length} '
+                  '${tasks.length == 1 ? 'responsibility' : 'responsibilities'} in this area.'),
+              const SizedBox(height: 16),
+              TextFormField(
+                autofocus: true,
+                decoration: const InputDecoration(
+                    labelText: 'Times per month', hintText: 'e.g. 20'),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (v) => times = parseCostField(v),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                decoration: const InputDecoration(
+                    labelText: 'Minutes each', hintText: 'e.g. 30'),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (v) => minutes = parseCostField(v),
+              ),
+              const SizedBox(height: 8),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: onlyUncosted,
+                onChanged: (v) => setLocal(() => onlyUncosted = v ?? true),
+                title: const Text('Skip rows that are already costed'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Apply')),
+          ],
+        ),
+      ),
+    );
+    if (apply != true || !mounted) return;
+
+    final filled = fillGroupDrafts(
+      tasks: tasks,
+      current: _drafts,
+      driverById: driverById,
+      rateById: rateById,
+      timesManual: times,
+      minutesManual: minutes,
+      onlyUncosted: onlyUncosted,
+    );
+    setState(() => _drafts.addAll(filled));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(filled.isEmpty
+          ? 'Nothing to fill — those rows are already costed.'
+          : 'Filled ${filled.length} of ${tasks.length}. Review, then Save.'),
+    ));
+  }
+
   Future<void> _exitCostMode() async {
     if (_drafts.isNotEmpty) {
       final discard = await showDialog<bool>(
@@ -337,37 +430,56 @@ class _TasksTabState extends ConsumerState<TasksTab> {
     required Map<String, WpRate> rateById,
   }) {
     final cs = Theme.of(context).colorScheme;
-    return ResponsiveTable(
-      child: DataTable(
-        columnSpacing: 16,
-        columns: const [
-          DataColumn(label: Text('Task')),
-          DataColumn(label: Text('Node')),
-          DataColumn(label: Text('Times/mo')),
-          DataColumn(label: Text('Minutes each')),
-          DataColumn(label: Text('Hours/mo')),
-        ],
-        rows: [
-          for (final t in rows)
-            DataRow(
-              color: _drafts.containsKey(t.id)
-                  ? WidgetStatePropertyAll(cs.primaryContainer.withValues(alpha: 0.25))
-                  : null,
-              cells: [
-                DataCell(ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 340),
-                  child: Text(t.name, overflow: TextOverflow.ellipsis),
-                )),
-                DataCell(_nodeCell(t, nodes)),
-                DataCell(_timesCell(t, drivers, driverById)),
-                DataCell(_minutesCell(t, rates, rateById)),
-                DataCell(_costedHoursCell(context, t, driverById, rateById)),
-              ],
-            ),
-        ],
+    // Editors are fixed-width, so the name column gets whatever is left.
+    const double others = 170 + 262 + 262 + 110 + (16 * 4) + 48;
+    return LayoutBuilder(
+      builder: (context, c) => ResponsiveTable(
+        fullWidth: true,
+        child: DataTable(
+          columnSpacing: 16,
+          dataRowMinHeight: 48,
+          dataRowMaxHeight: 72,
+          columns: const [
+            DataColumn(label: Text('Task')),
+            DataColumn(label: Text('Node')),
+            DataColumn(label: Text('Times/mo')),
+            DataColumn(label: Text('Minutes each')),
+            DataColumn(label: Text('Hours/mo')),
+          ],
+          rows: [
+            for (final t in rows)
+              DataRow(
+                color: _drafts.containsKey(t.id)
+                    ? WidgetStatePropertyAll(cs.primaryContainer.withValues(alpha: 0.25))
+                    : null,
+                cells: [
+                  DataCell(_nameCell(t.name, _nameWidth(c.maxWidth, others))),
+                  DataCell(_nodeCell(t, nodes)),
+                  DataCell(_timesCell(t, drivers, driverById)),
+                  DataCell(_minutesCell(t, rates, rateById)),
+                  DataCell(_costedHoursCell(context, t, driverById, rateById)),
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }
+
+  /// Width left for the task name once the fixed columns have taken their
+  /// share. Without this the name — a full responsibility sentence — sets the
+  /// table's natural width, pushing the right-hand columns past the viewport
+  /// and out of reach (the table scrolls, but the clipped column reads as a
+  /// rendering bug).
+  static double _nameWidth(double available, double others) =>
+      (available - others).clamp(200.0, 720.0);
+
+  /// Two lines then ellipsis: enough for the long responsibility sentences
+  /// promoted from role cards, without letting one row tower over the rest.
+  static Widget _nameCell(String name, double width) => SizedBox(
+        width: width,
+        child: Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, softWrap: true),
+      );
 
   Widget _nodeCell(WpTask t, List<WpNode> nodes) {
     final d = _draftFor(t);
@@ -554,8 +666,15 @@ class _TasksTabState extends ConsumerState<TasksTab> {
     required Map<String, WpRate> rateById,
     required Map<String, String> employeeNameById,
   }) {
-    return ResponsiveTable(
+    // Node · Hours · Owner · Cadence · actions, plus spacing and margins.
+    const double others = 120 + 96 + 210 + 96 + 96 + (24 * 5) + 48;
+    return LayoutBuilder(
+      builder: (context, c) => ResponsiveTable(
+      fullWidth: true,
       child: DataTable(
+        columnSpacing: 24,
+        dataRowMinHeight: 48,
+        dataRowMaxHeight: 72,
         columns: const [
           DataColumn(label: Text('Task')),
           DataColumn(label: Text('Node')),
@@ -567,7 +686,7 @@ class _TasksTabState extends ConsumerState<TasksTab> {
         rows: [
           for (final t in rows)
             DataRow(cells: [
-              DataCell(Text(t.name)),
+              DataCell(_nameCell(t.name, _nameWidth(c.maxWidth, others))),
               DataCell(Text(nodeNameById[t.nodeId] ?? '—')),
               DataCell(_hoursCell(context, t, driverById, rateById)),
               DataCell(_ownerCell(context, t, employees, employeeNameById)),
@@ -602,6 +721,7 @@ class _TasksTabState extends ConsumerState<TasksTab> {
             ]),
         ],
       ),
+    ),
     );
   }
 

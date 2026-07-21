@@ -151,4 +151,73 @@ void main() {
       expect(parseCostField(' 12.5 '), 12.5);
     });
   });
+
+  group('fillGroupDrafts', () {
+    List<WpTask> rows() => const [
+          WpTask(id: 'a', companyId: 'c', name: 'A'),
+          WpTask(id: 'b', companyId: 'c', name: 'B'),
+          WpTask(
+              id: 'c', companyId: 'c', name: 'C',
+              timesSource: 'manual', timesManual: 5,
+              minutesSource: 'manual', minutesManual: 60),
+        ];
+
+    test('fills only the uncosted rows by default', () {
+      final out = fillGroupDrafts(
+        tasks: rows(), current: const {}, driverById: _drivers, rateById: _rates,
+        timesManual: 20, minutesManual: 30,
+      );
+      expect(out.keys.toSet(), {'a', 'b'},
+          reason: 'row C is already costed and must not be overwritten');
+      expect(draftHoursPerMonth(out['a']!, _drivers, _rates), 10.0);
+    });
+
+    test('onlyUncosted:false restates the whole group', () {
+      final out = fillGroupDrafts(
+        tasks: rows(), current: const {}, driverById: _drivers, rateById: _rates,
+        timesManual: 20, minutesManual: 30, onlyUncosted: false,
+      );
+      expect(out.keys.toSet(), {'a', 'b', 'c'});
+    });
+
+    test('filling switches the row back to manual and drops driver/rate ids', () {
+      final current = {
+        'a': const CostDraft(
+            timesSource: 'driver', driverId: 'd1',
+            minutesSource: 'rate', rateId: 'r1'),
+      };
+      final out = fillGroupDrafts(
+        tasks: rows(), current: current, driverById: _drivers, rateById: _rates,
+        timesManual: 20, minutesManual: 30,
+      );
+      // 'a' was costed via driver+rate, so with onlyUncosted it is skipped.
+      expect(out.containsKey('a'), isFalse);
+
+      final forced = fillGroupDrafts(
+        tasks: rows(), current: current, driverById: _drivers, rateById: _rates,
+        timesManual: 20, minutesManual: 30, onlyUncosted: false,
+      );
+      expect(forced['a']!.timesSource, 'manual');
+      expect(forced['a']!.driverId, isNull);
+      expect(forced['a']!.rateId, isNull);
+    });
+
+    test('filling with the values a row already has produces no edit', () {
+      final out = fillGroupDrafts(
+        tasks: rows(), current: const {}, driverById: _drivers, rateById: _rates,
+        timesManual: 5, minutesManual: 60, onlyUncosted: false,
+      );
+      expect(out.containsKey('c'), isFalse,
+          reason: 'no-op fills must not show up as unsaved changes');
+    });
+
+    test('a blank field leaves that half of the estimate alone', () {
+      final out = fillGroupDrafts(
+        tasks: rows(), current: const {}, driverById: _drivers, rateById: _rates,
+        timesManual: 20,
+      );
+      expect(out['a']!.timesManual, 20);
+      expect(out['a']!.minutesManual, isNull);
+    });
+  });
 }

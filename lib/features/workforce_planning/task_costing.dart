@@ -158,6 +158,42 @@ double? parseCostField(String raw) {
   return double.tryParse(s);
 }
 
+/// Applies one estimate to a whole group of tasks — the bulk accelerator for
+/// the 164 promoted responsibilities, where typing two numbers per row means
+/// 328 entries but one estimate per responsibility area means 42.
+///
+/// Returns the drafts to merge in. Rows whose resulting draft matches the task
+/// unchanged are omitted, so filling a group twice doesn't invent edits.
+///
+/// [onlyUncosted] defaults to true: a deliberate per-task figure is worth more
+/// than a group default, so filling must never silently overwrite one. Pass
+/// false to restate the whole group.
+Map<String, CostDraft> fillGroupDrafts({
+  required List<WpTask> tasks,
+  required Map<String, CostDraft> current,
+  required Map<String, WpDriver> driverById,
+  required Map<String, WpRate> rateById,
+  double? timesManual,
+  double? minutesManual,
+  bool onlyUncosted = true,
+}) {
+  final out = <String, CostDraft>{};
+  for (final t in tasks) {
+    final existing = current[t.id] ?? CostDraft.fromTask(t);
+    if (onlyUncosted && draftIsCosted(existing, driverById, rateById)) continue;
+    final next = existing.copyWith(
+      timesSource: 'manual',
+      minutesSource: 'manual',
+      clearDriverId: true,
+      clearRateId: true,
+      timesManual: timesManual ?? existing.timesManual,
+      minutesManual: minutesManual ?? existing.minutesManual,
+    );
+    if (next != CostDraft.fromTask(t)) out[t.id] = next;
+  }
+  return out;
+}
+
 /// The costing-only column patch for one row. Mirrors the source/id nulling
 /// rules in [WpTask.toUpsert] so a driver-sourced task never keeps a stale
 /// `times_manual` (and vice versa) — leaving both set would make the row read

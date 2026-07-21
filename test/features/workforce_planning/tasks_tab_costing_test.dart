@@ -44,8 +44,12 @@ const _rate =
     WpRate(id: 'r1', companyId: 'c', name: 'Pick/pack', minutesEach: 8);
 const _node = WpNode(id: 'n1', companyId: 'c', code: '6', name: '6. Fulfill');
 
+// A real promoted responsibility, not a short label — the length is what used
+// to blow out the table's natural width.
 const _task = WpTask(
-    id: 't1', companyId: 'c', name: 'Pack the orders',
+    id: 't1', companyId: 'c',
+    name: 'Lead the flashing, installation, configuration, testing, and final '
+        'preparation of Linux, Android, and supported gaming devices.',
     roleScorecardId: 'rs1', responsibilityArea: 'Fulfilment');
 
 Widget _host(_FakeRepo repo) => ProviderScope(
@@ -165,6 +169,43 @@ void main() {
     expect(find.textContaining('1 failed'), findsOneWidget);
     expect(find.text('Save 1'), findsOneWidget,
         reason: 'the failed row must remain unsaved and retryable');
+  });
+
+  // Regression: the tables used to inherit ResponsiveTable's 1100px cap, so on
+  // a wide window they stopped a third of the way across and the Owner column
+  // was clipped mid-word. Long responsibility sentences also set the table's
+  // natural width, pushing the right-hand columns out of reach.
+  testWidgets('tables fill a wide window instead of capping at 1100', (tester) async {
+    tester.view.physicalSize = const Size(1750, 1100);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_host(_FakeRepo()));
+    await tester.pumpAndSettle();
+
+    final table = tester.getRect(find.byType(DataTable).first);
+    expect(table.width, greaterThan(1400),
+        reason: 'table must span the pane, not stop at the old 1100 cap');
+
+    // Every column header is inside the viewport — nothing clipped off-screen.
+    for (final h in ['Task', 'Node', 'Hours/mo', 'Owner', 'Cadence']) {
+      expect(tester.getRect(find.text(h)).right, lessThan(1750),
+          reason: '$h header must be visible without scrolling');
+    }
+  });
+
+  testWidgets('a long responsibility name is clamped, not allowed to set table width',
+      (tester) async {
+    tester.view.physicalSize = const Size(1750, 1100);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(_host(_FakeRepo()));
+    await tester.pumpAndSettle();
+
+    final nameCell = tester.widget<Text>(find.text(_task.name));
+    expect(nameCell.maxLines, 2);
+    expect(nameCell.overflow, TextOverflow.ellipsis);
   });
 
   testWidgets('cancelling with pending edits asks before discarding', (tester) async {
