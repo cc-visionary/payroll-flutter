@@ -36,10 +36,6 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
   /// without seeing the delta is committing blind.
   HoverPreview? _hover;
 
-  /// People whose expectation section is folded away. Expectations are context,
-  /// not work to act on, so they can be got out of the way per person.
-  final Set<String> _collapsedExpectations = {};
-
   @override
   Widget build(BuildContext context) {
     final empsAsync = ref.watch(wpActiveEmployeesProvider);
@@ -396,7 +392,7 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        '${p.uncostedCount} of ${p.costableCount} uncosted — understated',
+                        '${p.uncostedCount} of ${p.taskCount} uncosted — understated',
                         style: TextStyle(
                             fontSize: 11,
                             color:
@@ -511,15 +507,12 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
     // NOT the same thing: one is resolved and will never carry hours, the other
     // is outstanding work. Calling both "not costed" told HR there was a
     // backlog where there was none.
-    // Three genuinely different kinds, so three sections rather than one list
-    // sorted by hours. Sorting alone pushed expectations to the bottom, where a
-    // different KIND of thing read as leftover broken rows.
+    // Only weighted responsibilities appear here. Behavioural standards and
+    // required skills are role-scorecard concerns: they apply across the whole
+    // role rather than being units of work, so they carry no hours and have no
+    // place in a workload view. plannedTasksFor already excludes them.
     final movable = [for (final r in rows) if (r.hours > 0) r];
-    final toCost = [
-      for (final r in rows)
-        if (r.hours <= 0 && !r.task.isExpectation) r
-    ];
-    final expectationRows = [for (final r in rows) if (r.task.isExpectation) r];
+    final toCost = [for (final r in rows) if (r.hours <= 0) r];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -534,7 +527,8 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
                   children: [
                     Text(p.name, style: Theme.of(context).textTheme.titleMedium),
                     Text(
-                      '${rows.length} ${rows.length == 1 ? 'responsibility' : 'responsibilities'} · '
+                      '${rows.length} weighted '
+                      '${rows.length == 1 ? 'responsibility' : 'responsibilities'} · '
                       '${p.plannedHours.toStringAsFixed(1)}h of ${p.capacityHours.toStringAsFixed(0)}h · '
                       '${p.headroom >= 0 ? '${p.headroom.toStringAsFixed(1)}h headroom' : 'over by ${(-p.headroom).toStringAsFixed(1)}h'}',
                       style: TextStyle(color: cs.onSurfaceVariant),
@@ -566,19 +560,6 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
                       ),
                       for (final r in toCost) _taskCard(context, r),
                     ],
-                    if (expectationRows.isNotEmpty) ...[
-                      _sectionHeader(
-                        context,
-                        '${expectationRows.length} '
-                            '${expectationRows.length == 1 ? 'expectation' : 'expectations'}',
-                        'Behavioural standards and qualifiers on work counted '
-                            'elsewhere. They carry no hours by design.',
-                        StatusTone.neutral,
-                        collapsibleKey: p.employeeId,
-                      ),
-                      if (!_collapsedExpectations.contains(p.employeeId))
-                        for (final r in expectationRows) _taskCard(context, r),
-                    ],
                   ],
                 ),
         ),
@@ -586,26 +567,16 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
     );
   }
 
-  /// Divider between the panel's three kinds of row. Expectations collapse,
-  /// because they are context rather than something to act on.
+  /// Divider between weighted work that can be moved and weighted work that is
+  /// blocked on an estimate.
   Widget _sectionHeader(
-    BuildContext context,
-    String label,
-    String help,
-    StatusTone tone, {
-    String? collapsibleKey,
-  }) {
+      BuildContext context, String label, String help, StatusTone tone) {
     final cs = Theme.of(context).colorScheme;
     final pal = StatusPalette.of(context, tone);
-    final collapsed =
-        collapsibleKey != null && _collapsedExpectations.contains(collapsibleKey);
-    final row = Padding(
+    return Padding(
       padding: const EdgeInsets.only(top: 14, bottom: 8),
       child: Row(
         children: [
-          if (collapsibleKey != null)
-            Icon(collapsed ? Icons.chevron_right : Icons.expand_more,
-                size: 16, color: cs.onSurfaceVariant),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
@@ -624,13 +595,6 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
           ),
         ],
       ),
-    );
-    if (collapsibleKey == null) return row;
-    return InkWell(
-      onTap: () => setState(() => collapsed
-          ? _collapsedExpectations.remove(collapsibleKey)
-          : _collapsedExpectations.add(collapsibleKey)),
-      child: row,
     );
   }
 
@@ -690,7 +654,7 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
           if (movable)
             Text('${t.hours.toStringAsFixed(1)}h', style: AppTheme.mono(context))
           else
-            Text(t.task.isExpectation ? 'no hours' : 'needs costing',
+            Text('needs costing',
                 style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
         ],
       ),

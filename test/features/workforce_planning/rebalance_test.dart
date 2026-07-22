@@ -230,4 +230,36 @@ void main() {
       expect(prunedMoves({'gone': 'a'}, [_t('t1')]), isEmpty);
     });
   });
+
+  group('behavioural expectations are not workload', () {
+    final emps = [_e('a', card: 'rs1')];
+    final tasks = [
+      _t('weighted', card: 'rs1'),
+      WpTask(id: 'behaviour', companyId: 'c', name: 'Be professional',
+          roleScorecardId: 'rs1', isExpectation: true),
+    ];
+    final comp = {'weighted': _c('weighted', 40)};
+
+    test('they are excluded from a person\'s task list', () {
+      final list = plannedTasksFor(
+          employeeId: 'a', employees: emps, tasks: tasks,
+          computedByTaskId: comp, multiplier: 1);
+      expect(list.map((p) => p.task.id), ['weighted'],
+          reason: 'a behavioural standard is a role-card concern, not a unit of work');
+    });
+
+    test('they are excluded from the counts, so coverage can reach 100%', () {
+      final p = buildProjections(
+        employees: emps, tasks: tasks, computedByTaskId: comp,
+        capacityByEmployee: const {'a': 160}, multiplier: 1, defaultCapacity: 160,
+      ).single;
+      expect(p.taskCount, 1);
+      expect(p.costedCount, 1);
+      expect(p.uncostedCount, 0);
+      expect(p.understated, isFalse,
+          reason: 'counting a behavioural standard as missing would make the '
+              'warning permanent and therefore ignorable');
+      expect(p.coverage, 1.0);
+    });
+  });
 }

@@ -44,7 +44,6 @@ class LoadProjection {
     required this.plannedHours,
     required this.taskCount,
     required this.costedCount,
-    required this.expectationCount,
   });
 
   final String employeeId;
@@ -63,10 +62,6 @@ class LoadProjection {
   /// missing most of the job.
   final int costedCount;
 
-  /// Responsibilities flagged as behavioural expectations. They will never
-  /// carry hours, so counting them as "missing" would make the warning
-  /// permanent and therefore ignorable.
-  final int expectationCount;
 
   double get currentLoad => loadFraction(currentHours, capacityHours);
   double get plannedLoad => loadFraction(plannedHours, capacityHours);
@@ -77,20 +72,15 @@ class LoadProjection {
   /// Hours of headroom left under the plan; negative when over capacity.
   double get headroom => capacityHours - plannedHours;
 
-  /// Real workload still awaiting an estimate — expectations excluded, so this
-  /// can actually reach zero.
-  int get uncostedCount => taskCount - costedCount - expectationCount;
+  /// Weighted responsibilities still awaiting an estimate.
+  int get uncostedCount => taskCount - costedCount;
 
-  /// Work that SHOULD carry hours (everything but the expectations).
-  int get costableCount => taskCount - expectationCount;
-
-  /// True when some costable work has no estimate, so the load understates the
+  /// True when some weighted work has no estimate, so the load understates the
   /// real job.
   bool get understated => uncostedCount > 0;
 
-  /// Share of costable responsibilities that carry hours (1.0 when there are
-  /// none, so a person of pure expectations is not flagged as incomplete).
-  double get coverage => costableCount == 0 ? 1 : costedCount / costableCount;
+  /// Share of weighted responsibilities that carry hours.
+  double get coverage => taskCount == 0 ? 1 : costedCount / taskCount;
 }
 
 List<Employee> _activeHolders(List<Employee> employees, String cardId) => [
@@ -237,16 +227,15 @@ List<LoadProjection> buildProjections({
 
   final counts = <String, int>{};
   final costed = <String, int>{};
-  final expectations = <String, int>{};
   for (final t in tasks) {
+    // Behavioural standards and skills are role-scorecard concerns that apply
+    // across the whole role; they carry no weight and are not workload, so they
+    // are not counted or shown anywhere in workforce planning.
+    if (t.isExpectation) continue;
     final hasHours = (computedByTaskId[t.id]?.hoursPerMonthBase ?? 0) > 0;
     void tally(String id) {
       counts[id] = (counts[id] ?? 0) + 1;
-      if (hasHours) {
-        costed[id] = (costed[id] ?? 0) + 1;
-      } else if (t.isExpectation) {
-        expectations[id] = (expectations[id] ?? 0) + 1;
-      }
+      if (hasHours) costed[id] = (costed[id] ?? 0) + 1;
     }
 
     final owner = moves[t.id] ?? t.ownerEmployeeId;
@@ -273,7 +262,6 @@ List<LoadProjection> buildProjections({
           plannedHours: planned[e.id] ?? 0,
           taskCount: counts[e.id] ?? 0,
           costedCount: costed[e.id] ?? 0,
-          expectationCount: expectations[e.id] ?? 0,
         ),
   ];
   rows.sort((a, b) {
@@ -295,6 +283,8 @@ List<PlannedTask> plannedTasksFor({
 }) {
   final out = <PlannedTask>[];
   for (final t in tasks) {
+    // Workload only. Behavioural expectations live on the role scorecard.
+    if (t.isExpectation) continue;
     final hours = _hoursOf(computedByTaskId[t.id], multiplier);
     final moved = moves.containsKey(t.id);
     final owner = moves[t.id] ?? t.ownerEmployeeId;

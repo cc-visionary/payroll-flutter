@@ -116,6 +116,10 @@ List<RoleRollupRow> buildRoleRollup({
 
   final tasksByCard = <String, List<WpTask>>{};
   for (final t in tasks) {
+    // Weighted responsibilities only. Behavioural standards and required skills
+    // are separate fields on the role card that apply across the whole role;
+    // counting them here would make every role look permanently under-costed.
+    if (t.isExpectation) continue;
     final cardId = t.roleScorecardId;
     if (cardId == null) continue;
     (tasksByCard[cardId] ??= []).add(t);

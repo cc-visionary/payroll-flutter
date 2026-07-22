@@ -103,7 +103,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Flashing devices'), findsOneWidget);
     expect(find.text('Device QC'), findsOneWidget);
-    expect(find.textContaining('2 responsibilities'), findsOneWidget);
+    expect(find.textContaining('2 weighted responsibilities'), findsOneWidget);
   });
 
   testWidgets('dragging a task onto a person drafts a move without saving it',
@@ -284,10 +284,11 @@ void main() {
         reason: 'expectations must not be counted as missing estimates');
   });
 
-  // Regression: an expectation and an un-estimated task both show no hours, but
-  // the panel called both "not costed" — telling HR there was a costing backlog
-  // where there was none. Marjory's card had 6 expectations and 0 outstanding.
-  testWidgets('expectations are labelled as such, not reported as uncosted',
+  // Behavioural standards and required skills are role-scorecard concerns:
+  // they apply across the whole role rather than being units of work, so they
+  // carry no hours and have no place in a workload view. They used to trail the
+  // list looking like broken rows, then like a backlog.
+  testWidgets('behavioural expectations are excluded from the workload panel',
       (tester) async {
     await tester.pumpWidget(_host(
       employees: _people,
@@ -302,14 +303,13 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    // Expectations now live under their own section header rather than
-    // trailing off the bottom of the movable list looking like broken rows.
-    expect(find.text('1 expectation'), findsOneWidget);
-    expect(find.textContaining('carry no hours by design'), findsOneWidget);
+    expect(find.text('Ensure procedures are followed'), findsNothing,
+        reason: 'a behavioural standard is not workload');
+    expect(find.text('Real costed work'), findsOneWidget);
+    expect(find.textContaining('1 weighted responsibility'), findsOneWidget,
+        reason: 'the count is weighted work only');
     expect(find.textContaining('still to cost'), findsNothing,
-        reason: 'there is no costing backlog here');
-    expect(find.text('no hours'), findsOneWidget,
-        reason: 'the row says why, without looking incomplete');
+        reason: 'an expectation is not an outstanding estimate');
   });
 
   testWidgets('a genuinely uncosted task is still reported as outstanding',
@@ -326,30 +326,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('1 still to cost'), findsOneWidget);
     expect(find.text('needs costing'), findsOneWidget);
-    expect(find.textContaining('carry no hours by design'), findsNothing);
   });
 
-  testWidgets('the expectation section folds away', (tester) async {
-    await tester.pumpWidget(_host(
-      employees: _people,
-      tasks: const [
-        WpTask(id: 't1', companyId: 'c', name: 'Real work', ownerEmployeeId: 'e1'),
-        WpTask(id: 't2', companyId: 'c', name: 'A standard, not a task',
-            ownerEmployeeId: 'e1', isExpectation: true),
-      ],
-      computed: const [
-        WpTaskComputed(taskId: 't1', companyId: 'c', hoursPerMonthBase: 40),
-      ],
-    ));
-    await tester.pumpAndSettle();
-    expect(find.text('A standard, not a task'), findsOneWidget);
-
-    await tester.tap(find.text('1 expectation'));
-    await tester.pumpAndSettle();
-    expect(find.text('A standard, not a task'), findsNothing);
-    expect(find.text('Real work'), findsOneWidget,
-        reason: 'folding context away must not hide the actual work');
-    expect(find.text('1 expectation'), findsOneWidget,
-        reason: 'the header stays so it can be unfolded');
-  });
 }
