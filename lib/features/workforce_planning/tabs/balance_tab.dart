@@ -36,6 +36,10 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
   /// without seeing the delta is committing blind.
   HoverPreview? _hover;
 
+  /// People whose expectation section is folded away. Expectations are context,
+  /// not work to act on, so they can be got out of the way per person.
+  final Set<String> _collapsedExpectations = {};
+
   @override
   Widget build(BuildContext context) {
     final empsAsync = ref.watch(wpActiveEmployeesProvider);
@@ -507,9 +511,15 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
     // NOT the same thing: one is resolved and will never carry hours, the other
     // is outstanding work. Calling both "not costed" told HR there was a
     // backlog where there was none.
-    final expectations = rows.where((r) => r.task.isExpectation).length;
-    final uncosted =
-        rows.where((r) => r.hours <= 0 && !r.task.isExpectation).length;
+    // Three genuinely different kinds, so three sections rather than one list
+    // sorted by hours. Sorting alone pushed expectations to the bottom, where a
+    // different KIND of thing read as leftover broken rows.
+    final movable = [for (final r in rows) if (r.hours > 0) r];
+    final toCost = [
+      for (final r in rows)
+        if (r.hours <= 0 && !r.task.isExpectation) r
+    ];
+    final expectationRows = [for (final r in rows) if (r.task.isExpectation) r];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -536,45 +546,112 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
             ],
           ),
         ),
-        if (uncosted > 0 || expectations > 0)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              [
-                if (uncosted > 0)
-                  '$uncosted still to cost — cannot be moved until they have hours',
-                if (expectations > 0)
-                  '$expectations ${expectations == 1 ? 'expectation' : 'expectations'} '
-                      '(behavioural, never costed)',
-              ].join(' · '),
-              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
-            ),
-          ),
         const SizedBox(height: 4),
         Expanded(
           child: rows.isEmpty
               ? Center(
                   child: Text('No work assigned.',
                       style: TextStyle(color: cs.onSurfaceVariant)))
-              : ListView.builder(
+              : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  itemCount: rows.length,
-                  itemBuilder: (context, i) => _taskCard(context, rows[i]),
+                  children: [
+                    for (final r in movable) _taskCard(context, r),
+                    if (toCost.isNotEmpty) ...[
+                      _sectionHeader(
+                        context,
+                        '${toCost.length} still to cost',
+                        'No hours yet, so moving one would change nothing. '
+                            'Cost them on the Tasks tab.',
+                        StatusTone.warning,
+                      ),
+                      for (final r in toCost) _taskCard(context, r),
+                    ],
+                    if (expectationRows.isNotEmpty) ...[
+                      _sectionHeader(
+                        context,
+                        '${expectationRows.length} '
+                            '${expectationRows.length == 1 ? 'expectation' : 'expectations'}',
+                        'Behavioural standards and qualifiers on work counted '
+                            'elsewhere. They carry no hours by design.',
+                        StatusTone.neutral,
+                        collapsibleKey: p.employeeId,
+                      ),
+                      if (!_collapsedExpectations.contains(p.employeeId))
+                        for (final r in expectationRows) _taskCard(context, r),
+                    ],
+                  ],
                 ),
         ),
       ],
     );
   }
 
+  /// Divider between the panel's three kinds of row. Expectations collapse,
+  /// because they are context rather than something to act on.
+  Widget _sectionHeader(
+    BuildContext context,
+    String label,
+    String help,
+    StatusTone tone, {
+    String? collapsibleKey,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final pal = StatusPalette.of(context, tone);
+    final collapsed =
+        collapsibleKey != null && _collapsedExpectations.contains(collapsibleKey);
+    final row = Padding(
+      padding: const EdgeInsets.only(top: 14, bottom: 8),
+      child: Row(
+        children: [
+          if (collapsibleKey != null)
+            Icon(collapsed ? Icons.chevron_right : Icons.expand_more,
+                size: 16, color: cs.onSurfaceVariant),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: pal.background,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w600, color: pal.foreground)),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(help,
+                style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                overflow: TextOverflow.ellipsis),
+          ),
+        ],
+      ),
+    );
+    if (collapsibleKey == null) return row;
+    return InkWell(
+      onTap: () => setState(() => collapsed
+          ? _collapsedExpectations.remove(collapsibleKey)
+          : _collapsedExpectations.add(collapsibleKey)),
+      child: row,
+    );
+  }
+
   Widget _taskCard(BuildContext context, PlannedTask t) {
     final cs = Theme.of(context).colorScheme;
     final movable = t.hours > 0;
+    // An expectation gets a quieter, borderless treatment rather than the same
+    // card at lower opacity: dimming a card that looks identical reads as
+    // "broken", when the row is simply a different kind of thing.
+    final quiet = !movable;
     final card = Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      margin: EdgeInsets.only(bottom: quiet ? 2 : 6),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: quiet ? 7 : 10),
       decoration: BoxDecoration(
-        color: t.moved ? cs.primaryContainer.withValues(alpha: 0.3) : cs.surface,
-        border: Border.all(color: t.moved ? cs.primary : cs.outlineVariant),
+        color: t.moved
+            ? cs.primaryContainer.withValues(alpha: 0.3)
+            : (quiet ? Colors.transparent : cs.surface),
+        border: Border.all(
+            color: t.moved
+                ? cs.primary
+                : (quiet ? Colors.transparent : cs.outlineVariant)),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
@@ -582,15 +659,22 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
           Icon(
               movable
                   ? Icons.drag_indicator
-                  : (t.task.isExpectation ? Icons.flag_outlined : Icons.remove),
-              size: 16,
+                  : (t.task.isExpectation
+                      ? Icons.check_circle_outline
+                      : Icons.schedule),
+              size: 15,
               color: cs.onSurfaceVariant),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(t.task.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+                Text(t.task.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: quiet
+                        ? TextStyle(fontSize: 13, color: cs.onSurfaceVariant)
+                        : null),
                 if (t.shared)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
@@ -603,15 +687,15 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
             ),
           ),
           const SizedBox(width: 8),
-          if (!movable && t.task.isExpectation)
-            const StatusChip(label: 'Expectation', tone: StatusTone.neutral)
+          if (movable)
+            Text('${t.hours.toStringAsFixed(1)}h', style: AppTheme.mono(context))
           else
-            Text(movable ? '${t.hours.toStringAsFixed(1)}h' : '—',
-                style: AppTheme.mono(context)),
+            Text(t.task.isExpectation ? 'no hours' : 'needs costing',
+                style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
         ],
       ),
     );
-    if (!movable) return Opacity(opacity: 0.55, child: card);
+    if (!movable) return card;
     return Draggable<String>(
       data: t.task.id,
       onDragStarted: () => setState(() => _hover = HoverPreview(

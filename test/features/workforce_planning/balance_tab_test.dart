@@ -164,7 +164,7 @@ void main() {
     // first — pick Marvin explicitly rather than depending on that.
     await tester.tap(find.text('Marvin Ong'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('1 still to cost'), findsOneWidget);
+    expect(find.text('1 still to cost'), findsOneWidget);
     // No Draggable wraps it, so there is nothing to pick up.
     expect(
       find.ancestor(of: find.text('Uncosted work'), matching: find.byType(Draggable<String>)),
@@ -302,11 +302,14 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('1 expectation'), findsOneWidget);
+    // Expectations now live under their own section header rather than
+    // trailing off the bottom of the movable list looking like broken rows.
+    expect(find.text('1 expectation'), findsOneWidget);
+    expect(find.textContaining('carry no hours by design'), findsOneWidget);
     expect(find.textContaining('still to cost'), findsNothing,
         reason: 'there is no costing backlog here');
-    expect(find.text('Expectation'), findsOneWidget,
-        reason: 'the row says why it has no hours');
+    expect(find.text('no hours'), findsOneWidget,
+        reason: 'the row says why, without looking incomplete');
   });
 
   testWidgets('a genuinely uncosted task is still reported as outstanding',
@@ -321,7 +324,32 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Marvin Ong'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('1 still to cost'), findsOneWidget);
-    expect(find.text('Expectation'), findsNothing);
+    expect(find.text('1 still to cost'), findsOneWidget);
+    expect(find.text('needs costing'), findsOneWidget);
+    expect(find.textContaining('carry no hours by design'), findsNothing);
+  });
+
+  testWidgets('the expectation section folds away', (tester) async {
+    await tester.pumpWidget(_host(
+      employees: _people,
+      tasks: const [
+        WpTask(id: 't1', companyId: 'c', name: 'Real work', ownerEmployeeId: 'e1'),
+        WpTask(id: 't2', companyId: 'c', name: 'A standard, not a task',
+            ownerEmployeeId: 'e1', isExpectation: true),
+      ],
+      computed: const [
+        WpTaskComputed(taskId: 't1', companyId: 'c', hoursPerMonthBase: 40),
+      ],
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('A standard, not a task'), findsOneWidget);
+
+    await tester.tap(find.text('1 expectation'));
+    await tester.pumpAndSettle();
+    expect(find.text('A standard, not a task'), findsNothing);
+    expect(find.text('Real work'), findsOneWidget,
+        reason: 'folding context away must not hide the actual work');
+    expect(find.text('1 expectation'), findsOneWidget,
+        reason: 'the header stays so it can be unfolded');
   });
 }
