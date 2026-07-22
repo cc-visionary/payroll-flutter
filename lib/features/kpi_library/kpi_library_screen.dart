@@ -5,10 +5,10 @@ import '../../app/breakpoints.dart';
 import '../../app/shell.dart';
 import '../../data/models/kpi.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
+import '../../app/status_colors.dart';
 import '../auth/profile_provider.dart';
 import 'kpi_form_dialog.dart';
-
-const String _kUncategorized = 'Uncategorized';
+import 'kpi_rows.dart';
 
 /// HR-facing screen for managing the shared KPI library (`kpis` table) that
 /// role cards pick from. Groups KPIs by category, with a "New KPI" action and
@@ -16,11 +16,25 @@ const String _kUncategorized = 'Uncategorized';
 /// page-level layout and `RolesSettingsScreen`'s `_RoleForm` pattern for the
 /// dialog-driven create/edit/delete flow. Reachable only by HR/Admin — see
 /// the `/kpi-library` redirect guard in `app/router.dart`.
-class KpiLibraryScreen extends ConsumerWidget {
+class KpiLibraryScreen extends ConsumerStatefulWidget {
   const KpiLibraryScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<KpiLibraryScreen> createState() => _KpiLibraryScreenState();
+}
+
+class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
+  KpiFilter _filter = const KpiFilter();
+  final _searchCtl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final async = ref.watch(kpiLibraryProvider);
     final assignedAsync = ref.watch(kpiAssignedEmployeesProvider);
     final companyId = ref.watch(userProfileProvider).asData?.value?.companyId;
@@ -60,34 +74,39 @@ class KpiLibraryScreen extends ConsumerWidget {
           if (kpis.isEmpty) {
             return const Center(child: Text('No KPIs yet. Click "New KPI".'));
           }
-          final grouped = _groupByCategory(kpis);
+          final assigned =
+              assignedAsync.asData?.value ?? const <String, List<KpiAssignee>>{};
+          final stats = kpiLibraryStats(kpis, assigned);
+          final shown = applyKpiFilter(kpis, _filter, assigned);
+          final grouped = groupKpisByCategory(shown);
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              for (final category in grouped.keys) ...[
+              _statsBar(context, stats),
+              const SizedBox(height: 12),
+              _filterBar(context, kpis, stats, shown.length),
+              const SizedBox(height: 8),
+              if (shown.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 8),
-                  child: Text(
-                    category,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                  padding: const EdgeInsets.symmetric(vertical: 48),
+                  child: Center(
+                    child: Text('No KPI matches these filters.',
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant)),
                   ),
                 ),
+              for (final category in grouped.keys) ...[
+                _categoryHeader(context, category, grouped[category]!, assigned),
                 for (final kpi in grouped[category]!)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: _KpiTile(
-                      kpi: kpi,
-                      assignedAsync: assignedAsync,
-                      onEdit: companyId == null
-                          ? null
-                          : () =>
-                              _openForm(context, ref, companyId, existing: kpi),
-                      onDeactivate: () => _confirmDeactivate(context, ref, kpi),
-                    ),
+                  _KpiTile(
+                    kpi: kpi,
+                    assignedAsync: assignedAsync,
+                    onEdit: companyId == null
+                        ? null
+                        : () => _openForm(context, ref, companyId, existing: kpi),
+                    onDeactivate: () => _confirmDeactivate(context, ref, kpi),
                   ),
+                const SizedBox(height: 12),
               ],
             ],
           );
@@ -96,23 +115,147 @@ class KpiLibraryScreen extends ConsumerWidget {
     );
   }
 
-  /// Groups [kpis] by `category` (blank/null → "Uncategorized"), sorted
-  /// alphabetically with "Uncategorized" always last.
-  static Map<String, List<Kpi>> _groupByCategory(List<Kpi> kpis) {
-    final grouped = <String, List<Kpi>>{};
-    for (final k in kpis) {
-      final cat = k.category?.trim().isNotEmpty == true
-          ? k.category!.trim()
-          : _kUncategorized;
-      (grouped[cat] ??= []).add(k);
-    }
-    final categories = grouped.keys.toList()
-      ..sort((a, b) {
-        if (a == _kUncategorized) return 1;
-        if (b == _kUncategorized) return -1;
-        return a.compareTo(b);
-      });
-    return {for (final c in categories) c: grouped[c]!};
+  /// What shape the library is in, before the list of rows. A library is
+  /// judged by coverage — how much of it actually measures somebody — and that
+  /// cannot be seen by scrolling 58 cards.
+  Widget _statsBar(BuildContext context, KpiLibraryStats s) {
+    final cs = Theme.of(context).colorScheme;
+    Widget stat(String value, String label, {Color? tone}) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(value,
+                style: TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.w600, color: tone)),
+            Text(label, style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
+          ],
+        );
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Wrap(
+        spacing: 40,
+        runSpacing: 12,
+        children: [
+          stat('${s.active}', 'active KPIs'),
+          stat('${s.categories}', 'categories'),
+          stat('${s.assigned}', 'tracked on someone',
+              tone: StatusPalette.of(context, StatusTone.success).foreground),
+          if (s.unassigned > 0)
+            stat('${s.unassigned}', 'measuring nobody',
+                tone: StatusPalette.of(context, StatusTone.warning).foreground),
+          if (s.uncategorized > 0)
+            stat('${s.uncategorized}', 'uncategorised',
+                tone: StatusPalette.of(context, StatusTone.warning).foreground),
+          stat('${s.peopleTracked}', 'people tracked'),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterBar(
+      BuildContext context, List<Kpi> all, KpiLibraryStats s, int shownCount) {
+    final cs = Theme.of(context).colorScheme;
+    void set(KpiFilter f) => setState(() => _filter = f);
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        SizedBox(
+          width: 260,
+          child: TextField(
+            controller: _searchCtl,
+            decoration: const InputDecoration(
+              isDense: true,
+              prefixIcon: Icon(Icons.search, size: 18),
+              hintText: 'Search name or measurement',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (v) => set(KpiFilter(
+                query: v,
+                category: _filter.category,
+                assignment: _filter.assignment,
+                showInactive: _filter.showInactive)),
+          ),
+        ),
+        DropdownButton<String?>(
+          value: _filter.category,
+          hint: const Text('All categories'),
+          underline: const SizedBox.shrink(),
+          items: [
+            const DropdownMenuItem<String?>(value: null, child: Text('All categories')),
+            for (final c in kpiCategories(all))
+              DropdownMenuItem<String?>(value: c, child: Text(c)),
+          ],
+          onChanged: (v) => set(KpiFilter(
+              query: _filter.query,
+              category: v,
+              assignment: _filter.assignment,
+              showInactive: _filter.showInactive)),
+        ),
+        DropdownButton<bool?>(
+          value: _filter.assignment,
+          hint: const Text('Assigned or not'),
+          underline: const SizedBox.shrink(),
+          items: [
+            const DropdownMenuItem<bool?>(value: null, child: Text('Assigned or not')),
+            DropdownMenuItem<bool?>(
+                value: true, child: Text('Tracked on someone (${s.assigned})')),
+            DropdownMenuItem<bool?>(
+                value: false, child: Text('Measuring nobody (${s.unassigned})')),
+          ],
+          onChanged: (v) => set(KpiFilter(
+              query: _filter.query,
+              category: _filter.category,
+              assignment: v,
+              showInactive: _filter.showInactive)),
+        ),
+        FilterChip(
+          label: const Text('Include deactivated'),
+          selected: _filter.showInactive,
+          onSelected: (v) => set(KpiFilter(
+              query: _filter.query,
+              category: _filter.category,
+              assignment: _filter.assignment,
+              showInactive: v)),
+        ),
+        if (!_filter.isEmpty) ...[
+          Text('$shownCount shown', style: TextStyle(color: cs.onSurfaceVariant)),
+          TextButton.icon(
+            onPressed: () {
+              _searchCtl.clear();
+              set(const KpiFilter());
+            },
+            icon: const Icon(Icons.filter_alt_off, size: 16),
+            label: const Text('Clear'),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _categoryHeader(BuildContext context, String category, List<Kpi> kpis,
+      Map<String, List<KpiAssignee>> assigned) {
+    final cs = Theme.of(context).colorScheme;
+    final tracked = kpis.where((k) => kpiIsAssigned(k, assigned)).length;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, bottom: 6),
+      child: Row(
+        children: [
+          Text(category,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(width: 8),
+          Text('${kpis.length} · $tracked tracked',
+              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
+        ],
+      ),
+    );
   }
 
   Future<void> _openForm(
@@ -207,58 +350,79 @@ class _KpiTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final measure = kpi.measurementUnit?.trim() ?? '';
+    final desc = kpi.description?.trim() ?? '';
+    // The measurement IS the description for most of these, so showing both
+    // printed the same sentence twice per row and tripled the row height for
+    // nothing. The measurement wins — it says how the number is computed — and
+    // a description only appears when it genuinely adds something.
+    final extraDesc =
+        desc.isNotEmpty && desc.toLowerCase() != measure.toLowerCase() ? desc : '';
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
+        color: kpi.isActive ? null : cs.surfaceContainerHighest,
         border: Border.all(color: Theme.of(context).dividerColor),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          SizedBox(
+            width: 230,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(kpi.name,
+                    style: const TextStyle(
+                        fontSize: 13.5, fontWeight: FontWeight.w600),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+                if (!kpi.isActive)
+                  Text('Deactivated',
+                      style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      kpi.name,
-                      style: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w600),
-                    ),
-                    if (kpi.measurementUnit != null &&
-                        kpi.measurementUnit!.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      Chip(
-                        label: Text(kpi.measurementUnit!,
-                            style: const TextStyle(fontSize: 11)),
-                        visualDensity: VisualDensity.compact,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ],
-                  ],
-                ),
-                if (kpi.description != null && kpi.description!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      kpi.description!,
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: _buildAssigneeLine(context),
-                ),
+                Text(measure.isEmpty ? 'No measurement defined' : measure,
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: measure.isEmpty
+                            ? StatusPalette.of(context, StatusTone.warning).foreground
+                            : cs.onSurfaceVariant),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+                if (extraDesc.isNotEmpty)
+                  Text(extraDesc,
+                      style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
+          const SizedBox(width: 12),
+          SizedBox(width: 210, child: _buildAssigneeLine(context)),
+          const SizedBox(width: 8),
           if (onEdit != null)
-            TextButton(onPressed: onEdit, child: const Text('Edit')),
-          TextButton(
+            IconButton(
+                tooltip: 'Edit',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.edit_outlined, size: 17),
+                onPressed: onEdit),
+          IconButton(
+            tooltip: 'Deactivate',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.remove_circle_outline, size: 17),
+            color: StatusPalette.of(context, StatusTone.danger).foreground,
             onPressed: onDeactivate,
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Deactivate'),
           ),
         ],
       ),
@@ -277,14 +441,35 @@ class _KpiTile extends StatelessWidget {
       data: (map) {
         final assignees = map[kpi.id] ?? const <KpiAssignee>[];
         if (assignees.isEmpty) {
-          return Text('Not currently tracked by anyone', style: mutedStyle);
+          // Called out rather than muted: a KPI nobody is tracked on is
+          // measuring nothing, which is the main thing this page should
+          // surface about its own contents.
+          return Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.person_off_outlined,
+                size: 13,
+                color: StatusPalette.of(context, StatusTone.warning).foreground),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text('Measuring nobody',
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      color:
+                          StatusPalette.of(context, StatusTone.warning).foreground),
+                  overflow: TextOverflow.ellipsis),
+            ),
+          ]);
         }
         final names = assignees.map((a) => a.name).join(', ');
-        return Text(
-          'Assigned (${assignees.length}): $names',
-          style: mutedStyle,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+        return Tooltip(
+          message: names,
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.people_outline, size: 13, color: mutedStyle.color),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text('${assignees.length} · $names',
+                  style: mutedStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          ]),
         );
       },
       loading: () => SizedBox(
