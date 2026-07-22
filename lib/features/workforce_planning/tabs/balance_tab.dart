@@ -503,7 +503,13 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
       employeeId: p.employeeId, employees: employees, tasks: tasks,
       computedByTaskId: computed, multiplier: multiplier, moves: moves,
     );
-    final uncosted = rows.where((r) => r.hours <= 0).length;
+    // An expectation and an un-estimated task both show no hours, but they are
+    // NOT the same thing: one is resolved and will never carry hours, the other
+    // is outstanding work. Calling both "not costed" told HR there was a
+    // backlog where there was none.
+    final expectations = rows.where((r) => r.task.isExpectation).length;
+    final uncosted =
+        rows.where((r) => r.hours <= 0 && !r.task.isExpectation).length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -530,11 +536,17 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
             ],
           ),
         ),
-        if (uncosted > 0)
+        if (uncosted > 0 || expectations > 0)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              '$uncosted not costed — they cannot be moved until they have hours.',
+              [
+                if (uncosted > 0)
+                  '$uncosted still to cost — cannot be moved until they have hours',
+                if (expectations > 0)
+                  '$expectations ${expectations == 1 ? 'expectation' : 'expectations'} '
+                      '(behavioural, never costed)',
+              ].join(' · '),
               style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
             ),
           ),
@@ -567,8 +579,12 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
       ),
       child: Row(
         children: [
-          Icon(movable ? Icons.drag_indicator : Icons.remove,
-              size: 16, color: cs.onSurfaceVariant),
+          Icon(
+              movable
+                  ? Icons.drag_indicator
+                  : (t.task.isExpectation ? Icons.flag_outlined : Icons.remove),
+              size: 16,
+              color: cs.onSurfaceVariant),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -587,8 +603,11 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
             ),
           ),
           const SizedBox(width: 8),
-          Text(movable ? '${t.hours.toStringAsFixed(1)}h' : '—',
-              style: AppTheme.mono(context)),
+          if (!movable && t.task.isExpectation)
+            const StatusChip(label: 'Expectation', tone: StatusTone.neutral)
+          else
+            Text(movable ? '${t.hours.toStringAsFixed(1)}h' : '—',
+                style: AppTheme.mono(context)),
         ],
       ),
     );

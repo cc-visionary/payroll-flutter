@@ -164,7 +164,7 @@ void main() {
     // first — pick Marvin explicitly rather than depending on that.
     await tester.tap(find.text('Marvin Ong'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('1 not costed'), findsOneWidget);
+    expect(find.textContaining('1 still to cost'), findsOneWidget);
     // No Draggable wraps it, so there is nothing to pick up.
     expect(
       find.ancestor(of: find.text('Uncosted work'), matching: find.byType(Draggable<String>)),
@@ -282,5 +282,46 @@ void main() {
     // 3 tasks, 1 costed, 1 expectation -> 1 of 2 costable is missing.
     expect(find.textContaining('1 of 2 uncosted — understated'), findsOneWidget,
         reason: 'expectations must not be counted as missing estimates');
+  });
+
+  // Regression: an expectation and an un-estimated task both show no hours, but
+  // the panel called both "not costed" — telling HR there was a costing backlog
+  // where there was none. Marjory's card had 6 expectations and 0 outstanding.
+  testWidgets('expectations are labelled as such, not reported as uncosted',
+      (tester) async {
+    await tester.pumpWidget(_host(
+      employees: _people,
+      tasks: const [
+        WpTask(id: 't1', companyId: 'c', name: 'Real costed work', ownerEmployeeId: 'e1'),
+        WpTask(id: 't2', companyId: 'c', name: 'Ensure procedures are followed',
+            ownerEmployeeId: 'e1', isExpectation: true),
+      ],
+      computed: const [
+        WpTaskComputed(taskId: 't1', companyId: 'c', hoursPerMonthBase: 40),
+      ],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('1 expectation'), findsOneWidget);
+    expect(find.textContaining('still to cost'), findsNothing,
+        reason: 'there is no costing backlog here');
+    expect(find.text('Expectation'), findsOneWidget,
+        reason: 'the row says why it has no hours');
+  });
+
+  testWidgets('a genuinely uncosted task is still reported as outstanding',
+      (tester) async {
+    await tester.pumpWidget(_host(
+      employees: _people,
+      tasks: const [
+        WpTask(id: 't1', companyId: 'c', name: 'Needs an estimate', ownerEmployeeId: 'e1'),
+      ],
+      computed: const [],
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Marvin Ong'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('1 still to cost'), findsOneWidget);
+    expect(find.text('Expectation'), findsNothing);
   });
 }
