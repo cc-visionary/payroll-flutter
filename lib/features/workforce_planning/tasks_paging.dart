@@ -1,3 +1,4 @@
+import '../../data/models/employee.dart';
 import '../../data/models/role_scorecard.dart';
 import '../../data/models/workforce_planning.dart';
 import 'task_costing.dart';
@@ -72,12 +73,84 @@ List<WpTask> tasksInScope(
   }
 }
 
+/// How a task reaches a person — the three states that "assigned" actually
+/// means here.
+///
+/// Every one of the 164 card responsibilities currently has a null
+/// `owner_employee_id`, so filtering on "no owner" lumps together work that
+/// reaches somebody through their role and work that reaches nobody at all.
+/// Those need opposite actions: the first is fine, the second is a gap.
+enum TaskAssignment {
+  /// `owner_employee_id` is set — one named person carries all of it.
+  explicit,
+
+  /// No explicit owner, but its role card has at least one active holder, so
+  /// it splits across them. Normal and expected.
+  derived,
+
+  /// Reaches nobody: no owner, and no card or a card with no active holder.
+  unassigned,
+}
+
+TaskAssignment taskAssignment(WpTask t, Set<String> cardsWithHolders) {
+  if (t.ownerEmployeeId != null) return TaskAssignment.explicit;
+  final card = t.roleScorecardId;
+  if (card != null && cardsWithHolders.contains(card)) {
+    return TaskAssignment.derived;
+  }
+  return TaskAssignment.unassigned;
+}
+
+/// Role cards that have at least one ACTIVE, non-deleted holder. The same pair
+/// `wp_person_load` filters on — using either alone would misreport whether a
+/// card's work actually reaches anyone.
+Set<String> cardsWithActiveHolders(List<Employee> employees) => {
+      for (final e in employees)
+        if (e.employmentStatus == 'ACTIVE' &&
+            e.deletedAt == null &&
+            e.roleScorecardId != null)
+          e.roleScorecardId!,
+    };
+
+/// Count per assignment state, for the header.
+class AssignmentTally {
+  const AssignmentTally({
+    required this.explicit,
+    required this.derived,
+    required this.unassigned,
+  });
+
+  final int explicit;
+  final int derived;
+  final int unassigned;
+}
+
+AssignmentTally tallyAssignments(List<WpTask> tasks, Set<String> cardsWithHolders) {
+  var e = 0, d = 0, u = 0;
+  for (final t in tasks) {
+    switch (taskAssignment(t, cardsWithHolders)) {
+      case TaskAssignment.explicit:
+        e++;
+      case TaskAssignment.derived:
+        d++;
+      case TaskAssignment.unassigned:
+        u++;
+    }
+  }
+  return AssignmentTally(explicit: e, derived: d, unassigned: u);
+}
+
 /// Free-text + status filtering applied before paging.
 ///
 /// 282 sentence-long responsibilities across six pages cannot be found by
 /// scrolling; without search the inventory is effectively write-only.
 class TaskFilter {
-  const TaskFilter({this.query = '', this.state, this.nodeId, this.ownerId});
+  const TaskFilter(
+      {this.query = '',
+      this.state,
+      this.nodeId,
+      this.ownerId,
+      this.assignment});
 
   /// Matched case-insensitively against the task name and its area.
   final String query;
@@ -89,18 +162,26 @@ class TaskFilter {
   /// Explicit owner id, or the sentinel [unownedKey] for rows with none.
   final String? ownerId;
 
+  /// Explicit / derived / unassigned, or null for any.
+  final TaskAssignment? assignment;
+
   static const unownedKey = '__unowned__';
 
   bool get isEmpty =>
-      query.trim().isEmpty && state == null && nodeId == null && ownerId == null;
+      query.trim().isEmpty &&
+      state == null &&
+      nodeId == null &&
+      ownerId == null &&
+      assignment == null;
 }
 
 List<WpTask> applyTaskFilter(
   List<WpTask> tasks,
   TaskFilter f,
   Map<String, WpDriver> driverById,
-  Map<String, WpRate> rateById,
-) {
+  Map<String, WpRate> rateById, {
+  Set<String> cardsWithHolders = const {},
+}) {
   if (f.isEmpty) return tasks;
   final q = f.query.trim().toLowerCase();
   return [
@@ -113,7 +194,9 @@ List<WpTask> applyTaskFilter(
           (f.ownerId == null ||
               (f.ownerId == TaskFilter.unownedKey
                   ? t.ownerEmployeeId == null
-                  : t.ownerEmployeeId == f.ownerId)))
+                  : t.ownerEmployeeId == f.ownerId)) &&
+          (f.assignment == null ||
+              taskAssignment(t, cardsWithHolders) == f.assignment))
         t,
   ];
 }

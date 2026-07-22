@@ -11,6 +11,7 @@ import '../../data/repositories/hiring_entity_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../auth/profile_provider.dart';
 import '../documents/providers.dart';
+import '../../data/models/workforce_planning.dart';
 import '../workforce_planning/tabs/role_view_tab.dart' show ownerComputedProvider;
 import '../workforce_planning/wp_providers.dart';
 import 'responsibility_rows.dart';
@@ -171,6 +172,40 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
   /// — a partial failure can still have changed server state (some rows may
   /// have been inserted/updated/deleted before the failure), so downstream
   /// views need refreshing either way.
+  /// Picks a task that is not on any card and adopts it into area [areaIndex].
+  ///
+  /// The costing, node and cadence already on that row come with it — which is
+  /// the point: retyping the name instead would create a SECOND row describing
+  /// the same work, and the hours would then be counted twice.
+  Future<void> _linkExistingTask(int areaIndex) async {
+    final all = ref.read(wpTasksProvider).asData?.value ?? const <WpTask>[];
+    final alreadyDrafted = {
+      for (final a in _areas)
+        for (final t in a.tasks)
+          if (t.id != null) t.id!,
+    };
+    final pool = [
+      for (final t in all)
+        if (t.roleScorecardId == null && !alreadyDrafted.contains(t.id)) t,
+    ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+    if (pool.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('No unlinked tasks left — every task already sits on a card.'),
+      ));
+      return;
+    }
+
+    final picked = await showDialog<WpTask>(
+      context: context,
+      builder: (ctx) => _LinkTaskDialog(pool: pool),
+    );
+    if (picked == null || !mounted) return;
+    setState(() =>
+        _areas[areaIndex].tasks.add(RespDraft(id: picked.id, name: picked.name)));
+  }
+
   void _invalidateAfterSave(String cardId) {
     ref.invalidate(roleScorecardListProvider);
     ref.invalidate(scorecardEmployeeCountProvider);
@@ -642,14 +677,30 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                               ),
                             Padding(
                               padding: const EdgeInsets.only(left: 16, top: 4),
-                              child: TextButton.icon(
-                                onPressed: () => setState(
-                                  () => _areas[i].tasks.add(
-                                    RespDraft(id: null, name: ''),
+                              child: Row(
+                                children: [
+                                  TextButton.icon(
+                                    onPressed: () => setState(
+                                      () => _areas[i].tasks.add(
+                                        RespDraft(id: null, name: ''),
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.add, size: 16),
+                                    label: const Text('Add task'),
                                   ),
-                                ),
-                                icon: const Icon(Icons.add, size: 16),
-                                label: const Text('Add task'),
+                                  const SizedBox(width: 4),
+                                  // A responsibility IS a wp_tasks row, so work
+                                  // that already exists unlinked — the 118
+                                  // capacity-model rows and any orphan — can be
+                                  // adopted onto this card instead of being
+                                  // retyped, which would duplicate it and
+                                  // double-count the hours.
+                                  TextButton.icon(
+                                    onPressed: () => _linkExistingTask(i),
+                                    icon: const Icon(Icons.link, size: 16),
+                                    label: const Text('Link existing task'),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -979,4 +1030,103 @@ String _uuid() {
         final r = (DateTime.now().microsecond + m.start) & 0xf;
         return (m.group(0) == 'x' ? r : (r & 0x3) | 0x8).toRadixString(16);
       });
+}
+
+/// Searchable picker over tasks that sit on no card.
+///
+/// Shows where each one came from, because the two sources mean different
+/// things: a capacity-model row carries real costed hours and adopting it is
+/// how that bucket gets triaged onto the org, while a plain orphan is work
+/// somebody created and never placed.
+class _LinkTaskDialog extends StatefulWidget {
+  const _LinkTaskDialog({required this.pool});
+
+  final List<WpTask> pool;
+
+  @override
+  State<_LinkTaskDialog> createState() => _LinkTaskDialogState();
+}
+
+class _LinkTaskDialogState extends State<_LinkTaskDialog> {
+  String _q = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final q = _q.trim().toLowerCase();
+    final rows = [
+      for (final t in widget.pool)
+        if (q.isEmpty || t.name.toLowerCase().contains(q)) t,
+    ];
+    return Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720, maxHeight: 620),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Link an existing task',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    '${widget.pool.length} tasks are not on any card. Adopting one '
+                    'brings its costing with it.',
+                    style: TextStyle(color: cs.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      prefixIcon: Icon(Icons.search, size: 18),
+                      hintText: 'Search',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (v) => setState(() => _q = v),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: rows.isEmpty
+                  ? Center(
+                      child: Text('Nothing matches.',
+                          style: TextStyle(color: cs.onSurfaceVariant)))
+                  : ListView.builder(
+                      itemCount: rows.length,
+                      itemBuilder: (context, i) {
+                        final t = rows[i];
+                        final legacy = t.externalRef != null;
+                        return ListTile(
+                          dense: true,
+                          title: Text(t.name),
+                          subtitle: Text(
+                            legacy
+                                ? 'From the capacity model${t.cadence == null ? '' : ' · ${t.cadence}'}'
+                                : 'Unplaced task',
+                            style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                          ),
+                          onTap: () => Navigator.pop(context, t),
+                        );
+                      },
+                    ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

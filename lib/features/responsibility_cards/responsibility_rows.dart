@@ -41,6 +41,13 @@ class RespDraft {
         kept.add(id);
         updates.add({
           'id': id,
+          // Set explicitly so an EXISTING task can be linked onto this card:
+          // rows picked from the unlinked pool (the capacity-model bucket and
+          // orphans) have a null role_scorecard_id, and without this they would
+          // take the area and name but never actually join the card — the link
+          // would appear to vanish on the next load. A no-op for rows already
+          // on the card.
+          'role_scorecard_id': cardId,
           'responsibility_area': area,
           'name': name,
           'area_sort': ai,

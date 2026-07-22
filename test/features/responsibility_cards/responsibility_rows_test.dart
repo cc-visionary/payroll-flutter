@@ -37,4 +37,42 @@ void main() {
     expect(d.inserts.single['role_scorecard_id'], 'c1');
     expect(d.deleteIds, ['t2']);
   });
+
+  group('linking an existing task onto a card', () {
+    test('an update carries role_scorecard_id so the row actually joins', () {
+      // A task from the unlinked pool has role_scorecard_id = null. Without
+      // setting it the row would take the area and name but never join the
+      // card, and the link would appear to vanish on the next load.
+      final d = diffResponsibilities(
+        draft: [(area: 'Setup', tasks: [RespDraft(id: 'legacy-1', name: 'SD card flashing')])],
+        existingRows: const [],
+        cardId: 'rs1',
+        companyId: 'c',
+      );
+      expect(d.inserts, isEmpty, reason: 'it exists already — adopt, do not duplicate');
+      expect(d.updates.single['id'], 'legacy-1');
+      expect(d.updates.single['role_scorecard_id'], 'rs1');
+      expect(d.updates.single['responsibility_area'], 'Setup');
+    });
+
+    test('adopting does not delete rows already on the card', () {
+      final d = diffResponsibilities(
+        draft: [
+          (area: 'Setup', tasks: [
+            RespDraft(id: 'own-1', name: 'Existing responsibility'),
+            RespDraft(id: 'legacy-1', name: 'Adopted'),
+          ])
+        ],
+        existingRows: const [
+          {'id': 'own-1', 'responsibility_area': 'Setup', 'name': 'Existing responsibility'},
+        ],
+        cardId: 'rs1',
+        companyId: 'c',
+      );
+      expect(d.deleteIds, isEmpty);
+      expect(d.updates.map((u) => u['id']), ['own-1', 'legacy-1']);
+      expect(d.updates.map((u) => u['task_sort']), [0, 1],
+          reason: 'the adopted row lands after the existing one');
+    });
+  });
 }

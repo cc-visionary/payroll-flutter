@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:payroll_flutter/data/models/employee.dart';
 import 'package:payroll_flutter/data/models/role_scorecard.dart';
 import 'package:payroll_flutter/data/models/workforce_planning.dart';
 import 'package:payroll_flutter/features/workforce_planning/task_costing.dart';
@@ -237,6 +238,101 @@ void main() {
       final p = costingProgress(const [], drivers, rates);
       expect(p.fraction, 1.0);
       expect(p.done, isTrue);
+    });
+  });
+
+  group('assignment tracking', () {
+    Employee emp(String id, String? card, {String status = 'ACTIVE', DateTime? del}) =>
+        Employee(
+          id: id, companyId: 'c', employeeNumber: id, firstName: id, lastName: 'X',
+          roleScorecardId: card, employmentType: 'FULL_TIME',
+          employmentStatus: status, deletedAt: del, hireDate: DateTime(2024, 1, 1),
+          isRankAndFile: true, isOtEligible: false, isNdEligible: false,
+          isHolidayPayEligible: false, sssEligibilityOverride: false,
+          philhealthEligibilityOverride: false, pagibigEligibilityOverride: false,
+          taxOnFullEarnings: false,
+        );
+
+    test('only ACTIVE, non-deleted holders make a card count as staffed', () {
+      final held = cardsWithActiveHolders([
+        emp('a', 'staffed'),
+        emp('b', 'resigned-card', status: 'SEPARATED'),
+        emp('c', 'archived-card', del: DateTime(2026, 1, 1)),
+        emp('d', null),
+      ]);
+      expect(held, {'staffed'});
+    });
+
+    test('the three states are distinguished', () {
+      const held = {'rs1'};
+      expect(
+        taskAssignment(
+            const WpTask(id: '1', companyId: 'c', name: 'n', ownerEmployeeId: 'e1'), held),
+        TaskAssignment.explicit,
+      );
+      expect(
+        taskAssignment(
+            const WpTask(id: '2', companyId: 'c', name: 'n', roleScorecardId: 'rs1'), held),
+        TaskAssignment.derived,
+      );
+      expect(
+        taskAssignment(const WpTask(id: '3', companyId: 'c', name: 'n'), held),
+        TaskAssignment.unassigned,
+      );
+    });
+
+    test('a card with no active holder is UNASSIGNED, not derived', () {
+      expect(
+        taskAssignment(
+            const WpTask(id: '4', companyId: 'c', name: 'n', roleScorecardId: 'vacant'),
+            const {'rs1'}),
+        TaskAssignment.unassigned,
+        reason: 'work on a vacant role reaches nobody — that is the gap to see',
+      );
+    });
+
+    test('an explicit owner wins even on a staffed card', () {
+      expect(
+        taskAssignment(
+            const WpTask(id: '5', companyId: 'c', name: 'n',
+                roleScorecardId: 'rs1', ownerEmployeeId: 'e9'),
+            const {'rs1'}),
+        TaskAssignment.explicit,
+      );
+    });
+
+    test('the tally counts each task exactly once', () {
+      const held = {'rs1'};
+      final t = tallyAssignments(const [
+        WpTask(id: '1', companyId: 'c', name: 'n', ownerEmployeeId: 'e1'),
+        WpTask(id: '2', companyId: 'c', name: 'n', roleScorecardId: 'rs1'),
+        WpTask(id: '3', companyId: 'c', name: 'n', roleScorecardId: 'rs1'),
+        WpTask(id: '4', companyId: 'c', name: 'n'),
+      ], held);
+      expect(t.explicit, 1);
+      expect(t.derived, 2);
+      expect(t.unassigned, 1);
+    });
+
+    test('filtering by assignment separates derived from truly unassigned', () {
+      const held = {'rs1'};
+      final tasks = const [
+        WpTask(id: 'd1', companyId: 'c', name: 'derived', roleScorecardId: 'rs1'),
+        WpTask(id: 'u1', companyId: 'c', name: 'orphan'),
+      ];
+      expect(
+        applyTaskFilter(tasks, const TaskFilter(assignment: TaskAssignment.unassigned),
+                const {}, const {}, cardsWithHolders: held)
+            .map((t) => t.id),
+        ['u1'],
+        reason: 'the old "no explicit owner" filter returned BOTH of these',
+      );
+      expect(
+        applyTaskFilter(tasks, const TaskFilter(assignment: TaskAssignment.derived),
+                const {}, const {}, cardsWithHolders: held)
+            .map((t) => t.id),
+        ['d1'],
+      );
     });
   });
 }
