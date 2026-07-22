@@ -2,6 +2,7 @@ import '../../data/models/kpi.dart';
 import '../../data/repositories/role_scorecard_repository.dart' show KpiAssignee;
 
 const String kUncategorized = 'Uncategorized';
+const String kNoDepartment = 'No department';
 
 String kpiCategoryOf(Kpi k) =>
     (k.category?.trim().isNotEmpty ?? false) ? k.category!.trim() : kUncategorized;
@@ -12,9 +13,42 @@ String kpiCategoryOf(Kpi k) =>
 bool kpiIsAssigned(Kpi k, Map<String, List<KpiAssignee>> assignedByKpi) =>
     (assignedByKpi[k.id] ?? const []).isNotEmpty;
 
+/// A KPI belongs to a department first and a category second — the library is
+/// read department by department, because that is who answers for the numbers.
+String kpiDepartmentOf(Kpi k, Map<String, String> departmentNameById) {
+  final id = k.departmentId;
+  if (id == null) return kNoDepartment;
+  return departmentNameById[id] ?? kNoDepartment;
+}
+
+/// Departments present, alphabetical, with "No department" last — it is a gap
+/// to close, not a department.
+List<String> kpiDepartments(List<Kpi> kpis, Map<String, String> names) {
+  final set = {for (final k in kpis) kpiDepartmentOf(k, names)};
+  final out = set.where((d) => d != kNoDepartment).toList()..sort();
+  if (set.contains(kNoDepartment)) out.add(kNoDepartment);
+  return out;
+}
+
+/// department -> category -> KPIs, each level ordered, KPIs by name.
+Map<String, Map<String, List<Kpi>>> groupKpisByDepartment(
+  List<Kpi> kpis,
+  Map<String, String> departmentNameById,
+) {
+  final byDept = <String, List<Kpi>>{};
+  for (final k in kpis) {
+    (byDept[kpiDepartmentOf(k, departmentNameById)] ??= []).add(k);
+  }
+  return {
+    for (final d in kpiDepartments(kpis, departmentNameById))
+      if (byDept[d] != null) d: groupKpisByCategory(byDept[d]!),
+  };
+}
+
 class KpiFilter {
   const KpiFilter({
     this.query = '',
+    this.department,
     this.category,
     this.assignment,
     this.showInactive = false,
@@ -22,6 +56,7 @@ class KpiFilter {
 
   /// Matched case-insensitively against name, category and measurement.
   final String query;
+  final String? department;
   final String? category;
 
   /// true = assigned to someone, false = assigned to nobody, null = either.
@@ -33,14 +68,19 @@ class KpiFilter {
   final bool showInactive;
 
   bool get isEmpty =>
-      query.trim().isEmpty && category == null && assignment == null && !showInactive;
+      query.trim().isEmpty &&
+      department == null &&
+      category == null &&
+      assignment == null &&
+      !showInactive;
 }
 
 List<Kpi> applyKpiFilter(
   List<Kpi> kpis,
   KpiFilter f,
-  Map<String, List<KpiAssignee>> assignedByKpi,
-) {
+  Map<String, List<KpiAssignee>> assignedByKpi, {
+  Map<String, String> departmentNameById = const {},
+}) {
   final q = f.query.trim().toLowerCase();
   return [
     for (final k in kpis)
@@ -50,6 +90,8 @@ List<Kpi> applyKpiFilter(
               kpiCategoryOf(k).toLowerCase().contains(q) ||
               (k.measurementUnit ?? '').toLowerCase().contains(q) ||
               (k.description ?? '').toLowerCase().contains(q)) &&
+          (f.department == null ||
+              kpiDepartmentOf(k, departmentNameById) == f.department) &&
           (f.category == null || kpiCategoryOf(k) == f.category) &&
           (f.assignment == null ||
               kpiIsAssigned(k, assignedByKpi) == f.assignment))
@@ -88,8 +130,10 @@ class KpiLibraryStats {
     required this.active,
     required this.assigned,
     required this.uncategorized,
+    required this.noDepartment,
     required this.peopleTracked,
     required this.categories,
+    required this.departments,
   });
 
   final int total;
@@ -98,10 +142,12 @@ class KpiLibraryStats {
   /// Active KPIs tracked on at least one person.
   final int assigned;
   final int uncategorized;
+  final int noDepartment;
 
   /// Distinct employees tracked on at least one KPI.
   final int peopleTracked;
   final int categories;
+  final int departments;
 
   int get unassigned => active - assigned;
   double get assignedFraction => active == 0 ? 0 : assigned / active;
@@ -109,8 +155,9 @@ class KpiLibraryStats {
 
 KpiLibraryStats kpiLibraryStats(
   List<Kpi> kpis,
-  Map<String, List<KpiAssignee>> assignedByKpi,
-) {
+  Map<String, List<KpiAssignee>> assignedByKpi, {
+  Map<String, String> departmentNameById = const {},
+}) {
   final active = [for (final k in kpis) if (k.isActive) k];
   final people = <String>{};
   for (final k in active) {
@@ -124,7 +171,13 @@ KpiLibraryStats kpiLibraryStats(
     assigned: active.where((k) => kpiIsAssigned(k, assignedByKpi)).length,
     uncategorized:
         active.where((k) => kpiCategoryOf(k) == kUncategorized).length,
+    noDepartment: active
+        .where((k) => kpiDepartmentOf(k, departmentNameById) == kNoDepartment)
+        .length,
     peopleTracked: people.length,
     categories: kpiCategories(active).where((c) => c != kUncategorized).length,
+    departments: kpiDepartments(active, departmentNameById)
+        .where((d) => d != kNoDepartment)
+        .length,
   );
 }

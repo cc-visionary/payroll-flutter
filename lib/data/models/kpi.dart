@@ -6,6 +6,10 @@ class Kpi {
   final String? description;
   final String? measurementUnit;
   final bool isActive;
+
+  /// The department that owns this measure. Organisational only — a role card
+  /// in another department may still link it.
+  final String? departmentId;
   const Kpi({
     required this.id,
     required this.companyId,
@@ -14,6 +18,7 @@ class Kpi {
     this.description,
     this.measurementUnit,
     this.isActive = true,
+    this.departmentId,
   });
   factory Kpi.fromRow(Map<String, dynamic> r) => Kpi(
     id: r['id'] as String,
@@ -23,6 +28,7 @@ class Kpi {
     description: r['description'] as String?,
     measurementUnit: r['measurement_unit'] as String?,
     isActive: r['is_active'] as bool? ?? true,
+    departmentId: r['department_id'] as String?,
   );
   Map<String, dynamic> toInsert(String companyId) => {
     'company_id': companyId,
@@ -34,6 +40,7 @@ class Kpi {
         ? null
         : measurementUnit!.trim(),
     'is_active': isActive,
+    'department_id': departmentId,
   };
 }
 

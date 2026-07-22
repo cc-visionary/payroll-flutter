@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/breakpoints.dart';
 import '../../app/shell.dart';
 import '../../data/models/kpi.dart';
+import '../../data/models/department.dart';
+import '../../data/repositories/department_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../../app/status_colors.dart';
 import '../auth/profile_provider.dart';
@@ -37,6 +39,11 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
   Widget build(BuildContext context) {
     final async = ref.watch(kpiLibraryProvider);
     final assignedAsync = ref.watch(kpiAssignedEmployeesProvider);
+    final deptNames = <String, String>{
+      for (final d
+          in ref.watch(departmentListProvider).asData?.value ?? const <Department>[])
+        d.id: d.name,
+    };
     final companyId = ref.watch(userProfileProvider).asData?.value?.companyId;
     final mobile = isMobile(context);
 
@@ -76,15 +83,20 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
           }
           final assigned =
               assignedAsync.asData?.value ?? const <String, List<KpiAssignee>>{};
-          final stats = kpiLibraryStats(kpis, assigned);
-          final shown = applyKpiFilter(kpis, _filter, assigned);
-          final grouped = groupKpisByCategory(shown);
+          final stats = kpiLibraryStats(kpis, assigned,
+              departmentNameById: deptNames);
+          final shown = applyKpiFilter(kpis, _filter, assigned,
+              departmentNameById: deptNames);
+          // Department first, then category: a KPI is a departmental measure
+          // before it is a personal one, and the department is who answers for
+          // the number.
+          final grouped = groupKpisByDepartment(shown, deptNames);
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
               _statsBar(context, stats),
               const SizedBox(height: 12),
-              _filterBar(context, kpis, stats, shown.length),
+              _filterBar(context, kpis, stats, shown.length, deptNames),
               const SizedBox(height: 8),
               if (shown.isEmpty)
                 Padding(
@@ -95,18 +107,24 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
                             color: Theme.of(context).colorScheme.onSurfaceVariant)),
                   ),
                 ),
-              for (final category in grouped.keys) ...[
-                _categoryHeader(context, category, grouped[category]!, assigned),
-                for (final kpi in grouped[category]!)
-                  _KpiTile(
-                    kpi: kpi,
-                    assignedAsync: assignedAsync,
-                    onEdit: companyId == null
-                        ? null
-                        : () => _openForm(context, ref, companyId, existing: kpi),
-                    onDeactivate: () => _confirmDeactivate(context, ref, kpi),
-                  ),
-                const SizedBox(height: 12),
+              for (final dept in grouped.keys) ...[
+                _departmentHeader(
+                    context, dept, grouped[dept]!, assigned),
+                for (final category in grouped[dept]!.keys) ...[
+                  _categoryHeader(
+                      context, category, grouped[dept]![category]!, assigned),
+                  for (final kpi in grouped[dept]![category]!)
+                    _KpiTile(
+                      kpi: kpi,
+                      assignedAsync: assignedAsync,
+                      onEdit: companyId == null
+                          ? null
+                          : () => _openForm(context, ref, companyId, existing: kpi),
+                      onDeactivate: () => _confirmDeactivate(context, ref, kpi),
+                    ),
+                  const SizedBox(height: 8),
+                ],
+                const SizedBox(height: 8),
               ],
             ],
           );
@@ -140,6 +158,7 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
         runSpacing: 12,
         children: [
           stat('${s.active}', 'active KPIs'),
+          stat('${s.departments}', 'departments'),
           stat('${s.categories}', 'categories'),
           stat('${s.assigned}', 'tracked on someone',
               tone: StatusPalette.of(context, StatusTone.success).foreground),
@@ -149,14 +168,17 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
           if (s.uncategorized > 0)
             stat('${s.uncategorized}', 'uncategorised',
                 tone: StatusPalette.of(context, StatusTone.warning).foreground),
+          if (s.noDepartment > 0)
+            stat('${s.noDepartment}', 'no department',
+                tone: StatusPalette.of(context, StatusTone.warning).foreground),
           stat('${s.peopleTracked}', 'people tracked'),
         ],
       ),
     );
   }
 
-  Widget _filterBar(
-      BuildContext context, List<Kpi> all, KpiLibraryStats s, int shownCount) {
+  Widget _filterBar(BuildContext context, List<Kpi> all, KpiLibraryStats s,
+      int shownCount, Map<String, String> deptNames) {
     final cs = Theme.of(context).colorScheme;
     void set(KpiFilter f) => setState(() => _filter = f);
     return Wrap(
@@ -176,10 +198,28 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
             ),
             onChanged: (v) => set(KpiFilter(
                 query: v,
+                department: _filter.department,
                 category: _filter.category,
                 assignment: _filter.assignment,
                 showInactive: _filter.showInactive)),
           ),
+        ),
+        DropdownButton<String?>(
+          value: _filter.department,
+          hint: const Text('All departments'),
+          underline: const SizedBox.shrink(),
+          items: [
+            const DropdownMenuItem<String?>(
+                value: null, child: Text('All departments')),
+            for (final d in kpiDepartments(all, deptNames))
+              DropdownMenuItem<String?>(value: d, child: Text(d)),
+          ],
+          onChanged: (v) => set(KpiFilter(
+              query: _filter.query,
+              department: v,
+              category: _filter.category,
+              assignment: _filter.assignment,
+              showInactive: _filter.showInactive)),
         ),
         DropdownButton<String?>(
           value: _filter.category,
@@ -192,6 +232,7 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
           ],
           onChanged: (v) => set(KpiFilter(
               query: _filter.query,
+              department: _filter.department,
               category: v,
               assignment: _filter.assignment,
               showInactive: _filter.showInactive)),
@@ -209,6 +250,7 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
           ],
           onChanged: (v) => set(KpiFilter(
               query: _filter.query,
+              department: _filter.department,
               category: _filter.category,
               assignment: v,
               showInactive: _filter.showInactive)),
@@ -218,6 +260,7 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
           selected: _filter.showInactive,
           onSelected: (v) => set(KpiFilter(
               query: _filter.query,
+              department: _filter.department,
               category: _filter.category,
               assignment: _filter.assignment,
               showInactive: v)),
@@ -237,19 +280,51 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
     );
   }
 
+  /// The primary grouping. A department owns its measures, so it owns the gap
+  /// when some of them track nobody.
+  Widget _departmentHeader(BuildContext context, String dept,
+      Map<String, List<Kpi>> byCategory, Map<String, List<KpiAssignee>> assigned) {
+    final cs = Theme.of(context).colorScheme;
+    final all = [for (final v in byCategory.values) ...v];
+    final tracked = all.where((k) => kpiIsAssigned(k, assigned)).length;
+    final gap = all.length - tracked;
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 4),
+      child: Row(
+        children: [
+          Text(dept,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(width: 10),
+          Text('${all.length} KPIs · ${byCategory.length} categories',
+              style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+          if (gap > 0) ...[
+            const SizedBox(width: 8),
+            Text('$gap measuring nobody',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: StatusPalette.of(context, StatusTone.warning).foreground)),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _categoryHeader(BuildContext context, String category, List<Kpi> kpis,
       Map<String, List<KpiAssignee>> assigned) {
     final cs = Theme.of(context).colorScheme;
     final tracked = kpis.where((k) => kpiIsAssigned(k, assigned)).length;
     return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 6),
+      padding: const EdgeInsets.only(left: 8, top: 6, bottom: 4),
       child: Row(
         children: [
           Text(category,
               style: Theme.of(context)
                   .textTheme
-                  .titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w700)),
+                  .labelLarge
+                  ?.copyWith(fontWeight: FontWeight.w600)),
           const SizedBox(width: 8),
           Text('${kpis.length} · $tracked tracked',
               style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),

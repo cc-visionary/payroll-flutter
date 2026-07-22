@@ -5,11 +5,13 @@ import 'package:payroll_flutter/data/repositories/role_scorecard_repository.dart
 import 'package:payroll_flutter/features/kpi_library/kpi_rows.dart';
 
 Kpi _k(String id, String name,
-        {String? category, String? measure, bool active = true}) =>
+        {String? category, String? measure, bool active = true, String? dept}) =>
     Kpi(
       id: id, companyId: 'c', name: name, category: category,
-      measurementUnit: measure, isActive: active,
+      measurementUnit: measure, isActive: active, departmentId: dept,
     );
+
+const _deptNames = {'d1': 'Operations', 'd2': 'Human Resources'};
 
 KpiAssignee _a(String id) => KpiAssignee(employeeId: id, name: 'Person $id');
 
@@ -120,6 +122,59 @@ void main() {
       );
       expect(s.peopleTracked, 1);
       expect(s.assigned, 2);
+    });
+  });
+
+  group('departments', () {
+    final withDepts = [
+      _k('1', 'Order Accuracy', category: 'Quality', dept: 'd1'),
+      _k('2', 'Onboarding', category: 'People', dept: 'd2'),
+      _k('3', 'Homeless metric', category: 'Quality'),
+      _k('4', 'Dangling ref', category: 'Quality', dept: 'gone'),
+    ];
+
+    test('a missing or unknown department id reads as "No department"', () {
+      expect(kpiDepartmentOf(withDepts[0], _deptNames), 'Operations');
+      expect(kpiDepartmentOf(withDepts[2], _deptNames), kNoDepartment);
+      expect(kpiDepartmentOf(withDepts[3], _deptNames), kNoDepartment,
+          reason: 'a deleted department must not crash or invent a name');
+    });
+
+    test('"No department" sorts last — it is a gap, not a department', () {
+      expect(kpiDepartments(withDepts, _deptNames),
+          ['Human Resources', 'Operations', kNoDepartment]);
+    });
+
+    test('grouping nests department -> category -> KPIs', () {
+      final g = groupKpisByDepartment(withDepts, _deptNames);
+      expect(g.keys, ['Human Resources', 'Operations', kNoDepartment]);
+      expect(g['Operations']!.keys, ['Quality']);
+      expect(g['Operations']!['Quality']!.map((k) => k.name), ['Order Accuracy']);
+      expect(g[kNoDepartment]!['Quality']!.map((k) => k.name),
+          ['Dangling ref', 'Homeless metric'],
+          reason: 'a dangling department ref is a gap, not a department');
+    });
+
+    test('filtering by department', () {
+      expect(
+        applyKpiFilter(withDepts, const KpiFilter(department: 'Operations'),
+                const {}, departmentNameById: _deptNames)
+            .map((k) => k.id),
+        ['1'],
+      );
+      expect(
+        applyKpiFilter(withDepts, const KpiFilter(department: kNoDepartment),
+                const {}, departmentNameById: _deptNames)
+            .map((k) => k.id),
+        ['3', '4'],
+      );
+    });
+
+    test('stats count departments and the gap', () {
+      final s = kpiLibraryStats(withDepts, const {},
+          departmentNameById: _deptNames);
+      expect(s.departments, 2, reason: '"No department" is not a department');
+      expect(s.noDepartment, 2);
     });
   });
 }
