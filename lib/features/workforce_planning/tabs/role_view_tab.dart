@@ -10,6 +10,7 @@ import '../../../widgets/responsive_table.dart';
 import '../role_rollup.dart';
 import '../wp_providers.dart';
 import 'load_chip.dart';
+import 'tab_intro.dart';
 
 /// A single person's computed owned tasks (times/minutes/hours resolved).
 /// Public (not `_`-prefixed) so widget tests can override it directly.
@@ -93,6 +94,31 @@ class _RoleLens extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           header,
+          const TabIntro(
+            purpose: 'Is each role viable, whoever holds it? '
+                'Effort and cost per role card, not per person.',
+            details: [
+              (
+                term: 'Why this differs from Balance.',
+                meaning: 'Balance asks whether a PERSON is overloaded. This asks '
+                    'whether the ROLE is — the question that survives someone '
+                    'leaving or a second holder joining.',
+              ),
+              (
+                term: 'Cost/mo',
+                meaning: 'The role card\'s base salary × 26 working days × how '
+                    'many people hold it — the same working-day figure payroll '
+                    'uses. A card with no salary reads "—", never ₱0.',
+              ),
+              (
+                term: 'Why so many dashes.',
+                meaning: 'A role with nothing costed shows "—" rather than 0%, '
+                    'because unknown and idle are not the same finding.',
+              ),
+              WpGlossary.weighted,
+              WpGlossary.load,
+            ],
+          ),
           const SizedBox(height: 16),
           if (totals.uncosted > 0) ...[
             _uncostedNotice(context, totals),

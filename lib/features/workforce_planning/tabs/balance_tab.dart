@@ -11,6 +11,7 @@ import '../capacity_math.dart';
 import '../rebalance.dart';
 import '../wp_providers.dart';
 import 'load_chip.dart';
+import 'tab_intro.dart';
 import 'role_view_tab.dart' show ownerComputedProvider;
 
 /// Workload rebalancing: people ranked by load on the left, the selected
@@ -135,7 +136,28 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
     final over = projections.where((p) => p.plannedStatus == LoadStatus.over).length;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const TabIntro(
+            purpose: 'Move work until nobody is over capacity. '
+                'Drag a task from one person onto another.',
+            details: [
+              (
+                term: 'Nothing saves until Apply.',
+                meaning: 'Drag freely to try a rebalance — each person shows '
+                    'their planned load with the current one struck through '
+                    'beside it. Reset throws the draft away.',
+              ),
+              WpGlossary.load,
+              WpGlossary.derived,
+              WpGlossary.weighted,
+              WpGlossary.unassigned,
+              WpGlossary.notCosted,
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
         children: [
           Expanded(
             child: Wrap(
@@ -206,6 +228,8 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
               label: Text(_applying ? 'Applying…' : 'Apply ${moves.length}'),
             ),
           ],
+        ],
+          ),
         ],
       ),
     );

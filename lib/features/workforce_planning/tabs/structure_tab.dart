@@ -8,6 +8,7 @@ import '../org_chart_view.dart';
 import '../structure_rows.dart';
 import '../wp_providers.dart';
 import 'load_chip.dart';
+import 'tab_intro.dart';
 
 /// Draggable version of the shared [OrgChartView]: a load chip per person and
 /// one drag/drop interaction — dragging a person box onto another re-parents
@@ -48,7 +49,31 @@ class StructureTab extends ConsumerWidget {
       return const Center(child: Text('No active people to show.'));
     }
 
-    return OrgChartView(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: TabIntro(
+            purpose: 'Who reports to whom. Drag a person onto another to '
+                'change their reporting line.',
+            details: [
+              (
+                term: 'Changes here save immediately.',
+                meaning: 'Unlike Balance, a re-parent is written as soon as you '
+                    'drop it. Self-parenting and cycles are refused.',
+              ),
+              (
+                term: 'Multiple roots are normal.',
+                meaning: 'Anyone with no manager set appears as a top-level box. '
+                    'Several roots simply means several people report to nobody.',
+              ),
+              WpGlossary.load,
+            ],
+          ),
+        ),
+        Expanded(
+          child: OrgChartView(
       people: people,
       empById: empById,
       trailing: (emp) {
@@ -82,6 +107,9 @@ class StructureTab extends ConsumerWidget {
           ),
         ),
       ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -328,4 +328,19 @@ void main() {
     expect(find.text('needs costing'), findsOneWidget);
   });
 
+
+  testWidgets('the tab says what it is for, with detail on request',
+      (tester) async {
+    await tester.pumpWidget(_host(employees: _people, tasks: _tasks, computed: _computed));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Move work until nobody is over capacity'),
+        findsOneWidget);
+    expect(find.textContaining('struck through', findRichText: true), findsNothing);
+
+    await tester.tap(find.text('How this works'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Nothing saves until Apply', findRichText: true),
+        findsOneWidget);
+    expect(find.textContaining('Over 100% = Over', findRichText: true), findsOneWidget);
+  });
 }

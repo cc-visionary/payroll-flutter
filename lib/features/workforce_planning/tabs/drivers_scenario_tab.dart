@@ -8,6 +8,7 @@ import '../../../data/repositories/workforce_planning_repository.dart';
 import '../../auth/profile_provider.dart';
 import '../wp_providers.dart';
 import 'role_view_tab.dart' show ownerComputedProvider;
+import 'tab_intro.dart';
 
 /// HR-facing Drivers & Scenario editor: the growth-multiplier scenario
 /// control, plus create/edit for `wp_drivers` and `wp_rates` — the two
@@ -55,6 +56,31 @@ class DriversScenarioTab extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const TabIntro(
+              purpose: 'The volume numbers and per-unit rates the hours are '
+                  'calculated from.',
+              details: [
+                (
+                  term: 'Driver',
+                  meaning: 'A volume the business runs at — orders per month, '
+                      'inquiries per month. A task bound to one is recalculated '
+                      'whenever the driver changes.',
+                ),
+                (
+                  term: 'Rate',
+                  meaning: 'Minutes one unit of work takes — 8 minutes to pick '
+                      'and pack an order. Times × minutes ÷ 60 = hours/month.',
+                ),
+                (
+                  term: 'Grows',
+                  meaning: 'Marks a driver as demand-sensitive. ONLY tasks bound '
+                      'to a growing driver respond to the multiplier below; a '
+                      'manual hours figure stays flat at any scenario.',
+                ),
+                WpGlossary.multiplier,
+              ],
+            ),
+            const SizedBox(height: 16),
             _sectionHeader(context, 'Scenario'),
             const SizedBox(height: 12),
             _scenarioCard(context, ref, multiplier, companyId),
