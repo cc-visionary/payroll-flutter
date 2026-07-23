@@ -9,12 +9,6 @@ import 'package:payroll_flutter/features/workforce_planning/needs_attention.dart
 WpPersonLoad _load(String id, {required double fixed, double cap = 160}) =>
     WpPersonLoad(employeeId: id, companyId: 'c', hoursFixed: fixed, capacityHours: cap);
 
-Employee _e(String id, {String? card}) => Employee(
-      id: id, companyId: 'c', employeeNumber: id, firstName: id, lastName: 'x',
-      employmentType: 'REGULAR', employmentStatus: 'ACTIVE', hireDate: DateTime(2026),
-      isRankAndFile: true, isOtEligible: false, isNdEligible: false,
-      isHolidayPayEligible: false, taxOnFullEarnings: false, roleScorecardId: card);
-
 WpTask _t(String id, {String? card, String? owner, String? crit,
         bool essential = true, bool expectation = false}) =>
     WpTask(id: id, companyId: 'c', name: id, roleScorecardId: card,

@@ -38,4 +38,35 @@ void main() {
     expect(find.text('Needs attention'), findsOneWidget);
     expect(find.textContaining('over capacity'), findsOneWidget);
   });
+
+  testWidgets('tapping a chip deep-links to the right hub tab', (tester) async {
+    late TabController controller;
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        wpPersonLoadsProvider.overrideWith((ref) async => const []),
+        wpTasksProvider.overrideWith((ref) async =>
+            const [WpTask(id: 't', companyId: 'c', name: 'Orphan')]),
+        wpActiveEmployeesProvider.overrideWith((ref) async => const []),
+        roleScorecardListProvider.overrideWith((ref) async => const []),
+        kpiLibraryProvider.overrideWith((ref) async => const []),
+        kpiAssignedEmployeesProvider.overrideWith((ref) async => const {}),
+      ],
+      child: MaterialApp(
+        home: Scaffold(
+          body: DefaultTabController(
+            length: 5,
+            child: Builder(builder: (ctx) {
+              controller = DefaultTabController.of(ctx);
+              return const NeedsAttentionStrip();
+            }),
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(controller.index, 0);
+    await tester.tap(find.text('1 responsibility unassigned'));
+    await tester.pumpAndSettle();
+    expect(controller.index, 4, reason: 'unassigned chip must switch to the Unassigned tab');
+  });
 }

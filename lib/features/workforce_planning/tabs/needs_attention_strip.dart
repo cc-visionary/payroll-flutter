@@ -12,7 +12,6 @@ import 'tab_intro.dart';
 /// Structure 2, Tasks 3, Unassigned 4). KPI library is a separate route.
 void _go(BuildContext context, AttentionTarget target) {
   const tabIndex = {
-    AttentionTarget.balance: 0,
     AttentionTarget.roles: 1,
     AttentionTarget.tasks: 3,
     AttentionTarget.unassigned: 4,
@@ -108,16 +107,24 @@ class NeedsAttentionStrip extends ConsumerWidget {
                       runSpacing: 8,
                       children: [
                         for (final item in items.where((i) => i.category == category))
-                          InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: () => _go(context, item.target),
-                            child: StatusChip(
+                          if (item.target == AttentionTarget.balance)
+                            StatusChip(
                               label: item.label,
                               tone: item.severity == AttentionSeverity.high
                                   ? StatusTone.danger
                                   : StatusTone.warning,
+                            )
+                          else
+                            InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () => _go(context, item.target),
+                              child: StatusChip(
+                                label: item.label,
+                                tone: item.severity == AttentionSeverity.high
+                                    ? StatusTone.danger
+                                    : StatusTone.warning,
+                              ),
                             ),
-                          ),
                       ],
                     ),
                   ],
