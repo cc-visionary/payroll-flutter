@@ -336,6 +336,7 @@ List<PlannedTask> unassignedTasks({
   final out = <PlannedTask>[];
   final holdersByCard = <String, List<Employee>>{};
   for (final t in tasks) {
+    if (t.status != 'ACTIVE') continue; // archived work leaves the drag pool
     if (moves[t.id] != null || t.ownerEmployeeId != null) continue;
     final cardId = t.roleScorecardId;
     if (cardId == null && t.externalRef != null) continue; // legacy reference

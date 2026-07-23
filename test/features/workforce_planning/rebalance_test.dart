@@ -292,5 +292,15 @@ void main() {
       expect(list.map((p) => p.task.id), ['weighted'],
           reason: 'an archived task must not appear in a person\'s planned tasks');
     });
+
+    test('an archived, unowned task does not appear in the unassigned pool', () {
+      final tasks = [_t('gone', status: 'ARCHIVED')];
+      final comp = {'gone': _c('gone', 999)};
+      final list = unassignedTasks(
+          employees: const [], tasks: tasks, computedByTaskId: comp, multiplier: 1);
+      expect(list, isEmpty,
+          reason: 'an archived orphan must not appear in the unassigned drag pool, '
+              'regardless of hours');
+    });
   });
 }
