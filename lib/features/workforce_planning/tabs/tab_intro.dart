@@ -140,4 +140,10 @@ class WpGlossary {
     meaning: 'The value-chain stage a task belongs to (Source & land, Fulfil, '
         'After-sales…). Grouping only — it has no effect on the hours.',
   );
+  static const proposeRole = (
+    term: 'Propose role from these',
+    meaning: 'When several unassigned responsibilities form a coherent job, '
+        'draft a new (inactive) role card seeded with them — turning a pile of '
+        'unowned work into the role you need to staff, hours already totalled.',
+  );
 }
