@@ -110,6 +110,10 @@ class WorkforcePlanningRepository {
   Future<void> setTaskExpectation(String taskId, bool isExpectation) async {
     await _client.from('wp_tasks').update({
       'is_expectation': isExpectation,
+      // Keep the invariant: an expectation is non-essential; a task made
+      // costable again returns to the essential default. Setting is_essential in
+      // the SAME statement avoids a window where the row violates the CHECK.
+      'is_essential': !isExpectation,
       if (isExpectation) ...{
         'times_manual': null,
         'driver_id': null,
@@ -118,6 +122,16 @@ class WorkforcePlanningRepository {
         'hours_per_month': null,
       },
     }).eq('id', taskId);
+  }
+
+  /// Archives (or restores) an accountability. ARCHIVED work leaves load and
+  /// the derived lists (wp_task_computed filters on status) but is retained and
+  /// can be restored — the correct tool for "no longer needed", vs a hard
+  /// delete of a row that carries history.
+  Future<void> setTaskArchived(String taskId, bool archived) async {
+    await _client.from('wp_tasks')
+        .update({'status': archived ? 'ARCHIVED' : 'ACTIVE'})
+        .eq('id', taskId);
   }
 
   Future<void> reassignTaskOwner(String taskId, String? ownerEmployeeId) async =>
