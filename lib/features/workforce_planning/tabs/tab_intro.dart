@@ -146,4 +146,10 @@ class WpGlossary {
         'draft a new (inactive) role card seeded with them — turning a pile of '
         'unowned work into the role you need to staff, hours already totalled.',
   );
+  static const needsAttention = (
+    term: 'Needs attention',
+    meaning: 'Gaps derived from the current plan, grouped People / Process / '
+        'Structure / Tools — over-capacity people, unowned or uncosted work, '
+        'unstaffed critical roles, KPIs measuring nobody. Each links to its fix.',
+  );
 }

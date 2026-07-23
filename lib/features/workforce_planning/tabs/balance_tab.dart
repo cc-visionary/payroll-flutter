@@ -11,6 +11,7 @@ import '../capacity_math.dart';
 import '../rebalance.dart';
 import '../wp_providers.dart';
 import 'load_chip.dart';
+import 'needs_attention_strip.dart';
 import 'tab_intro.dart';
 import 'role_view_tab.dart' show ownerComputedProvider;
 
@@ -102,6 +103,7 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const NeedsAttentionStrip(),
         _planBar(context, moves, projections, orphans),
         const Divider(height: 1),
         Expanded(
