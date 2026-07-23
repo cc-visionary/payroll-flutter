@@ -226,4 +226,22 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Save 1'), findsOneWidget);
   });
+
+  testWidgets('typing a direct Hours figure computes and saves it', (tester) async {
+    final repo = _FakeRepo();
+    await tester.pumpWidget(_host(repo));
+    await _enterCostMode(tester);
+
+    await tester.enterText(find.byKey(const ValueKey('hours-t1')), '30');
+    await tester.pumpAndSettle();
+
+    expect(find.text('30.0'), findsOneWidget); // live hours
+    await tester.tap(find.text('Save 1'));
+    await tester.pumpAndSettle();
+
+    final patch = repo.calls.single['t1']!;
+    expect(patch['hours_per_month'], 30);
+    expect(patch['driver_id'], isNull);
+    expect(patch['times_manual'], isNull);
+  });
 }
