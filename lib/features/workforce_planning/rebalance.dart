@@ -98,6 +98,62 @@ double _hoursOf(WpTaskComputed? c, double multiplier) {
   return c.isGrowing ? c.hoursPerMonthBase * multiplier : c.hoursPerMonthBase;
 }
 
+typedef TaskShare = ({String employeeId, double hours, bool derived, int holderCount});
+
+/// Distributes ONE task's [hours] across the people who carry it, plus the
+/// leftover that reaches nobody. Assignments win when present (person -> its
+/// pct; card -> its pct split across active holders); a draft [moveOverride]
+/// gives 100% to one person; with no assignments it falls back to owner/card
+/// exactly as the pre-assignment split did. Mirrors wp_person_load.
+({List<TaskShare> shares, double unattributed}) attributeTask({
+  required double hours,
+  required WpTask task,
+  required List<WpTaskAssignment> assignments,
+  required List<Employee> Function(String cardId) holdersOf,
+  String? moveOverride,
+}) {
+  if (hours <= 0) return (shares: const <TaskShare>[], unattributed: 0);
+  if (moveOverride != null) {
+    return (
+      shares: [(employeeId: moveOverride, hours: hours, derived: false, holderCount: 1)],
+      unattributed: 0,
+    );
+  }
+  final shares = <TaskShare>[];
+  if (assignments.isNotEmpty) {
+    for (final a in assignments) {
+      final share = hours * a.allocationPct / 100.0;
+      if (share <= 0) continue;
+      if (a.employeeId != null) {
+        shares.add((employeeId: a.employeeId!, hours: share, derived: false, holderCount: 1));
+      } else if (a.roleScorecardId != null) {
+        final hs = holdersOf(a.roleScorecardId!);
+        if (hs.isEmpty) continue; // reaches nobody -> falls into unattributed below
+        final per = share / hs.length;
+        for (final h in hs) {
+          shares.add((employeeId: h.id, hours: per, derived: true, holderCount: hs.length));
+        }
+      }
+    }
+    final reached = shares.fold<double>(0, (s, x) => s + x.hours);
+    return (shares: shares, unattributed: hours - reached);
+  }
+  // Fallback (no assignments): owner/card, identical to the pre-assignment split.
+  final owner = task.ownerEmployeeId;
+  if (owner != null) {
+    return (shares: [(employeeId: owner, hours: hours, derived: false, holderCount: 1)], unattributed: 0);
+  }
+  final cardId = task.roleScorecardId;
+  if (cardId == null) return (shares: const <TaskShare>[], unattributed: hours);
+  final hs = holdersOf(cardId);
+  if (hs.isEmpty) return (shares: const <TaskShare>[], unattributed: hours);
+  final per = hours / hs.length;
+  return (
+    shares: [for (final h in hs) (employeeId: h.id, hours: per, derived: true, holderCount: hs.length)],
+    unattributed: 0,
+  );
+}
+
 /// Hours per employee under [moves], mirroring `wp_person_load`'s attribution:
 /// explicit owner takes the whole task, else it splits evenly across the ACTIVE
 /// holders of its role card, else it is unattributed and reaches nobody.
