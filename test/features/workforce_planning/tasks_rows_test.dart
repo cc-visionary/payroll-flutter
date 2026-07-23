@@ -29,6 +29,16 @@ RoleScorecard _card(String id, String jobTitle) => RoleScorecard(
     );
 
 void main() {
+  group('partitionByStatus', () {
+    test('splits active from archived', () {
+      const active = WpTask(id: 'a', companyId: 'c', name: 'A');
+      const archived = WpTask(id: 'b', companyId: 'c', name: 'B', status: 'ARCHIVED');
+      final p = partitionByStatus(const [active, archived]);
+      expect(p.active.map((t) => t.id), ['a']);
+      expect(p.archived.map((t) => t.id), ['b']);
+    });
+  });
+
   group('groupTasks', () {
     test('buckets a card-linked task under its card, ordered areas/tasks by sort not name', () {
       final tasks = [

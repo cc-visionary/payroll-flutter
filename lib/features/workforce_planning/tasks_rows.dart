@@ -101,6 +101,17 @@ TaskGroups groupTasks(List<WpTask> tasks, List<RoleScorecard> cards) {
   return TaskGroups(cardGroups: cardGroups, legacy: legacy, unattributed: unattributed);
 }
 
+/// Splits tasks into ACTIVE (shown, grouped, costed) and ARCHIVED (retained,
+/// shown only in the collapsible Archived section, restorable).
+({List<WpTask> active, List<WpTask> archived}) partitionByStatus(
+    List<WpTask> tasks) {
+  final active = <WpTask>[], archived = <WpTask>[];
+  for (final t in tasks) {
+    (t.status == 'ARCHIVED' ? archived : active).add(t);
+  }
+  return (active: active, archived: archived);
+}
+
 List<TaskAreaGroup> _groupByArea(List<WpTask> tasks) {
   final areaSortMin = <String, int>{};
   final byArea = <String, List<WpTask>>{};

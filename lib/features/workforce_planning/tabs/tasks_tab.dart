@@ -11,6 +11,7 @@ import '../../../data/repositories/workforce_planning_repository.dart';
 import '../../../widgets/responsive_table.dart';
 import '../../auth/profile_provider.dart';
 import '../../documents/providers.dart' show roleScorecardByIdProvider;
+import '../task_badges.dart';
 import '../task_costing.dart';
 import '../tasks_paging.dart';
 import '../tasks_rows.dart';
@@ -112,6 +113,8 @@ class _TasksTabState extends ConsumerState<TasksTab> {
     }
 
     final tasks = tasksAsync.asData!.value;
+    final partition = partitionByStatus(tasks);
+    final activeTasks = partition.active;
     final nodes = nodesAsync.asData!.value;
     final drivers = driversAsync.asData!.value;
     final rates = ratesAsync.asData!.value;
@@ -125,18 +128,18 @@ class _TasksTabState extends ConsumerState<TasksTab> {
     };
     // Scope first, then page: "Operations Manager" should be its own 38 rows,
     // not page 2-of-6 of everything.
-    final scopes = buildScopes(tasks, cards);
+    final scopes = buildScopes(activeTasks, cards);
     final scopeKey =
         scopes.any((s) => s.key == _scope) ? _scope : TaskScope.allKey;
     final withHolders = cardsWithActiveHolders(employees);
     final scoped = applyTaskFilter(
-        tasksInScope(tasks, cards, scopeKey), _filter, driverById, rateById,
+        tasksInScope(activeTasks, cards, scopeKey), _filter, driverById, rateById,
         cardsWithHolders: withHolders);
     final pageInfo = pageOfTasks(scoped, _page, _pageSize);
     final groups = groupTasks(pageInfo.tasks, cards);
     // Counts and bulk actions must see the WHOLE inventory, never the page —
     // otherwise "Delete all" would silently delete only what is on screen.
-    final allGroups = groupTasks(tasks, cards);
+    final allGroups = groupTasks(activeTasks, cards);
     // (card, area) -> every task in it, so "Fill area" covers the whole area
     // rather than whatever happens to be on the current page.
     final wholeArea = <String, List<WpTask>>{
@@ -279,6 +282,17 @@ class _TasksTabState extends ConsumerState<TasksTab> {
               ),
               const SizedBox(height: 8),
               table(groups.unattributed),
+            ],
+            if (partition.archived.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              _ArchivedSection(
+                tasks: partition.archived,
+                onRestore: (t) async {
+                  await ref.read(workforcePlanningRepositoryProvider)
+                      .setTaskArchived(t.id, false);
+                  _invalidateAfterTaskChange(ref, [t.roleScorecardId]);
+                },
+              ),
             ],
           ],
         ],
@@ -1078,7 +1092,7 @@ class _TasksTabState extends ConsumerState<TasksTab> {
         rows: [
           for (final t in rows)
             DataRow(cells: [
-              DataCell(_nameCell(t.name, _nameWidth(c.maxWidth, others))),
+              DataCell(_nameWithBadges(context, t, _nameWidth(c.maxWidth, others))),
               DataCell(Text(nodeNameById[t.nodeId] ?? '—')),
               DataCell(_hoursCell(context, t, driverById, rateById)),
               DataCell(_ownerCell(context, t, employees, employeeNameById)),
@@ -1116,9 +1130,9 @@ class _TasksTabState extends ConsumerState<TasksTab> {
                     onPressed: () => _toggleExpectation(t),
                   ),
                   IconButton(
-                    tooltip: 'Delete',
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    onPressed: () => _confirmDelete(context, ref, t),
+                    tooltip: 'Archive (no longer needed)',
+                    icon: const Icon(Icons.archive_outlined, size: 18),
+                    onPressed: () => _confirmArchive(context, ref, t),
                   ),
                 ],
               )),
@@ -1126,6 +1140,26 @@ class _TasksTabState extends ConsumerState<TasksTab> {
         ],
       ),
     ),
+    );
+  }
+
+  Widget _nameWithBadges(BuildContext context, WpTask t, double width) {
+    final tone = criticalityTone(t.criticality);
+    final chips = <Widget>[
+      if (tone != null)
+        StatusChip(label: criticalityLabel(t.criticality)!, tone: tone),
+      if (!t.isEssential)
+        const StatusChip(label: 'Non-essential', tone: StatusTone.neutral),
+    ];
+    if (chips.isEmpty) return _nameCell(t.name, width);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _nameCell(t.name, width),
+        const SizedBox(height: 4),
+        Wrap(spacing: 6, runSpacing: 4, children: chips),
+      ],
     );
   }
 
@@ -1281,7 +1315,7 @@ class _TasksTabState extends ConsumerState<TasksTab> {
     );
   }
 
-  Future<void> _confirmDelete(
+  Future<void> _confirmArchive(
     BuildContext context,
     WidgetRef ref,
     WpTask task,
@@ -1289,10 +1323,10 @@ class _TasksTabState extends ConsumerState<TasksTab> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Delete task?'),
+        title: const Text('Archive task?'),
         content: Text(
-          'Remove "${task.name}" from the task inventory? This cannot be '
-          'undone.',
+          'Archive "${task.name}"? It leaves everyone\'s load and the queues '
+          'but is kept for reference and can be restored.',
         ),
         actions: [
           TextButton(
@@ -1301,24 +1335,48 @@ class _TasksTabState extends ConsumerState<TasksTab> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(c, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(c).colorScheme.error,
-            ),
-            child: const Text('Delete'),
+            child: const Text('Archive'),
           ),
         ],
       ),
     );
     if (ok != true) return;
     try {
-      await ref.read(workforcePlanningRepositoryProvider).deleteTask(task.id);
+      await ref.read(workforcePlanningRepositoryProvider)
+          .setTaskArchived(task.id, true);
     } catch (e) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not delete task: $e')),
+        SnackBar(content: Text('Could not archive task: $e')),
       );
       return;
     }
     _invalidateAfterTaskChange(ref, [task.roleScorecardId]);
+  }
+}
+
+class _ArchivedSection extends StatelessWidget {
+  final List<WpTask> tasks;
+  final Future<void> Function(WpTask) onRestore;
+  const _ArchivedSection({required this.tasks, required this.onRestore});
+
+  @override
+  Widget build(BuildContext context) {
+    return ExpansionTile(
+      title: Text('Archived (${tasks.length})'),
+      childrenPadding: const EdgeInsets.symmetric(horizontal: 8),
+      children: [
+        for (final t in tasks)
+          ListTile(
+            dense: true,
+            title: Text(t.name),
+            trailing: TextButton.icon(
+              icon: const Icon(Icons.unarchive_outlined, size: 18),
+              label: const Text('Restore'),
+              onPressed: () => onRestore(t),
+            ),
+          ),
+      ],
+    );
   }
 }
