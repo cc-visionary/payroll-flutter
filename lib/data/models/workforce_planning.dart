@@ -74,6 +74,18 @@ class WpTask {
   /// real responsibility on the card and in the contract annex.
   final bool isExpectation;
 
+  /// Business criticality LOW/MEDIUM/HIGH/CRITICAL (nullable = unset). The ADA
+  /// essential-function test's "importance" leg.
+  final String? criticality;
+
+  /// ADA essential-function flag. An expectation is always non-essential; the
+  /// DB constraint and [toUpsert] keep the two consistent.
+  final bool isEssential;
+
+  /// Lifecycle: 'ACTIVE' or 'ARCHIVED'. ARCHIVED work leaves load and the
+  /// derived lists (via wp_task_computed) but is retained and restorable.
+  final String status;
+
   /// Direct monthly-hours figure. When non-null it IS the workload and wins
   /// over the times x minutes driver calc (mirrors wp_task_computed). A
   /// direct-hours task never responds to the growth multiplier.
@@ -85,7 +97,8 @@ class WpTask {
     this.rateId, this.skillTier, this.risk, this.capability,
     this.ownerEmployeeId, this.roleScorecardId, this.responsibilityArea,
     this.notes, this.externalRef, this.areaSort = 0, this.taskSort = 0,
-    this.isExpectation = false, this.hoursPerMonth});
+    this.isExpectation = false, this.criticality, this.isEssential = true,
+    this.status = 'ACTIVE', this.hoursPerMonth});
   factory WpTask.fromRow(Map<String, dynamic> r) => WpTask(
     id: r['id'] as String, companyId: r['company_id'] as String,
     name: r['name'] as String, nodeId: r['node_id'] as String?,
@@ -103,6 +116,9 @@ class WpTask {
     notes: r['notes'] as String?, externalRef: r['external_ref'] as String?,
     areaSort: _i(r['area_sort']), taskSort: _i(r['task_sort']),
     isExpectation: r['is_expectation'] as bool? ?? false,
+    criticality: r['criticality'] as String?,
+    isEssential: r['is_essential'] as bool? ?? true,
+    status: r['status'] as String? ?? 'ACTIVE',
     hoursPerMonth: _dn(r['hours_per_month']));
   /// Same task at a new position in its card/area. Used when a responsibility
   /// is created or moved, so it lands at the END of its area.
@@ -115,7 +131,8 @@ class WpTask {
     ownerEmployeeId: ownerEmployeeId, roleScorecardId: roleScorecardId,
     responsibilityArea: responsibilityArea, notes: notes,
     externalRef: externalRef, areaSort: areaSort, taskSort: taskSort,
-    isExpectation: isExpectation, hoursPerMonth: hoursPerMonth);
+    isExpectation: isExpectation, criticality: criticality,
+    isEssential: isEssential, status: status, hoursPerMonth: hoursPerMonth);
 
   Map<String, dynamic> toUpsert(String companyId) {
     final direct = hoursPerMonth != null;
@@ -134,6 +151,11 @@ class WpTask {
       'owner_employee_id': ownerEmployeeId, 'role_scorecard_id': roleScorecardId,
       'responsibility_area': _s(responsibilityArea), 'notes': _s(notes),
       'is_expectation': isExpectation,
+      'criticality': _s(criticality),
+      // An expectation is by definition non-essential — enforce it here so no
+      // saveTask path can violate the wp_tasks_expectation_non_essential CHECK.
+      'is_essential': isExpectation ? false : isEssential,
+      'status': status,
       // Position is load-bearing: the role-card PDF and contract Annex A render
       // responsibilities in this order. Omitting these left every row created
       // from the Tasks tab at 0/0 — jumping ahead of the card's first
