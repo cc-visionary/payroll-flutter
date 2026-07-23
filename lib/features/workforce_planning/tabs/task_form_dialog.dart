@@ -64,8 +64,10 @@ WpTask buildTaskFromForm({
   String? risk,
   String? capability,
   String? ownerEmployeeId,
+  String? hoursPerMonthText,
 }) {
   String? clean(String? v) => (v == null || v.trim().isEmpty) ? null : v.trim();
+  final direct = double.tryParse((hoursPerMonthText ?? '').trim());
   return WpTask(
     id: existing?.id ?? '',
     companyId: existing?.companyId ?? companyId,
@@ -73,13 +75,18 @@ WpTask buildTaskFromForm({
     nodeId: nodeId,
     brandScope: clean(brandScope),
     cadence: clean(cadence),
-    timesSource: timesSource,
-    timesManual: timesSource == 'manual' ? double.tryParse((timesManualText ?? '').trim()) : null,
-    driverId: timesSource == 'driver' ? driverId : null,
+    timesSource: direct != null ? 'manual' : timesSource,
+    timesManual: direct != null
+        ? null
+        : (timesSource == 'manual' ? double.tryParse((timesManualText ?? '').trim()) : null),
+    driverId: direct != null ? null : (timesSource == 'driver' ? driverId : null),
     driverFactor: double.tryParse((driverFactorText ?? '').trim()) ?? 1,
-    minutesSource: minutesSource,
-    minutesManual: minutesSource == 'manual' ? double.tryParse((minutesManualText ?? '').trim()) : null,
-    rateId: minutesSource == 'rate' ? rateId : null,
+    minutesSource: direct != null ? 'manual' : minutesSource,
+    minutesManual: direct != null
+        ? null
+        : (minutesSource == 'manual' ? double.tryParse((minutesManualText ?? '').trim()) : null),
+    rateId: direct != null ? null : (minutesSource == 'rate' ? rateId : null),
+    hoursPerMonth: direct,
     skillTier: skillTier,
     risk: risk,
     capability: clean(capability),
@@ -134,6 +141,8 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
       text: (widget.existing?.driverFactor ?? 1).toString());
   late final _minutesManual = TextEditingController(
       text: widget.existing?.minutesManual?.toString() ?? '');
+  late final _hoursCtl = TextEditingController(
+      text: widget.existing?.hoursPerMonth?.toString() ?? '');
 
   late String _timesSource = widget.existing?.timesSource ?? 'manual';
   late String _minutesSource = widget.existing?.minutesSource ?? 'manual';
@@ -158,7 +167,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
 
   @override
   void dispose() {
-    for (final c in [_name, _brand, _cadence, _capability, _timesManual, _driverFactor, _minutesManual]) {
+    for (final c in [_name, _brand, _cadence, _capability, _timesManual, _driverFactor, _minutesManual, _hoursCtl]) {
       c.dispose();
     }
     super.dispose();
@@ -196,6 +205,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
       risk: _risk,
       capability: _capability.text,
       ownerEmployeeId: _ownerId,
+      hoursPerMonthText: _hoursCtl.text,
     );
     Navigator.pop(context, task);
   }
@@ -230,62 +240,84 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
               Expanded(child: TextField(controller: _cadence, decoration: _dec('Cadence (label)'))),
             ]),
             const SizedBox(height: 16),
-            // Times source
-            Text('Times per month', style: Theme.of(context).textTheme.labelLarge),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'manual', label: Text('Manual')),
-                ButtonSegment(value: 'driver', label: Text('Driver')),
-              ],
-              selected: {_timesSource},
-              onSelectionChanged: (s) => setState(() => _timesSource = s.first),
-            ),
-            const SizedBox(height: 8),
-            if (_timesSource == 'manual')
-              TextField(controller: _timesManual, keyboardType: TextInputType.number, style: AppTheme.mono(context), decoration: _dec('Times / month'))
-            else
-              Row(children: [
-                Expanded(
-                  child: DropdownButtonFormField<String?>(
-                    initialValue:
-                        _present(_driverId, widget.drivers.map((d) => d.id)),
-                    isExpanded: true,
-                    decoration: _dec('Driver'),
-                    items: [
-                      const DropdownMenuItem<String?>(value: null, child: Text('— Pick —')),
-                      ...widget.drivers.map((d) => DropdownMenuItem<String?>(value: d.id, child: Text(d.name))),
-                    ],
-                    onChanged: (v) => setState(() => _driverId = v),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                SizedBox(width: 110, child: TextField(controller: _driverFactor, keyboardType: TextInputType.number, style: AppTheme.mono(context), decoration: _dec('× factor'))),
-              ]),
-            const SizedBox(height: 16),
-            // Minutes source
-            Text('Minutes each', style: Theme.of(context).textTheme.labelLarge),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'manual', label: Text('Manual')),
-                ButtonSegment(value: 'rate', label: Text('Rate')),
-              ],
-              selected: {_minutesSource},
-              onSelectionChanged: (s) => setState(() => _minutesSource = s.first),
-            ),
-            const SizedBox(height: 8),
-            if (_minutesSource == 'manual')
-              TextField(controller: _minutesManual, keyboardType: TextInputType.number, style: AppTheme.mono(context), decoration: _dec('Minutes each'))
-            else
-              DropdownButtonFormField<String?>(
-                initialValue: _present(_rateId, widget.rates.map((r) => r.id)),
-                isExpanded: true,
-                decoration: _dec('Rate'),
-                items: [
-                  const DropdownMenuItem<String?>(value: null, child: Text('— Pick —')),
-                  ...widget.rates.map((r) => DropdownMenuItem<String?>(value: r.id, child: Text(r.name))),
-                ],
-                onChanged: (v) => setState(() => _rateId = v),
+            TextField(
+              controller: _hoursCtl,
+              decoration: const InputDecoration(
+                labelText: 'Workload (hours / month)',
+                hintText: 'e.g. 10',
+                helperText: 'One number. Leave blank to drive by volume below.',
               ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 8),
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              initiallyExpanded: _hoursCtl.text.trim().isEmpty &&
+                  (widget.existing?.timesSource == 'driver' ||
+                      widget.existing?.minutesSource == 'rate'),
+              title: const Text('Advanced: scales with volume'),
+              children: [
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  // Times source
+                  Text('Times per month', style: Theme.of(context).textTheme.labelLarge),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'manual', label: Text('Manual')),
+                      ButtonSegment(value: 'driver', label: Text('Driver')),
+                    ],
+                    selected: {_timesSource},
+                    onSelectionChanged: (s) => setState(() => _timesSource = s.first),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_timesSource == 'manual')
+                    TextField(controller: _timesManual, keyboardType: TextInputType.number, style: AppTheme.mono(context), decoration: _dec('Times / month'))
+                  else
+                    Row(children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String?>(
+                          initialValue:
+                              _present(_driverId, widget.drivers.map((d) => d.id)),
+                          isExpanded: true,
+                          decoration: _dec('Driver'),
+                          items: [
+                            const DropdownMenuItem<String?>(value: null, child: Text('— Pick —')),
+                            ...widget.drivers.map((d) => DropdownMenuItem<String?>(value: d.id, child: Text(d.name))),
+                          ],
+                          onChanged: (v) => setState(() => _driverId = v),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      SizedBox(width: 110, child: TextField(controller: _driverFactor, keyboardType: TextInputType.number, style: AppTheme.mono(context), decoration: _dec('× factor'))),
+                    ]),
+                  const SizedBox(height: 16),
+                  // Minutes source
+                  Text('Minutes each', style: Theme.of(context).textTheme.labelLarge),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'manual', label: Text('Manual')),
+                      ButtonSegment(value: 'rate', label: Text('Rate')),
+                    ],
+                    selected: {_minutesSource},
+                    onSelectionChanged: (s) => setState(() => _minutesSource = s.first),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_minutesSource == 'manual')
+                    TextField(controller: _minutesManual, keyboardType: TextInputType.number, style: AppTheme.mono(context), decoration: _dec('Minutes each'))
+                  else
+                    DropdownButtonFormField<String?>(
+                      initialValue: _present(_rateId, widget.rates.map((r) => r.id)),
+                      isExpanded: true,
+                      decoration: _dec('Rate'),
+                      items: [
+                        const DropdownMenuItem<String?>(value: null, child: Text('— Pick —')),
+                        ...widget.rates.map((r) => DropdownMenuItem<String?>(value: r.id, child: Text(r.name))),
+                      ],
+                      onChanged: (v) => setState(() => _rateId = v),
+                    ),
+                ]),
+              ],
+            ),
             const SizedBox(height: 16),
             Row(children: [
               Expanded(

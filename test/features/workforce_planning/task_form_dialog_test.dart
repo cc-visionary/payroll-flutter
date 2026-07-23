@@ -74,6 +74,30 @@ void main() {
     expect(padded.responsibilityArea, 'Area');
   });
 
+  test('buildTaskFromForm: a workload figure produces a direct-hours task', () {
+    final t = buildTaskFromForm(
+      companyId: 'c', name: 'Pack',
+      timesSource: 'driver', minutesSource: 'rate',
+      driverId: 'd1', rateId: 'r1',
+      hoursPerMonthText: '65.8',
+    );
+    expect(t.hoursPerMonth, 65.8);
+    expect(t.driverId, isNull, reason: 'direct hours clears the driver path');
+    expect(t.rateId, isNull);
+  });
+
+  test('buildTaskFromForm: a blank workload falls to the times/minutes path', () {
+    final t = buildTaskFromForm(
+      companyId: 'c', name: 'Pack',
+      timesSource: 'manual', minutesSource: 'manual',
+      timesManualText: '20', minutesManualText: '45',
+      hoursPerMonthText: '  ',
+    );
+    expect(t.hoursPerMonth, isNull);
+    expect(t.timesManual, 20);
+    expect(t.minutesManual, 45);
+  });
+
   testWidgets('dialog shows the name-required error on empty Save', (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: Builder(builder: (context) {
@@ -92,5 +116,30 @@ void main() {
     await tester.tap(find.text('Save'));
     await tester.pump();
     expect(find.text('Name is required.'), findsOneWidget);
+  });
+
+  testWidgets('the dialog leads with a Workload field and saves it', (tester) async {
+    WpTask? saved;
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(body: Builder(builder: (context) {
+        return ElevatedButton(
+          onPressed: () async {
+            saved = await showDialog<WpTask>(
+              context: context,
+              builder: (_) => const TaskFormDialog(
+                  companyId: 'c', nodes: [], drivers: [], rates: [], employees: []),
+            );
+          },
+          child: const Text('open'),
+        );
+      })),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Workload (hours / month)'), '12');
+    await tester.enterText(find.widgetWithText(TextField, 'Name').first, 'Do the thing');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(saved?.hoursPerMonth, 12);
   });
 }
