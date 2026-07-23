@@ -68,7 +68,7 @@ class RoleScorecardRepository {
         .from('role_scorecards')
         .select(
           '*, role_scorecard_kpis(target, frequency, sort_order, kpis(name, measurement_unit)), '
-          'wp_tasks(id, name, responsibility_area, area_sort, task_sort)',
+          'wp_tasks(id, name, responsibility_area, area_sort, task_sort, status)',
         );
     if (onlyActive) q = q.eq('is_active', true);
     final rows = await q.order('job_title');
@@ -80,7 +80,7 @@ class RoleScorecardRepository {
         .from('role_scorecards')
         .select(
           '*, role_scorecard_kpis(target, frequency, sort_order, kpis(name, measurement_unit)), '
-          'wp_tasks(id, name, responsibility_area, area_sort, task_sort)',
+          'wp_tasks(id, name, responsibility_area, area_sort, task_sort, status)',
         )
         .eq('id', id)
         .maybeSingle();

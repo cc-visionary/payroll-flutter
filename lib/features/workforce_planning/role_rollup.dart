@@ -120,6 +120,7 @@ List<RoleRollupRow> buildRoleRollup({
     // are separate fields on the role card that apply across the whole role;
     // counting them here would make every role look permanently under-costed.
     if (t.isExpectation) continue;
+    if (t.status != 'ACTIVE') continue; // archived work leaves the derived lists
     final cardId = t.roleScorecardId;
     if (cardId == null) continue;
     (tasksByCard[cardId] ??= []).add(t);

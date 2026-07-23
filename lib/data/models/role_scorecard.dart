@@ -33,6 +33,7 @@ List<ResponsibilityArea> responsibilitiesFromTaskRows(List<Map<String, dynamic>>
     final area = (r['responsibility_area'] as String?)?.trim() ?? '';
     final name = (r['name'] as String?)?.trim() ?? '';
     if (area.isEmpty || name.isEmpty) continue;
+    if ((r['status'] as String?) == 'ARCHIVED') continue; // archived leaves the card's derived list
     final aSort = (r['area_sort'] as num?)?.toInt() ?? 0;
     final tSort = (r['task_sort'] as num?)?.toInt() ?? 0;
     final id = (r['id'] as String?) ?? '';

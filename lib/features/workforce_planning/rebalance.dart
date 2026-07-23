@@ -232,6 +232,7 @@ List<LoadProjection> buildProjections({
     // across the whole role; they carry no weight and are not workload, so they
     // are not counted or shown anywhere in workforce planning.
     if (t.isExpectation) continue;
+    if (t.status != 'ACTIVE') continue; // archived work leaves the derived lists
     final hasHours = (computedByTaskId[t.id]?.hoursPerMonthBase ?? 0) > 0;
     void tally(String id) {
       counts[id] = (counts[id] ?? 0) + 1;
@@ -285,6 +286,7 @@ List<PlannedTask> plannedTasksFor({
   for (final t in tasks) {
     // Workload only. Behavioural expectations live on the role scorecard.
     if (t.isExpectation) continue;
+    if (t.status != 'ACTIVE') continue; // archived work leaves the derived lists
     final hours = _hoursOf(computedByTaskId[t.id], multiplier);
     final moved = moves.containsKey(t.id);
     final owner = moves[t.id] ?? t.ownerEmployeeId;

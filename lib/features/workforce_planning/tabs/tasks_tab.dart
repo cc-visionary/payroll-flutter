@@ -173,7 +173,7 @@ class _TasksTabState extends ConsumerState<TasksTab> {
             employeeNameById: employeeNameById,
           );
 
-    final progress = costingProgress(tasks, driverById, rateById);
+    final progress = costingProgress(activeTasks, driverById, rateById);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -208,15 +208,15 @@ class _TasksTabState extends ConsumerState<TasksTab> {
             ],
           ),
           const SizedBox(height: 12),
-          _header(context, tasks, progress, companyId, nodes, drivers, rates,
+          _header(context, activeTasks, progress, companyId, nodes, drivers, rates,
               employees, cards),
           const SizedBox(height: 12),
           _scopeBar(context, scopes, scopeKey, pageInfo),
           const SizedBox(height: 8),
           _filterBar(context, nodes, employees, employeeNameById,
-              tallyAssignments(tasks, withHolders)),
+              tallyAssignments(activeTasks, withHolders)),
           const SizedBox(height: 12),
-          if (tasks.isEmpty)
+          if (activeTasks.isEmpty)
             const Text('No tasks yet. Click "New task".')
           else ...[
             for (final cardGroup in groups.cardGroups) ...[
@@ -283,17 +283,20 @@ class _TasksTabState extends ConsumerState<TasksTab> {
               const SizedBox(height: 8),
               table(groups.unattributed),
             ],
-            if (partition.archived.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              _ArchivedSection(
-                tasks: partition.archived,
-                onRestore: (t) async {
-                  await ref.read(workforcePlanningRepositoryProvider)
-                      .setTaskArchived(t.id, false);
-                  _invalidateAfterTaskChange(ref, [t.roleScorecardId]);
-                },
-              ),
-            ],
+          ],
+          // Sibling of the if/else above, not nested inside it — an all-archived
+          // card (zero active tasks) must still show its Archived section, not
+          // just the "No tasks yet" empty state.
+          if (partition.archived.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            _ArchivedSection(
+              tasks: partition.archived,
+              onRestore: (t) async {
+                await ref.read(workforcePlanningRepositoryProvider)
+                    .setTaskArchived(t.id, false);
+                _invalidateAfterTaskChange(ref, [t.roleScorecardId]);
+              },
+            ),
           ],
         ],
       ),
@@ -1148,7 +1151,7 @@ class _TasksTabState extends ConsumerState<TasksTab> {
     final chips = <Widget>[
       if (tone != null)
         StatusChip(label: criticalityLabel(t.criticality)!, tone: tone),
-      if (!t.isEssential)
+      if (!t.isEssential && !t.isExpectation)
         const StatusChip(label: 'Non-essential', tone: StatusTone.neutral),
     ];
     if (chips.isEmpty) return _nameCell(t.name, width);

@@ -38,8 +38,8 @@ Employee _emp(
       pagibigEligibilityOverride: false, taxOnFullEarnings: false,
     );
 
-WpTask _task(String id, String? cardId) =>
-    WpTask(id: id, companyId: 'c', name: id, roleScorecardId: cardId);
+WpTask _task(String id, String? cardId, {String status = 'ACTIVE'}) =>
+    WpTask(id: id, companyId: 'c', name: id, roleScorecardId: cardId, status: status);
 
 WpTaskComputed _computed(String id, double hours, {bool growing = false}) =>
     WpTaskComputed(
@@ -202,6 +202,23 @@ void main() {
       );
       expect(rows.single.responsibilities, 1);
       expect(rows.single.hoursPerMonth, 10.0);
+    });
+
+    test('an ARCHIVED task on a card is not counted in that card\'s rollup row', () {
+      final rows = _build(
+        cards: [_card('rs1', 'Ops', base: '1000')],
+        employees: [_emp('e1', 'rs1')],
+        tasks: [_task('t1', 'rs1'), _task('t2', 'rs1', status: 'ARCHIVED')],
+        computed: {'t1': _computed('t1', 40), 't2': _computed('t2', 999)},
+      );
+      final r = rows.single;
+      expect(r.responsibilities, 1,
+          reason: 'the archived task must not inflate the responsibility count');
+      expect(r.costedResponsibilities, 1);
+      expect(r.hoursPerMonth, 40.0,
+          reason: 'the archived task\'s hours must not leak into the role\'s workload');
+      expect(r.fullyCosted, isTrue,
+          reason: 'fullyCosted must not be flipped by an archived, uncounted task');
     });
 
     test('rows are sorted by job title', () {

@@ -82,6 +82,43 @@ void main() {
     expect(find.textContaining('1 still to cost'), findsOneWidget);
   });
 
+  // An ARCHIVED task must not haunt the active costing backlog: the header
+  // scopes to activeTasks now, so an archived, never-costed row must not keep
+  // the "still to cost" banner alive once every ACTIVE task is costed.
+  testWidgets('an archived uncosted task does not count toward the costing backlog',
+      (tester) async {
+    tester.view.physicalSize = const Size(1750, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const costedActive = WpTask(
+        id: 't-active', companyId: 'c', name: 'Costed active task',
+        roleScorecardId: 'rs1', responsibilityArea: 'Fulfilment',
+        hoursPerMonth: 10);
+    const archivedUncosted = WpTask(
+        id: 't-archived', companyId: 'c', name: 'Retired task',
+        roleScorecardId: 'rs1', responsibilityArea: 'Fulfilment',
+        status: 'ARCHIVED');
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        wpTasksProvider.overrideWith((ref) async => const [costedActive, archivedUncosted]),
+        wpNodesProvider.overrideWith((ref) async => const [_node]),
+        wpDriversProvider.overrideWith((ref) async => const [_driver]),
+        wpRatesProvider.overrideWith((ref) async => const [_rate]),
+        wpActiveEmployeesProvider.overrideWith((ref) async => const []),
+        roleScorecardListProvider.overrideWith((ref) async => [_card]),
+        workforcePlanningRepositoryProvider.overrideWithValue(_FakeRepo()),
+      ],
+      child: const MaterialApp(home: Scaffold(body: TasksTab())),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('still to cost'), findsNothing,
+        reason: 'the archived uncosted task must not appear in the costing backlog');
+    expect(find.textContaining('All 1 tasks resolved'), findsOneWidget);
+  });
+
   testWidgets('typing manual times + minutes computes hours live and saves the patch',
       (tester) async {
     final repo = _FakeRepo();

@@ -14,8 +14,9 @@ Employee _e(String id, {String? card, String status = 'ACTIVE', DateTime? delete
       pagibigEligibilityOverride: false, taxOnFullEarnings: false,
     );
 
-WpTask _t(String id, {String? owner, String? card}) => WpTask(
-    id: id, companyId: 'c', name: id, ownerEmployeeId: owner, roleScorecardId: card);
+WpTask _t(String id, {String? owner, String? card, String status = 'ACTIVE'}) => WpTask(
+    id: id, companyId: 'c', name: id, ownerEmployeeId: owner, roleScorecardId: card,
+    status: status);
 
 WpTaskComputed _c(String id, double h, {bool growing = false}) => WpTaskComputed(
     taskId: id, companyId: 'c', hoursPerMonthBase: h, isGrowing: growing);
@@ -260,6 +261,36 @@ void main() {
           reason: 'counting a behavioural standard as missing would make the '
               'warning permanent and therefore ignorable');
       expect(p.coverage, 1.0);
+    });
+  });
+
+  group('archived tasks are not workload', () {
+    test('an archived owned task does not add to the tally or costed count', () {
+      final p = buildProjections(
+        employees: [_e('a')],
+        tasks: [_t('t1', owner: 'a', status: 'ARCHIVED')],
+        computedByTaskId: {'t1': _c('t1', 40)},
+        capacityByEmployee: const {'a': 160},
+        multiplier: 1,
+        defaultCapacity: 160,
+      ).single;
+      expect(p.taskCount, 0,
+          reason: 'an archived task must not appear in the assignment tally');
+      expect(p.costedCount, 0);
+    });
+
+    test('an archived task does not appear in plannedTasksFor', () {
+      final emps = [_e('a', card: 'rs1')];
+      final tasks = [
+        _t('weighted', card: 'rs1'),
+        _t('gone', card: 'rs1', status: 'ARCHIVED'),
+      ];
+      final comp = {'weighted': _c('weighted', 40), 'gone': _c('gone', 999)};
+      final list = plannedTasksFor(
+          employeeId: 'a', employees: emps, tasks: tasks,
+          computedByTaskId: comp, multiplier: 1);
+      expect(list.map((p) => p.task.id), ['weighted'],
+          reason: 'an archived task must not appear in a person\'s planned tasks');
     });
   });
 }

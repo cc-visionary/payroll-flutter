@@ -117,6 +117,32 @@ void main() {
     },
   );
 
+  test(
+    'an ARCHIVED row is dropped from the derived responsibilities — only the '
+    'ACTIVE row in the area survives; a row with no status key at all is '
+    'legacy-safe and treated as active',
+    () {
+      final card = RoleScorecard.fromRow(baseRow(
+        wpTasks: [
+          {
+            'id': 't1', 'name': 'Kept task', 'responsibility_area': 'Sales',
+            'area_sort': 0, 'task_sort': 0, 'status': 'ACTIVE',
+          },
+          {
+            'id': 't2', 'name': 'Archived task', 'responsibility_area': 'Sales',
+            'area_sort': 0, 'task_sort': 1, 'status': 'ARCHIVED',
+          },
+          {
+            // No 'status' key at all — a pre-status row must still be kept.
+            'id': 't3', 'name': 'Legacy task', 'responsibility_area': 'Sales',
+            'area_sort': 0, 'task_sort': 2,
+          },
+        ],
+      ));
+      expect(card.responsibilities.single.tasks, ['Kept task', 'Legacy task']);
+    },
+  );
+
   test('toUpsertPayload writes key_responsibilities as an empty array (NOT NULL, read-only)', () {
     final card = RoleScorecard.fromRow(baseRow(
       keyResponsibilities: [

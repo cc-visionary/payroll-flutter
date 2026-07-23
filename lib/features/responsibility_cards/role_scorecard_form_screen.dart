@@ -134,6 +134,7 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
         .from('wp_tasks')
         .select('id, name, responsibility_area, area_sort, task_sort')
         .eq('role_scorecard_id', cardId)
+        .eq('status', 'ACTIVE')
         .not('responsibility_area', 'is', null)
         .order('area_sort')
         .order('task_sort');
@@ -186,7 +187,7 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
     };
     final pool = [
       for (final t in all)
-        if (t.roleScorecardId == null && !alreadyDrafted.contains(t.id)) t,
+        if (t.roleScorecardId == null && t.status == 'ACTIVE' && !alreadyDrafted.contains(t.id)) t,
     ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
     if (pool.isEmpty) {
