@@ -7,6 +7,7 @@ import '../../../data/models/workforce_planning.dart';
 
 const _tiers = ['Transactional', 'Operational', 'Managerial', 'Strategic'];
 const _risks = ['Low', 'Medium', 'High'];
+const _criticalities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
 /// Guards a `DropdownButtonFormField`'s `initialValue` against an id that
 /// isn't among its current `items` (e.g. a task owned by a now-separated
@@ -65,6 +66,8 @@ WpTask buildTaskFromForm({
   String? capability,
   String? ownerEmployeeId,
   String? hoursPerMonthText,
+  String? criticality,
+  bool isEssential = true,
 }) {
   String? clean(String? v) => (v == null || v.trim().isEmpty) ? null : v.trim();
   final direct = double.tryParse((hoursPerMonthText ?? '').trim());
@@ -97,6 +100,9 @@ WpTask buildTaskFromForm({
     roleScorecardId: roleScorecardId,
     responsibilityArea: roleScorecardId == null ? null : clean(responsibilityArea),
     notes: existing?.notes,
+    criticality: criticality,
+    isEssential: isEssential,
+    isExpectation: existing?.isExpectation ?? false,
   );
 }
 
@@ -151,6 +157,8 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
   late String? _rateId = widget.existing?.rateId;
   late String? _tier = widget.existing?.skillTier;
   late String? _risk = widget.existing?.risk;
+  late String? _criticality = widget.existing?.criticality;
+  late bool _essential = widget.existing?.isEssential ?? true;
   late String? _ownerId = widget.existing?.ownerEmployeeId;
   late String? _cardId = widget.existing?.roleScorecardId;
   late String? _area = widget.existing?.responsibilityArea;
@@ -206,6 +214,8 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
       capability: _capability.text,
       ownerEmployeeId: _ownerId,
       hoursPerMonthText: _hoursCtl.text,
+      criticality: _criticality,
+      isEssential: _essential,
     );
     Navigator.pop(context, task);
   }
@@ -343,6 +353,41 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
                     ..._risks.map((r) => DropdownMenuItem<String?>(value: r, child: Text(r))),
                   ],
                   onChanged: (v) => setState(() => _risk = v),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(
+                child: DropdownButtonFormField<String?>(
+                  initialValue: _present(_criticality, _criticalities),
+                  isExpanded: true,
+                  decoration: _dec('Criticality'),
+                  items: [
+                    const DropdownMenuItem<String?>(value: null, child: Text('— None —')),
+                    ..._criticalities.map((v) =>
+                        DropdownMenuItem<String?>(value: v, child: Text(v))),
+                  ],
+                  onChanged: (v) => setState(() => _criticality = v),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Essential function'),
+                  subtitle: Text(
+                    widget.existing?.isExpectation == true
+                        ? 'Expectations are always non-essential'
+                        : 'A reason the role exists',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  value: widget.existing?.isExpectation == true ? false : _essential,
+                  // An expectation is locked to non-essential (the DB invariant);
+                  // toggle it via the flag action on the Tasks tab, not here.
+                  onChanged: widget.existing?.isExpectation == true
+                      ? null
+                      : (v) => setState(() => _essential = v),
                 ),
               ),
             ]),

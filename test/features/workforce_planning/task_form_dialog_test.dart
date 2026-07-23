@@ -98,6 +98,25 @@ void main() {
     expect(t.minutesManual, 45);
   });
 
+  test('buildTaskFromForm carries criticality and the essential flag', () {
+    final t = buildTaskFromForm(
+      companyId: 'c', name: 'Pack',
+      timesSource: 'manual', minutesSource: 'manual',
+      criticality: 'CRITICAL', isEssential: false);
+    expect(t.criticality, 'CRITICAL');
+    expect(t.isEssential, isFalse);
+  });
+
+  test('buildTaskFromForm preserves an existing expectation flag', () {
+    const existing = WpTask(
+        id: 't1', companyId: 'c', name: 'Grow', isExpectation: true);
+    final t = buildTaskFromForm(
+      existing: existing, companyId: 'c', name: 'Grow',
+      timesSource: 'manual', minutesSource: 'manual');
+    expect(t.isExpectation, isTrue,
+        reason: 'editing a task must not silently clear its expectation flag');
+  });
+
   testWidgets('dialog shows the name-required error on empty Save', (tester) async {
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(body: Builder(builder: (context) {
