@@ -30,6 +30,27 @@ double _hoursOf(WpTaskComputed? c, double multiplier) {
   return c.isGrowing ? c.hoursPerMonthBase * multiplier : c.hoursPerMonthBase;
 }
 
+/// The ACTIVE accountabilities reaching nobody — the shared orphan predicate
+/// (mirrors rebalance.dart's `unassignedTasks`): ACTIVE, no owner, and either
+/// (no card AND no externalRef) or (a card with no ACTIVE non-deleted holder).
+/// Legacy capacity-model rows (no card + externalRef) are excluded.
+List<WpTask> orphanTasks({
+  required List<WpTask> tasks,
+  required List<Employee> employees,
+}) {
+  final out = <WpTask>[];
+  for (final t in tasks) {
+    if (t.status != 'ACTIVE') continue;
+    if (t.ownerEmployeeId != null) continue;
+    final cardId = t.roleScorecardId;
+    if (cardId == null && t.externalRef != null) continue;
+    final orphaned = cardId == null || !_cardStaffed(employees, cardId);
+    if (!orphaned) continue;
+    out.add(t);
+  }
+  return out;
+}
+
 /// Every ACTIVE accountability reaching nobody, grouped into name-similarity
 /// clusters ordered heaviest-first. Orphan predicate mirrors rebalance.dart's
 /// `unassignedTasks` exactly (see the plan's Global Constraints).
@@ -40,16 +61,7 @@ List<UnassignedCluster> buildUnassignedWorkspace({
   required double multiplier,
   double threshold = 0.6,
 }) {
-  final orphans = <WpTask>[];
-  for (final t in tasks) {
-    if (t.status != 'ACTIVE') continue;
-    if (t.ownerEmployeeId != null) continue;
-    final cardId = t.roleScorecardId;
-    if (cardId == null && t.externalRef != null) continue; // legacy reference
-    final orphaned = cardId == null || !_cardStaffed(employees, cardId);
-    if (!orphaned) continue;
-    orphans.add(t);
-  }
+  final orphans = orphanTasks(tasks: tasks, employees: employees);
 
   final clusters = clusterBySimilarity<WpTask>(
       orphans, (t) => t.name, threshold: threshold);
