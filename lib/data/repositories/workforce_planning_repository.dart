@@ -4,6 +4,31 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/workforce_planning.dart';
 import '../pagination.dart';
 
+/// The PRIMARY assignment insert payload for a task's current owner/card, or
+/// null when the task is unassigned. Owner wins over card — matching the step-4
+/// backfill. Pure so the branching is unit-tested; the DB glue lives in
+/// [WorkforcePlanningRepository._syncPrimaryFromTask].
+Map<String, dynamic>? primaryAssignmentPayload({
+  required String companyId,
+  required String taskId,
+  String? ownerEmployeeId,
+  String? roleScorecardId,
+}) {
+  if (ownerEmployeeId != null) {
+    return {
+      'company_id': companyId, 'task_id': taskId, 'employee_id': ownerEmployeeId,
+      'assignment_role': 'PRIMARY', 'allocation_pct': 100,
+    };
+  }
+  if (roleScorecardId != null) {
+    return {
+      'company_id': companyId, 'task_id': taskId, 'role_scorecard_id': roleScorecardId,
+      'assignment_role': 'PRIMARY', 'allocation_pct': 100,
+    };
+  }
+  return null;
+}
+
 class WorkforcePlanningRepository {
   final SupabaseClient _client;
   WorkforcePlanningRepository(this._client);
@@ -81,10 +106,37 @@ class WorkforcePlanningRepository {
 
   Future<void> saveTask(WpTask task) async {
     final payload = task.toUpsert(task.companyId);
+    String id;
     if (task.id.isEmpty) {
-      await _client.from('wp_tasks').insert(payload);
+      final row = await _client.from('wp_tasks').insert(payload).select('id').single();
+      id = row['id'] as String;
     } else {
       await _client.from('wp_tasks').update(payload).eq('id', task.id);
+      id = task.id;
+    }
+    await _syncPrimaryFromTask(id);
+  }
+
+  /// Keeps a task's PRIMARY assignment in lockstep with its owner/card while the
+  /// current forms still write owner_employee_id / role_scorecard_id directly.
+  /// wp_person_load reads assignments now, so without this a reassignment would
+  /// leave a stale PRIMARY and the load view would disagree with the rest of the
+  /// UI. Step 5 moves writes onto assignments directly and retires this sync.
+  Future<void> _syncPrimaryFromTask(String taskId) async {
+    final t = await _client.from('wp_tasks')
+        .select('company_id, owner_employee_id, role_scorecard_id')
+        .eq('id', taskId).maybeSingle();
+    if (t == null) return;
+    await _client.from('wp_task_assignments').delete()
+        .eq('task_id', taskId).eq('assignment_role', 'PRIMARY');
+    final payload = primaryAssignmentPayload(
+      companyId: t['company_id'] as String,
+      taskId: taskId,
+      ownerEmployeeId: t['owner_employee_id'] as String?,
+      roleScorecardId: t['role_scorecard_id'] as String?,
+    );
+    if (payload != null) {
+      await _client.from('wp_task_assignments').insert(payload);
     }
   }
 
@@ -144,17 +196,21 @@ class WorkforcePlanningRepository {
         .eq('id', taskId);
   }
 
-  Future<void> reassignTaskOwner(String taskId, String? ownerEmployeeId) async =>
-      _client.from('wp_tasks').update({'owner_employee_id': ownerEmployeeId}).eq('id', taskId);
+  Future<void> reassignTaskOwner(String taskId, String? ownerEmployeeId) async {
+    await _client.from('wp_tasks').update({'owner_employee_id': ownerEmployeeId}).eq('id', taskId);
+    await _syncPrimaryFromTask(taskId);
+  }
 
   /// Sets (or clears) an accountability's home card. Assigning an orphan to a
   /// staffed card gives it a derived owner via that card's holders, which is
   /// how work leaves the unassigned set pre-`wp_task_assignments`. At step 4
   /// this becomes a PRIMARY assignment insert with no caller change.
-  Future<void> setTaskCard(String taskId, String? roleScorecardId) async =>
-      _client.from('wp_tasks')
-          .update({'role_scorecard_id': roleScorecardId})
-          .eq('id', taskId);
+  Future<void> setTaskCard(String taskId, String? roleScorecardId) async {
+    await _client.from('wp_tasks')
+        .update({'role_scorecard_id': roleScorecardId})
+        .eq('id', taskId);
+    await _syncPrimaryFromTask(taskId);
+  }
 
   Future<void> saveDriver(WpDriver driver) async {
     final payload = driver.toUpsert(driver.companyId);
