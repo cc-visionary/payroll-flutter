@@ -165,6 +165,29 @@ class WpTask {
   }
 }
 
+class WpTaskAssignment {
+  final String id, companyId, taskId;
+  final String? roleScorecardId, employeeId;
+  final String assignmentRole; // 'PRIMARY' | 'CONTRIBUTOR'
+  final double allocationPct;
+  const WpTaskAssignment({
+    required this.id, required this.companyId, required this.taskId,
+    this.roleScorecardId, this.employeeId,
+    this.assignmentRole = 'CONTRIBUTOR', this.allocationPct = 0});
+  factory WpTaskAssignment.fromRow(Map<String, dynamic> r) => WpTaskAssignment(
+    id: r['id'] as String, companyId: r['company_id'] as String,
+    taskId: r['task_id'] as String,
+    roleScorecardId: r['role_scorecard_id'] as String?,
+    employeeId: r['employee_id'] as String?,
+    assignmentRole: r['assignment_role'] as String? ?? 'CONTRIBUTOR',
+    allocationPct: _d(r['allocation_pct']));
+  Map<String, dynamic> toUpsert(String companyId) => {
+    'company_id': companyId, 'task_id': taskId,
+    'role_scorecard_id': roleScorecardId, 'employee_id': employeeId,
+    'assignment_role': assignmentRole, 'allocation_pct': allocationPct,
+  };
+}
+
 class WpTaskComputed {
   final String taskId, companyId;
   final String? ownerEmployeeId, nodeId, skillTier, risk;

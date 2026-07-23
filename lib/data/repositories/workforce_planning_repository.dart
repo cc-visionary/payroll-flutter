@@ -38,6 +38,16 @@ class WorkforcePlanningRepository {
         return rows.cast<Map<String, dynamic>>().map(WpTask.fromRow).toList();
       });
 
+  /// Paged for the same reason as [tasks] — grows with every assignment.
+  Future<List<WpTaskAssignment>> taskAssignments() => fetchAllPages((from, to) async {
+        final rows = await _client
+            .from('wp_task_assignments')
+            .select()
+            .order('task_id')
+            .range(from, to);
+        return rows.cast<Map<String, dynamic>>().map(WpTaskAssignment.fromRow).toList();
+      });
+
   Future<List<WpPersonLoad>> personLoads() => fetchAllPages((from, to) async {
         final rows = await _client
             .from('wp_person_load')
