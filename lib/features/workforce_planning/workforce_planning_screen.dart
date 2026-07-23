@@ -7,6 +7,7 @@ import 'tabs/drivers_scenario_tab.dart';
 import 'tabs/role_view_tab.dart';
 import 'tabs/structure_tab.dart';
 import 'tabs/tasks_tab.dart';
+import 'tabs/unassigned_tab.dart';
 
 /// Workforce Planning hub. HR/Admin-only (route guard in app/router.dart also
 /// redirects).
@@ -27,7 +28,7 @@ class WorkforcePlanningScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final mobile = isMobile(context);
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         drawer: mobile ? const AppDrawer() : null,
         appBar: AppBar(
@@ -68,6 +69,7 @@ class WorkforcePlanningScreen extends StatelessWidget {
               Tab(text: 'Roles'),
               Tab(text: 'Structure'),
               Tab(text: 'Tasks'),
+              Tab(text: 'Unassigned'),
             ],
           ),
         ),
@@ -77,6 +79,7 @@ class WorkforcePlanningScreen extends StatelessWidget {
             RoleViewTab(),
             StructureTab(),
             TasksTab(),
+            UnassignedTab(),
           ],
         ),
       ),
