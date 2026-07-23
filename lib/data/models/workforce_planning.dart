@@ -134,6 +134,10 @@ class WpTask {
       'owner_employee_id': ownerEmployeeId, 'role_scorecard_id': roleScorecardId,
       'responsibility_area': _s(responsibilityArea), 'notes': _s(notes),
       'is_expectation': isExpectation,
+      // Position is load-bearing: the role-card PDF and contract Annex A render
+      // responsibilities in this order. Omitting these left every row created
+      // from the Tasks tab at 0/0 — jumping ahead of the card's first
+      // responsibility.
       'area_sort': areaSort, 'task_sort': taskSort,
     };
   }

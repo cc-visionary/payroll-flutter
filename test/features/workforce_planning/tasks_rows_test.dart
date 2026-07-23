@@ -221,6 +221,11 @@ void main() {
       );
       expect(isTaskNotCosted(t), isFalse);
     });
+
+    test('a direct-hours task (hoursPerMonth set, no times/minutes) is costed', () {
+      const t = WpTask(id: 't1', companyId: 'c', name: 'x', hoursPerMonth: 12);
+      expect(isTaskNotCosted(t), isFalse);
+    });
   });
 
   group('taskHours', () {
@@ -258,6 +263,12 @@ void main() {
       );
       final h = taskHours(task: t, driverById: const {}, rateById: const {});
       expect(h, 0.0);
+    });
+
+    test('a direct hoursPerMonth wins outright, ignoring times/minutes entirely', () {
+      const t = WpTask(id: 't1', companyId: 'c', name: 'x', hoursPerMonth: 12);
+      final h = taskHours(task: t, driverById: const {}, rateById: const {});
+      expect(h, 12.0);
     });
   });
 

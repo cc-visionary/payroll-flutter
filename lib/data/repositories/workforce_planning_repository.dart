@@ -115,6 +115,7 @@ class WorkforcePlanningRepository {
         'driver_id': null,
         'minutes_manual': null,
         'rate_id': null,
+        'hours_per_month': null,
       },
     }).eq('id', taskId);
   }

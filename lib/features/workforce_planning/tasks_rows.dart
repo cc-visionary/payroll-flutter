@@ -137,6 +137,7 @@ List<TaskAreaGroup> _groupByArea(List<WpTask> tasks) {
 /// the wrong reason (never priced), which should read as "not costed" rather
 /// than "0.0 h".
 bool isTaskNotCosted(WpTask task) {
+  if ((task.hoursPerMonth ?? 0) > 0) return false;
   final hasTimes =
       task.timesSource == 'driver' ? task.driverId != null : task.timesManual != null;
   final hasMinutes =
@@ -154,6 +155,7 @@ double taskHours({
   required Map<String, WpDriver> driverById,
   required Map<String, WpRate> rateById,
 }) {
+  if (task.hoursPerMonth != null) return task.hoursPerMonth!;
   final timesPerMonth = task.timesSource == 'driver'
       ? (driverById[task.driverId]?.value ?? 0) * task.driverFactor
       : (task.timesManual ?? 0);
