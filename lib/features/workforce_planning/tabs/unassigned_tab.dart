@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/status_colors.dart';
 import '../../../app/theme.dart';
+import '../../../data/models/employee.dart';
 import '../../../data/models/role_scorecard.dart';
 import '../../../data/models/workforce_planning.dart';
 import '../../../data/repositories/role_scorecard_repository.dart';
 import '../../../data/repositories/workforce_planning_repository.dart';
 import '../../auth/profile_provider.dart';
+import '../../documents/providers.dart' show roleScorecardByIdProvider;
 import '../task_badges.dart';
 import '../unassigned_workspace.dart';
 import '../wp_providers.dart';
@@ -101,7 +104,7 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
             )
           else
             for (final cluster in clusters) ...[
-              _clusterCard(context, cluster, activeCards, companyId),
+              _clusterCard(context, cluster, activeCards, employees, companyId),
               const SizedBox(height: 16),
             ],
         ],
@@ -113,6 +116,7 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
     BuildContext context,
     UnassignedCluster cluster,
     List<RoleScorecard> activeCards,
+    List<Employee> employees,
     String? companyId,
   ) {
     return Card(
@@ -148,7 +152,8 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
             ),
             const SizedBox(height: 8),
             const Divider(height: 1),
-            for (final item in cluster.items) _itemRow(context, item, activeCards),
+            for (final item in cluster.items)
+              _itemRow(context, item, activeCards, employees),
           ],
         ),
       ),
@@ -159,6 +164,7 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
     BuildContext context,
     UnassignedItem item,
     List<RoleScorecard> activeCards,
+    List<Employee> employees,
   ) {
     final t = item.task;
     final tone = criticalityTone(t.criticality);
@@ -183,7 +189,7 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
           PopupMenuButton<String>(
             tooltip: 'Assign to a role card',
             enabled: activeCards.isNotEmpty,
-            onSelected: (cardId) => _assign(t, cardId, activeCards),
+            onSelected: (cardId) => _assign(t, cardId, activeCards, employees),
             itemBuilder: (_) => [
               for (final c in activeCards)
                 PopupMenuItem<String>(value: c.id, child: Text(c.jobTitle)),
@@ -206,7 +212,12 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
     );
   }
 
-  Future<void> _assign(WpTask task, String cardId, List<RoleScorecard> activeCards) async {
+  Future<void> _assign(
+    WpTask task,
+    String cardId,
+    List<RoleScorecard> activeCards,
+    List<Employee> employees,
+  ) async {
     final card = activeCards.firstWhere((c) => c.id == cardId);
     try {
       await ref.read(workforcePlanningRepositoryProvider).setTaskCard(task.id, cardId);
@@ -217,9 +228,14 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
       return;
     }
     if (!mounted) return;
-    _invalidate();
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text('Assigned to ${card.jobTitle}.')));
+    _invalidate([cardId]);
+    final hasActiveHolder = employees.any((e) =>
+        e.employmentStatus == 'ACTIVE' && e.deletedAt == null && e.roleScorecardId == cardId);
+    final message = hasActiveHolder
+        ? 'Assigned to ${card.jobTitle}.'
+        : 'Assigned to ${card.jobTitle} — no active holder yet, so it still '
+            'shows here until the role is staffed.';
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _confirmArchive(WpTask task) async {
@@ -247,7 +263,7 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
       return;
     }
     if (!mounted) return;
-    _invalidate();
+    _invalidate([task.roleScorecardId]);
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text('Archived "${task.name}".')));
   }
@@ -278,8 +294,9 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
     if (title == null || title.trim().isEmpty || !mounted) return;
 
     final taskIds = [for (final i in cluster.items) i.task.id];
+    String newId;
     try {
-      await ref.read(roleScorecardRepositoryProvider).createDraftRoleFromTasks(
+      newId = await ref.read(roleScorecardRepositoryProvider).createDraftRoleFromTasks(
             companyId: companyId ?? '',
             jobTitle: title.trim(),
             taskIds: taskIds,
@@ -291,21 +308,28 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
       return;
     }
     if (!mounted) return;
-    _invalidate();
+    _invalidate([newId]);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(
-          "Drafted '${title.trim()}' (inactive) with ${taskIds.length} responsibilities."),
+      content: Text("Drafted '${title.trim()}' with ${taskIds.length} "
+          'responsibilities — finish and staff it to assign this work.'),
     ));
+    // Land HR on the draft to complete it; the /edit route loads an inactive
+    // card by id. This is the working downstream the propose action needs, and
+    // navigating away also stops the see-no-change-and-re-click duplicate loop.
+    context.push('/responsibility-cards/$newId/edit');
   }
 
   /// Mirrors `TasksTab._invalidateAfterTaskChange`: any mutation here moves a
   /// task off a card, onto a card, or out of the ACTIVE set entirely, all of
   /// which the Balance and Role View tabs derive their numbers from.
-  void _invalidate() {
+  void _invalidate([Iterable<String?> cardIds = const []]) {
     ref.invalidate(wpTasksProvider);
     ref.invalidate(wpPersonLoadsProvider);
     ref.invalidate(wpAllTaskComputedProvider);
     ref.invalidate(ownerComputedProvider);
     ref.invalidate(roleScorecardListProvider);
+    for (final id in cardIds.whereType<String>().toSet()) {
+      ref.invalidate(roleScorecardByIdProvider(id));
+    }
   }
 }

@@ -142,7 +142,7 @@ class RoleScorecardRepository {
       'work_hours_per_day': 8,
       'work_days_per_week': 'MON_FRI',
       'is_active': false,
-      'effective_date': DateTime.now().toIso8601String(),
+      'effective_date': DateTime.now().toIso8601String().substring(0, 10),
     }).select('id').single();
     final id = row['id'] as String;
     if (taskIds.isNotEmpty) {

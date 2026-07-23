@@ -16,6 +16,12 @@ void main() {
     expect(nameSimilarity('pack orders', 'pack orders daily'), closeTo(2 / 3, 1e-9));
   });
 
+  test('nameSimilarity handles empty names', () {
+    expect(nameSimilarity('', ''), 1.0);
+    expect(nameSimilarity('', 'anything'), 0.0);
+    expect(nameSimilarity('anything', ''), 0.0);
+  });
+
   test('clusterBySimilarity groups names above the threshold, isolates the rest', () {
     final items = ['Pack orders', 'Pack the orders', 'Reconcile bank statements'];
     final clusters = clusterBySimilarity<String>(items, (s) => s, threshold: 0.5);

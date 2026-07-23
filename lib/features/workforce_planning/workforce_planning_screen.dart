@@ -12,11 +12,12 @@ import 'tabs/unassigned_tab.dart';
 /// Workforce Planning hub. HR/Admin-only (route guard in app/router.dart also
 /// redirects).
 ///
-/// Four tabs, each answering a different question — no two overlap:
+/// Five tabs, each answering a different question — no two overlap:
 ///   Balance   — plan and rebalance PEOPLE (drag work between them)
 ///   Roles     — cost and load per ROLE CARD (compare roles, whoever holds them)
 ///   Structure — reporting shape with load (the org)
 ///   Tasks     — the inventory and its costing (the data)
+///   Unassigned — work that reaches nobody: archive, assign, or draft a role
 ///
 /// Drivers & rates moved off the tab bar into a settings dialog: they are
 /// configuration read by the other tabs, not a view of the workforce.
