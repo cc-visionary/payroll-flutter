@@ -113,9 +113,11 @@ void main() {
 
     test('patches only costing columns — never name, owner or card link', () {
       const d = CostDraft(timesSource: 'manual', minutesSource: 'manual');
+      // hours_per_month is now part of the costing-column patch (direct hours).
       expect(draftPatch(d).keys.toSet(), {
-        'node_id', 'times_source', 'times_manual', 'driver_id',
-        'driver_factor', 'minutes_source', 'minutes_manual', 'rate_id',
+        'node_id', 'hours_per_month', 'times_source', 'times_manual',
+        'driver_id', 'driver_factor', 'minutes_source', 'minutes_manual',
+        'rate_id',
       });
     });
   });
@@ -218,6 +220,54 @@ void main() {
       );
       expect(out['a']!.timesManual, 20);
       expect(out['a']!.minutesManual, isNull);
+    });
+  });
+
+  group('direct hours wins over the driver calc', () {
+    test('draftHoursPerMonth returns the direct figure when set', () {
+      const d = CostDraft(
+          timesSource: 'driver', driverId: 'd1',
+          minutesSource: 'rate', rateId: 'r1', hoursPerMonth: 65.8);
+      expect(draftHoursPerMonth(d, _drivers, _rates), 65.8);
+    });
+
+    test('a direct figure counts as costed and is never growing', () {
+      const d = CostDraft(
+          timesSource: 'driver', driverId: 'd1', // a growing driver...
+          minutesSource: 'manual', hoursPerMonth: 12);
+      expect(draftIsCosted(d, _drivers, _rates), isTrue);
+      expect(draftIsGrowing(d, _drivers), isFalse,
+          reason: 'a manual hours figure is flat at any multiplier');
+    });
+
+    test('draftPatch writes hours_per_month and clears the driver path', () {
+      const d = CostDraft(
+          timesSource: 'driver', driverId: 'd1', driverFactor: 2,
+          minutesSource: 'rate', rateId: 'r1', hoursPerMonth: 40);
+      final p = draftPatch(d);
+      expect(p['hours_per_month'], 40);
+      expect(p['times_manual'], isNull);
+      expect(p['driver_id'], isNull);
+      expect(p['minutes_manual'], isNull);
+      expect(p['rate_id'], isNull);
+      expect(p['times_source'], 'manual');
+    });
+
+    test('with no direct figure the driver calc still applies', () {
+      const d = CostDraft(
+          timesSource: 'manual', timesManual: 20,
+          minutesSource: 'manual', minutesManual: 45);
+      expect(draftHoursPerMonth(d, _drivers, _rates), 15.0); // 20*45/60
+      expect(draftPatch(d)['hours_per_month'], isNull);
+    });
+
+    test('clearHoursPerMonth returns to the driver calc', () {
+      const d = CostDraft(
+          timesSource: 'manual', timesManual: 20,
+          minutesSource: 'manual', minutesManual: 45, hoursPerMonth: 99);
+      final back = d.copyWith(clearHoursPerMonth: true);
+      expect(back.hoursPerMonth, isNull);
+      expect(draftHoursPerMonth(back, _drivers, _rates), 15.0);
     });
   });
 }

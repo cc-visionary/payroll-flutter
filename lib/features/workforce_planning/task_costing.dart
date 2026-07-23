@@ -15,6 +15,7 @@ class CostDraft {
     this.minutesManual,
     this.rateId,
     this.nodeId,
+    this.hoursPerMonth,
   });
 
   final String timesSource; // 'manual' | 'driver'
@@ -26,6 +27,9 @@ class CostDraft {
   final String? rateId;
   final String? nodeId;
 
+  /// Direct monthly hours. When non-null it wins over the driver calc.
+  final double? hoursPerMonth;
+
   factory CostDraft.fromTask(WpTask t) => CostDraft(
         timesSource: t.timesSource,
         timesManual: t.timesManual,
@@ -35,6 +39,7 @@ class CostDraft {
         minutesManual: t.minutesManual,
         rateId: t.rateId,
         nodeId: t.nodeId,
+        hoursPerMonth: t.hoursPerMonth,
       );
 
   CostDraft copyWith({
@@ -46,11 +51,13 @@ class CostDraft {
     double? minutesManual,
     String? rateId,
     String? nodeId,
+    double? hoursPerMonth,
     bool clearTimesManual = false,
     bool clearDriverId = false,
     bool clearMinutesManual = false,
     bool clearRateId = false,
     bool clearNodeId = false,
+    bool clearHoursPerMonth = false,
   }) =>
       CostDraft(
         timesSource: timesSource ?? this.timesSource,
@@ -62,6 +69,8 @@ class CostDraft {
             clearMinutesManual ? null : (minutesManual ?? this.minutesManual),
         rateId: clearRateId ? null : (rateId ?? this.rateId),
         nodeId: clearNodeId ? null : (nodeId ?? this.nodeId),
+        hoursPerMonth:
+            clearHoursPerMonth ? null : (hoursPerMonth ?? this.hoursPerMonth),
       );
 
   /// Applies this draft onto its task, leaving every non-costing column alone.
@@ -79,6 +88,7 @@ class CostDraft {
         minutesSource: minutesSource,
         minutesManual: minutesManual,
         rateId: rateId,
+        hoursPerMonth: hoursPerMonth,
         skillTier: t.skillTier,
         risk: t.risk,
         capability: t.capability,
@@ -101,11 +111,12 @@ class CostDraft {
       other.minutesSource == minutesSource &&
       other.minutesManual == minutesManual &&
       other.rateId == rateId &&
-      other.nodeId == nodeId;
+      other.nodeId == nodeId &&
+      other.hoursPerMonth == hoursPerMonth;
 
   @override
   int get hashCode => Object.hash(timesSource, timesManual, driverId,
-      driverFactor, minutesSource, minutesManual, rateId, nodeId);
+      driverFactor, minutesSource, minutesManual, rateId, nodeId, hoursPerMonth);
 }
 
 /// Times per month, matching `wp_task_computed.times_per_month_base`:
@@ -131,23 +142,31 @@ double draftHoursPerMonth(
   CostDraft d,
   Map<String, WpDriver> driverById,
   Map<String, WpRate> rateById,
-) =>
-    draftTimesPerMonth(d, driverById) * draftMinutesEach(d, rateById) / 60.0;
+) {
+  if (d.hoursPerMonth != null) return d.hoursPerMonth!;
+  return draftTimesPerMonth(d, driverById) * draftMinutesEach(d, rateById) / 60.0;
+}
 
-/// A task counts as costed only when BOTH halves resolve to something non-zero;
-/// this is what the Tasks tab's "Not costed" badge keys off.
+/// A task counts as costed when a direct hours figure is set, OR when BOTH
+/// driver-calc halves resolve to something non-zero; this is what the Tasks
+/// tab's "Not costed" badge keys off.
 bool draftIsCosted(
   CostDraft d,
   Map<String, WpDriver> driverById,
   Map<String, WpRate> rateById,
-) =>
-    draftTimesPerMonth(d, driverById) > 0 && draftMinutesEach(d, rateById) > 0;
+) {
+  if ((d.hoursPerMonth ?? 0) > 0) return true;
+  return draftTimesPerMonth(d, driverById) > 0 && draftMinutesEach(d, rateById) > 0;
+}
 
 /// Whether the task's hours respond to the growth multiplier — true only when
 /// times come from a driver flagged `grows`. This is the property that makes
-/// scenario planning move; a manual times figure is flat forever.
+/// scenario planning move; a manual times figure is flat forever, and so is a
+/// direct hours figure, which always wins over the driver calc.
 bool draftIsGrowing(CostDraft d, Map<String, WpDriver> driverById) =>
-    d.timesSource == 'driver' && (driverById[d.driverId]?.grows ?? false);
+    d.hoursPerMonth == null &&
+    d.timesSource == 'driver' &&
+    (driverById[d.driverId]?.grows ?? false);
 
 /// Where a responsibility sits in the costing workflow.
 ///
@@ -226,13 +245,25 @@ Map<String, CostDraft> fillGroupDrafts({
 /// rules in [WpTask.toUpsert] so a driver-sourced task never keeps a stale
 /// `times_manual` (and vice versa) — leaving both set would make the row read
 /// differently depending on which source flag won.
-Map<String, dynamic> draftPatch(CostDraft d) => {
+Map<String, dynamic> draftPatch(CostDraft d) {
+  if (d.hoursPerMonth != null) {
+    return {
       'node_id': d.nodeId,
-      'times_source': d.timesSource,
-      'times_manual': d.timesSource == 'driver' ? null : d.timesManual,
-      'driver_id': d.timesSource == 'driver' ? d.driverId : null,
+      'hours_per_month': d.hoursPerMonth,
+      'times_source': 'manual', 'times_manual': null, 'driver_id': null,
       'driver_factor': d.driverFactor,
-      'minutes_source': d.minutesSource,
-      'minutes_manual': d.minutesSource == 'rate' ? null : d.minutesManual,
-      'rate_id': d.minutesSource == 'rate' ? d.rateId : null,
+      'minutes_source': 'manual', 'minutes_manual': null, 'rate_id': null,
     };
+  }
+  return {
+    'node_id': d.nodeId,
+    'hours_per_month': null,
+    'times_source': d.timesSource,
+    'times_manual': d.timesSource == 'driver' ? null : d.timesManual,
+    'driver_id': d.timesSource == 'driver' ? d.driverId : null,
+    'driver_factor': d.driverFactor,
+    'minutes_source': d.minutesSource,
+    'minutes_manual': d.minutesSource == 'rate' ? null : d.minutesManual,
+    'rate_id': d.minutesSource == 'rate' ? d.rateId : null,
+  };
+}
