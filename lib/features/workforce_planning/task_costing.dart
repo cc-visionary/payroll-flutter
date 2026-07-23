@@ -99,6 +99,10 @@ class CostDraft {
         externalRef: t.externalRef,
         areaSort: t.areaSort,
         taskSort: t.taskSort,
+        criticality: t.criticality,
+        isEssential: t.isEssential,
+        status: t.status,
+        isExpectation: t.isExpectation,
       );
 
   @override

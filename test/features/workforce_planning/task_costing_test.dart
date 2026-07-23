@@ -17,6 +17,8 @@ WpTask _task() => const WpTask(
       ownerEmployeeId: 'e1', roleScorecardId: 'rs1',
       responsibilityArea: 'Area', externalRef: 'T9', notes: 'keep',
       areaSort: 3, taskSort: 7,
+      criticality: 'HIGH', isEssential: false, status: 'ARCHIVED',
+      isExpectation: true,
     );
 
 void main() {
@@ -134,6 +136,10 @@ void main() {
       expect(back.notes, 'keep');
       expect(back.areaSort, 3);
       expect(back.taskSort, 7);
+      expect(back.criticality, t.criticality);
+      expect(back.isEssential, t.isEssential);
+      expect(back.status, t.status);
+      expect(back.isExpectation, t.isExpectation);
     });
 
     test('an untouched draft equals its origin, so it is not saved', () {
