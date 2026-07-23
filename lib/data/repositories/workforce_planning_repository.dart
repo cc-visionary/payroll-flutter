@@ -137,6 +137,15 @@ class WorkforcePlanningRepository {
   Future<void> reassignTaskOwner(String taskId, String? ownerEmployeeId) async =>
       _client.from('wp_tasks').update({'owner_employee_id': ownerEmployeeId}).eq('id', taskId);
 
+  /// Sets (or clears) an accountability's home card. Assigning an orphan to a
+  /// staffed card gives it a derived owner via that card's holders, which is
+  /// how work leaves the unassigned set pre-`wp_task_assignments`. At step 4
+  /// this becomes a PRIMARY assignment insert with no caller change.
+  Future<void> setTaskCard(String taskId, String? roleScorecardId) async =>
+      _client.from('wp_tasks')
+          .update({'role_scorecard_id': roleScorecardId})
+          .eq('id', taskId);
+
   Future<void> saveDriver(WpDriver driver) async {
     final payload = driver.toUpsert(driver.companyId);
     if (driver.id.isEmpty) {

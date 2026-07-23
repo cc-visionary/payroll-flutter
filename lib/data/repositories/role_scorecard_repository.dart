@@ -124,6 +124,35 @@ class RoleScorecardRepository {
     return RoleScorecard.fromRow(row);
   }
 
+  /// Drafts a new INACTIVE role card seeded from a cluster of unassigned
+  /// accountabilities, then repoints those tasks onto it. The card is inactive
+  /// because it is a proposal for HR to finish (mission, KPIs, wage), not a live
+  /// role — "here is a pile of unowned work" becomes "here is the role we need
+  /// to hire for", with the tasks already attached. Returns the new card id.
+  Future<String> createDraftRoleFromTasks({
+    required String companyId,
+    required String jobTitle,
+    required List<String> taskIds,
+  }) async {
+    final row = await _client.from('role_scorecards').insert({
+      'company_id': companyId,
+      'job_title': jobTitle,
+      'mission_statement': '',
+      'wage_type': 'MONTHLY',
+      'work_hours_per_day': 8,
+      'work_days_per_week': 'MON_FRI',
+      'is_active': false,
+      'effective_date': DateTime.now().toIso8601String(),
+    }).select('id').single();
+    final id = row['id'] as String;
+    if (taskIds.isNotEmpty) {
+      await _client.from('wp_tasks')
+          .update({'role_scorecard_id': id})
+          .inFilter('id', taskIds);
+    }
+    return id;
+  }
+
   Future<void> delete(String id) async {
     await _client.from('role_scorecards').delete().eq('id', id);
   }
