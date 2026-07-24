@@ -167,25 +167,21 @@ Map<String, double> hoursByEmployee({
   required List<Employee> employees,
   required double multiplier,
   MoveDrafts moves = const {},
+  Map<String, List<WpTaskAssignment>> assignmentsByTask = const {},
 }) {
   final out = <String, double>{};
   final holdersByCard = <String, List<Employee>>{};
+  List<Employee> holdersOf(String cardId) =>
+      holdersByCard[cardId] ??= _activeHolders(employees, cardId);
   for (final t in tasks) {
     final hours = _hoursOf(computedByTaskId[t.id], multiplier);
-    if (hours <= 0) continue;
-
-    final owner = moves[t.id] ?? t.ownerEmployeeId;
-    if (owner != null) {
-      out[owner] = (out[owner] ?? 0) + hours;
-      continue;
-    }
-    final cardId = t.roleScorecardId;
-    if (cardId == null) continue; // unattributed
-    final holders = holdersByCard[cardId] ??= _activeHolders(employees, cardId);
-    if (holders.isEmpty) continue; // vacant role — a staffing gap, not load
-    final share = hours / holders.length;
-    for (final h in holders) {
-      out[h.id] = (out[h.id] ?? 0) + share;
+    final r = attributeTask(
+      hours: hours, task: t,
+      assignments: assignmentsByTask[t.id] ?? const [],
+      holdersOf: holdersOf, moveOverride: moves[t.id],
+    );
+    for (final s in r.shares) {
+      out[s.employeeId] = (out[s.employeeId] ?? 0) + s.hours;
     }
   }
   return out;
@@ -271,18 +267,24 @@ List<LoadProjection> buildProjections({
   required double multiplier,
   required double defaultCapacity,
   MoveDrafts moves = const {},
+  Map<String, List<WpTaskAssignment>> assignmentsByTask = const {},
 }) {
   final now = hoursByEmployee(
       tasks: tasks, computedByTaskId: computedByTaskId,
-      employees: employees, multiplier: multiplier);
+      employees: employees, multiplier: multiplier,
+      assignmentsByTask: assignmentsByTask);
   final planned = moves.isEmpty
       ? now
       : hoursByEmployee(
           tasks: tasks, computedByTaskId: computedByTaskId,
-          employees: employees, multiplier: multiplier, moves: moves);
+          employees: employees, multiplier: multiplier, moves: moves,
+          assignmentsByTask: assignmentsByTask);
 
   final counts = <String, int>{};
   final costed = <String, int>{};
+  final holdersByCard = <String, List<Employee>>{};
+  List<Employee> holdersOf(String cardId) =>
+      holdersByCard[cardId] ??= _activeHolders(employees, cardId);
   for (final t in tasks) {
     // Behavioural standards and skills are role-scorecard concerns that apply
     // across the whole role; they carry no weight and are not workload, so they
@@ -290,20 +292,14 @@ List<LoadProjection> buildProjections({
     if (t.isExpectation) continue;
     if (t.status != 'ACTIVE') continue; // archived work leaves the derived lists
     final hasHours = (computedByTaskId[t.id]?.hoursPerMonthBase ?? 0) > 0;
-    void tally(String id) {
+    final r = attributeTask(
+      hours: _hoursOf(computedByTaskId[t.id], multiplier), task: t,
+      assignments: assignmentsByTask[t.id] ?? const [],
+      holdersOf: holdersOf, moveOverride: moves[t.id],
+    );
+    for (final id in {for (final s in r.shares) s.employeeId}) {
       counts[id] = (counts[id] ?? 0) + 1;
       if (hasHours) costed[id] = (costed[id] ?? 0) + 1;
-    }
-
-    final owner = moves[t.id] ?? t.ownerEmployeeId;
-    if (owner != null) {
-      tally(owner);
-      continue;
-    }
-    final cardId = t.roleScorecardId;
-    if (cardId == null) continue;
-    for (final h in _activeHolders(employees, cardId)) {
-      tally(h.id);
     }
   }
 

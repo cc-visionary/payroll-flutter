@@ -81,6 +81,26 @@ void main() {
           employees: [_e('a', card: 'other')], multiplier: 1), 40);
     });
 
+    test('hoursByEmployee honors a 60/40 person split via assignments', () {
+      const t = WpTask(id: 't1', companyId: 'c', name: 'Pack');
+      final h = hoursByEmployee(
+        tasks: const [t],
+        computedByTaskId: {'t1': _c('t1', 100)},
+        employees: [_e('a'), _e('b')],
+        multiplier: 1,
+        assignmentsByTask: {
+          't1': const [
+            WpTaskAssignment(id: 'x', companyId: 'c', taskId: 't1', employeeId: 'a',
+                assignmentRole: 'PRIMARY', allocationPct: 60),
+            WpTaskAssignment(id: 'y', companyId: 'c', taskId: 't1', employeeId: 'b',
+                assignmentRole: 'CONTRIBUTOR', allocationPct: 40),
+          ],
+        },
+      );
+      expect(h['a'], 60);
+      expect(h['b'], 40);
+    });
+
     test('growing tasks scale, fixed ones do not', () {
       final h = hoursByEmployee(
         tasks: [_t('g', owner: 'a'), _t('f', owner: 'a')],
