@@ -174,6 +174,7 @@ Map<String, double> hoursByEmployee({
       holdersByCard[cardId] ??= _activeHolders(employees, cardId);
   for (final t in tasks) {
     final hours = _hoursOf(computedByTaskId[t.id], multiplier);
+    if (hours <= 0) continue; // a 0-hour task adds nothing to anyone's total
     final r = attributeTask(
       hours: hours, task: t,
       assignments: assignmentsByTask[t.id] ?? const [],

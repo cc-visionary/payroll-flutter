@@ -101,6 +101,17 @@ void main() {
       expect(h['b'], 40);
     });
 
+    test('a 0-hour task adds no key to hoursByEmployee', () {
+      final h = hoursByEmployee(
+        tasks: [_t('t1', owner: 'a')],
+        computedByTaskId: {'t1': _c('t1', 0)},
+        employees: [_e('a')],
+        multiplier: 1,
+      );
+      expect(h.containsKey('a'), isFalse,
+          reason: 'an uncosted task must not leave a zero-valued key behind');
+    });
+
     test('growing tasks scale, fixed ones do not', () {
       final h = hoursByEmployee(
         tasks: [_t('g', owner: 'a'), _t('f', owner: 'a')],
