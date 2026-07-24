@@ -31,6 +31,21 @@ final wpAllTaskComputedProvider = FutureProvider<List<WpTaskComputed>>(
 final wpTasksProvider = FutureProvider<List<WpTask>>(
     (ref) => ref.watch(workforcePlanningRepositoryProvider).tasks());
 
+final wpTaskAssignmentsProvider = FutureProvider<List<WpTaskAssignment>>(
+    (ref) => ref.watch(workforcePlanningRepositoryProvider).taskAssignments());
+
+/// Assignment rows grouped by task, so the split math can look up one task's
+/// holders without scanning the whole list.
+final wpAssignmentsByTaskProvider =
+    FutureProvider<Map<String, List<WpTaskAssignment>>>((ref) async {
+  final all = await ref.watch(wpTaskAssignmentsProvider.future);
+  final byTask = <String, List<WpTaskAssignment>>{};
+  for (final a in all) {
+    (byTask[a.taskId] ??= []).add(a);
+  }
+  return byTask;
+});
+
 final wpActiveEmployeesProvider = FutureProvider<List<Employee>>((ref) =>
     ref.watch(employeeListProvider(const EmployeeListQuery()).future));
 

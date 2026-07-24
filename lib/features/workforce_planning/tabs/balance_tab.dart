@@ -46,6 +46,13 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
     final loadsAsync = ref.watch(wpPersonLoadsProvider);
     final configAsync = ref.watch(wpConfigProvider);
     final multiplier = ref.watch(wpGrowthMultiplierProvider);
+    // Read defensively: NOT part of the loading/error gate below. A host that
+    // doesn't override this provider (every test predating assignments) would
+    // otherwise spin forever or error out — a missing split just falls back to
+    // owner/card, same as before assignments existed.
+    final assignmentsByTask =
+        ref.watch(wpAssignmentsByTaskProvider).asData?.value ??
+            const <String, List<WpTaskAssignment>>{};
 
     if (empsAsync.isLoading ||
         tasksAsync.isLoading ||
@@ -80,13 +87,15 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
       employees: employees, tasks: tasks, computedByTaskId: computed,
       capacityByEmployee: capacity, multiplier: multiplier,
       defaultCapacity: defaultCapacity, moves: preview,
+      assignmentsByTask: assignmentsByTask,
     );
     if (projections.isEmpty) {
       return const Center(child: Text('No active people to show.'));
     }
     final orphans = orphanHours(
         tasks: tasks, computedByTaskId: computed, employees: employees,
-        multiplier: multiplier, moves: preview);
+        multiplier: multiplier, moves: preview,
+        assignmentsByTask: assignmentsByTask);
     final pool = unassignedTasks(
         employees: employees, tasks: tasks, computedByTaskId: computed,
         multiplier: multiplier, moves: preview);
@@ -121,7 +130,7 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
                 child: selectedId == kUnassignedId
                     ? _poolPanel(context, pool, orphans)
                     : _taskPanel(context, selected, employees, tasks, computed,
-                        multiplier, preview),
+                        multiplier, preview, assignmentsByTask),
               ),
             ],
           ),
@@ -523,11 +532,13 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
     Map<String, WpTaskComputed> computed,
     double multiplier,
     MoveDrafts moves,
+    Map<String, List<WpTaskAssignment>> assignmentsByTask,
   ) {
     final cs = Theme.of(context).colorScheme;
     final rows = plannedTasksFor(
       employeeId: p.employeeId, employees: employees, tasks: tasks,
       computedByTaskId: computed, multiplier: multiplier, moves: moves,
+      assignmentsByTask: assignmentsByTask,
     );
     // An expectation and an un-estimated task both show no hours, but they are
     // NOT the same thing: one is resolved and will never carry hours, the other
@@ -757,6 +768,10 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
     ref.invalidate(wpTasksProvider);
     ref.invalidate(wpPersonLoadsProvider);
     ref.invalidate(wpAllTaskComputedProvider);
+    // The PRIMARY assignment row the writer just synced lives here — without
+    // invalidating it the split would keep reading the pre-move assignments.
+    ref.invalidate(wpTaskAssignmentsProvider);
+    ref.invalidate(wpAssignmentsByTaskProvider);
     ref.invalidate(ownerComputedProvider);
     ref.invalidate(roleScorecardListProvider);
     final ok = moves.length - failed.length;
