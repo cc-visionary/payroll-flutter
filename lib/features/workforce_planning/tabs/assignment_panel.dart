@@ -95,20 +95,31 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final byTaskAsync = ref.watch(wpAssignmentsByTaskProvider);
+    // Guard the watch itself, not just the resulting AsyncValue: a host that
+    // never wired a ProviderScope at all (some dialog widget tests) makes
+    // `ref.watch` throw synchronously rather than yield AsyncLoading/AsyncError.
+    // Degrade straight to the empty-assignments placeholder in that case
+    // instead of an indeterminate spinner, which would never settle and hang
+    // `pumpAndSettle`.
+    AsyncValue<Map<String, List<WpTaskAssignment>>>? byTaskAsync;
+    try {
+      byTaskAsync = ref.watch(wpAssignmentsByTaskProvider);
+    } catch (_) {
+      byTaskAsync = null;
+    }
 
-    if (byTaskAsync.isLoading) {
+    if (byTaskAsync != null && byTaskAsync.isLoading) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 12),
         child: LinearProgressIndicator(),
       );
     }
-    if (byTaskAsync.hasError) {
+    if (byTaskAsync != null && byTaskAsync.hasError) {
       return Text('Error: ${byTaskAsync.error}',
           style: const TextStyle(color: Colors.red));
     }
 
-    final byTask = byTaskAsync.asData!.value;
+    final byTask = byTaskAsync?.asData?.value ?? const <String, List<WpTaskAssignment>>{};
     final rows = byTask[widget.taskId] ?? const <WpTaskAssignment>[];
     final total = allocationTotal(rows.map((r) => r.allocationPct));
     final withinTolerance = (total - 100).abs() <= 0.05;

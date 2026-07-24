@@ -4,6 +4,7 @@ import '../../../app/theme.dart';
 import '../../../data/models/employee.dart';
 import '../../../data/models/role_scorecard.dart';
 import '../../../data/models/workforce_planning.dart';
+import 'assignment_panel.dart';
 
 const _tiers = ['Transactional', 'Operational', 'Managerial', 'Strategic'];
 const _risks = ['Low', 'Medium', 'High'];
@@ -406,6 +407,16 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
               ],
               onChanged: (v) => setState(() => _ownerId = v),
             ),
+            if (widget.existing != null && widget.existing!.id.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              AssignmentPanel(
+                taskId: widget.existing!.id,
+                companyId: widget.companyId,
+                taskHours: widget.existing!.hoursPerMonth ?? 0,
+                cards: widget.cards,
+                employees: widget.employees,
+              ),
+            ],
             if (widget.cards.isNotEmpty) ...[
               const SizedBox(height: 16),
               Text('Responsibility', style: Theme.of(context).textTheme.labelLarge),
