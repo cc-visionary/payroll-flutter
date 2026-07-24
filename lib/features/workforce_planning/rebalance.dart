@@ -210,22 +210,25 @@ OrphanHours orphanHours({
   required List<Employee> employees,
   required double multiplier,
   MoveDrafts moves = const {},
+  Map<String, List<WpTaskAssignment>> assignmentsByTask = const {},
 }) {
   var genuine = 0.0;
   var legacy = 0.0;
   final holdersByCard = <String, List<Employee>>{};
+  List<Employee> holdersOf(String cardId) =>
+      holdersByCard[cardId] ??= _activeHolders(employees, cardId);
   for (final t in tasks) {
     final hours = _hoursOf(computedByTaskId[t.id], multiplier);
-    if (hours <= 0) continue;
-    if (moves[t.id] != null || t.ownerEmployeeId != null) continue;
-    final cardId = t.roleScorecardId;
-    final orphaned = cardId == null ||
-        (holdersByCard[cardId] ??= _activeHolders(employees, cardId)).isEmpty;
-    if (!orphaned) continue;
-    if (t.externalRef != null && cardId == null) {
-      legacy += hours;
+    final u = attributeTask(
+      hours: hours, task: t,
+      assignments: assignmentsByTask[t.id] ?? const [],
+      holdersOf: holdersOf, moveOverride: moves[t.id],
+    ).unattributed;
+    if (u <= 0) continue;
+    if (t.externalRef != null && t.roleScorecardId == null) {
+      legacy += u;
     } else {
-      genuine += hours;
+      genuine += u;
     }
   }
   return OrphanHours(genuine: genuine, legacyReference: legacy);
@@ -239,20 +242,19 @@ double unattributedHours({
   required List<Employee> employees,
   required double multiplier,
   MoveDrafts moves = const {},
+  Map<String, List<WpTaskAssignment>> assignmentsByTask = const {},
 }) {
   var total = 0.0;
   final holdersByCard = <String, List<Employee>>{};
+  List<Employee> holdersOf(String cardId) =>
+      holdersByCard[cardId] ??= _activeHolders(employees, cardId);
   for (final t in tasks) {
     final hours = _hoursOf(computedByTaskId[t.id], multiplier);
-    if (hours <= 0) continue;
-    if (moves[t.id] != null || t.ownerEmployeeId != null) continue;
-    final cardId = t.roleScorecardId;
-    if (cardId == null) {
-      total += hours;
-      continue;
-    }
-    final holders = holdersByCard[cardId] ??= _activeHolders(employees, cardId);
-    if (holders.isEmpty) total += hours;
+    total += attributeTask(
+      hours: hours, task: t,
+      assignments: assignmentsByTask[t.id] ?? const [],
+      holdersOf: holdersOf, moveOverride: moves[t.id],
+    ).unattributed;
   }
   return total;
 }
@@ -333,33 +335,35 @@ List<PlannedTask> plannedTasksFor({
   required Map<String, WpTaskComputed> computedByTaskId,
   required double multiplier,
   MoveDrafts moves = const {},
+  Map<String, List<WpTaskAssignment>> assignmentsByTask = const {},
 }) {
   final out = <PlannedTask>[];
+  final holdersByCard = <String, List<Employee>>{};
+  List<Employee> holdersOf(String cardId) =>
+      holdersByCard[cardId] ??= _activeHolders(employees, cardId);
   for (final t in tasks) {
     // Workload only. Behavioural expectations live on the role scorecard.
     if (t.isExpectation) continue;
     if (t.status != 'ACTIVE') continue; // archived work leaves the derived lists
     final hours = _hoursOf(computedByTaskId[t.id], multiplier);
     final moved = moves.containsKey(t.id);
-    final owner = moves[t.id] ?? t.ownerEmployeeId;
-
-    if (owner != null) {
-      if (owner == employeeId) {
-        out.add(PlannedTask(
-            task: t, hours: hours, derived: false, holderCount: 1, moved: moved));
-      }
-      continue;
-    }
-    final cardId = t.roleScorecardId;
-    if (cardId == null) continue;
-    final holders = _activeHolders(employees, cardId);
-    if (!holders.any((h) => h.id == employeeId)) continue;
+    final r = attributeTask(
+      hours: hours, task: t,
+      assignments: assignmentsByTask[t.id] ?? const [],
+      holdersOf: holdersOf, moveOverride: moves[t.id],
+    );
+    final mine = [for (final s in r.shares) if (s.employeeId == employeeId) s];
+    if (mine.isEmpty) continue;
+    final derivedShare = mine.firstWhere(
+      (s) => s.derived,
+      orElse: () => mine.first,
+    );
     out.add(PlannedTask(
       task: t,
-      hours: holders.isEmpty ? 0 : hours / holders.length,
-      derived: true,
-      holderCount: holders.length,
-      moved: false,
+      hours: mine.fold<double>(0, (sum, s) => sum + s.hours),
+      derived: mine.any((s) => s.derived),
+      holderCount: derivedShare.derived ? derivedShare.holderCount : 1,
+      moved: moved,
     ));
   }
   out.sort((a, b) {

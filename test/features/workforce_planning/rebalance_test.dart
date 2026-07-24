@@ -121,6 +121,19 @@ void main() {
       );
       expect(h['a'], 30);
     });
+
+    test('unattributedHours counts a Σ<100 gap', () {
+      const t = WpTask(id: 't1', companyId: 'c', name: 'Pack');
+      final u = unattributedHours(
+        tasks: const [t], computedByTaskId: {'t1': _c('t1', 100)},
+        employees: const [], multiplier: 1,
+        assignmentsByTask: {
+          't1': const [WpTaskAssignment(id: 'y', companyId: 'c', taskId: 't1', employeeId: 'a',
+              assignmentRole: 'PRIMARY', allocationPct: 70)],
+        },
+      );
+      expect(u, 30); // 30% of 100h reaches nobody
+    });
   });
 
   group('draft moves', () {
@@ -221,6 +234,22 @@ void main() {
           computedByTaskId: comp, multiplier: 1, moves: moves);
       expect(dest.single.task.id, 't1');
       expect(dest.single.moved, isTrue);
+    });
+
+    test('plannedTasksFor returns a contributor\'s derived share', () {
+      const t = WpTask(id: 't1', companyId: 'c', name: 'Pack');
+      final rows = plannedTasksFor(
+        employeeId: 'b',
+        employees: [_e('a'), _e('b')],
+        tasks: const [t],
+        computedByTaskId: {'t1': _c('t1', 100)},
+        multiplier: 1,
+        assignmentsByTask: {
+          't1': const [WpTaskAssignment(id: 'y', companyId: 'c', taskId: 't1', employeeId: 'b',
+              assignmentRole: 'CONTRIBUTOR', allocationPct: 40)],
+        },
+      );
+      expect(rows.single.hours, 40);
     });
   });
 
