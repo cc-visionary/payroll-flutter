@@ -149,6 +149,18 @@ class RoleScorecardRepository {
       await _client.from('wp_tasks')
           .update({'role_scorecard_id': id})
           .inFilter('id', taskIds);
+      // Keep the PRIMARY assignment in lockstep with the repointed card — these
+      // tasks come from the unassigned pool (no owner by construction), so the
+      // correct PRIMARY is a card assignment @100 on the new draft card.
+      await _client.from('wp_task_assignments')
+          .delete().inFilter('task_id', taskIds).eq('assignment_role', 'PRIMARY');
+      await _client.from('wp_task_assignments').insert([
+        for (final tid in taskIds)
+          {
+            'company_id': companyId, 'task_id': tid, 'role_scorecard_id': id,
+            'assignment_role': 'PRIMARY', 'allocation_pct': 100,
+          },
+      ]);
     }
     return id;
   }

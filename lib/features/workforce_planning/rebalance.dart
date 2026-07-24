@@ -154,12 +154,11 @@ typedef TaskShare = ({String employeeId, double hours, bool derived, int holderC
 }
 
 /// Hours per employee under [moves], mirroring `wp_person_load`'s attribution:
-/// explicit owner takes the whole task, else it splits evenly across the ACTIVE
-/// holders of its role card, else it is unattributed and reaches nobody.
-///
-/// A draft move sets an explicit owner, so moving a SHARED responsibility takes
-/// it away from every holder and gives all of it to one person — see
-/// [PlannedTask.shared], which the UI warns about.
+/// a task's assignments win when present (a person assignment takes its
+/// allocation %; a card assignment splits its allocation % across the card's
+/// ACTIVE holders); with no assignments it falls back to the task's explicit
+/// owner (whole task) or role card (split evenly across ACTIVE holders); a
+/// draft move overrides all of that and gives 100% to the destination.
 Map<String, double> hoursByEmployee({
   required List<WpTask> tasks,
   required Map<String, WpTaskComputed> computedByTaskId,
@@ -224,7 +223,7 @@ OrphanHours orphanHours({
       assignments: assignmentsByTask[t.id] ?? const [],
       holdersOf: holdersOf, moveOverride: moves[t.id],
     ).unattributed;
-    if (u <= 0) continue;
+    if (u <= 0.0001) continue; // ignore float residue from an even holder split
     if (t.externalRef != null && t.roleScorecardId == null) {
       legacy += u;
     } else {
@@ -234,8 +233,11 @@ OrphanHours orphanHours({
   return OrphanHours(genuine: genuine, legacyReference: legacy);
 }
 
-/// Hours that reach nobody: no explicit owner and either no role card or a card
-/// with no active holder. Surfaced so work is never silently dropped.
+/// Hours that reach nobody: with assignments, any leftover once their
+/// allocation % is summed (Σ% < 100) plus any card assignment whose card has
+/// no active holder; with no assignments, no explicit owner and either no
+/// role card or a card with no active holder. Surfaced so work is never
+/// silently dropped.
 double unattributedHours({
   required List<WpTask> tasks,
   required Map<String, WpTaskComputed> computedByTaskId,
@@ -250,11 +252,12 @@ double unattributedHours({
       holdersByCard[cardId] ??= _activeHolders(employees, cardId);
   for (final t in tasks) {
     final hours = _hoursOf(computedByTaskId[t.id], multiplier);
-    total += attributeTask(
+    final u = attributeTask(
       hours: hours, task: t,
       assignments: assignmentsByTask[t.id] ?? const [],
       holdersOf: holdersOf, moveOverride: moves[t.id],
     ).unattributed;
+    if (u > 0.0001) total += u; // ignore float residue from an even holder split
   }
   return total;
 }

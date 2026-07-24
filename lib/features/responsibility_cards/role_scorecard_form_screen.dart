@@ -222,6 +222,9 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
     // both reading a stale computed set.
     ref.invalidate(wpAllTaskComputedProvider);
     ref.invalidate(ownerComputedProvider);
+    // The Balance rail reads assignments, not the task row — without this a
+    // changed owner here still shows the OLD owner there until restart.
+    ref.invalidate(wpTaskAssignmentsProvider);
   }
 
   Future<void> _save() async {

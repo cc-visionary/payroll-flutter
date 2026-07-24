@@ -134,6 +134,32 @@ void main() {
       );
       expect(u, 30); // 30% of 100h reaches nobody
     });
+
+    test('orphanHours ignores float residue from an uneven holder split (I2)', () {
+      // 98.7 / 3 * 3 != 98.7 in IEEE 754 double: per-share is 32.9, and
+      // 32.9 + 32.9 + 32.9 == 98.69999999999999, leaving a residual of
+      // 1.4210854715202004e-14 (positive, non-zero) once attributeTask
+      // subtracts the summed shares from the total. (The no-assignments
+      // fallback hardcodes unattributed: 0, so it can't reproduce this —
+      // a card assignment goes through the `hours - reached` subtraction.)
+      // Pre-fix, orphanHours' `if (u <= 0) continue;` guard let that residual
+      // through as genuine orphan hours — confirmed pre-fix this produced
+      // genuine == 1.4210854715202004e-14, painting a permanent phantom
+      // "0.0h unassigned" chip on a fully-attributed card.
+      const t = WpTask(id: 't1', companyId: 'c', name: 'Pack', roleScorecardId: 'rs1');
+      final computed = {'t1': _c('t1', 98.7)};
+      final employees = [
+        _e('a', card: 'rs1'), _e('b', card: 'rs1'), _e('c', card: 'rs1'),
+      ];
+      final o = orphanHours(
+          tasks: const [t], computedByTaskId: computed,
+          employees: employees, multiplier: 1,
+          assignmentsByTask: {
+            't1': const [WpTaskAssignment(id: 'y', companyId: 'c', taskId: 't1',
+                roleScorecardId: 'rs1', assignmentRole: 'PRIMARY', allocationPct: 100)],
+          });
+      expect(o.genuine, 0);
+    });
   });
 
   group('draft moves', () {

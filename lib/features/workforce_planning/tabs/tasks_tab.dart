@@ -1216,6 +1216,9 @@ class _TasksTabState extends ConsumerState<TasksTab> {
     ref.invalidate(wpAllTaskComputedProvider);
     ref.invalidate(ownerComputedProvider);
     ref.invalidate(roleScorecardListProvider);
+    // The Balance rail reads assignments, not the task row — without this a
+    // changed owner here still shows the OLD owner there until restart.
+    ref.invalidate(wpTaskAssignmentsProvider);
     for (final id in cardIds.whereType<String>().toSet()) {
       ref.invalidate(roleScorecardByIdProvider(id));
     }
