@@ -4,6 +4,7 @@ import '../../data/models/role_scorecard.dart';
 import '../../data/models/workforce_planning.dart';
 import '../../data/repositories/role_scorecard_repository.dart' show KpiAssignee;
 import '../kpi_library/kpi_rows.dart' show kpiIsAssigned;
+import 'allocation.dart';
 import 'capacity_math.dart';
 import 'tasks_rows.dart' show isTaskNotCosted;
 import 'unassigned_workspace.dart' show orphanTasks;
@@ -48,6 +49,7 @@ List<AttentionItem> buildNeedsAttention({
   required List<RoleScorecard> cards,
   required List<Kpi> kpis,
   required Map<String, List<KpiAssignee>> kpiAssignedByKpi,
+  Map<String, List<WpTaskAssignment>> assignmentsByTask = const {},
 }) {
   final items = <AttentionItem>[];
   void add(AttentionCategory c, AttentionSeverity s, int n, String label, AttentionTarget t) {
@@ -76,6 +78,14 @@ List<AttentionItem> buildNeedsAttention({
       .length;
   add(AttentionCategory.process, AttentionSeverity.medium, uncostedEssential,
       '${_plural(uncostedEssential, 'essential responsibility', 'essential responsibilities')} uncosted',
+      AttentionTarget.tasks);
+
+  final misallocated = tasks.where((t) =>
+      t.status == 'ACTIVE' && !t.isExpectation &&
+      (assignmentsByTask[t.id] ?? const []).isNotEmpty &&
+      (allocationTotal((assignmentsByTask[t.id] ?? const []).map((a) => a.allocationPct)) - 100).abs() > 0.05).length;
+  add(AttentionCategory.process, AttentionSeverity.medium, misallocated,
+      "${_plural(misallocated, 'responsibility', 'responsibilities')} whose shares don't total 100%",
       AttentionTarget.tasks);
 
   final activeKpis = kpis.where((k) => k.isActive).toList();

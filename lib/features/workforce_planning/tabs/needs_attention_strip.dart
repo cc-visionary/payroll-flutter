@@ -49,6 +49,9 @@ class NeedsAttentionStrip extends ConsumerWidget {
     final cards = ref.watch(roleScorecardListProvider).asData?.value;
     final kpis = ref.watch(kpiLibraryProvider).asData?.value;
     final kpiAssignedByKpi = ref.watch(kpiAssignedEmployeesProvider).asData?.value;
+    // Read defensively — this signal must never block first paint on the
+    // strip's other, already-required providers.
+    final assignmentsByTask = ref.watch(wpAssignmentsByTaskProvider).asData?.value ?? const {};
 
     if (loads == null ||
         tasks == null ||
@@ -66,6 +69,7 @@ class NeedsAttentionStrip extends ConsumerWidget {
       cards: cards,
       kpis: kpis,
       kpiAssignedByKpi: kpiAssignedByKpi,
+      assignmentsByTask: assignmentsByTask,
     );
     if (items.isEmpty) return const SizedBox.shrink();
 

@@ -29,9 +29,14 @@ List<AttentionItem> _run({
   List<WpPersonLoad> loads = const [], List<WpTask> tasks = const [],
   List<Employee> employees = const [], List<RoleScorecard> cards = const [],
   List<Kpi> kpis = const [], Map<String, List<KpiAssignee>> assigned = const {},
+  Map<String, List<WpTaskAssignment>> assignmentsByTask = const {},
 }) =>
     buildNeedsAttention(loads: loads, tasks: tasks, employees: employees,
-        cards: cards, kpis: kpis, kpiAssignedByKpi: assigned);
+        cards: cards, kpis: kpis, kpiAssignedByKpi: assigned,
+        assignmentsByTask: assignmentsByTask);
+
+WpTaskAssignment _a(String id, String taskId, double pct) => WpTaskAssignment(
+    id: id, companyId: 'c', taskId: taskId, allocationPct: pct);
 
 AttentionItem? _find(List<AttentionItem> items, AttentionTarget target, AttentionSeverity sev) {
   final hits = items.where((i) => i.target == target && i.severity == sev);
@@ -67,6 +72,24 @@ void main() {
     ]);
     final proc = _find(items, AttentionTarget.tasks, AttentionSeverity.medium)!;
     expect(proc.count, 1); // only u1
+  });
+
+  test('shares that don\'t total 100% are a Process/tasks item; exact 100 is not', () {
+    final short = _run(
+      tasks: [_t('s1', owner: 'x')],
+      assignmentsByTask: {'s1': [_a('a1', 's1', 40), _a('a2', 's1', 30)]}, // totals 70
+    );
+    final proc = short.where((i) => i.label.contains("don't total 100%")).toList();
+    expect(proc.length, 1);
+    expect(proc.single.count, 1);
+    expect(proc.single.severity, AttentionSeverity.medium);
+    expect(proc.single.target, AttentionTarget.tasks);
+
+    final exact = _run(
+      tasks: [_t('s2', owner: 'x')],
+      assignmentsByTask: {'s2': [_a('a3', 's2', 60), _a('a4', 's2', 40)]}, // totals 100
+    );
+    expect(exact.where((i) => i.label.contains("don't total 100%")), isEmpty);
   });
 
   test('KPI signals: measuring nobody, no measurement, no department', () {
