@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../app/breakpoints.dart';
+import '../../app/status_colors.dart';
 import '../../data/models/kpi.dart';
 import '../../data/models/role_scorecard.dart';
 import '../../data/repositories/hiring_entity_repository.dart';
@@ -12,6 +13,7 @@ import '../../data/repositories/role_scorecard_repository.dart';
 import '../auth/profile_provider.dart';
 import '../documents/providers.dart';
 import '../../data/models/workforce_planning.dart';
+import '../workforce_planning/duplicate_check.dart';
 import '../workforce_planning/tabs/role_view_tab.dart' show ownerComputedProvider;
 import '../workforce_planning/wp_providers.dart';
 import 'responsibility_rows.dart';
@@ -207,6 +209,60 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
         _areas[areaIndex].tasks.add(RespDraft(id: picked.id, name: picked.name)));
   }
 
+  /// Advisory nudge for a NEW responsibility line (`id == null`) whose typed
+  /// name looks like an accountability that already exists — the retype this
+  /// feature exists to catch, since it would double-count the hours. An
+  /// already-linked row (`id != null`) IS the task, so it never nags. Never
+  /// blocks saving — this is a hint, not a validator.
+  Widget _duplicateWarning(
+    int areaIndex,
+    int taskIndex,
+    List<WpTask> allTasks,
+    List<RoleScorecard> allCards,
+  ) {
+    final draft = _areas[areaIndex].tasks[taskIndex];
+    if (draft.id != null) return const SizedBox.shrink();
+    final matches =
+        findSimilarAccountabilities(typed: draft.name, all: allTasks, limit: 1);
+    if (matches.isEmpty) return const SizedBox.shrink();
+    final match = matches.first;
+    var cardTitle = 'no card';
+    final matchedCardId = match.task.roleScorecardId;
+    if (matchedCardId != null) {
+      for (final c in allCards) {
+        if (c.id == matchedCardId) {
+          cardTitle = c.jobTitle;
+          break;
+        }
+      }
+    }
+    final warn = StatusPalette.of(context, StatusTone.warning);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.warning_amber_rounded, size: 14, color: warn.foreground),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              'Looks like "${match.task.name}" ($cardTitle) — assign that '
+              'instead of creating a duplicate?',
+              style: TextStyle(fontSize: 12, color: warn.foreground),
+            ),
+          ),
+          TextButton(
+            onPressed: () => setState(() {
+              _areas[areaIndex].tasks[taskIndex] =
+                  RespDraft(id: match.task.id, name: match.task.name);
+            }),
+            child: const Text('Use that one'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _invalidateAfterSave(String cardId) {
     ref.invalidate(roleScorecardListProvider);
     ref.invalidate(scorecardEmployeeCountProvider);
@@ -359,6 +415,11 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
   @override
   Widget build(BuildContext context) {
     final kpiLibrary = ref.watch(kpiLibraryProvider).asData?.value ?? const <Kpi>[];
+    // For the duplicate-responsibility nudge below each NEW task line.
+    final wpTasksForDupeCheck =
+        ref.watch(wpTasksProvider).asData?.value ?? const <WpTask>[];
+    final scorecardsForDupeCheck =
+        ref.watch(roleScorecardListProvider).asData?.value ?? const <RoleScorecard>[];
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -650,32 +711,43 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                                   left: 16,
                                   top: 4,
                                 ),
-                                child: Row(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [
-                                    Expanded(
-                                      child: TextFormField(
-                                        // Keyed by row id (or draft identity for a
-                                        // not-yet-saved line) so the field follows
-                                        // its responsibility, not its index — see
-                                        // the note on the Area field above.
-                                        key: ValueKey(_areas[i].tasks[j].id ??
-                                            identityHashCode(_areas[i].tasks[j])),
-                                        initialValue: _areas[i].tasks[j].name,
-                                        decoration: const InputDecoration(
-                                          labelText: 'Task',
-                                          border: OutlineInputBorder(),
-                                          isDense: true,
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: TextFormField(
+                                            // Keyed by row id (or draft identity for a
+                                            // not-yet-saved line) so the field follows
+                                            // its responsibility, not its index — see
+                                            // the note on the Area field above.
+                                            key: ValueKey(_areas[i].tasks[j].id ??
+                                                identityHashCode(_areas[i].tasks[j])),
+                                            initialValue: _areas[i].tasks[j].name,
+                                            decoration: const InputDecoration(
+                                              labelText: 'Task',
+                                              border: OutlineInputBorder(),
+                                              isDense: true,
+                                            ),
+                                            // setState so a NEW line's duplicate
+                                            // nudge below re-evaluates live as the
+                                            // manager types.
+                                            onChanged: (v) => setState(
+                                              () => _areas[i].tasks[j].name = v,
+                                            ),
+                                          ),
                                         ),
-                                        onChanged: (v) =>
-                                            _areas[i].tasks[j].name = v,
-                                      ),
+                                        IconButton(
+                                          icon: const Icon(Icons.close, size: 18),
+                                          onPressed: () => setState(
+                                            () => _areas[i].tasks.removeAt(j),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    IconButton(
-                                      icon: const Icon(Icons.close, size: 18),
-                                      onPressed: () => setState(
-                                        () => _areas[i].tasks.removeAt(j),
-                                      ),
-                                    ),
+                                    _duplicateWarning(i, j, wpTasksForDupeCheck,
+                                        scorecardsForDupeCheck),
                                   ],
                                 ),
                               ),
