@@ -113,29 +113,39 @@ void main() {
     // Simulates a task owned by staff who has since left: `employees` (the
     // active roster) does not contain 'gone-emp', which is the crash case
     // for a DropdownButtonFormField whose initialValue isn't among its items.
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Builder(builder: (context) {
-          return ElevatedButton(
-            onPressed: () => showDialog<WpTask>(
-              context: context,
-              builder: (_) => const TaskFormDialog(
-                existing: WpTask(
-                  id: 't1',
+    //
+    // `existing.id` is non-empty, so this also mounts the AssignmentPanel —
+    // it needs a real ProviderScope now that the panel no longer swallows a
+    // missing one (see assignment_panel.dart); an empty assignments list is
+    // all this test cares about.
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        wpTaskAssignmentsProvider.overrideWith((ref) async => const <WpTaskAssignment>[]),
+      ],
+      child: MaterialApp(
+        home: Scaffold(
+          body: Builder(builder: (context) {
+            return ElevatedButton(
+              onPressed: () => showDialog<WpTask>(
+                context: context,
+                builder: (_) => const TaskFormDialog(
+                  existing: WpTask(
+                    id: 't1',
+                    companyId: 'c',
+                    name: 'Legacy task',
+                    ownerEmployeeId: 'gone-emp',
+                  ),
                   companyId: 'c',
-                  name: 'Legacy task',
-                  ownerEmployeeId: 'gone-emp',
+                  nodes: [],
+                  drivers: [],
+                  rates: [],
+                  employees: [],
                 ),
-                companyId: 'c',
-                nodes: [],
-                drivers: [],
-                rates: [],
-                employees: [],
               ),
-            ),
-            child: const Text('open'),
-          );
-        }),
+              child: const Text('open'),
+            );
+          }),
+        ),
       ),
     ));
     await tester.tap(find.text('open'));

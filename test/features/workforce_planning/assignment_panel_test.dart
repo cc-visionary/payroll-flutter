@@ -144,4 +144,71 @@ void main() {
 
     expect(find.text('⚠ 60%'), findsOneWidget);
   });
+
+  testWidgets(
+      'editing a % field back to its first-rendered value still writes '
+      '(C1 regression: the focus-loss listener must resolve the CURRENT row, '
+      'not the one captured when the FocusNode was first created)',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final repo = _FakeRepo();
+    // Mirrors what a real invalidate+refetch returns after a write: the row
+    // reflects the LAST successful commit, not the first-rendered value. A
+    // provider override that always returns the same fixed row can't tell
+    // the stale-closure bug apart from the fix — both would read the same
+    // object either way — so this has to track the fake repo's writes.
+    WpTaskAssignment currentA1() => repo.upserted.isEmpty
+        ? _primaryRow
+        : WpTaskAssignment(
+            id: 'a1',
+            companyId: 'c',
+            taskId: 't1',
+            roleScorecardId: 'rs1',
+            assignmentRole: 'PRIMARY',
+            allocationPct: repo.upserted.last.allocationPct,
+          );
+
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        // Override the SOURCE provider, not the derived wpAssignmentsByTaskProvider
+        // — _invalidate() invalidates wpTaskAssignmentsProvider, and
+        // wpAssignmentsByTaskProvider only recomputes because it `ref.watch`es
+        // that provider's `.future`. Overriding the derived provider directly
+        // would sever that dependency and the invalidation would never arrive.
+        wpTaskAssignmentsProvider.overrideWith((ref) async => [currentA1()]),
+        workforcePlanningRepositoryProvider.overrideWithValue(repo),
+      ],
+      child: MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 900,
+            height: 600,
+            child: AssignmentPanel(
+              taskId: 't1',
+              companyId: 'c',
+              taskHours: 100,
+              cards: [_card],
+              employees: [_employee],
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    final field = find.byKey(const ValueKey('pct-a1'));
+
+    await tester.enterText(field, '50');
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+
+    await tester.enterText(field, '60');
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+
+    expect(repo.upserted.map((a) => a.allocationPct).toList(), [50.0, 60.0]);
+  });
 }

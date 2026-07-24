@@ -84,7 +84,6 @@ class WorkforcePlanningRepository {
       await _client.from('wp_task_assignments').update({
         'assignment_role': a.assignmentRole,
         'allocation_pct': a.allocationPct,
-        'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', a.id);
     }
   }
@@ -98,7 +97,6 @@ class WorkforcePlanningRepository {
     for (final e in pctById.entries) {
       await _client.from('wp_task_assignments').update({
         'allocation_pct': e.value,
-        'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', e.key);
     }
   }
@@ -163,22 +161,52 @@ class WorkforcePlanningRepository {
       ownerEmployeeId: t['owner_employee_id'] as String?,
       roleScorecardId: t['role_scorecard_id'] as String?,
     );
-    // Keep a manually-set percentage when the PRIMARY still points at the same
-    // target — otherwise editing an unrelated field would silently reset a
-    // deliberate 60/40 split back to 100.
-    final existing = await _client.from('wp_task_assignments')
-        .select('employee_id, role_scorecard_id, allocation_pct')
-        .eq('task_id', taskId).eq('assignment_role', 'PRIMARY').maybeSingle();
-    if (existing != null && payload != null &&
-        existing['employee_id'] == payload['employee_id'] &&
-        existing['role_scorecard_id'] == payload['role_scorecard_id']) {
-      return; // same target — leave the row (and its pct) untouched
+    final rows = (await _client.from('wp_task_assignments')
+            .select('id, employee_id, role_scorecard_id, assignment_role, allocation_pct')
+            .eq('task_id', taskId))
+        .cast<Map<String, dynamic>>();
+
+    Map<String, dynamic>? primary;
+    for (final r in rows) {
+      if (r['assignment_role'] == 'PRIMARY') { primary = r; break; }
     }
-    await _client.from('wp_task_assignments').delete()
-        .eq('task_id', taskId).eq('assignment_role', 'PRIMARY');
+    // Same target -> leave the row (and its manually-set %) untouched.
+    if (primary != null && payload != null &&
+        primary['employee_id'] == payload['employee_id'] &&
+        primary['role_scorecard_id'] == payload['role_scorecard_id']) {
+      return;
+    }
+
+    // Remove the old PRIMARY AND anything already targeting the incoming
+    // target — the unique indexes are on (task_id, target), so leaving a
+    // CONTRIBUTOR on the same person/card makes the insert 23505 and strands
+    // the task with no PRIMARY at all.
+    final doomed = <String>{};
+    if (primary != null) doomed.add(primary['id'] as String);
     if (payload != null) {
-      await _client.from('wp_task_assignments').insert(payload);
+      for (final r in rows) {
+        if (r['employee_id'] == payload['employee_id'] &&
+            r['role_scorecard_id'] == payload['role_scorecard_id']) {
+          doomed.add(r['id'] as String);
+        }
+      }
     }
+    if (doomed.isNotEmpty) {
+      await _client.from('wp_task_assignments').delete().inFilter('id', doomed.toList());
+    }
+    if (payload == null) return;
+
+    // Fix I5 while we are here: never let the replacement PRIMARY push the task
+    // over 100%. It takes whatever the surviving rows leave free (100 when there
+    // are none, preserving the previous behaviour).
+    var survivingPct = 0.0;
+    for (final r in rows) {
+      if (doomed.contains(r['id'])) continue;
+      survivingPct += (r['allocation_pct'] as num?)?.toDouble() ?? 0;
+    }
+    final pct = (100 - survivingPct).clamp(0, 100).toDouble();
+    await _client.from('wp_task_assignments')
+        .insert({...payload, 'allocation_pct': pct});
   }
 
   Future<void> deleteTask(String id) async =>

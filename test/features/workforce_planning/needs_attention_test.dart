@@ -70,7 +70,10 @@ void main() {
       _t('u1', owner: 'x'), // essential, no hours, owned so NOT an orphan
       _t('u2', owner: 'x', expectation: true, essential: false), // expectation, excluded
     ]);
-    final proc = _find(items, AttentionTarget.tasks, AttentionSeverity.medium)!;
+    // Match on the label, not (target, severity) alone: the "shares don't
+    // total 100%" item shares (process, tasks, medium) with this one, so
+    // picking `.first` off that pair would be insertion-order dependent.
+    final proc = items.firstWhere((i) => i.label.contains('uncosted'));
     expect(proc.count, 1); // only u1
   });
 

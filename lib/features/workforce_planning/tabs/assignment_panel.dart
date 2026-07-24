@@ -56,6 +56,10 @@ class AssignmentPanel extends ConsumerStatefulWidget {
 class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
   final _controllers = <String, TextEditingController>{};
   final _focusNodes = <String, FocusNode>{};
+  // Refreshed at the top of every build() so the focus-loss listener below
+  // always resolves the CURRENT row for an id, never the one closed over the
+  // first time the FocusNode was created (see _focusNodeFor).
+  final _rowsById = <String, WpTaskAssignment>{};
 
   @override
   void dispose() {
@@ -83,44 +87,53 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
     return existing;
   }
 
-  FocusNode _focusNodeFor(WpTaskAssignment a) {
-    return _focusNodes.putIfAbsent(a.id, () {
-      final node = FocusNode();
-      node.addListener(() {
-        if (!node.hasFocus) _commitPct(a);
+  FocusNode _focusNodeFor(WpTaskAssignment a) => _focusNodes.putIfAbsent(a.id, () {
+        final node = FocusNode();
+        node.addListener(() {
+          if (node.hasFocus) return;
+          final current = _rowsById[a.id]; // always the freshly-built row
+          if (current != null) _commitPct(current);
+        });
+        return node;
       });
-      return node;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
-    // Guard the watch itself, not just the resulting AsyncValue: a host that
-    // never wired a ProviderScope at all (some dialog widget tests) makes
-    // `ref.watch` throw synchronously rather than yield AsyncLoading/AsyncError.
-    // Degrade straight to the empty-assignments placeholder in that case
-    // instead of an indeterminate spinner, which would never settle and hang
-    // `pumpAndSettle`.
-    AsyncValue<Map<String, List<WpTaskAssignment>>>? byTaskAsync;
-    try {
-      byTaskAsync = ref.watch(wpAssignmentsByTaskProvider);
-    } catch (_) {
-      byTaskAsync = null;
-    }
+    final byTaskAsync = ref.watch(wpAssignmentsByTaskProvider);
 
-    if (byTaskAsync != null && byTaskAsync.isLoading) {
+    if (byTaskAsync.isLoading) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 12),
         child: LinearProgressIndicator(),
       );
     }
-    if (byTaskAsync != null && byTaskAsync.hasError) {
+    if (byTaskAsync.hasError) {
       return Text('Error: ${byTaskAsync.error}',
           style: const TextStyle(color: Colors.red));
     }
 
-    final byTask = byTaskAsync?.asData?.value ?? const <String, List<WpTaskAssignment>>{};
+    final byTask = byTaskAsync.asData?.value ?? const <String, List<WpTaskAssignment>>{};
     final rows = byTask[widget.taskId] ?? const <WpTaskAssignment>[];
+    // Refresh so the focus-loss listener (see _focusNodeFor) always commits
+    // against the row this build actually rendered, not a stale one.
+    for (final r in rows) {
+      _rowsById[r.id] = r;
+    }
+
+    // hoursPerMonth on the task is direct-hours only — null for every
+    // driver/rate-costed task. Prefer the computed view's real hours; fall
+    // back to widget.taskHours only when the computed row hasn't loaded yet.
+    final allComputed = ref.watch(wpAllTaskComputedProvider).asData?.value ??
+        const <WpTaskComputed>[];
+    double? computedHours;
+    for (final c in allComputed) {
+      if (c.taskId == widget.taskId) {
+        computedHours = c.hoursPerMonthBase;
+        break;
+      }
+    }
+    final hours = computedHours ?? widget.taskHours;
+
     final total = allocationTotal(rows.map((r) => r.allocationPct));
     final withinTolerance = (total - 100).abs() <= 0.05;
     final primaryIndex = rows.indexWhere((r) => r.assignmentRole == 'PRIMARY');
@@ -139,7 +152,7 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
           ],
         ),
         const SizedBox(height: 8),
-        for (final row in rows) _assignmentRow(context, row),
+        for (final row in rows) _assignmentRow(context, row, hours),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -172,7 +185,7 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
     );
   }
 
-  Widget _assignmentRow(BuildContext context, WpTaskAssignment a) {
+  Widget _assignmentRow(BuildContext context, WpTaskAssignment a, double hours) {
     final isPrimary = a.assignmentRole == 'PRIMARY';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -221,7 +234,7 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
           Expanded(
             flex: 2,
             child: Text(
-              _derivedLabel(a),
+              _derivedLabel(a, hours),
               textAlign: TextAlign.right,
               style: AppTheme.mono(context),
             ),
@@ -247,8 +260,11 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
     return a.id;
   }
 
-  String _derivedLabel(WpTaskAssignment a) {
-    final hours = widget.taskHours * a.allocationPct / 100;
+  String _derivedLabel(WpTaskAssignment a, double hours) {
+    // No real hours to derive from (driver/rate-costed task not yet computed,
+    // or genuinely zero): say so rather than render a confidently wrong 0.0h.
+    if (hours <= 0) return 'preview unavailable';
+    final rowHours = hours * a.allocationPct / 100;
     if (a.roleScorecardId != null) {
       final n = widget.employees
           .where((e) =>
@@ -257,10 +273,10 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
               e.deletedAt == null)
           .length;
       if (n == 0) return 'no active holder';
-      final each = hours / n;
+      final each = rowHours / n;
       return '$n ${n == 1 ? 'person' : 'people'}, ${_fmtHours(each)} each';
     }
-    return _fmtHours(hours);
+    return _fmtHours(rowHours);
   }
 
   Future<void> _commitPct(WpTaskAssignment a) async {
@@ -280,13 +296,15 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
             ),
           );
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not update %: $e')));
-      return;
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not update %: $e')));
+      }
+    } finally {
+      // Always resync, success or failure — a failed write can leave the
+      // panel showing numbers the DB doesn't have, and this is cheap/idempotent.
+      if (mounted) _invalidate([a.roleScorecardId]);
     }
-    if (!mounted) return;
-    _invalidate([a.roleScorecardId]);
   }
 
   Future<void> _delete(WpTaskAssignment a) async {
@@ -304,16 +322,18 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
     if (ok != true || !mounted) return;
     try {
       await ref.read(workforcePlanningRepositoryProvider).deleteAssignment(a.id);
+      if (mounted) {
+        _controllers.remove(a.id)?.dispose();
+        _focusNodes.remove(a.id)?.dispose();
+      }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not remove: $e')));
-      return;
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not remove: $e')));
+      }
+    } finally {
+      if (mounted) _invalidate([a.roleScorecardId]);
     }
-    if (!mounted) return;
-    _controllers.remove(a.id)?.dispose();
-    _focusNodes.remove(a.id)?.dispose();
-    _invalidate([a.roleScorecardId]);
   }
 
   Future<void> _splitEqually(List<WpTaskAssignment> rows) => _writeAll(
@@ -336,13 +356,15 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
     try {
       await ref.read(workforcePlanningRepositoryProvider).setAllocations(map);
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not update allocations: $e')));
-      return;
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not update allocations: $e')));
+      }
+    } finally {
+      // setAllocations is a per-row loop with no transaction, so a mid-loop
+      // failure can still have persisted rows 0..k-1 — always resync.
+      if (mounted) _invalidate(rows.map((r) => r.roleScorecardId));
     }
-    if (!mounted) return;
-    _invalidate(rows.map((r) => r.roleScorecardId));
   }
 
   Future<void> _addContributor(List<WpTaskAssignment> rows) async {
@@ -375,13 +397,13 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
             ),
           );
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not add contributor: $e')));
-      return;
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Could not add contributor: $e')));
+      }
+    } finally {
+      if (mounted) _invalidate([picked.cardId]);
     }
-    if (!mounted) return;
-    _invalidate([picked.cardId]);
   }
 
   /// Mirrors `UnassignedTab._invalidate` / `TasksTab._invalidateAfterTaskChange`
