@@ -73,6 +73,36 @@ class WorkforcePlanningRepository {
         return rows.cast<Map<String, dynamic>>().map(WpTaskAssignment.fromRow).toList();
       });
 
+  /// Inserts a new assignment or updates an existing one's role/percentage.
+  /// A TARGET change is a delete + insert, not an update — the partial unique
+  /// indexes are on (task_id, target), so mutating the target in place could
+  /// collide with a sibling row.
+  Future<void> upsertAssignment(WpTaskAssignment a) async {
+    if (a.id.isEmpty) {
+      await _client.from('wp_task_assignments').insert(a.toUpsert(a.companyId));
+    } else {
+      await _client.from('wp_task_assignments').update({
+        'assignment_role': a.assignmentRole,
+        'allocation_pct': a.allocationPct,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', a.id);
+    }
+  }
+
+  Future<void> deleteAssignment(String id) async =>
+      _client.from('wp_task_assignments').delete().eq('id', id);
+
+  /// Bulk percentage write (the panel's simplifiers). One statement per row —
+  /// PostgREST has no multi-row-different-values update.
+  Future<void> setAllocations(Map<String, double> pctById) async {
+    for (final e in pctById.entries) {
+      await _client.from('wp_task_assignments').update({
+        'allocation_pct': e.value,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', e.key);
+    }
+  }
+
   Future<List<WpPersonLoad>> personLoads() => fetchAllPages((from, to) async {
         final rows = await _client
             .from('wp_person_load')
@@ -127,14 +157,25 @@ class WorkforcePlanningRepository {
         .select('company_id, owner_employee_id, role_scorecard_id')
         .eq('id', taskId).maybeSingle();
     if (t == null) return;
-    await _client.from('wp_task_assignments').delete()
-        .eq('task_id', taskId).eq('assignment_role', 'PRIMARY');
     final payload = primaryAssignmentPayload(
       companyId: t['company_id'] as String,
       taskId: taskId,
       ownerEmployeeId: t['owner_employee_id'] as String?,
       roleScorecardId: t['role_scorecard_id'] as String?,
     );
+    // Keep a manually-set percentage when the PRIMARY still points at the same
+    // target — otherwise editing an unrelated field would silently reset a
+    // deliberate 60/40 split back to 100.
+    final existing = await _client.from('wp_task_assignments')
+        .select('employee_id, role_scorecard_id, allocation_pct')
+        .eq('task_id', taskId).eq('assignment_role', 'PRIMARY').maybeSingle();
+    if (existing != null && payload != null &&
+        existing['employee_id'] == payload['employee_id'] &&
+        existing['role_scorecard_id'] == payload['role_scorecard_id']) {
+      return; // same target — leave the row (and its pct) untouched
+    }
+    await _client.from('wp_task_assignments').delete()
+        .eq('task_id', taskId).eq('assignment_role', 'PRIMARY');
     if (payload != null) {
       await _client.from('wp_task_assignments').insert(payload);
     }
