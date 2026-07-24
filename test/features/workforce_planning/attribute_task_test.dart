@@ -71,4 +71,18 @@ void main() {
     expect(r.shares, isEmpty);
     expect(r.unattributed, 40);
   });
+
+  test('an uncosted (0h) task with a person assignment still identifies the carrier', () {
+    final r = attributeTask(hours: 0, task: _task, assignments: [_pa('a', 100)],
+        holdersOf: _holders(const []));
+    expect(r.shares, [(employeeId: 'a', hours: 0.0, derived: false, holderCount: 1)]);
+    expect(r.unattributed, 0);
+  });
+
+  test('an uncosted (0h) task with the owner fallback still identifies the owner', () {
+    const owned = WpTask(id: 't', companyId: 'c', name: 't', ownerEmployeeId: 'o');
+    final r = attributeTask(hours: 0, task: owned, assignments: const [], holdersOf: _holders(const []));
+    expect(r.shares, [(employeeId: 'o', hours: 0.0, derived: false, holderCount: 1)]);
+    expect(r.unattributed, 0);
+  });
 }

@@ -284,6 +284,24 @@ void main() {
     });
   });
 
+  group('uncosted tasks still count toward taskCount', () {
+    test('an owned task with no computed row is counted but not costed', () {
+      final p = buildProjections(
+        employees: [_e('a')],
+        tasks: [_t('t1', owner: 'a')],
+        computedByTaskId: const {}, // no computed row at all -> 0 hours
+        capacityByEmployee: const {'a': 160},
+        multiplier: 1,
+        defaultCapacity: 160,
+      ).single;
+      expect(p.taskCount, 1,
+          reason: 'an uncosted task still identifies who carries it');
+      expect(p.costedCount, 0);
+      expect(p.uncostedCount, 1);
+      expect(p.understated, isTrue);
+    });
+  });
+
   group('archived tasks are not workload', () {
     test('an archived owned task does not add to the tally or costed count', () {
       final p = buildProjections(

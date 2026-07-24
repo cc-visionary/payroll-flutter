@@ -112,7 +112,6 @@ typedef TaskShare = ({String employeeId, double hours, bool derived, int holderC
   required List<Employee> Function(String cardId) holdersOf,
   String? moveOverride,
 }) {
-  if (hours <= 0) return (shares: const <TaskShare>[], unattributed: 0);
   if (moveOverride != null) {
     return (
       shares: [(employeeId: moveOverride, hours: hours, derived: false, holderCount: 1)],
@@ -123,7 +122,7 @@ typedef TaskShare = ({String employeeId, double hours, bool derived, int holderC
   if (assignments.isNotEmpty) {
     for (final a in assignments) {
       final share = hours * a.allocationPct / 100.0;
-      if (share <= 0) continue;
+      if (a.allocationPct <= 0) continue;
       if (a.employeeId != null) {
         shares.add((employeeId: a.employeeId!, hours: share, derived: false, holderCount: 1));
       } else if (a.roleScorecardId != null) {
