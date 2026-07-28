@@ -14,6 +14,7 @@ import '../auth/profile_provider.dart';
 import '../documents/providers.dart';
 import '../../data/models/workforce_planning.dart';
 import '../../data/repositories/workforce_planning_repository.dart';
+import '../workforce_planning/assignable_pool.dart';
 import '../workforce_planning/duplicate_check.dart';
 import '../workforce_planning/tabs/role_view_tab.dart' show ownerComputedProvider;
 import '../workforce_planning/wp_providers.dart';
@@ -190,6 +191,8 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
     final all = ref.read(wpTasksProvider).asData?.value ?? const <WpTask>[];
     final allCards =
         ref.read(roleScorecardListProvider).asData?.value ?? const <RoleScorecard>[];
+    final assignments =
+        ref.read(wpTaskAssignmentsProvider).asData?.value ?? const <WpTaskAssignment>[];
     final alreadyDrafted = {
       for (final a in _areas)
         for (final t in a.tasks)
@@ -203,9 +206,13 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
       return 'unassigned';
     }
 
+    final onThisCard = tasksOnCard(
+        cardId: widget.cardId, allTasks: all, allAssignments: assignments);
     final pool = [
       for (final t in all)
-        if (t.status == 'ACTIVE' && !t.isExpectation && !alreadyDrafted.contains(t.id)) t,
+        if (t.status == 'ACTIVE' && !t.isExpectation &&
+            !alreadyDrafted.contains(t.id) &&
+            !onThisCard.contains(t.id)) t,   // M1 (authored here) + I2 (shared here)
     ]..sort((a, b) {
         final aUnlinked = a.roleScorecardId == null;
         final bUnlinked = b.roleScorecardId == null;
@@ -237,19 +244,25 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
 
     // Already belongs to another card — do NOT draft it, that would steal it
     // by repointing role_scorecard_id out from under its home card. Share it
-    // instead via a CONTRIBUTOR assignment, which needs THIS card to already
-    // exist (an id to point at).
+    // instead via a CONTRIBUTOR assignment.
+    await _shareTask(picked, cardLabel(picked.roleScorecardId));
+  }
+
+  /// Shares [picked] onto THIS card via a CONTRIBUTOR assignment (allocation 0,
+  /// so no one's load changes until the split is set in the Assignment panel),
+  /// rather than repointing its role_scorecard_id (which would steal it from its
+  /// home card and drop it off that card's Annex A). Returns true on success.
+  Future<bool> _shareTask(WpTask picked, String fromLabel) async {
     final thisCardId = widget.cardId;
     if (thisCardId == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('Save this card first, then you can share tasks from other cards.'),
       ));
-      return;
+      return false;
     }
     final companyId =
         _existing?.companyId ?? ref.read(userProfileProvider).asData?.value?.companyId;
-    if (companyId == null) return;
-
+    if (companyId == null) return false;
     try {
       await ref.read(workforcePlanningRepositoryProvider).upsertAssignment(
             WpTaskAssignment(
@@ -262,18 +275,21 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
             ),
           );
       ref.invalidate(wpTaskAssignmentsProvider);
-      if (!mounted) return;
+      _invalidateAfterSave(thisCardId); // I1: refresh the card's responsibility list (detail/PDF/Annex A)
+      if (!mounted) return true;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
-          'Shared "${picked.name}" from ${cardLabel(picked.roleScorecardId)} — '
+          'Shared "${picked.name}" from $fromLabel — '
           "set its split in the responsibility's Assignment panel.",
         ),
       ));
+      return true;
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Could not share "${picked.name}": $e'),
       ));
+      return false;
     }
   }
 
@@ -320,10 +336,20 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
             ),
           ),
           TextButton(
-            onPressed: () => setState(() {
-              _areas[areaIndex].tasks[taskIndex] =
-                  RespDraft(id: match.task.id, name: match.task.name);
-            }),
+            onPressed: () async {
+              if (match.task.roleScorecardId == null) {
+                // True orphan — adopt it onto this card (replace the typed line).
+                setState(() => _areas[areaIndex].tasks[taskIndex] =
+                    RespDraft(id: match.task.id, name: match.task.name));
+              } else {
+                // Owned by another card — share it, and drop the typed line
+                // (the shared row surfaces on this card via the union read).
+                final ok = await _shareTask(match.task, cardTitle);
+                if (ok && mounted) {
+                  setState(() => _areas[areaIndex].tasks.removeAt(taskIndex));
+                }
+              }
+            },
             child: const Text('Use that one'),
           ),
         ],
@@ -488,6 +514,14 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
         ref.watch(wpTasksProvider).asData?.value ?? const <WpTask>[];
     final scorecardsForDupeCheck =
         ref.watch(roleScorecardListProvider).asData?.value ?? const <RoleScorecard>[];
+    // Never nudge toward a task already on THIS card — see tasksOnCard.
+    final assignmentsForDupeCheck =
+        ref.watch(wpTaskAssignmentsProvider).asData?.value ?? const <WpTaskAssignment>[];
+    final onThisCardForDupe = tasksOnCard(
+        cardId: widget.cardId, allTasks: wpTasksForDupeCheck, allAssignments: assignmentsForDupeCheck);
+    final dupeCandidates = [
+      for (final t in wpTasksForDupeCheck) if (!onThisCardForDupe.contains(t.id)) t,
+    ];
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -814,7 +848,7 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                                         ),
                                       ],
                                     ),
-                                    _duplicateWarning(i, j, wpTasksForDupeCheck,
+                                    _duplicateWarning(i, j, dupeCandidates,
                                         scorecardsForDupeCheck),
                                   ],
                                 ),
