@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/kpi.dart';
 import '../models/role_kpi.dart';
 import '../models/role_scorecard.dart';
+import '../models/workforce_planning.dart';
 
 /// The checkbox state to show when the assignment section opens: if the employee
 /// has no assignment, all role KPIs are checked (they're tracked on the full
@@ -396,6 +397,27 @@ class RoleScorecardRepository {
         for (final id in kpiIds) {'employee_id': employeeId, 'kpi_id': id},
       ]);
     }
+  }
+
+  /// Accountabilities reaching a card through an ASSIGNMENT (the shared ones),
+  /// as opposed to those authored on it via wp_tasks.role_scorecard_id.
+  /// Keyed by role_scorecard_id.
+  Future<Map<String, List<WpTask>>> assignedTasksByCard() async {
+    final rows = (await _client
+            .from('wp_task_assignments')
+            .select('role_scorecard_id, wp_tasks(*)')
+            .not('role_scorecard_id', 'is', null))
+        .cast<Map<String, dynamic>>();
+    final out = <String, List<WpTask>>{};
+    for (final r in rows) {
+      final cardId = r['role_scorecard_id'] as String?;
+      final t = r['wp_tasks'];
+      if (cardId == null || t is! Map) continue;
+      final task = WpTask.fromRow(t.cast<String, dynamic>());
+      if (task.status != 'ACTIVE') continue;
+      (out[cardId] ??= []).add(task);
+    }
+    return out;
   }
 
   /// kpiId -> employees effectively tracked on it, across the whole company.
