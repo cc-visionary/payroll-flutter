@@ -13,6 +13,7 @@ import '../../data/repositories/role_scorecard_repository.dart';
 import '../auth/profile_provider.dart';
 import '../documents/providers.dart';
 import '../../data/models/workforce_planning.dart';
+import '../../data/repositories/workforce_planning_repository.dart';
 import '../workforce_planning/duplicate_check.dart';
 import '../workforce_planning/tabs/role_view_tab.dart' show ownerComputedProvider;
 import '../workforce_planning/wp_providers.dart';
@@ -175,22 +176,42 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
   /// — a partial failure can still have changed server state (some rows may
   /// have been inserted/updated/deleted before the failure), so downstream
   /// views need refreshing either way.
-  /// Picks a task that is not on any card and adopts it into area [areaIndex].
+  /// Picks any ACTIVE, non-expectation accountability not already drafted on
+  /// this card — including ones that already live on another card — and
+  /// either adopts it (a true orphan) or SHARES it (already someone else's)
+  /// into area [areaIndex].
   ///
   /// The costing, node and cadence already on that row come with it — which is
   /// the point: retyping the name instead would create a SECOND row describing
-  /// the same work, and the hours would then be counted twice.
+  /// the same work, and the hours would then be counted twice. Sharing works
+  /// the same way but without repointing `role_scorecard_id` — see the
+  /// branch below.
   Future<void> _linkExistingTask(int areaIndex) async {
     final all = ref.read(wpTasksProvider).asData?.value ?? const <WpTask>[];
+    final allCards =
+        ref.read(roleScorecardListProvider).asData?.value ?? const <RoleScorecard>[];
     final alreadyDrafted = {
       for (final a in _areas)
         for (final t in a.tasks)
           if (t.id != null) t.id!,
     };
+    String cardLabel(String? cardId) {
+      if (cardId == null) return 'unassigned';
+      for (final c in allCards) {
+        if (c.id == cardId) return c.jobTitle;
+      }
+      return 'unassigned';
+    }
+
     final pool = [
       for (final t in all)
-        if (t.roleScorecardId == null && t.status == 'ACTIVE' && !alreadyDrafted.contains(t.id)) t,
-    ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        if (t.status == 'ACTIVE' && !t.isExpectation && !alreadyDrafted.contains(t.id)) t,
+    ]..sort((a, b) {
+        final aUnlinked = a.roleScorecardId == null;
+        final bUnlinked = b.roleScorecardId == null;
+        if (aUnlinked != bUnlinked) return aUnlinked ? -1 : 1;
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
 
     if (pool.isEmpty) {
       if (!mounted) return;
@@ -202,11 +223,58 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
 
     final picked = await showDialog<WpTask>(
       context: context,
-      builder: (ctx) => _LinkTaskDialog(pool: pool),
+      builder: (ctx) => _LinkTaskDialog(pool: pool, cardLabel: cardLabel),
     );
     if (picked == null || !mounted) return;
-    setState(() =>
-        _areas[areaIndex].tasks.add(RespDraft(id: picked.id, name: picked.name)));
+
+    if (picked.roleScorecardId == null) {
+      // True orphan — keep today's behavior: draft it so saveResponsibilities
+      // adopts it (repoints role_scorecard_id) onto THIS card on save.
+      setState(() =>
+          _areas[areaIndex].tasks.add(RespDraft(id: picked.id, name: picked.name)));
+      return;
+    }
+
+    // Already belongs to another card — do NOT draft it, that would steal it
+    // by repointing role_scorecard_id out from under its home card. Share it
+    // instead via a CONTRIBUTOR assignment, which needs THIS card to already
+    // exist (an id to point at).
+    final thisCardId = widget.cardId;
+    if (thisCardId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Save this card first, then you can share tasks from other cards.'),
+      ));
+      return;
+    }
+    final companyId =
+        _existing?.companyId ?? ref.read(userProfileProvider).asData?.value?.companyId;
+    if (companyId == null) return;
+
+    try {
+      await ref.read(workforcePlanningRepositoryProvider).upsertAssignment(
+            WpTaskAssignment(
+              id: '',
+              companyId: companyId,
+              taskId: picked.id,
+              roleScorecardId: thisCardId,
+              assignmentRole: 'CONTRIBUTOR',
+              allocationPct: 0,
+            ),
+          );
+      ref.invalidate(wpTaskAssignmentsProvider);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          'Shared "${picked.name}" from ${cardLabel(picked.roleScorecardId)} — '
+          "set its split in the responsibility's Assignment panel.",
+        ),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not share "${picked.name}": $e'),
+      ));
+    }
   }
 
   /// Advisory nudge for a NEW responsibility line (`id == null`) whose typed
@@ -1108,16 +1176,20 @@ String _uuid() {
       });
 }
 
-/// Searchable picker over tasks that sit on no card.
+/// Searchable picker over every ACTIVE, non-expectation accountability not
+/// already drafted on this card — orphans AND tasks that already belong to
+/// another card.
 ///
-/// Shows where each one came from, because the two sources mean different
-/// things: a capacity-model row carries real costed hours and adopting it is
-/// how that bucket gets triaged onto the org, while a plain orphan is work
-/// somebody created and never placed.
+/// Shows where each one came from: "Unassigned" for a true orphan (picking
+/// it adopts it onto this card), or the home card's job title for one
+/// that's already someone else's (picking it shares it instead — see
+/// `_linkExistingTask`'s share-vs-steal branch). Capacity-model provenance
+/// is layered on top since that carries real costed hours worth calling out.
 class _LinkTaskDialog extends StatefulWidget {
-  const _LinkTaskDialog({required this.pool});
+  const _LinkTaskDialog({required this.pool, required this.cardLabel});
 
   final List<WpTask> pool;
+  final String Function(String? cardId) cardLabel;
 
   @override
   State<_LinkTaskDialog> createState() => _LinkTaskDialogState();
@@ -1148,8 +1220,10 @@ class _LinkTaskDialogState extends State<_LinkTaskDialog> {
                   Text('Link an existing task',
                       style: Theme.of(context).textTheme.titleMedium),
                   Text(
-                    '${widget.pool.length} tasks are not on any card. Adopting one '
-                    'brings its costing with it.',
+                    '${widget.pool.length} tasks are available. Picking an unassigned '
+                    'one adopts it and brings its costing with it; picking one that '
+                    "already belongs to another card shares it instead — you'll set "
+                    'the split afterwards.',
                     style: TextStyle(color: cs.onSurfaceVariant),
                   ),
                   const SizedBox(height: 12),
@@ -1176,13 +1250,17 @@ class _LinkTaskDialogState extends State<_LinkTaskDialog> {
                       itemBuilder: (context, i) {
                         final t = rows[i];
                         final legacy = t.externalRef != null;
+                        final owner = t.roleScorecardId == null
+                            ? 'Unassigned'
+                            : 'On ${widget.cardLabel(t.roleScorecardId)} — shares on pick';
+                        final subtitle = legacy
+                            ? '$owner · capacity model${t.cadence == null ? '' : ' · ${t.cadence}'}'
+                            : owner;
                         return ListTile(
                           dense: true,
                           title: Text(t.name),
                           subtitle: Text(
-                            legacy
-                                ? 'From the capacity model${t.cadence == null ? '' : ' · ${t.cadence}'}'
-                                : 'Unplaced task',
+                            subtitle,
                             style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
                           ),
                           onTap: () => Navigator.pop(context, t),
