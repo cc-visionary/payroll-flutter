@@ -166,6 +166,52 @@ secrets configured to actually fire); 5 is the manager surface. The app-side
 recipient resolution and the Apply/Dismiss loop are fully testable without a
 live Lark connection.
 
+## Appendix — the Lark form contract (what to build in Lark)
+
+Modeled exactly on the existing self-review form (`sync-performance-self-review`),
+so it reuses the same plumbing. The form is a normal Lark form whose **automation
+POSTs a JSON body to the `sync-workload-request` function URL**.
+
+**What the employee sees** — one real question:
+- A read-only context line (the message that links here already names the task):
+  *"Your manager is estimating the workload for: **&lt;task name&gt;**."*
+- **Number input (required, ≥ 0):** *"About how many hours a month does this take
+  you? A rough estimate is fine."*
+
+That's it — no other fields. (No free-text; keep it a micro-form.)
+
+**Hidden fields** — pre-filled from the deep-link query params that
+`send-workload-request` builds, and echoed back unchanged on submit:
+- `task_id` (uuid) · `employee_id` (uuid) · `submission_token` (one-time secret)
+  · `form_version` (integer, start at `1`).
+
+**On submit, the form automation POSTs** (JSON) to the webhook:
+```json
+{
+  "task_id": "<uuid>",
+  "employee_id": "<uuid>",
+  "submission_token": "<one-time token>",
+  "form_version": 1,
+  "hours": 10
+}
+```
+- Send header `x-workload-webhook-token: <shared secret>` (or a `webhook_token`
+  body field) — the webhook checks it against `LARK_WORKLOAD_FORM_WEBHOOK_TOKEN`
+  and fails closed, exactly like the self-review webhook's
+  `x-performance-webhook-token`.
+- The webhook also answers Lark's `url_verification` challenge and is deployed
+  `verify_jwt = false` (so Lark can reach it) — same as the self-review one.
+
+**The three secrets to configure** (Supabase function env):
+- `LARK_WORKLOAD_FORM_TEMPLATE` — the form id, or its full URL.
+- `LARK_WORKLOAD_FORM_BASE_URL` — only if the template is an id (the base the id
+  is appended to), mirroring `LARK_SELF_REVIEW_FORM_BASE_URL`.
+- `LARK_WORKLOAD_FORM_WEBHOOK_TOKEN` — the shared secret above.
+
+**Recipient delivery** uses `employees.lark_user_id` (already stamped by
+`sync-lark-employees`), so an employee with no Lark account can't be asked — the
+"Ask owner" action must handle that with a clear message.
+
 ## Out of scope (revisit when needed)
 
 Everything the parent spec's "Two audiences" section lists beyond the workload
