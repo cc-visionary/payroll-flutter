@@ -73,7 +73,9 @@ class RoleScorecardRepository {
         );
     if (onlyActive) q = q.eq('is_active', true);
     final rows = await q.order('job_title');
-    return rows.cast<Map<String, dynamic>>().map(RoleScorecard.fromRow).toList();
+    final cards =
+        rows.cast<Map<String, dynamic>>().map(RoleScorecard.fromRow).toList();
+    return _withSharedResponsibilities(cards);
   }
 
   Future<RoleScorecard?> byId(String id) async {
@@ -86,7 +88,31 @@ class RoleScorecardRepository {
         .eq('id', id)
         .maybeSingle();
     if (row == null) return null;
-    return RoleScorecard.fromRow(row);
+    final merged = await _withSharedResponsibilities([RoleScorecard.fromRow(row)]);
+    return merged.first;
+  }
+
+  /// A card's responsibility list = its authored ones (already on [cards],
+  /// built from the wp_tasks embed) UNION the accountabilities shared to it
+  /// via an assignment. Authored rows are never touched — the shared rows are
+  /// appended as trailing areas (see responsibilitiesFromAssignedTasks) so a
+  /// card's authored order/wording, which the role-card PDF and the
+  /// employment contract's Annex A render, can never be altered by sharing
+  /// (Risk #2; see the Annex A gate in role_scorecard_responsibilities_test).
+  Future<List<RoleScorecard>> _withSharedResponsibilities(
+    List<RoleScorecard> cards,
+  ) async {
+    if (cards.isEmpty) return cards;
+    final assigned = await assignedTasksByCard();
+    return [
+      for (final card in cards)
+        card.withExtraResponsibilities(
+          responsibilitiesFromAssignedTasks(
+            card.id,
+            assigned[card.id] ?? const [],
+          ),
+        ),
+    ];
   }
 
   /// Returns {role_scorecard_id → count of non-archived employees}.

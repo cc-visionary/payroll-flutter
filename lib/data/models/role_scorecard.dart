@@ -1,5 +1,7 @@
 import 'package:decimal/decimal.dart';
 
+import 'workforce_planning.dart';
+
 class ResponsibilityArea {
   final String area;
   final List<String> tasks;
@@ -40,6 +42,59 @@ List<ResponsibilityArea> responsibilitiesFromTaskRows(List<Map<String, dynamic>>
     final prev = areaSort[area];
     areaSort[area] = prev == null || aSort < prev ? aSort : prev;
     (byArea[area] ??= []).add((sort: tSort, name: name, id: id));
+  }
+  final areas = byArea.keys.toList()
+    ..sort((a, b) {
+      final c = areaSort[a]!.compareTo(areaSort[b]!);
+      return c != 0 ? c : a.compareTo(b);
+    });
+  return [
+    for (final a in areas)
+      ResponsibilityArea(
+        area: a,
+        tasks: (byArea[a]!..sort((x, y) {
+          final c = x.sort.compareTo(y.sort);
+          return c != 0 ? c : x.id.compareTo(y.id);
+        }))
+            .map((e) => e.name)
+            .toList(),
+      ),
+  ];
+}
+
+/// The accountabilities SHARED to [cardId] (via a wp_task_assignments row
+/// targeting it) that this card did NOT itself author. [assignedToCard] is
+/// `assignedTasksByCard()[cardId]` — every ACTIVE task with an assignment
+/// pointing at this card, including tasks the card authors itself (e.g. the
+/// PRIMARY self-assignment wired in createDraftRoleFromTasks). A task whose
+/// own `role_scorecard_id` (its author/owner) already equals [cardId] is
+/// skipped here — it's already counted via the wp_tasks embed that builds
+/// the card's authored `responsibilities` (see responsibilitiesFromTaskRows),
+/// so including it again would duplicate it.
+///
+/// Grouped and ordered the same way responsibilitiesFromTaskRows orders
+/// authored rows (area by min area_sort, ties by name; tasks by task_sort,
+/// ties by id) — but as a wholly separate list of areas, NEVER merged into
+/// an authored area of the same name. Callers must APPEND this after the
+/// card's authored responsibilities, never interleave: a shared row must not
+/// reorder, reword, or otherwise alter the authored output (Risk #2 — this
+/// list feeds the role-card PDF and the employment contract's Annex A).
+/// A task with no `responsibility_area` lands in a "Shared" bucket.
+List<ResponsibilityArea> responsibilitiesFromAssignedTasks(
+  String cardId,
+  List<WpTask> assignedToCard,
+) {
+  final areaSort = <String, int>{};
+  final byArea = <String, List<({int sort, String name, String id})>>{};
+  for (final t in assignedToCard) {
+    if (t.roleScorecardId == cardId) continue; // authored here already — not a share
+    final name = t.name.trim();
+    if (name.isEmpty) continue;
+    final rawArea = t.responsibilityArea?.trim() ?? '';
+    final area = rawArea.isEmpty ? 'Shared' : rawArea;
+    final prev = areaSort[area];
+    areaSort[area] = prev == null || t.areaSort < prev ? t.areaSort : prev;
+    (byArea[area] ??= []).add((sort: t.taskSort, name: name, id: t.id));
   }
   final areas = byArea.keys.toList()
     ..sort((a, b) {
@@ -272,6 +327,38 @@ class RoleScorecard {
       supersededById: r['superseded_by_id'] as String?,
       shiftTemplateId: r['shift_template_id'] as String?,
       hiringEntityId: r['hiring_entity_id'] as String?,
+    );
+  }
+
+  /// Returns a copy with [extra] responsibility areas appended after the
+  /// existing (authored) ones. Used by the repository to fold in shared
+  /// accountabilities (see responsibilitiesFromAssignedTasks) without
+  /// touching the authored list's order or wording — a no-op copy when
+  /// [extra] is empty, so callers can call this unconditionally.
+  RoleScorecard withExtraResponsibilities(List<ResponsibilityArea> extra) {
+    if (extra.isEmpty) return this;
+    return RoleScorecard(
+      id: id,
+      companyId: companyId,
+      jobTitle: jobTitle,
+      departmentId: departmentId,
+      missionStatement: missionStatement,
+      responsibilities: [...responsibilities, ...extra],
+      kpis: kpis,
+      requiredSkills: requiredSkills,
+      behavioralExpectations: behavioralExpectations,
+      version: version,
+      salaryRangeMin: salaryRangeMin,
+      salaryRangeMax: salaryRangeMax,
+      baseSalary: baseSalary,
+      wageType: wageType,
+      workHoursPerDay: workHoursPerDay,
+      workDaysPerWeek: workDaysPerWeek,
+      isActive: isActive,
+      effectiveDate: effectiveDate,
+      supersededById: supersededById,
+      shiftTemplateId: shiftTemplateId,
+      hiringEntityId: hiringEntityId,
     );
   }
 
