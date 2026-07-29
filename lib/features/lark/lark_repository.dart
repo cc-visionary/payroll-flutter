@@ -26,6 +26,66 @@ class LarkSyncResult {
       );
 }
 
+/// Result of the `sync-lark-master-data` edge function. Unlike the other Lark
+/// syncs this has its own shape: it MATCHES linked Lark rows against existing
+/// employees and merges their personal details in. On a dry run it writes
+/// nothing and additionally returns [changedFieldCounts]. The function returns
+/// HTTP 200 even on a handled failure, signalling it via [ok] == false + [error].
+class LarkMasterDataResult {
+  /// False when the function reported a handled failure (`{ok:false,error}`).
+  final bool ok;
+  final String? error;
+  /// Total Lark rows scanned.
+  final int total;
+  /// Lark rows linked to an existing app employee.
+  final int matched;
+  /// Of [matched], how many got (or, on a dry run, would get) >=1 field filled.
+  final int updated;
+  /// Matched rows that needed no change.
+  final int noop;
+  /// Lark rows with no "Lark Profile" set yet (HR hasn't linked them).
+  final int skippedUnlinked;
+  /// Rows linked to a Lark user that isn't an app employee yet.
+  final int skippedUnmatched;
+  final List<String> errors;
+  /// Dry-run only: {fieldKey: count} of fields that would change.
+  final Map<String, int> changedFieldCounts;
+  const LarkMasterDataResult({
+    required this.ok,
+    this.error,
+    required this.total,
+    required this.matched,
+    required this.updated,
+    required this.noop,
+    required this.skippedUnlinked,
+    required this.skippedUnmatched,
+    required this.errors,
+    required this.changedFieldCounts,
+  });
+  factory LarkMasterDataResult.fromJson(Map<String, dynamic> j) {
+    final counts = <String, int>{};
+    final raw = j['changed_field_counts'];
+    if (raw is Map) {
+      raw.forEach((k, v) {
+        final n = v is int ? v : int.tryParse('$v');
+        if (n != null) counts['$k'] = n;
+      });
+    }
+    return LarkMasterDataResult(
+      ok: j['ok'] as bool? ?? false,
+      error: j['error'] as String?,
+      total: j['total'] as int? ?? 0,
+      matched: j['matched'] as int? ?? 0,
+      updated: j['updated'] as int? ?? 0,
+      noop: j['noop'] as int? ?? 0,
+      skippedUnlinked: j['skipped_unlinked'] as int? ?? 0,
+      skippedUnmatched: j['skipped_unmatched'] as int? ?? 0,
+      errors: (j['errors'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
+      changedFieldCounts: counts,
+    );
+  }
+}
+
 class LarkRepository {
   final SupabaseClient _client;
   LarkRepository(this._client);
@@ -96,6 +156,27 @@ class LarkRepository {
       });
   Future<LarkSyncResult> syncCalendar(String companyId, int year) =>
       _invoke('sync-lark-calendar', {'company_id': companyId, 'year': year});
+
+  /// Master-data sync has a richer result shape than the other syncs (and
+  /// signals failure via `ok:false` at HTTP 200), so it bypasses [_invoke] and
+  /// parses [LarkMasterDataResult] directly. Error handling mirrors [_invoke].
+  /// Pass [dryRun] to preview counts without writing anything.
+  Future<LarkMasterDataResult> syncMasterData({
+    required String companyId,
+    bool dryRun = false,
+  }) async {
+    try {
+      final res = await _client.functions.invoke('sync-lark-master-data',
+          body: {'company_id': companyId, 'dry_run': dryRun});
+      final data = res.data;
+      if (data is Map<String, dynamic>) {
+        return LarkMasterDataResult.fromJson(data);
+      }
+      throw Exception('Unexpected response from sync-lark-master-data: $data');
+    } on FunctionException catch (e) {
+      throw Exception('sync-lark-master-data failed (status ${e.status}): ${e.details ?? e.reasonPhrase}');
+    }
+  }
 }
 
 final larkRepositoryProvider =

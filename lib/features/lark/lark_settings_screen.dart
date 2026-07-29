@@ -132,6 +132,15 @@ class _State extends ConsumerState<LarkSettingsScreen> {
           _EmployeeLinkCard(companyId: cid, onSync: () => _run(() => repo.syncEmployees(cid), 'Employees')),
           const SizedBox(height: 16),
 
+          _MasterDataSyncCard(
+            companyId: cid,
+            onApplied: () {
+              ref.invalidate(_employeeLinkStatsProvider);
+              ref.invalidate(syncHistoryProvider);
+            },
+          ),
+          const SizedBox(height: 16),
+
           _rangeCard(),
           const SizedBox(height: 16),
 
@@ -378,6 +387,302 @@ class _EmployeeLinkCard extends ConsumerWidget {
           ),
         ]),
       ),
+    );
+  }
+}
+
+// Master data sync -----------------------------------------------------------
+
+/// Human labels for the fields the master-data sync tracks. Keys mirror
+/// `employees.lark_master_snapshot` (see the edge function contract).
+const _masterDataFieldLabels = <String, String>{
+  'first_name': 'First name',
+  'middle_name': 'Middle name',
+  'last_name': 'Last name',
+  'birth_date': 'Birth date',
+  'personal_email': 'Personal email',
+  'present_address_line1': 'Present address',
+  'civil_status': 'Civil status',
+  'phone_number': 'Phone number',
+  'emergency_contact_name': 'Emergency contact name',
+  'emergency_contact_number': 'Emergency contact number',
+  'emergency_contact_relationship': 'Emergency contact relationship',
+  'stat_TIN': 'TIN',
+  'stat_SSS': 'SSS',
+  'stat_PHILHEALTH': 'PhilHealth',
+  'stat_PAGIBIG': 'Pag-IBIG',
+  'bank_MBTC': 'Metrobank account',
+  'bank_GCASH': 'GCash number',
+};
+
+String _masterDataFieldLabel(String key) => _masterDataFieldLabels[key] ?? key;
+
+String _plural(int n, String one, String many) => n == 1 ? one : many;
+
+/// Follow-up guidance lines for rows the sync couldn't touch. HR reads these to
+/// know there's work left in Lark / the Employees sync.
+List<Widget> _masterDataFollowUps(LarkMasterDataResult r) {
+  final out = <Widget>[];
+  if (r.skippedUnlinked > 0) {
+    out.add(_followUpLine(
+      Icons.link_off,
+      '${r.skippedUnlinked} Lark ${_plural(r.skippedUnlinked, 'row', 'rows')} not linked yet — set each person\'s Lark Profile in the onboarding Base so they can sync.',
+    ));
+  }
+  if (r.skippedUnmatched > 0) {
+    out.add(_followUpLine(
+      Icons.person_off,
+      '${r.skippedUnmatched} linked ${_plural(r.skippedUnmatched, 'person', 'people')} not in the app yet — run the Employees sync above to stamp their Lark User ID.',
+    ));
+  }
+  return out;
+}
+
+Widget _followUpLine(IconData icon, String text) => Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(icon, size: 16, color: Colors.grey),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text, style: const TextStyle(fontSize: 12, color: Colors.grey))),
+      ]),
+    );
+
+Widget _changedFieldTable(Map<String, int> counts) {
+  final entries = counts.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  return ResponsiveTable(
+    fullWidth: true,
+    child: DataTable(
+      columnSpacing: 24,
+      columns: const [
+        DataColumn(label: Text('Field')),
+        DataColumn(label: Text('Records')),
+      ],
+      rows: entries
+          .map((e) => DataRow(cells: [
+                DataCell(Text(_masterDataFieldLabel(e.key))),
+                DataCell(Text('${e.value}', style: const TextStyle(fontFamily: 'monospace'))),
+              ]))
+          .toList(),
+    ),
+  );
+}
+
+void _showMasterDataResult(BuildContext context, LarkMasterDataResult r) {
+  showDialog<void>(
+    context: context,
+    useRootNavigator: true,
+    builder: (dialogCtx) => AlertDialog(
+      title: const Text('Master data synced'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${r.updated} of ${r.matched} linked ${_plural(r.matched, 'employee', 'employees')} updated.',
+                style: Theme.of(dialogCtx).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              if (r.noop > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text('${r.noop} already up to date.',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                ),
+              ..._masterDataFollowUps(r),
+              if (r.errors.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text('Issues (${r.errors.length})',
+                    style: Theme.of(dialogCtx)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(fontWeight: FontWeight.w600, color: Colors.red)),
+                const SizedBox(height: 4),
+                for (final e in r.errors)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: SelectableText('• $e', style: const TextStyle(fontSize: 13)),
+                  ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogCtx, rootNavigator: true).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
+class _MasterDataSyncCard extends ConsumerStatefulWidget {
+  final String companyId;
+  final VoidCallback onApplied;
+  const _MasterDataSyncCard({required this.companyId, required this.onApplied});
+  @override
+  ConsumerState<_MasterDataSyncCard> createState() => _MasterDataSyncCardState();
+}
+
+class _MasterDataSyncCardState extends ConsumerState<_MasterDataSyncCard> {
+  LarkMasterDataResult? _preview;
+  bool _busy = false;
+
+  Future<void> _runPreview() async {
+    setState(() => _busy = true);
+    try {
+      final res = await runWithSyncingDialog(
+        context,
+        'master data (preview)',
+        () => ref
+            .read(larkRepositoryProvider)
+            .syncMasterData(companyId: widget.companyId, dryRun: true),
+      );
+      if (!mounted) return;
+      if (!res.ok) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Master data preview failed: ${res.error ?? 'unknown error'}')));
+        return;
+      }
+      setState(() => _preview = res);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Master data preview failed: $e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _runApply() async {
+    setState(() => _busy = true);
+    try {
+      final res = await runWithSyncingDialog(
+        context,
+        'master data',
+        () => ref
+            .read(larkRepositoryProvider)
+            .syncMasterData(companyId: widget.companyId, dryRun: false),
+      );
+      if (!mounted) return;
+      if (!res.ok) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Master data sync failed: ${res.error ?? 'unknown error'}')));
+        return;
+      }
+      setState(() => _preview = null);
+      widget.onApplied();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Master data: ${res.updated} of ${res.matched} linked employees updated${res.errors.isNotEmpty ? ' — ${res.errors.length} error(s)' : ''}')));
+      _showMasterDataResult(context, res);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Master data sync failed: $e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mobile = isMobile(context);
+    final header = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Sync Master Data from Lark',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600)),
+        const Text(
+          'Pull employee personal details (names, contact info, government IDs, bank) from the Lark onboarding Base into linked employee records.',
+          style: TextStyle(color: Colors.grey, fontSize: 12),
+        ),
+      ],
+    );
+    final previewBtn = FilledButton.icon(
+      onPressed: _busy ? null : _runPreview,
+      icon: const Icon(Icons.sync, size: 16),
+      label: const Text('Preview Sync'),
+    );
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (mobile)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [header, const SizedBox(height: 12), previewBtn],
+            )
+          else
+            Row(children: [Expanded(child: header), previewBtn]),
+          if (_preview != null) _previewPanel(_preview!),
+        ]),
+      ),
+    );
+  }
+
+  Widget _previewPanel(LarkMasterDataResult r) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.dividerColor),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.visibility_outlined, size: 16, color: Colors.grey),
+          const SizedBox(width: 8),
+          Text('Preview — nothing has been saved yet',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: Colors.grey, fontWeight: FontWeight.w600)),
+        ]),
+        const SizedBox(height: 8),
+        Text(
+          'Will update ${r.updated} of ${r.matched} linked ${_plural(r.matched, 'employee', 'employees')}.',
+          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        ..._masterDataFollowUps(r),
+        if (r.changedFieldCounts.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text('Fields that would change',
+              style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          _changedFieldTable(r.changedFieldCounts),
+        ],
+        if (r.errors.isNotEmpty)
+          _followUpLine(Icons.error_outline,
+              '${r.errors.length} ${_plural(r.errors.length, 'issue', 'issues')} reported — details show after applying.'),
+        if (r.updated == 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text('Everything is already up to date — nothing to apply.',
+                style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey)),
+          ),
+        const SizedBox(height: 12),
+        Row(children: [
+          if (r.updated > 0) ...[
+            FilledButton.icon(
+              onPressed: _busy ? null : _runApply,
+              icon: const Icon(Icons.sync, size: 16),
+              label: Text('Apply Sync (${r.updated})'),
+            ),
+            const SizedBox(width: 8),
+          ],
+          TextButton(
+            onPressed: _busy ? null : () => setState(() => _preview = null),
+            child: const Text('Dismiss'),
+          ),
+        ]),
+      ]),
     );
   }
 }
