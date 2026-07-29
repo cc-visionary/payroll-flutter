@@ -145,7 +145,7 @@ export function tasksCard(v: TasksVM): LarkCard {
 
 export interface ReviewsVM {
   latest?: { type: string; status: string; outcome?: string; rating?: string };
-  selfEvalCount: number;
+  selfEvalCount: string;
   latestSelfEvalDate?: string;
 }
 
@@ -159,8 +159,9 @@ export function reviewsCard(v: ReviewsVM): LarkCard {
     ].filter((l): l is string => l !== null).join('\n')
     : 'Nothing here yet.';
 
-  const selfEvalLine = v.selfEvalCount > 0
-    ? `${v.selfEvalCount} submitted` + (v.latestSelfEvalDate ? ` — latest ${v.latestSelfEvalDate}` : '')
+  const hasSelfEvals = v.selfEvalCount !== '0' && v.selfEvalCount !== '';
+  const selfEvalLine = hasSelfEvals
+    ? `${v.selfEvalCount} self-evaluation(s) on file` + (v.latestSelfEvalDate ? ` — latest ${v.latestSelfEvalDate}` : '')
     : 'Nothing here yet.';
 
   return card('My Reviews', [

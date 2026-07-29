@@ -1,5 +1,5 @@
 import { assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts';
-import { maskLast4, payslipCard, infoCard, helpCard, linkPromptCard } from './bot_cards.ts';
+import { maskLast4, payslipCard, infoCard, helpCard, linkPromptCard, reviewsCard } from './bot_cards.ts';
 
 Deno.test('maskLast4 keeps only the last four digits', () => {
   assertEquals(maskLast4('123456789'), '••••6789');
@@ -38,4 +38,24 @@ Deno.test('helpCard and linkPromptCard are valid cards', () => {
   for (const c of [helpCard(), linkPromptCard()]) {
     assertEquals('elements' in c || 'config' in c, true);
   }
+});
+
+Deno.test('reviewsCard renders the latest review + self-eval count when present', () => {
+  const json = JSON.stringify(reviewsCard({
+    latest: { type: 'Annual Review', status: 'Completed', outcome: 'Meets Expectations', rating: '4' },
+    selfEvalCount: '3',
+    latestSelfEvalDate: 'Jun 30, 2026',
+  }));
+  assertEquals(json.includes('Annual Review'), true);
+  assertEquals(json.includes('Completed'), true);
+  assertEquals(json.includes('Meets Expectations'), true);
+  assertEquals(json.includes('3 self-evaluation'), true);
+  assertEquals(json.includes('Jun 30, 2026'), true);
+});
+
+Deno.test('reviewsCard renders gracefully with no review and zero self-evals', () => {
+  const card = reviewsCard({ selfEvalCount: '0' });
+  const json = JSON.stringify(card);
+  assertEquals(json.includes('Nothing here yet.'), true);
+  assertEquals('elements' in card || 'config' in card, true);
 });
