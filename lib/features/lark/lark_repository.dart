@@ -50,6 +50,11 @@ class LarkMasterDataResult {
   final List<String> errors;
   /// Dry-run only: {fieldKey: count} of fields that would change.
   final Map<String, int> changedFieldCounts;
+  /// Rows the sync couldn't apply, one entry per skipped person. Returned on
+  /// both dry-run and real runs; length == [skippedUnlinked] + [skippedUnmatched].
+  /// [LarkUnapplied.reason] is `NO_PROFILE` (link them in Lark) or `NOT_IN_APP`
+  /// (add the employee, then run the Employees sync).
+  final List<LarkUnapplied> unapplied;
   const LarkMasterDataResult({
     required this.ok,
     this.error,
@@ -61,6 +66,7 @@ class LarkMasterDataResult {
     required this.skippedUnmatched,
     required this.errors,
     required this.changedFieldCounts,
+    required this.unapplied,
   });
   factory LarkMasterDataResult.fromJson(Map<String, dynamic> j) {
     final counts = <String, int>{};
@@ -71,6 +77,13 @@ class LarkMasterDataResult {
         if (n != null) counts['$k'] = n;
       });
     }
+    final unapplied = (j['unapplied'] as List<dynamic>? ?? [])
+        .whereType<Map>()
+        .map((e) => LarkUnapplied(
+              name: e['name']?.toString() ?? '—',
+              reason: e['reason']?.toString() ?? '',
+            ))
+        .toList();
     return LarkMasterDataResult(
       ok: j['ok'] as bool? ?? false,
       error: j['error'] as String?,
@@ -82,8 +95,17 @@ class LarkMasterDataResult {
       skippedUnmatched: j['skipped_unmatched'] as int? ?? 0,
       errors: (j['errors'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
       changedFieldCounts: counts,
+      unapplied: unapplied,
     );
   }
+}
+
+/// One row the master-data sync couldn't apply. [reason] is `NO_PROFILE` or
+/// `NOT_IN_APP` (see [LarkMasterDataResult.unapplied]).
+class LarkUnapplied {
+  final String name;
+  final String reason;
+  const LarkUnapplied({required this.name, required this.reason});
 }
 
 class LarkRepository {

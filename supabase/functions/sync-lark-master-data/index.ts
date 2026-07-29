@@ -116,6 +116,10 @@ Deno.serve(async (req) => {
     // 3. Process each Base row.
     let matched = 0, updated = 0, skippedUnlinked = 0, skippedUnmatched = 0, noop = 0;
     const changedFieldCounts: Record<string, number> = {};
+    // Rows the sync could not apply, named so HR has an actionable to-do:
+    //   NO_PROFILE = the Base row has no "Lark Profile" set (HR must link it)
+    //   NOT_IN_APP = linked to a Lark user with no matching app employee (add them)
+    const unapplied: Array<{ name: string; reason: 'NO_PROFILE' | 'NOT_IN_APP' }> = [];
 
     for (const rec of records) {
       let mapped;
@@ -125,9 +129,17 @@ Deno.serve(async (req) => {
         errors.push(`map ${rec.record_id}: ${String(e)}`);
         continue;
       }
-      if (!mapped.larkUserId) { skippedUnlinked++; continue; }
+      if (!mapped.larkUserId) {
+        skippedUnlinked++;
+        unapplied.push({ name: mapped.fullName || '(unnamed row)', reason: 'NO_PROFILE' });
+        continue;
+      }
       const emp = byLarkId.get(mapped.larkUserId.trim());
-      if (!emp) { skippedUnmatched++; continue; }
+      if (!emp) {
+        skippedUnmatched++;
+        unapplied.push({ name: mapped.fullName || '(unnamed row)', reason: 'NOT_IN_APP' });
+        continue;
+      }
       matched++;
       const employeeId = emp.id as string;
 
@@ -221,6 +233,7 @@ Deno.serve(async (req) => {
       noop,
       skipped_unlinked: skippedUnlinked,
       skipped_unmatched: skippedUnmatched,
+      unapplied, // named list of rows that couldn't be applied (HR to-do)
       errors,
       ...(dryRun ? { dry_run: true, changed_field_counts: changedFieldCounts } : {}),
     };

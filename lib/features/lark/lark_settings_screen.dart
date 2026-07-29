@@ -468,6 +468,61 @@ Widget _changedFieldTable(Map<String, int> counts) {
   );
 }
 
+/// The actionable "couldn't apply these" to-do list — the names behind the
+/// [LarkMasterDataResult.skippedUnlinked]/[skippedUnmatched] counts, grouped by
+/// reason. Caps its height and scrolls internally so a long list never blows out
+/// the panel or dialog it lives in.
+Widget _unappliedSection(BuildContext context, List<LarkUnapplied> unapplied) {
+  if (unapplied.isEmpty) return const SizedBox.shrink();
+  final theme = Theme.of(context);
+  final noProfile =
+      unapplied.where((u) => u.reason == 'NO_PROFILE').map((u) => u.name).toList();
+  final notInApp =
+      unapplied.where((u) => u.reason == 'NOT_IN_APP').map((u) => u.name).toList();
+  final other = unapplied
+      .where((u) => u.reason != 'NO_PROFILE' && u.reason != 'NOT_IN_APP')
+      .map((u) => u.name)
+      .toList();
+
+  final groups = <Widget>[];
+  void addGroup(IconData icon, String header, List<String> names) {
+    if (names.isEmpty) return;
+    groups.add(Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, size: 16, color: theme.colorScheme.primary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text('$header (${names.length})',
+                style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+          ),
+        ]),
+        Padding(
+          padding: const EdgeInsets.only(left: 24, top: 2),
+          child: Text(names.join(', '), style: const TextStyle(fontSize: 12)),
+        ),
+      ]),
+    ));
+  }
+
+  addGroup(Icons.link_off, 'Needs a Lark Profile (link them in Lark)', noProfile);
+  addGroup(Icons.person_add_alt, 'Not in the app yet (add the employee)', notInApp);
+  addGroup(Icons.help_outline, 'Couldn\'t match', other);
+
+  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    const SizedBox(height: 12),
+    Text('Couldn\'t apply these — action needed',
+        style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+    ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 220),
+      child: SingleChildScrollView(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: groups),
+      ),
+    ),
+  ]);
+}
+
 void _showMasterDataResult(BuildContext context, LarkMasterDataResult r) {
   showDialog<void>(
     context: context,
@@ -492,6 +547,7 @@ void _showMasterDataResult(BuildContext context, LarkMasterDataResult r) {
                       style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 ),
               ..._masterDataFollowUps(r),
+              _unappliedSection(dialogCtx, r.unapplied),
               if (r.errors.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text('Issues (${r.errors.length})',
@@ -651,6 +707,7 @@ class _MasterDataSyncCardState extends ConsumerState<_MasterDataSyncCard> {
           style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
         ),
         ..._masterDataFollowUps(r),
+        _unappliedSection(context, r.unapplied),
         if (r.changedFieldCounts.isNotEmpty) ...[
           const SizedBox(height: 12),
           Text('Fields that would change',
