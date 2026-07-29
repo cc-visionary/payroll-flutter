@@ -44,39 +44,32 @@ See the full design specification: [`2026-07-29-employee-self-service-bot-design
 
 ### 3. Configure Custom Bot Menu
 
+**Important:** the bot menu's **"Push event"** action is disabled in this app, so we drive the menu with the **"Send text message"** action instead. Tapping an item sends a keyword to the bot as a normal message; the handler recognizes the keyword and replies with the right card. (This also means employees can just *type* the keyword — e.g. "payslip" — and get the same card.) No `event_key` is used.
+
 1. Go to **Bot** → **Custom Bot Menu**.
-2. Add the following five menu items (in order). Each item must have an exact `event_key`:
+2. Add the following five menu items (in order). For each: **Name** = the label, **Action** = **"Send text message"**, **Text** = the keyword below.
 
-| Label | Event Key | Type |
-|-------|-----------|------|
-| My Payslip | `my_payslip` | Card |
-| My Leave & Attendance | `my_leave` | Card |
-| My Tasks & Responsibilities | `my_tasks` | Card |
-| My Reviews | `my_reviews` | Card |
-| My Info | `my_info` | Card |
+| Menu name (Name) | Action | Text to send |
+|------------------|--------|--------------|
+| My Payslip | Send text message | `payslip` |
+| My Leave & Attendance | Send text message | `leave` |
+| My Tasks & Responsibilities | Send text message | `tasks` |
+| My Reviews | Send text message | `reviews` |
+| My Info | Send text message | `info` |
 
-3. Save. The menu items will appear at the top of DM conversations with the bot.
+3. Save + publish a version. The menu items appear at the top of DM conversations with the bot (effective within ~5 minutes).
 
 ---
 
-### 4. Subscribe to Events & Configure Callbacks
+### 4. Subscribe to the message event + Request URL
 
-#### Events Tab
-
-1. Go to **Events & Callbacks** → **Events** tab.
-2. Under **Subscribe to Events**, enable:
-   - **Message received** (`im.message.receive_v1`) — triggered when a user DMs the bot
-   - **Bot menu clicked** — triggered when a user taps one of the five custom menu items above
-3. Save.
-
-#### Event Configuration & Request URL
-
-1. Go to **Event Configuration** (on the same Events tab or a sub-tab).
-2. Set **Subscription Mode** to **"Send callbacks to developer's server"** (not "persistent connection").
-   - *Rationale:* The Supabase edge function is stateless and cannot hold open WebSocket connections.
-3. Set **Request URL** to: `https://tsylbligjojkhpaobcsi.supabase.co/functions/v1/lark-bot-handler`
-4. Do **NOT** test the URL yet; the Encryption Strategy keys must be in place first (see step 5).
-5. Save.
+1. Go to **Events & Callbacks** → **Event Configuration** tab.
+2. Under **Add Event / Subscribe to Events**, add: **"Receive messages"** (`im.message.receive_v1`) — fired both when a user DMs the bot AND when they tap a "Send text message" menu item. (There is no separate bot-menu event to add — the menu delivers via this message event.)
+3. Set **Subscription Mode** to **"Send callbacks to developer's server"** (not "persistent connection").
+   - *Rationale:* The Supabase edge function is stateless and cannot hold an open WebSocket connection.
+4. Set **Request URL** to: `https://tsylbligjojkhpaobcsi.supabase.co/functions/v1/lark-bot-handler`
+5. The Encryption Strategy keys + Supabase secrets are already in place (see step 5), so the URL verifies green immediately. Save.
+6. Required scopes on the event ("Get direct messages sent to bot") must show **Added**.
 
 #### Callback Configuration Tab (No Action Needed)
 
@@ -142,9 +135,9 @@ See the full design specification: [`2026-07-29-employee-self-service-bot-design
 ## Deployment Checklist
 
 - [ ] Bot feature **enabled** in Lark console.
-- [ ] Permissions & Scopes added and **version published**.
-- [ ] Five custom menu items created with exact `event_key`s.
-- [ ] `im.message.receive_v1` and bot-menu events **subscribed**.
+- [ ] Permissions & Scopes added (receive DMs + send messages as bot) and **version published**.
+- [ ] Five custom menu items created, each **Action = "Send text message"** with the keyword (`payslip`/`leave`/`tasks`/`reviews`/`info`).
+- [ ] **"Receive messages"** (`im.message.receive_v1`) event **subscribed** (delivers both DMs and menu-sent keywords).
 - [ ] Subscription mode set to **"Send callbacks to developer's server"**.
 - [ ] Request URL set to **`https://tsylbligjojkhpaobcsi.supabase.co/functions/v1/lark-bot-handler`**.
 - [ ] **Encrypt Key** and **Verification Token** set in Lark console.
@@ -157,7 +150,7 @@ See the full design specification: [`2026-07-29-employee-self-service-bot-design
 
 ## Notes
 
-- **No database migration required** — all reads hit existing tables (`employees`, `payroll_runs`, `leave_balances`, `role_scorecards`, `performance_reviews`, `users`).
+- **No database migration required** — all reads hit existing tables (`employees`, `payslips`+`payroll_runs`, `leave_balances`, `attendance_day_records`, `wp_task_assignments`+`wp_tasks`, `employee_reviews`, `lark_self_eval_responses`, `employee_statutory_ids`, `employee_bank_accounts`).
 - **Edge function is stateless** — hence Subscription Mode = "Send callbacks to developer's server" (not persistent connection).
 - **Cards are read-only in v1** — no Callback Configuration needed for card buttons; this is a future enhancement.
 - **Email and user identity resolution** — the handler matches the Lark `user_id` from the event payload to `employees.lark_user_id` for data scoping. If events only emit `open_id`, the user will not resolve.
