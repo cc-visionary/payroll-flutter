@@ -431,9 +431,11 @@ Deno.serve(async (req) => {
   let body: Record<string, unknown>;
   try {
     const outer = await req.json();
-    body = typeof outer.encrypt === 'string'
-      ? await decryptLarkEvent(outer.encrypt, encryptKey)
-      : outer;
+    // Encrypt Key is set (checked above) => Lark encrypts EVERY callback.
+    // A body without `encrypt` is not from Lark and must be rejected, not
+    // trusted on the token check alone.
+    if (typeof outer.encrypt !== 'string') return json({}, 200);
+    body = await decryptLarkEvent(outer.encrypt, encryptKey);
   } catch { return json({}, 200); }
 
   // Challenge handshake.
