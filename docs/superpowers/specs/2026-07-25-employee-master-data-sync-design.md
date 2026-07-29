@@ -23,15 +23,28 @@ merge that never overwrites a field HR has edited in the app.**
 | Field ownership | **Lark-owned** = the onboarding-form fields (below). **App-owned** = department, role, employment type/status, compensation — the sync **never touches** these. |
 | Login | The sync creates the employee **record**, not an app **login** (`manage-user` stays separate; a Lark-only new hire needs no login). |
 
-## Source — the Lark "Employee Information" Base (net-new capability)
+## Source — the Lark "Employee Information" Base (wiki-wrapped; net-new capability)
+
+The Base lives inside Lark **Wiki**, shared as wiki node token
+**`TNQSwJcM0iN16SkYCpllZvfIgdf`** (`…/wiki/<token>`), and holds **multiple tables in
+one Base** — Employee Information *and* the 1st/3rd/6th self-evals — so this one
+integration serves the master-data sync **and** the later self-eval-response sync.
 
 The existing `sync-lark-*` functions read Lark's attendance/approval/calendar APIs;
-**none read a Lark Base (Bitable).** This sync needs new Base-read helpers in
-`_shared/lark.ts` (list records from a table, paginated). Prerequisites the user
-provides/configures (like the self-review form): the Base **app_token** + **table_id**,
-and the Lark app granted **Bitable read** scope with the Base shared to it. The
-Base is confirmed to carry a **Start Date** field (the onboarding automation fires
-off it) and an **employee number** (the chosen match key).
+**none read a Lark Base (Bitable).** This sync needs new helpers in `_shared/lark.ts`:
+
+1. **Resolve the wiki node → Bitable id:**
+   `GET /open-apis/wiki/v2/spaces/get_node?token=<wiki_token>` →
+   `data.node.obj_token` (the Bitable `app_token`), `obj_type: bitable`.
+2. **List tables:** `GET /open-apis/bitable/v1/apps/{app_token}/tables` → discover
+   each `table_id` (no manual copying — one wiki token unlocks all four tables).
+3. **Read records:** `GET /open-apis/bitable/v1/apps/{app_token}/tables/{table_id}/records`
+   (paginated via `page_token`).
+
+Prerequisites (user-side, Lark dev console): the existing Lark app granted **wiki
+read** (✅ done) + **bitable read** scopes, and the wiki/Base **shared with that
+app**. The Base carries a **Start Date** field (the onboarding automation fires off
+it → `hire_date`) and an **employee number** (the match key).
 
 ## Target — existing tables (no new landing schema)
 
