@@ -1,20 +1,24 @@
 // Maps a Lark self-evaluation Base record → app-shaped response.
 //
-// The onboarding self-eval forms (1st/3rd/6th month; a quarterly regular form
-// later) have VARIABLE questions, so answers are kept as a flexible map keyed by
-// question text — any form fits without a schema change. Two Base system fields
-// are treated as metadata, not answers:
-//   "Submitted on"  (created time)  -> submittedAt
-//   "Respondents"   (created by)    -> respondentLarkUserId (the match key)
-// Records must be read with user_id_type=user_id so "Respondents" resolves to a
+// The self-eval forms (1st/3rd/6th month + the quarterly regular form) have
+// VARIABLE questions, so answers are kept as a flexible map keyed by question
+// text — any form fits without a schema change. Two response-table system
+// fields are treated as metadata, not answers. Their NAMES differ by how the
+// form was built: the onboarding tables use "Respondents"/"Submitted on"; the
+// "Quarterly Check-In" table uses "Submitted By"/"Submitted At". Accept either.
+//   submitter (created by)   -> respondentLarkUserId (the match key)
+//   submitted (created time) -> submittedAt
+// Records must be read with user_id_type=user_id so the submitter resolves to a
 // tenant user_id that lines up with employees.lark_user_id.
 // See docs/superpowers/specs/2026-07-29-self-eval-response-sync-design.md.
 
 import { baseCellText } from './lark.ts';
 import { larkPersonId } from './master_data_map.ts';
 
-export const META_SUBMITTED = 'Submitted on';
-export const META_RESPONDENTS = 'Respondents';
+/** Field names any of which mark the submitter (created-by) meta column. */
+export const RESPONDENT_FIELDS = new Set(['Respondents', 'Submitted By']);
+/** Field names any of which mark the submission-time (created-time) meta column. */
+export const SUBMITTED_FIELDS = new Set(['Submitted on', 'Submitted At']);
 
 export interface MappedSelfEval {
   /** Lark user_id of the submitter (from "Respondents"); null => unmatchable. */
@@ -46,11 +50,11 @@ export function mapSelfEvalRecord(fields: Record<string, unknown>): MappedSelfEv
   let submittedAt: string | null = null;
 
   for (const [key, raw] of Object.entries(fields)) {
-    if (key === META_RESPONDENTS) {
+    if (RESPONDENT_FIELDS.has(key)) {
       respondentLarkUserId = larkPersonId(raw);
       continue;
     }
-    if (key === META_SUBMITTED) {
+    if (SUBMITTED_FIELDS.has(key)) {
       submittedAt = larkMsToISO(raw);
       continue;
     }

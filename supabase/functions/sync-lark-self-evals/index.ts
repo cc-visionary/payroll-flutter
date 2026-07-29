@@ -42,6 +42,7 @@ const TABLE_TYPES: Record<string, string> = {
   '1st Month Employee Self-Evaluation Form': 'PROBATIONARY_M1',
   '3rd Month Employee Self-Evaluation Form': 'PROBATIONARY_M3',
   '6th Month Employee Self-Evaluation Form': 'PROBATIONARY_M6',
+  'Quarterly Check-In': 'QUARTERLY',
 };
 
 Deno.serve(async (req) => {

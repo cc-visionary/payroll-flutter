@@ -29,6 +29,19 @@ Deno.test('numeric questions land in ratings and (stringified) in answers', () =
   assertEquals(m.answers['Free text'], 'ok');
 });
 
+Deno.test('accepts the Quarterly Check-In meta field names (Submitted By / At)', () => {
+  const m = mapSelfEvalRecord({
+    'Submitted By': { id: 'u-42' },
+    'Submitted At': SUBMIT_MS,
+    'results / accountability': 4,
+    'What are you most proud of this quarter?': 'Shipped the sync',
+  });
+  assertEquals(m.respondentLarkUserId, 'u-42');
+  assertEquals(m.submittedAt, '2026-01-15T03:30:00.000Z');
+  assertEquals(m.ratings['results / accountability'], 4);
+  assertEquals(m.answers['Submitted By'], undefined); // meta never leaks
+});
+
 Deno.test('a missing/empty respondent yields a null match key', () => {
   assertEquals(mapSelfEvalRecord({ 'Submitted on': SUBMIT_MS }).respondentLarkUserId, null);
   assertEquals(mapSelfEvalRecord({ 'Respondents': [] }).respondentLarkUserId, null);
