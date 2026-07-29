@@ -324,10 +324,20 @@ async function buildTasksCard(supabase: SupabaseClient, emp: EmpRow): Promise<La
 }
 
 async function buildReviewsCard(supabase: SupabaseClient, emp: EmpRow): Promise<LarkCard> {
+  // Gate to FINALIZED only: employee_reviews_finalization_valid
+  // (20260717000002_review_cycle_foundation.sql) guarantees overall_outcome/
+  // overall_rating are set once status = FINALIZED, but earlier states --
+  // DRAFT, AWAITING_SELF_REVIEW, MANAGER_REVIEW_IN_PROGRESS,
+  // READY_FOR_DISCUSSION, DISCUSSION_COMPLETED, OVERDUE, CANCELLED -- can
+  // still carry a draft/stale outcome that must never reach the employee
+  // before a manager conversation (or at all, if CANCELLED). Same
+  // "gate to employee-visible state" rule the payslip card applies via
+  // payroll_runs.status = 'RELEASED'.
   const { data: reviewRows, error: reviewErr } = await supabase
     .from('employee_reviews')
     .select('review_type, status, overall_outcome, overall_rating')
     .eq('employee_id', emp.id)
+    .eq('status', 'FINALIZED')
     .order('review_period_end', { ascending: false })
     .limit(1);
   if (reviewErr) throw new Error(`employee_reviews: ${reviewErr.message}`);
