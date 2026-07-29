@@ -20,6 +20,30 @@ String filenameForDocument({
   return '${prefix}_${id}_$ymd.pdf';
 }
 
+/// Build a suggested filename for a self-evaluation PDF export.
+///
+/// Format: `Self-Evaluation - <Name> - <Type> - <YYYY-MM-DD>.pdf`. Blank
+/// fields fall back to placeholder tokens, and characters unsafe in filenames
+/// are stripped so the same name works in both the Save / Share dialog and the
+/// OS print dialog.
+String filenameForSelfEval({
+  required String employeeName,
+  required String reviewTypeLabel,
+  required DateTime? submittedAt,
+}) {
+  String clean(String s) => s.replaceAll(RegExp(r'[\\/:*?"<>|]'), '').trim();
+  final name = clean(employeeName).isEmpty ? 'Employee' : clean(employeeName);
+  final type = clean(reviewTypeLabel).isEmpty
+      ? 'Self-Evaluation'
+      : clean(reviewTypeLabel);
+  final date = submittedAt == null
+      ? 'undated'
+      : '${submittedAt.year.toString().padLeft(4, '0')}-'
+          '${submittedAt.month.toString().padLeft(2, '0')}-'
+          '${submittedAt.day.toString().padLeft(2, '0')}';
+  return 'Self-Evaluation - $name - $type - $date.pdf';
+}
+
 String _prefixFor(String templateId) {
   switch (templateId) {
     case 'quitclaim':

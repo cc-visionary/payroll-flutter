@@ -140,3 +140,69 @@ Future<List<SelfEvalExportRow>> fetchSelfEvalsForExport(String companyId) async 
     );
   }).toList();
 }
+
+/// A single self-eval response joined with the employee context needed for the
+/// printable PDF header (name, employee number, department, position).
+class SelfEvalDetail {
+  final LarkSelfEvalResponse response;
+  final String employeeNumber;
+  final String firstName;
+  final String lastName;
+  final String? departmentName;
+  final String? jobTitle;
+
+  const SelfEvalDetail({
+    required this.response,
+    required this.employeeNumber,
+    required this.firstName,
+    required this.lastName,
+    this.departmentName,
+    this.jobTitle,
+  });
+
+  String get fullName => [firstName, lastName]
+      .where((s) => s.trim().isNotEmpty)
+      .join(' ')
+      .trim();
+}
+
+/// Fetch one self-eval response by [responseId], joined with employee context
+/// for the printable header. Two round-trips (response, then employee meta with
+/// the department name embedded via the `employees.department_id -> departments`
+/// FK), mirroring [fetchSelfEvalsForExport]. Returns null when the id is not
+/// found or RLS hides it. Exposed as a family keyed by response id for the
+/// self-eval PDF screen.
+final selfEvalDetailByIdProvider =
+    FutureProvider.family<SelfEvalDetail?, String>((ref, responseId) async {
+  final client = Supabase.instance.client;
+  final row = await client
+      .from('lark_self_eval_responses')
+      .select(
+          'id, review_type, source_table, submitted_at, answers, ratings, employee_id')
+      .eq('id', responseId)
+      .maybeSingle();
+  if (row == null) return null;
+
+  final response = LarkSelfEvalResponse.fromRow(row);
+  final employeeId = row['employee_id'] as String?;
+  Map<String, dynamic> emp = const <String, dynamic>{};
+  if (employeeId != null) {
+    final empRow = await client
+        .from('employees')
+        .select(
+            'employee_number, first_name, last_name, job_title, departments(name)')
+        .eq('id', employeeId)
+        .maybeSingle();
+    if (empRow != null) emp = empRow;
+  }
+  // To-one embed: a Map (or null), not a List.
+  final dept = emp['departments'];
+  return SelfEvalDetail(
+    response: response,
+    employeeNumber: emp['employee_number'] as String? ?? '',
+    firstName: emp['first_name'] as String? ?? '',
+    lastName: emp['last_name'] as String? ?? '',
+    departmentName: dept is Map ? dept['name'] as String? : null,
+    jobTitle: emp['job_title'] as String?,
+  );
+});

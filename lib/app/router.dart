@@ -47,6 +47,7 @@ import '../features/performance/monthly_development_checkin_screen.dart';
 import '../features/performance/review_cycle_detail_screen.dart';
 import '../features/performance/review_cycle_form_screen.dart';
 import '../features/performance/review_cycles_screen.dart';
+import '../features/performance/self_eval_pdf_screen.dart';
 import '../features/workflows/workflows_screen.dart';
 import '../features/workflows/workflow_detail_screen.dart';
 import '../features/workforce_planning/workforce_planning_screen.dart';
@@ -295,6 +296,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/performance/:id',
             builder: (c, s) =>
                 PerformanceCheckInScreen(checkInId: s.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: '/self-evals/:id/pdf',
+            builder: (c, s) =>
+                SelfEvalPdfScreen(id: s.pathParameters['id']!),
           ),
           GoRoute(
             path: '/compensation',
