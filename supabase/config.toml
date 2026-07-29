@@ -382,6 +382,9 @@ deno_version = 2
 [functions.sync-performance-self-review]
 verify_jwt = false
 
+[functions.lark-bot-handler]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
