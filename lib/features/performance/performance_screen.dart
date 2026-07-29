@@ -5,11 +5,13 @@ import 'package:go_router/go_router.dart';
 import '../../app/breakpoints.dart';
 import '../../app/shell.dart';
 import '../../data/repositories/employee_repository.dart';
+import '../../data/repositories/lark_self_eval_repository.dart';
 import '../../data/repositories/performance_repository.dart';
 import '../auth/profile_provider.dart';
 import 'generate_batch_dialog.dart';
 import 'new_check_in_dialog.dart';
 import 'performance_dashboard.dart';
+import 'self_eval_export.dart';
 
 class PerformanceScreen extends ConsumerStatefulWidget {
   const PerformanceScreen({super.key});
@@ -49,6 +51,30 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
     context.go('/performance/${result.id}');
   }
 
+  Future<void> _onExportSelfEvals() async {
+    final profile = ref.read(userProfileProvider).asData?.value;
+    if (profile == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final rows = await fetchSelfEvalsForExport(profile.companyId);
+      if (!mounted) return;
+      if (rows.isEmpty) {
+        messenger.showSnackBar(const SnackBar(
+            content: Text('No self-evaluation responses to export.')));
+        return;
+      }
+      final path = await exportSelfEvalsXlsx(rows: rows);
+      if (!mounted) return;
+      // null = user cancelled the save dialog / dismissed the share sheet.
+      if (path != null) {
+        messenger.showSnackBar(SnackBar(content: Text('Saved: $path')));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(userProfileProvider).asData?.value;
@@ -84,6 +110,18 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
                   onPressed: () => context.go('/performance/review-cycles'),
                   icon: const Icon(Icons.event_note_outlined),
                   label: const Text('Review cycles'),
+                ),
+              if (isMobile(context))
+                IconButton(
+                  tooltip: 'Export self-evals',
+                  onPressed: _onExportSelfEvals,
+                  icon: const Icon(Icons.download_outlined),
+                )
+              else
+                TextButton.icon(
+                  onPressed: _onExportSelfEvals,
+                  icon: const Icon(Icons.download_outlined),
+                  label: const Text('Export self-evals'),
                 ),
               TextButton.icon(
                 onPressed: _onNewCheckIn,
