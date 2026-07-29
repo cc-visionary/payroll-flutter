@@ -11,7 +11,10 @@
 ## Global Constraints
 
 - Spec: `docs/superpowers/specs/2026-07-25-employee-master-data-sync-design.md`. Strategy: `2026-07-25-lark-integration-strategy-design.md`.
-- **One-way (Lark → App); Lark-primary; NO writeback.** Match key: `employee_number`. Records without one are skipped.
+- **One-way (Lark → App); Lark-primary; NO writeback.** **Match key = the Base "Lark Profile" person field → `employees.lark_user_id`** (the live Base has NO employee-number field; records read with `user_id_type=user_id`). Rows with an empty Lark Profile, or whose profile matches no app employee, are skipped and reported — HR setting the Lark Profile is the gate that admits a new hire into payroll.
+- **v1 is ENRICH-ONLY** (updates existing linked employees). `employees.employee_number` + `hire_date` are NOT NULL and are not employee-entered form fields, so create-from-Lark is a deferred fast-follow (would seed employee_number from the Lark contact directory + hire_date from the Base "Start Date").
+- **Synced fields (employee-entered form only):** First/Middle/Last Name, Birthday→birth_date, Email→personal_email, Present Address, Civil Status (uppercased), Contact #→phone_number, Emergency Contact/#/Relationship, TIN/SSS/PhilHealth/PAG-IBIG→statutory rows, Metrobank→bank(MBTC), GCash→bank(GCASH). **Never synced:** Department, Position, Status, Start Date, Contract Link (HR-managed; app owns role/employment).
+- **Data-quality caveat:** SSS/PhilHealth/PAG-IBIG/Contact #/Emergency #/GCASH are **Number** fields in Lark → leading zeros already dropped. The mapper restores PH-mobile leading zeros (phone/emergency/GCash → `09…`); statutory IDs can't be safely reconstructed — recommend HR switch those 6 columns to **Text** in the form. TIN + Metrobank are already Text.
 - **Smart merge:** app fields are editable; a field HR changed in the app is never overwritten; Lark still corrects untouched fields; a blank in Lark never wipes an app value.
 - **Field ownership:** Lark owns the onboarding-form fields; the app owns department/role/employment/comp — the sync never touches those.
 - Migrations forward-only. Repo gates on `flutter analyze` (0 errors) for Dart; do NOT run `dart format`.
@@ -150,20 +153,20 @@ export function mergeRecord(
 
 ---
 
-## PART B — Live integration (DEFERRED until bitable-read scope + the Base is shared with the app)
+## PART B — Live integration (access is LIVE: bitable-read granted + Base shared with the "Luxium People" app 2026-07-29)
 
-*These are detailed once the real Base fields are read — writing exact field mappings now would be guessing. Intent + interfaces below; full TDD steps added when access is live.*
+**Live Base:** wiki node `TNQSwJcM0iN16SkYCpllZvfIgdf` → app_token `OJf1bkvKbasA2Us7ddRl7hT4gde`; table "Employee Information" = `tblEKPjhITgSTCuI` (33 records). Wiki token stored as secret `LARK_EMPLOYEE_BASE_WIKI_TOKEN`.
 
-### Task 3: Wiki-resolve + Bitable read helpers (`_shared/lark.ts`)
-`resolveWikiNode(wikiToken) -> app_token`, `listBaseTables(app_token) -> [{table_id,name}]`, `listBaseRecords(app_token, table_id) -> records[]` (paginated). Live-verify against the real Base; confirm the exact field names/ids for the mapping.
+### Task 3: Wiki-resolve + Bitable read helpers (`_shared/lark.ts`) — ✅ DONE
+`resolveWikiNode`, `listBaseTables`, `listBaseFields`, `listBaseRecords(opts.userIdType)`, `countBaseRecords`, `baseCellText`. Live-verified via the throwaway `lark-base-probe` (now deleted).
 
-### Task 4: Field mapping (`mapLarkEmployeeRecord`)
-Pure function: a Base record → `{ employee: {...}, statutory: [{id_type,id_number}], bank: [{bank_name,account_number,...}], employeeNumber, hireDate }`, using the **confirmed** field names from Task 3. Unit-tested. Maps per the spec's table (First/Middle/Last → names; Birthday → birth_date; the 4 IDs → statutory rows; Metrobank/GCash → `employee_bank_accounts` rows with `bank_name` + `is_primary`; Start Date → hire_date; Employee Number → match key).
+### Task 4: Field mapping (`_shared/master_data_map.ts`) — ✅ DONE
+Pure `mapEmployeeInfoRecord(fields) -> { larkUserId, incoming, fullName }` + `routeKey(key)` (employee col / statutory id_type / bank code) + normalisers (`larkMsToPHDate`, `larkPersonId`, PH-mobile leading-zero restore). 8 deno tests green (`master_data_map_test.ts`). Uses the confirmed live field names; emits a flat `incoming` keyed for the 3-way merge.
 
-### Task 5: `sync-lark-master-data` edge function
-Resolve wiki → list tables → read the Employee Information table → per record (skip if no employee number): match by `(company_id, employee_number)`; create if new (defaults: company GameCove, `employment_type=PROBATIONARY`, `employment_status=ACTIVE`) or `mergeRecord` the Lark-owned fields against `lark_master_snapshot`; upsert statutory (unique `(employee_id,id_type)`) + bank rows; write back the advanced snapshot. Per-record isolation; report created/updated/skipped/errors. Deno test on throwaway Postgres for idempotency + app-edit-survives-resync.
+### Task 5: `sync-lark-master-data` edge function — ✅ DONE (dry-run validated on prod)
+Resolve wiki → read Employee Information (user_id person fields) → build lark_user_id→employee map (org-wide, linked+live) → per row: skip if unlinked/unmatched; else assemble `current` from employee cols + statutory + bank, `mergeRecord` vs `lark_master_snapshot`, route updates to employees/statutory(upsert on `employee_id,id_type`)/bank(update-or-insert), write back snapshot. `dry_run` mode returns aggregate change counts (no PII). Dry-run 2026-07-29: 33 total → 8 matched/updated, 17 unlinked, 8 unmatched, 0 errors; names untouched (merge correct). **Pending:** first real write (user go/no-go) + a Deno idempotency/app-edit-survives test on throwaway Postgres.
 
-### Task 6: App "Sync from Lark" surface + read-only-origin badges
+### Task 6: App "Sync from Lark" surface + read-only-origin badges — ⏳ IN PROGRESS
 A manager action to invoke the sync + show the run summary; the Lark-owned fields on the employee profile badged "synced from Lark · last synced <t>" (editable — an edit claims the field). Widget-tested.
 
 ---

@@ -782,3 +782,155 @@ export function json(body: unknown, status = 200): Response {
     headers: { 'Content-Type': 'application/json' },
   });
 }
+
+// -----------------------------------------------------------------------------
+// Wiki + Bitable (Base) — read the employee master-data / form-response tables
+//
+// The onboarding Base is wiki-wrapped: HR shares a /wiki/<node_token> link, not
+// a raw Base app_token. Resolve the wiki node → its `obj_token` IS the Bitable
+// app_token, which then drives the standard Bitable table/field/record reads.
+// Needs the app granted wiki:wiki:readonly + bitable:app:readonly (base read)
+// AND the Base shared with the app. See
+// docs/superpowers/specs/2026-07-25-employee-master-data-sync-design.md.
+// -----------------------------------------------------------------------------
+
+export interface LarkWikiNode {
+  obj_token: string; // for a Base node this is the Bitable app_token
+  obj_type: string; // 'bitable' | 'docx' | 'sheet' | ...
+  node_token?: string;
+  title?: string;
+}
+
+/** Resolve a wiki node token (from a /wiki/<token> URL) to its underlying
+ *  object. For a wiki-wrapped Base, `obj_token` is the Bitable app_token. */
+export async function resolveWikiNode(auth: LarkAuth, wikiToken: string): Promise<LarkWikiNode> {
+  const qs = new URLSearchParams({ token: wikiToken, obj_type: 'wiki' });
+  const data = await larkRequest<{ node: LarkWikiNode }>(
+    auth,
+    `/wiki/v2/spaces/get_node?${qs}`,
+  );
+  return data.node;
+}
+
+export interface LarkBaseTable {
+  table_id: string;
+  name: string;
+  revision?: number;
+}
+
+export async function listBaseTables(auth: LarkAuth, appToken: string): Promise<LarkBaseTable[]> {
+  const out: LarkBaseTable[] = [];
+  let pageToken: string | undefined;
+  do {
+    const qs = new URLSearchParams({ page_size: '100' });
+    if (pageToken) qs.set('page_token', pageToken);
+    const data = await larkRequest<{ items?: LarkBaseTable[]; has_more?: boolean; page_token?: string }>(
+      auth,
+      `/bitable/v1/apps/${appToken}/tables?${qs}`,
+    );
+    out.push(...(data.items ?? []));
+    pageToken = data.has_more ? data.page_token : undefined;
+  } while (pageToken);
+  return out;
+}
+
+export interface LarkBaseField {
+  field_id: string;
+  field_name: string;
+  type: number; // Lark field-type enum: 1=text, 2=number, 3=single-select, 4=multi-select, 5=datetime, 11=user, 13=phone, ...
+  ui_type?: string;
+}
+
+export async function listBaseFields(
+  auth: LarkAuth,
+  appToken: string,
+  tableId: string,
+): Promise<LarkBaseField[]> {
+  const out: LarkBaseField[] = [];
+  let pageToken: string | undefined;
+  do {
+    const qs = new URLSearchParams({ page_size: '200' });
+    if (pageToken) qs.set('page_token', pageToken);
+    const data = await larkRequest<{ items?: LarkBaseField[]; has_more?: boolean; page_token?: string }>(
+      auth,
+      `/bitable/v1/apps/${appToken}/tables/${tableId}/fields?${qs}`,
+    );
+    out.push(...(data.items ?? []));
+    pageToken = data.has_more ? data.page_token : undefined;
+  } while (pageToken);
+  return out;
+}
+
+export interface LarkBaseRecord {
+  record_id: string;
+  fields: Record<string, unknown>;
+}
+
+/** List all records in a Base table (paginated). Field values come back keyed
+ *  by field *name*. For text fields the value can be a string OR an array of
+ *  rich-text segments ([{ text, type }]) — callers should normalise via
+ *  `baseCellText`. */
+export async function listBaseRecords(
+  auth: LarkAuth,
+  appToken: string,
+  tableId: string,
+  opts: { userIdType?: 'user_id' | 'open_id' | 'union_id' } = {},
+): Promise<LarkBaseRecord[]> {
+  const out: LarkBaseRecord[] = [];
+  let pageToken: string | undefined;
+  do {
+    const qs = new URLSearchParams({ page_size: '500' });
+    // Return person fields as this id type so "Lark Profile" lines up with
+    // employees.lark_user_id (which sync-lark-employees stamps as user_id).
+    if (opts.userIdType) qs.set('user_id_type', opts.userIdType);
+    if (pageToken) qs.set('page_token', pageToken);
+    const data = await larkRequest<{ items?: LarkBaseRecord[]; has_more?: boolean; page_token?: string }>(
+      auth,
+      `/bitable/v1/apps/${appToken}/tables/${tableId}/records?${qs}`,
+    );
+    out.push(...(data.items ?? []));
+    pageToken = data.has_more ? data.page_token : undefined;
+  } while (pageToken);
+  return out;
+}
+
+/** Count records in a Base table without reading any field values (privacy:
+ *  the onboarding Base holds statutory IDs + bank details). */
+export async function countBaseRecords(
+  auth: LarkAuth,
+  appToken: string,
+  tableId: string,
+): Promise<number> {
+  const data = await larkRequest<{ total?: number }>(
+    auth,
+    `/bitable/v1/apps/${appToken}/tables/${tableId}/records?page_size=1`,
+  );
+  return data.total ?? 0;
+}
+
+/** Normalise a Bitable cell to plain text. Base returns text either as a raw
+ *  string or as an array of rich-text segments [{ text }]; numbers/dates come
+ *  back as primitives. Returns null for empty/absent cells. */
+export function baseCellText(v: unknown): string | null {
+  if (v == null) return null;
+  if (typeof v === 'string') return v.trim() === '' ? null : v.trim();
+  if (typeof v === 'number') return String(v);
+  if (Array.isArray(v)) {
+    const s = v
+      .map((seg) =>
+        typeof seg === 'string'
+          ? seg
+          : seg && typeof seg === 'object' && 'text' in seg
+          ? String((seg as { text: unknown }).text ?? '')
+          : ''
+      )
+      .join('')
+      .trim();
+    return s === '' ? null : s;
+  }
+  if (typeof v === 'object' && v !== null && 'text' in v) {
+    const s = String((v as { text: unknown }).text ?? '').trim();
+    return s === '' ? null : s;
+  }
+  return null;
+}
