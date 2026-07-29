@@ -141,6 +141,12 @@ class _State extends ConsumerState<LarkSettingsScreen> {
           ),
           const SizedBox(height: 16),
 
+          _SelfEvalSyncCard(
+            companyId: cid,
+            onApplied: () => ref.invalidate(syncHistoryProvider),
+          ),
+          const SizedBox(height: 16),
+
           _rangeCard(),
           const SizedBox(height: 16),
 
@@ -468,21 +474,31 @@ Widget _changedFieldTable(Map<String, int> counts) {
   );
 }
 
-/// The actionable "couldn't apply these" to-do list — the names behind the
-/// [LarkMasterDataResult.skippedUnlinked]/[skippedUnmatched] counts, grouped by
-/// reason. Caps its height and scrolls internally so a long list never blows out
-/// the panel or dialog it lives in.
-Widget _unappliedSection(BuildContext context, List<LarkUnapplied> unapplied) {
+/// A reason bucket in the "couldn't apply these" list: which [reason] string it
+/// matches and how to label it. Each sync supplies its own set.
+typedef _UnappliedGroup = ({String reason, IconData icon, String header});
+
+const _masterDataUnappliedGroups = <_UnappliedGroup>[
+  (reason: 'NO_PROFILE', icon: Icons.link_off, header: 'Needs a Lark Profile (link them in Lark)'),
+  (reason: 'NOT_IN_APP', icon: Icons.person_add_alt, header: 'Not in the app yet (add the employee)'),
+];
+
+const _selfEvalUnappliedGroups = <_UnappliedGroup>[
+  (reason: 'NO_RESPONDENT', icon: Icons.person_off, header: 'No submitter on the Lark form (skipped)'),
+  (reason: 'NOT_IN_APP', icon: Icons.person_add_alt, header: 'Submitted a self-eval but not a linked app employee — add/link them'),
+];
+
+/// The actionable "couldn't apply these" to-do list — the names behind a sync's
+/// skipped counts, grouped by reason using [groupsDef]. Any reason not covered
+/// by [groupsDef] falls into a "Couldn't match" catch-all. Caps its height and
+/// scrolls internally so a long list never blows out the panel or dialog.
+Widget _unappliedSection(
+  BuildContext context,
+  List<LarkUnapplied> unapplied,
+  List<_UnappliedGroup> groupsDef,
+) {
   if (unapplied.isEmpty) return const SizedBox.shrink();
   final theme = Theme.of(context);
-  final noProfile =
-      unapplied.where((u) => u.reason == 'NO_PROFILE').map((u) => u.name).toList();
-  final notInApp =
-      unapplied.where((u) => u.reason == 'NOT_IN_APP').map((u) => u.name).toList();
-  final other = unapplied
-      .where((u) => u.reason != 'NO_PROFILE' && u.reason != 'NOT_IN_APP')
-      .map((u) => u.name)
-      .toList();
 
   final groups = <Widget>[];
   void addGroup(IconData icon, String header, List<String> names) {
@@ -506,8 +522,16 @@ Widget _unappliedSection(BuildContext context, List<LarkUnapplied> unapplied) {
     ));
   }
 
-  addGroup(Icons.link_off, 'Needs a Lark Profile (link them in Lark)', noProfile);
-  addGroup(Icons.person_add_alt, 'Not in the app yet (add the employee)', notInApp);
+  final known = groupsDef.map((g) => g.reason).toSet();
+  for (final g in groupsDef) {
+    final names =
+        unapplied.where((u) => u.reason == g.reason).map((u) => u.name).toList();
+    addGroup(g.icon, g.header, names);
+  }
+  final other = unapplied
+      .where((u) => !known.contains(u.reason))
+      .map((u) => u.name)
+      .toList();
   addGroup(Icons.help_outline, 'Couldn\'t match', other);
 
   return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -547,7 +571,7 @@ void _showMasterDataResult(BuildContext context, LarkMasterDataResult r) {
                       style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 ),
               ..._masterDataFollowUps(r),
-              _unappliedSection(dialogCtx, r.unapplied),
+              _unappliedSection(dialogCtx, r.unapplied, _masterDataUnappliedGroups),
               if (r.errors.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text('Issues (${r.errors.length})',
@@ -707,7 +731,7 @@ class _MasterDataSyncCardState extends ConsumerState<_MasterDataSyncCard> {
           style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
         ),
         ..._masterDataFollowUps(r),
-        _unappliedSection(context, r.unapplied),
+        _unappliedSection(context, r.unapplied, _masterDataUnappliedGroups),
         if (r.changedFieldCounts.isNotEmpty) ...[
           const SizedBox(height: 12),
           Text('Fields that would change',
@@ -731,6 +755,263 @@ class _MasterDataSyncCardState extends ConsumerState<_MasterDataSyncCard> {
               onPressed: _busy ? null : _runApply,
               icon: const Icon(Icons.sync, size: 16),
               label: Text('Apply Sync (${r.updated})'),
+            ),
+            const SizedBox(width: 8),
+          ],
+          TextButton(
+            onPressed: _busy ? null : () => setState(() => _preview = null),
+            child: const Text('Dismiss'),
+          ),
+        ]),
+      ]),
+    );
+  }
+}
+
+// Self-evaluation sync -------------------------------------------------------
+
+String _reviewTypeLabel(String key) {
+  switch (key) {
+    case 'PROBATIONARY_M1':
+      return 'Probationary — Month 1';
+    case 'PROBATIONARY_M3':
+      return 'Probationary — Month 3';
+    case 'PROBATIONARY_M6':
+      return 'Probationary — Month 6';
+    case 'QUARTERLY':
+      return 'Quarterly';
+    default:
+      return key.replaceAll('_', ' ');
+  }
+}
+
+Widget _selfEvalByTypeTable(Map<String, ({int matched, int synced})> byType) {
+  final entries = byType.entries.toList()
+    ..sort((a, b) => b.value.synced.compareTo(a.value.synced));
+  return ResponsiveTable(
+    fullWidth: true,
+    child: DataTable(
+      columnSpacing: 24,
+      columns: const [
+        DataColumn(label: Text('Review type')),
+        DataColumn(label: Text('Matched')),
+        DataColumn(label: Text('Synced')),
+      ],
+      rows: entries
+          .map((e) => DataRow(cells: [
+                DataCell(Text(_reviewTypeLabel(e.key))),
+                DataCell(Text('${e.value.matched}', style: const TextStyle(fontFamily: 'monospace'))),
+                DataCell(Text('${e.value.synced}', style: const TextStyle(fontFamily: 'monospace'))),
+              ]))
+          .toList(),
+    ),
+  );
+}
+
+void _showSelfEvalResult(BuildContext context, LarkSelfEvalResult r) {
+  showDialog<void>(
+    context: context,
+    useRootNavigator: true,
+    builder: (dialogCtx) => AlertDialog(
+      title: const Text('Self-evaluations synced'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${r.synced} ${_plural(r.synced, 'response', 'responses')} synced.',
+                style: Theme.of(dialogCtx).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              if (r.byType.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _selfEvalByTypeTable(r.byType),
+              ],
+              _unappliedSection(dialogCtx, r.unapplied, _selfEvalUnappliedGroups),
+              if (r.errors.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text('Issues (${r.errors.length})',
+                    style: Theme.of(dialogCtx)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(fontWeight: FontWeight.w600, color: Colors.red)),
+                const SizedBox(height: 4),
+                for (final e in r.errors)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: SelectableText('• $e', style: const TextStyle(fontSize: 13)),
+                  ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogCtx, rootNavigator: true).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
+class _SelfEvalSyncCard extends ConsumerStatefulWidget {
+  final String companyId;
+  final VoidCallback onApplied;
+  const _SelfEvalSyncCard({required this.companyId, required this.onApplied});
+  @override
+  ConsumerState<_SelfEvalSyncCard> createState() => _SelfEvalSyncCardState();
+}
+
+class _SelfEvalSyncCardState extends ConsumerState<_SelfEvalSyncCard> {
+  LarkSelfEvalResult? _preview;
+  bool _busy = false;
+
+  Future<void> _runPreview() async {
+    setState(() => _busy = true);
+    try {
+      final res = await runWithSyncingDialog(
+        context,
+        'self-evaluations (preview)',
+        () => ref
+            .read(larkRepositoryProvider)
+            .syncSelfEvals(companyId: widget.companyId, dryRun: true),
+      );
+      if (!mounted) return;
+      if (!res.ok) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Self-evaluation preview failed: ${res.error ?? 'unknown error'}')));
+        return;
+      }
+      setState(() => _preview = res);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Self-evaluation preview failed: $e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _runApply() async {
+    setState(() => _busy = true);
+    try {
+      final res = await runWithSyncingDialog(
+        context,
+        'self-evaluations',
+        () => ref
+            .read(larkRepositoryProvider)
+            .syncSelfEvals(companyId: widget.companyId, dryRun: false),
+      );
+      if (!mounted) return;
+      if (!res.ok) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Self-evaluation sync failed: ${res.error ?? 'unknown error'}')));
+        return;
+      }
+      setState(() => _preview = null);
+      widget.onApplied();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Self-evaluations: ${res.synced} ${_plural(res.synced, 'response', 'responses')} synced${res.errors.isNotEmpty ? ' — ${res.errors.length} error(s)' : ''}')));
+      _showSelfEvalResult(context, res);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Self-evaluation sync failed: $e')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mobile = isMobile(context);
+    final header = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Sync Self-Evaluations from Lark',
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(fontWeight: FontWeight.w600)),
+        const Text(
+          'Pull employee self-evaluation responses (probationary and quarterly reviews) submitted via Lark into the app.',
+          style: TextStyle(color: Colors.grey, fontSize: 12),
+        ),
+      ],
+    );
+    final previewBtn = FilledButton.icon(
+      onPressed: _busy ? null : _runPreview,
+      icon: const Icon(Icons.sync, size: 16),
+      label: const Text('Preview Sync'),
+    );
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (mobile)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [header, const SizedBox(height: 12), previewBtn],
+            )
+          else
+            Row(children: [Expanded(child: header), previewBtn]),
+          if (_preview != null) _previewPanel(_preview!),
+        ]),
+      ),
+    );
+  }
+
+  Widget _previewPanel(LarkSelfEvalResult r) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.dividerColor),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.visibility_outlined, size: 16, color: Colors.grey),
+          const SizedBox(width: 8),
+          Text('Preview — nothing has been saved yet',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: Colors.grey, fontWeight: FontWeight.w600)),
+        ]),
+        const SizedBox(height: 8),
+        Text(
+          'Will sync ${r.synced} ${_plural(r.synced, 'response', 'responses')}.',
+          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+        ),
+        if (r.byType.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text('By review type',
+              style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          _selfEvalByTypeTable(r.byType),
+        ],
+        _unappliedSection(context, r.unapplied, _selfEvalUnappliedGroups),
+        if (r.errors.isNotEmpty)
+          _followUpLine(Icons.error_outline,
+              '${r.errors.length} ${_plural(r.errors.length, 'issue', 'issues')} reported — details show after applying.'),
+        if (r.synced == 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text('No new self-evaluation responses to sync.',
+                style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey)),
+          ),
+        const SizedBox(height: 12),
+        Row(children: [
+          if (r.synced > 0) ...[
+            FilledButton.icon(
+              onPressed: _busy ? null : _runApply,
+              icon: const Icon(Icons.sync, size: 16),
+              label: Text('Apply Sync (${r.synced})'),
             ),
             const SizedBox(width: 8),
           ],

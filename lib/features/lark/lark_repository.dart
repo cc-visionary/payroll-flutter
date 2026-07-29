@@ -100,12 +100,81 @@ class LarkMasterDataResult {
   }
 }
 
-/// One row the master-data sync couldn't apply. [reason] is `NO_PROFILE` or
-/// `NOT_IN_APP` (see [LarkMasterDataResult.unapplied]).
+/// One row a Lark sync couldn't apply, shared across syncs. [name] is a
+/// best-effort display label (a person's name, falling back to a Lark user id).
+/// [reason] is sync-specific: `NO_PROFILE`/`NOT_IN_APP` for master data,
+/// `NO_RESPONDENT`/`NOT_IN_APP` for self-evals.
 class LarkUnapplied {
   final String name;
   final String reason;
   const LarkUnapplied({required this.name, required this.reason});
+}
+
+/// Result of the `sync-lark-self-evals` edge function. Mirrors
+/// [LarkMasterDataResult]: rich shape, and failures come back as `ok:false` at
+/// HTTP 200. Writes rows into `lark_self_eval_responses`; on a dry run [synced]
+/// is the would-be count and nothing is written.
+class LarkSelfEvalResult {
+  /// False when the function reported a handled failure (`{ok:false,error}`).
+  final bool ok;
+  final String? error;
+  /// Total Lark self-eval rows scanned.
+  final int total;
+  /// Responses written (or, on a dry run, that would be written).
+  final int synced;
+  /// Rows whose Base record has no submitter set.
+  final int skippedNoRespondent;
+  /// Rows whose submitter isn't a linked app employee.
+  final int skippedUnmatched;
+  /// Per review type (e.g. `PROBATIONARY_M1`, `QUARTERLY`): matched + synced.
+  final Map<String, ({int matched, int synced})> byType;
+  /// Rows the sync couldn't apply, one per skipped submitter.
+  final List<LarkUnapplied> unapplied;
+  final List<String> errors;
+  const LarkSelfEvalResult({
+    required this.ok,
+    this.error,
+    required this.total,
+    required this.synced,
+    required this.skippedNoRespondent,
+    required this.skippedUnmatched,
+    required this.byType,
+    required this.unapplied,
+    required this.errors,
+  });
+  factory LarkSelfEvalResult.fromJson(Map<String, dynamic> j) {
+    final byType = <String, ({int matched, int synced})>{};
+    final rawBy = j['by_type'];
+    if (rawBy is Map) {
+      rawBy.forEach((k, v) {
+        if (v is Map) {
+          int pick(Object? x) => x is int ? x : int.tryParse('$x') ?? 0;
+          byType['$k'] = (matched: pick(v['matched']), synced: pick(v['synced']));
+        }
+      });
+    }
+    final unapplied = (j['unapplied'] as List<dynamic>? ?? [])
+        .whereType<Map>()
+        .map((e) {
+      final rawName = e['name']?.toString();
+      final larkId = e['larkUserId']?.toString();
+      final display = (rawName != null && rawName.trim().isNotEmpty)
+          ? rawName
+          : (larkId != null && larkId.isNotEmpty ? larkId : '—');
+      return LarkUnapplied(name: display, reason: e['reason']?.toString() ?? '');
+    }).toList();
+    return LarkSelfEvalResult(
+      ok: j['ok'] as bool? ?? false,
+      error: j['error'] as String?,
+      total: j['total'] as int? ?? 0,
+      synced: j['synced'] as int? ?? 0,
+      skippedNoRespondent: j['skipped_no_respondent'] as int? ?? 0,
+      skippedUnmatched: j['skipped_unmatched'] as int? ?? 0,
+      byType: byType,
+      unapplied: unapplied,
+      errors: (j['errors'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
+    );
+  }
 }
 
 class LarkRepository {
@@ -197,6 +266,26 @@ class LarkRepository {
       throw Exception('Unexpected response from sync-lark-master-data: $data');
     } on FunctionException catch (e) {
       throw Exception('sync-lark-master-data failed (status ${e.status}): ${e.details ?? e.reasonPhrase}');
+    }
+  }
+
+  /// Self-eval sync. Same rich-shape / `ok:false`-at-200 contract as
+  /// [syncMasterData]; parses [LarkSelfEvalResult] directly. Pass [dryRun] to
+  /// preview counts without writing anything.
+  Future<LarkSelfEvalResult> syncSelfEvals({
+    required String companyId,
+    bool dryRun = false,
+  }) async {
+    try {
+      final res = await _client.functions.invoke('sync-lark-self-evals',
+          body: {'company_id': companyId, 'dry_run': dryRun});
+      final data = res.data;
+      if (data is Map<String, dynamic>) {
+        return LarkSelfEvalResult.fromJson(data);
+      }
+      throw Exception('Unexpected response from sync-lark-self-evals: $data');
+    } on FunctionException catch (e) {
+      throw Exception('sync-lark-self-evals failed (status ${e.status}): ${e.details ?? e.reasonPhrase}');
     }
   }
 }

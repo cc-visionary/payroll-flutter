@@ -8,6 +8,7 @@ import '../../../../data/models/employee.dart';
 import '../../../../data/models/employee_review.dart';
 import '../../../../data/models/monthly_development_checkin.dart';
 import '../../../../data/repositories/employee_repository.dart';
+import '../../../../data/repositories/lark_self_eval_repository.dart';
 import '../../../../data/repositories/performance_repository.dart';
 import '../../../../data/repositories/review_cycle_repository.dart';
 
@@ -26,7 +27,7 @@ class PerformanceTab extends ConsumerWidget {
     final goals = ref.watch(developmentGoalsForEmployeeProvider(employeeId));
     final checkins = ref.watch(monthlyCheckinsForEmployeeProvider(employeeId));
     return DefaultTabController(
-      length: 7,
+      length: 8,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -36,6 +37,7 @@ class PerformanceTab extends ConsumerWidget {
             tabs: [
               Tab(text: 'Overview'),
               Tab(text: 'Reviews'),
+              Tab(text: 'Self-Evals'),
               Tab(text: 'Goals'),
               Tab(text: 'Check-ins'),
               Tab(text: 'Development'),
@@ -55,6 +57,7 @@ class PerformanceTab extends ConsumerWidget {
                   checkins: checkins,
                 ),
                 _Reviews(reviews: reviews),
+                _SelfEvals(employeeId: employeeId),
                 _Goals(goals: goals),
                 _Checkins(checkins: checkins),
                 _Development(goals: goals),
@@ -212,6 +215,113 @@ class _Reviews extends StatelessWidget {
             },
           ),
   );
+}
+
+class _SelfEvals extends ConsumerWidget {
+  final String employeeId;
+  const _SelfEvals({required this.employeeId});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(selfEvalResponsesForEmployeeProvider(employeeId));
+    return async.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) =>
+          Center(child: Text('Could not load self-evaluations: $error')),
+      data: (rows) => rows.isEmpty
+          ? const _EmptyView(
+              icon: Icons.assignment_ind_outlined,
+              title: 'No self-evaluations',
+              description:
+                  'Self-evaluations submitted via Lark appear here after the Self-Evaluations sync runs.',
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(24),
+              itemCount: rows.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (_, index) => _SelfEvalCard(response: rows[index]),
+            ),
+    );
+  }
+}
+
+class _SelfEvalCard extends StatelessWidget {
+  final LarkSelfEvalResponse response;
+  const _SelfEvalCard({required this.response});
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final answers = response.answers.entries
+        .where((e) => '${e.value}'.trim().isNotEmpty)
+        .toList();
+    final ratings = response.ratings.entries
+        .where((e) => '${e.value}'.trim().isNotEmpty)
+        .toList();
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ExpansionTile(
+        shape: const Border(),
+        collapsedShape: const Border(),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+        title: Text(
+          '${_label(response.reviewType)} self-evaluation',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          response.submittedAt == null
+              ? 'Submitted date unknown'
+              : 'Submitted ${_date(response.submittedAt!)}',
+        ),
+        children: [
+          if (answers.isEmpty && ratings.isEmpty)
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('No responses recorded.'),
+            )
+          else ...[
+            for (final e in answers) ...[
+              Text(
+                e.key,
+                style:
+                    theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 2),
+              Text('${e.value}', style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 12),
+            ],
+            if (ratings.isNotEmpty) ...[
+              Text(
+                'Ratings',
+                style:
+                    theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 6),
+              for (final e in ratings)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(e.key, style: theme.textTheme.bodyMedium),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        '${e.value}',
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _Goals extends StatelessWidget {
