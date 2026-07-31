@@ -139,6 +139,16 @@ class AttendanceDayInput {
   final bool leaveIsPaid;
   final Decimal? leaveHours;
 
+  /// Fraction of the day covered by an APPROVED paid leave (0.0 = none,
+  /// 0.5 = half, 1.0 = full). Set by compute_service from the matched
+  /// leave request; drives the PAID_LEAVE earning line.
+  final Decimal? _paidLeaveFraction;
+  Decimal get paidLeaveFraction => _paidLeaveFraction ?? Decimal.zero;
+
+  /// Display name of the covering paid leave type (e.g. "SIL"), used in the
+  /// PAID_LEAVE line description. Null when [paidLeaveFraction] is zero.
+  final String? leaveTypeName;
+
   final Decimal? dailyRateOverride;
 
   const AttendanceDayInput({
@@ -162,8 +172,10 @@ class AttendanceDayInput {
     required this.isOnLeave,
     required this.leaveIsPaid,
     this.leaveHours,
+    Decimal? paidLeaveFraction,
+    this.leaveTypeName,
     this.dailyRateOverride,
-  });
+  }) : _paidLeaveFraction = paidLeaveFraction;
 }
 
 class ComputedPayslipLine {

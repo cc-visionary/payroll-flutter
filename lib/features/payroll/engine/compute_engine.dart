@@ -187,6 +187,44 @@ ComputedPayslip computeEmployeePayslip(
     }
   }
 
+  // 3b. Paid leave (e.g. SIL). A day covered by an APPROVED paid leave that
+  // the employee did NOT also work (workedMinutes == 0) is paid here.
+  //   - DAILY/HOURLY: not counted as a work day above (step 2 gate at
+  //     line ~100 only admits MONTHLY paid-leave days into basic), so we
+  //     pay dailyRate × fraction as a distinct earning line.
+  //   - MONTHLY: the day IS already a work day in basic pay, so we emit a
+  //     zero-amount info line only — never a second payment.
+  // Mixed days (ON_LEAVE with worked minutes) are skipped; a run warning
+  // surfaces them for manual handling.
+  final paidLeaveByType = <String, ({Decimal days, Decimal amount})>{};
+  for (final day in attendance) {
+    if (!day.isOnLeave || !day.leaveIsPaid) continue;
+    if (day.paidLeaveFraction <= Decimal.zero) continue;
+    if (day.workedMinutes > 0) continue; // mixed day → warning path, not paid here
+    final typeName = day.leaveTypeName ?? 'Leave';
+    final dayRates = getDayRates(rates, hpd, day.dailyRateOverride);
+    final amount = profile.wageType == WageType.MONTHLY
+        ? Decimal.zero
+        : _round3(dayRates.dailyRate * day.paidLeaveFraction);
+    final prev = paidLeaveByType[typeName] ??
+        (days: Decimal.zero, amount: Decimal.zero);
+    paidLeaveByType[typeName] = (
+      days: prev.days + day.paidLeaveFraction,
+      amount: prev.amount + amount,
+    );
+  }
+  paidLeaveByType.forEach((typeName, agg) {
+    final dayLabel = agg.days == Decimal.one ? 'day' : 'days';
+    lines.add(ComputedPayslipLine(
+      category: PayslipLineCategory.PAID_LEAVE,
+      description: 'Paid Leave — $typeName (${agg.days} $dayLabel)',
+      quantity: agg.days,
+      amount: agg.amount,
+      sortOrder: 150,
+      ruleCode: 'PAID_LEAVE',
+    ));
+  });
+
   // 4. Deductions (late/UT only)
   //
   // Absent days are NOT deducted as a separate line. Step 2 / 3 above already
