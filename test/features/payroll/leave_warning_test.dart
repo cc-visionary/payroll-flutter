@@ -56,4 +56,47 @@ void main() {
       isEmpty,
     );
   });
+
+  test('ON_LEAVE day with worked time, covered by a PAID request yields a '
+      'paidLeaveOnWorkedDay warning and no leaveWithoutApprovedRequest', () {
+    final rec = AttendanceDay(
+      id: 'A2',
+      employeeId: 'e1',
+      attendanceDate: DateTime.utc(2026, 1, 6),
+      dayType: 'WORKDAY',
+      attendanceStatus: 'ON_LEAVE',
+      sourceType: 'LARK',
+      actualTimeIn: DateTime.utc(2026, 1, 6, 8),
+      actualTimeOut: DateTime.utc(2026, 1, 6, 17),
+      earlyInApproved: false,
+      lateOutApproved: false,
+      lateInApproved: false,
+      earlyOutApproved: false,
+      isLocked: false,
+    );
+    final warnings = detectWarnings(
+      records: [rec],
+      shiftsById: const {},
+      today: DateTime.utc(2026, 2, 1),
+      approvedLeavesByEmployee: {
+        'e1': [
+          ApprovedLeaveDay(
+            start: DateTime.utc(2026, 1, 6),
+            end: DateTime.utc(2026, 1, 6),
+            isPaid: true,
+            typeName: 'SIL',
+            leaveDays: Decimal.one,
+          ),
+        ],
+      },
+    );
+    expect(
+      warnings.where((w) => w.type == WarningType.paidLeaveOnWorkedDay),
+      hasLength(1),
+    );
+    expect(
+      warnings.where((w) => w.type == WarningType.leaveWithoutApprovedRequest),
+      isEmpty,
+    );
+  });
 }

@@ -106,6 +106,7 @@ class BreakdownTab extends StatelessWidget {
   static bool _isEarning(String category) {
     const earnings = {
       'BASIC_PAY',
+      'PAID_LEAVE',
       'OVERTIME_REGULAR',
       'OVERTIME_REST_DAY',
       'OVERTIME_HOLIDAY',

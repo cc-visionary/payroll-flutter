@@ -153,6 +153,7 @@ class _WarningRow extends StatelessWidget {
       case WarningType.unapprovedOvertime:
         return (Icons.warning_amber_rounded, StatusTone.warning);
       case WarningType.leaveWithoutApprovedRequest:
+      case WarningType.paidLeaveOnWorkedDay:
         return (Icons.event_busy, StatusTone.warning);
     }
   }

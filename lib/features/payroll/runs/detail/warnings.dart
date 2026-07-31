@@ -10,6 +10,7 @@ enum WarningType {
   invalidWorkedTime,
   unapprovedOvertime,
   leaveWithoutApprovedRequest,
+  paidLeaveOnWorkedDay,
 }
 
 /// One attendance anomaly for one employee on one day. Ephemeral — built
@@ -68,6 +69,22 @@ List<RunWarning> detectWarnings({
           type: WarningType.leaveWithoutApprovedRequest,
           message: 'On leave with no matching approved leave request — '
               'pay treatment cannot be determined.',
+        ));
+      } else if (res.isPaid &&
+          r.actualTimeIn != null &&
+          r.actualTimeOut != null &&
+          r.actualTimeOut!.isAfter(r.actualTimeIn!)) {
+        // Mixed day — covered by a PAID request but the employee also
+        // clocked in. The engine skips the paid-leave earning line for
+        // these (compute_engine.dart step 3b); surface it here instead of
+        // silently dropping the pay.
+        out.add(RunWarning(
+          employeeId: r.employeeId,
+          employeeLabel: r.employeeLabel,
+          date: recDay,
+          type: WarningType.paidLeaveOnWorkedDay,
+          message: 'On paid leave but also has worked time — paid-leave '
+              'amount not auto-applied; review manually.',
         ));
       }
     }
