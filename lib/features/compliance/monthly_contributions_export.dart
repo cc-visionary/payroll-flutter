@@ -536,7 +536,11 @@ void _appendSheet(
       DoubleCellValue(n(line.paid)),
       TextCellValue(
           line.lastPaidOn == null ? '' : dateFmt.format(line.lastPaidOn!)),
-      TextCellValue(s == null ? '—' : s.label.toUpperCase()),
+      TextCellValue(s == null
+          ? '—'
+          : s == PayableStatus.overpaid
+              ? 'PAID'
+              : s.label.toUpperCase()),
     ]);
   }
 }

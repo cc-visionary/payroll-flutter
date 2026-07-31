@@ -71,6 +71,7 @@ class _MonthlyContributionsDialogState
     final messenger = ScaffoldMessenger.of(context);
     final errorColor = Theme.of(context).colorScheme.error;
     final navigator = Navigator.of(context);
+    final audit = ref.read(auditRepositoryProvider);
     final label = monthlyContributionsMonthLabel(_year, _month);
     setState(() => _exporting = true);
     try {
@@ -97,19 +98,19 @@ class _MonthlyContributionsDialogState
       final recordCount =
           sheets.fold<int>(0, (n, s) => n + s.rows.length);
       final fileName = path.replaceAll('\\', '/').split('/').last;
+      audit.logExport(
+        description:
+            'Monthly contributions export: $fileName · $label · $recordCount employees',
+        entityType: 'statutory_payables',
+        metadata: {
+          'file_name': fileName,
+          'period': label,
+          'record_count': recordCount,
+          'brands': [for (final s in sheets) s.brand.name],
+          'report': 'monthly_contributions',
+        },
+      );
       if (mounted) {
-        ref.read(auditRepositoryProvider).logExport(
-          description:
-              'Monthly contributions export: $fileName · $label · $recordCount employees',
-          entityType: 'statutory_payables',
-          metadata: {
-            'file_name': fileName,
-            'period': label,
-            'record_count': recordCount,
-            'brands': [for (final s in sheets) s.brand.name],
-            'report': 'monthly_contributions',
-          },
-        );
         messenger.showSnackBar(SnackBar(content: Text('Saved: $path')));
         navigator.pop();
       }
