@@ -10,6 +10,7 @@ import '../../data/repositories/audit_repository.dart';
 import '../../data/repositories/statutory_payables_repository.dart';
 import 'payables_export.dart';
 import 'providers.dart';
+import 'widgets/monthly_contributions_dialog.dart';
 import 'widgets/payables_filter_bar.dart';
 import 'widgets/payables_table.dart';
 
@@ -120,6 +121,14 @@ class _ExportMenu extends ConsumerWidget {
               ? () => _runExport(context, ref, singleBrand: true)
               : null,
           child: const Text('Export selected brand only'),
+        ),
+        MenuItemButton(
+          leadingIcon: const Icon(Icons.receipt_long_outlined),
+          onPressed: () => showDialog<void>(
+            context: context,
+            builder: (_) => const MonthlyContributionsDialog(),
+          ),
+          child: const Text('Monthly Contributions Report'),
         ),
       ],
     );
