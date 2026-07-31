@@ -150,3 +150,103 @@ class MonthlyContributionsSheet {
   Decimal get totalEr => _sum((r) => r.totalEr);
   Decimal get total => _sum((r) => r.total);
 }
+
+/// Collapse breakdown rows (one per employee x agency) into one
+/// [MonthlyContributionRow] per employee. Loans are dropped; agencies the
+/// employee has no row for stay zero; an employee id missing from
+/// [employeesById] still keeps its amounts under placeholder meta (never
+/// silently drop money from a remittance report). Sorted by last name,
+/// then first name — matches the existing payables export.
+List<MonthlyContributionRow> buildMonthlyContributionRows({
+  required List<StatutoryPayableBreakdownRow> breakdown,
+  required Map<String, MonthlyContributionEmployee> employeesById,
+}) {
+  final byEmployee = <String, Map<StatutoryAgency, StatutoryPayableBreakdownRow>>{};
+  for (final r in breakdown) {
+    if (r.agency == StatutoryAgency.employeeLoan) continue;
+    byEmployee.putIfAbsent(r.employeeId, () => {})[r.agency] = r;
+  }
+
+  Decimal ee(Map<StatutoryAgency, StatutoryPayableBreakdownRow> m,
+          StatutoryAgency a) =>
+      m[a]?.eeShare ?? Decimal.zero;
+  Decimal er(Map<StatutoryAgency, StatutoryPayableBreakdownRow> m,
+          StatutoryAgency a) =>
+      m[a]?.erShare ?? Decimal.zero;
+
+  final rows = <MonthlyContributionRow>[
+    for (final e in byEmployee.entries)
+      MonthlyContributionRow(
+        employee: employeesById[e.key] ??
+            MonthlyContributionEmployee(
+              employeeId: e.key,
+              employeeNumber: '',
+              firstName: '',
+              lastName: '',
+              monthlySalary: Decimal.zero,
+            ),
+        sssEe: ee(e.value, StatutoryAgency.sssContribution),
+        sssEr: er(e.value, StatutoryAgency.sssContribution),
+        philhealthEe: ee(e.value, StatutoryAgency.philhealthContribution),
+        philhealthEr: er(e.value, StatutoryAgency.philhealthContribution),
+        pagibigEe: ee(e.value, StatutoryAgency.pagibigContribution),
+        pagibigEr: er(e.value, StatutoryAgency.pagibigContribution),
+        withholdingTax: ee(e.value, StatutoryAgency.birWithholding),
+      ),
+  ];
+  rows.sort((a, b) {
+    final lc = a.employee.lastName.compareTo(b.employee.lastName);
+    if (lc != 0) return lc;
+    return a.employee.firstName.compareTo(b.employee.firstName);
+  });
+  return rows;
+}
+
+/// Agencies rendered in the Remittance Status block, in order. Loans are
+/// intentionally absent.
+const _statusAgencies = [
+  StatutoryAgency.sssContribution,
+  StatutoryAgency.philhealthContribution,
+  StatutoryAgency.pagibigContribution,
+  StatutoryAgency.birWithholding,
+];
+
+/// Build the Remittance Status block for one brand sheet. Due = the sheet's
+/// own column totals (so the block can never disagree with the table above
+/// it); Paid/date come from the Mark-as-Paid ledger summaries, pre-filtered
+/// to this brand + month by the caller.
+List<RemittanceStatusLine> buildRemittanceStatusLines({
+  required List<MonthlyContributionRow> rows,
+  required List<StatutoryPaymentSummary> paidSummaries,
+}) {
+  Decimal due(StatutoryAgency a) => switch (a) {
+        StatutoryAgency.sssContribution => rows.fold(
+            Decimal.zero, (s, r) => s + r.sssEe + r.sssEr),
+        StatutoryAgency.philhealthContribution => rows.fold(
+            Decimal.zero, (s, r) => s + r.philhealthEe + r.philhealthEr),
+        StatutoryAgency.pagibigContribution => rows.fold(
+            Decimal.zero, (s, r) => s + r.pagibigEe + r.pagibigEr),
+        StatutoryAgency.birWithholding =>
+          rows.fold(Decimal.zero, (s, r) => s + r.withholdingTax),
+        StatutoryAgency.employeeLoan => Decimal.zero,
+      };
+
+  return [
+    for (final agency in _statusAgencies)
+      () {
+        StatutoryPaymentSummary? paid;
+        for (final p in paidSummaries) {
+          if (p.agency == agency) {
+            paid = p;
+            break;
+          }
+        }
+        return RemittanceStatusLine(
+          agency: agency,
+          due: due(agency),
+          paid: paid?.amountPaid ?? Decimal.zero,
+          lastPaidOn: paid?.lastPaidOn,
+        );
+      }(),
+  ];
+}
