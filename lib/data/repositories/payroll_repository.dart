@@ -604,7 +604,10 @@ class PayrollRepository {
         final cat = l['category'] as String?;
         final amt = Decimal.tryParse((l['amount'] ?? '0').toString()) ??
             Decimal.zero;
-        if (cat == 'BASIC_PAY') {
+        if (cat == 'BASIC_PAY' || cat == 'PAID_LEAVE') {
+          // PAID_LEAVE contributes to 13th-month basic the same as BASIC_PAY:
+          // for MONTHLY it's a zero-amount info line (already inside basic
+          // pay), for DAILY/HOURLY it carries the real taxed leave pay.
           basic += amt;
         } else if (cat == 'LATE_UT_DEDUCTION') {
           late += amt;
@@ -1132,6 +1135,20 @@ class PayrollRepository {
           // daily wage types produce one line per distinct daily rate;
           // monthly-wage employees produce a single line with qty/rate both
           // zero — we still keep the bucket so the UI can show the total.
+          basicItems.add(BasicPayItem(
+            days: Decimal.tryParse((l['quantity'] ?? '0').toString()) ??
+                Decimal.zero,
+            rate: Decimal.tryParse((l['rate'] ?? '0').toString()) ??
+                Decimal.zero,
+            amount: amt,
+          ));
+        } else if (cat == 'PAID_LEAVE') {
+          // PAID_LEAVE contributes to 13th-month basic the same as BASIC_PAY:
+          // for MONTHLY it's a zero-amount info line (already inside basic
+          // pay), for DAILY/HOURLY it carries the real taxed leave pay. Add
+          // its own bucket (mirroring the BASIC_PAY one above) so the
+          // breakdown UI total stays consistent with `basic`.
+          basic += amt;
           basicItems.add(BasicPayItem(
             days: Decimal.tryParse((l['quantity'] ?? '0').toString()) ??
                 Decimal.zero,

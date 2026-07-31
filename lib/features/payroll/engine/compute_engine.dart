@@ -464,6 +464,19 @@ ComputedPayslip computeEmployeePayslip(
     // override is the BIR-declared salary, not a per-period actual.
     Decimal taxBasicPay;
     Decimal taxLateUtDeduction;
+
+    // Paid leave is taxable compensation. Monthly employees already have it
+    // inside basic pay (their PAID_LEAVE line is a zero-amount info line —
+    // see step 2), so summing it in here is a no-op for them and adds the
+    // real leave pay for DAILY/HOURLY, whose PAID_LEAVE line is the only
+    // carrier of that amount.
+    final paidLeaveAmountActual = lines
+        .where((l) => l.category == PayslipLineCategory.PAID_LEAVE)
+        .fold(Decimal.zero, (acc, l) => acc + l.amount);
+    final paidLeaveDaysTotal = lines
+        .where((l) => l.category == PayslipLineCategory.PAID_LEAVE)
+        .fold(Decimal.zero, (acc, l) => acc + (l.quantity ?? Decimal.zero));
+
     if (employee.statutoryOverride != null) {
       // The BIR-declared salary ALWAYS replaces the scorecard rate for tax —
       // it is a declared figure, not a per-period actual. Unchanged.
@@ -484,6 +497,13 @@ ComputedPayslip computeEmployeePayslip(
       }
       final taxMinuteRate = _div(taxDailyRate, _fromInt(hoursPerDay * 60));
       taxBasicPay = _round3(taxDailyRate * _fromInt(workDays));
+      if (profile.wageType != WageType.MONTHLY) {
+        // Non-monthly: `workDays` above does NOT include leave days (see
+        // step 2), so add them back at the DECLARED rate. Monthly leave
+        // days are already inside `workDays`, so skip here to avoid
+        // double-counting.
+        taxBasicPay += _round3(taxDailyRate * paidLeaveDaysTotal);
+      }
       taxLateUtDeduction =
           _round3(taxMinuteRate * _fromDouble(totalDeductionMinutes));
     } else {
@@ -491,7 +511,9 @@ ComputedPayslip computeEmployeePayslip(
       // When every day shares one rate this is arithmetically identical to the
       // old notional `rates.dailyRate * workDays`; when days differ (mid-period
       // compensation change, manual per-day override) it is the correct figure.
-      taxBasicPay = basicPayTotalActual;
+      // Paid leave is added at its actual computed rate (zero for MONTHLY,
+      // since it is already inside `basicPayTotalActual`).
+      taxBasicPay = basicPayTotalActual + paidLeaveAmountActual;
       taxLateUtDeduction = _round3(lateUtDeductionAmount);
     }
 
