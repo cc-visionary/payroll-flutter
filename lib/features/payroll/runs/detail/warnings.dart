@@ -1,6 +1,7 @@
 import '../../../../data/models/attendance_day.dart';
 import '../../../../data/models/shift_template.dart';
 import '../../../attendance/attendance_row_vm.dart' show applyTime;
+import '../../leave/paid_leave_matcher.dart';
 
 /// Category of attendance anomaly surfaced on the run Warnings tab.
 enum WarningType {
@@ -8,6 +9,7 @@ enum WarningType {
   missingClockIn,
   invalidWorkedTime,
   unapprovedOvertime,
+  leaveWithoutApprovedRequest,
 }
 
 /// One attendance anomaly for one employee on one day. Ephemeral — built
@@ -39,6 +41,7 @@ List<RunWarning> detectWarnings({
   required Map<String, ShiftTemplate> shiftsById,
   required DateTime today,
   int unapprovedOtThresholdMinutes = kUnapprovedOtThresholdMinutes,
+  Map<String, List<ApprovedLeaveDay>> approvedLeavesByEmployee = const {},
 }) {
   final todayDay = DateTime(today.year, today.month, today.day);
   final out = <RunWarning>[];
@@ -48,6 +51,26 @@ List<RunWarning> detectWarnings({
         r.attendanceDate.year, r.attendanceDate.month, r.attendanceDate.day);
     // Skip today + future: an employee still mid-shift hasn't clocked out yet.
     if (!recDay.isBefore(todayDay)) continue;
+
+    final status = r.attendanceStatus.toUpperCase();
+    if (status.contains('LEAVE')) {
+      final approved = approvedLeavesByEmployee[r.employeeId] ?? const [];
+      final res = resolvePaidLeaveForDay(
+        date: r.attendanceDate,
+        statusIsLeave: true,
+        approved: approved,
+      );
+      if (!res.covered) {
+        out.add(RunWarning(
+          employeeId: r.employeeId,
+          employeeLabel: r.employeeLabel,
+          date: recDay,
+          type: WarningType.leaveWithoutApprovedRequest,
+          message: 'On leave with no matching approved leave request — '
+              'pay treatment cannot be determined.',
+        ));
+      }
+    }
 
     final tIn = r.actualTimeIn;
     final tOut = r.actualTimeOut;

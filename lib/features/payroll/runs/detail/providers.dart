@@ -1,10 +1,12 @@
 import 'package:decimal/decimal.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../data/models/payroll_run.dart';
 import '../../../../data/repositories/payroll_repository.dart';
 import '../../../../data/repositories/attendance_repository.dart';
 import '../../../../data/repositories/shift_template_repository.dart';
+import '../../leave/paid_leave_matcher.dart';
 import 'warnings.dart';
 
 /// Bundles the payroll run + aggregated statutory totals. Period fields are
@@ -116,9 +118,52 @@ final runWarningsProvider =
       );
   final shifts = await ref.watch(shiftTemplateListProvider.future);
   final shiftsById = {for (final s in shifts) s.id: s};
+  final approvedLeavesByEmployee = await _fetchApprovedLeavesByEmployee(
+    companyId: run.companyId,
+    periodStart: run.periodStart,
+    periodEnd: run.periodEnd,
+  );
   return detectWarnings(
     records: records,
     shiftsById: shiftsById,
     today: DateTime.now(),
+    approvedLeavesByEmployee: approvedLeavesByEmployee,
   );
 });
+
+/// APPROVED leave requests (paid or unpaid) overlapping the run's period,
+/// grouped by employee — feeds [WarningType.leaveWithoutApprovedRequest].
+/// Mirrors the per-employee query shape in `PayrollComputeService`
+/// (compute_service.dart) but scoped to the whole company/run instead of one
+/// employee, then grouped client-side by `employee_id`.
+Future<Map<String, List<ApprovedLeaveDay>>> _fetchApprovedLeavesByEmployee({
+  required String companyId,
+  required DateTime periodStart,
+  required DateTime periodEnd,
+}) async {
+  final rows = await Supabase.instance.client
+      .from('leave_requests')
+      .select('employee_id, start_date, end_date, leave_days, '
+          'leave_types!inner(is_paid, name, code), employees!inner(company_id)')
+      .eq('employees.company_id', companyId)
+      .eq('status', 'APPROVED')
+      .lte('start_date', periodEnd.toIso8601String().substring(0, 10))
+      .gte('end_date', periodStart.toIso8601String().substring(0, 10));
+
+  final out = <String, List<ApprovedLeaveDay>>{};
+  for (final r in (rows as List).cast<Map<String, dynamic>>()) {
+    final employeeId = r['employee_id'] as String;
+    final types = r['leave_types'] as Map<String, dynamic>?;
+    out.putIfAbsent(employeeId, () => []).add(ApprovedLeaveDay(
+          start: DateTime.parse(r['start_date'] as String),
+          end: DateTime.parse(r['end_date'] as String),
+          isPaid: types?['is_paid'] as bool? ?? false,
+          typeName: (types?['name'] as String?) ??
+              (types?['code'] as String?) ??
+              'Leave',
+          leaveDays: Decimal.tryParse((r['leave_days'] ?? '1').toString()) ??
+              Decimal.one,
+        ));
+  }
+  return out;
+}

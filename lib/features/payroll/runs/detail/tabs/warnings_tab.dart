@@ -152,6 +152,8 @@ class _WarningRow extends StatelessWidget {
       case WarningType.missingClockIn:
       case WarningType.unapprovedOvertime:
         return (Icons.warning_amber_rounded, StatusTone.warning);
+      case WarningType.leaveWithoutApprovedRequest:
+        return (Icons.event_busy, StatusTone.warning);
     }
   }
 
