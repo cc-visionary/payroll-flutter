@@ -17,6 +17,7 @@ enum DayType {
 
 enum PayslipLineCategory {
   BASIC_PAY,
+  PAID_LEAVE,
   OVERTIME_REGULAR,
   OVERTIME_REST_DAY,
   OVERTIME_HOLIDAY,

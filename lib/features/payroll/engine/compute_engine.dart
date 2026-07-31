@@ -733,6 +733,7 @@ List<ComputedPayslipLine> _generateOvertimeLines(
 
 const _earningCategories = <PayslipLineCategory>{
   PayslipLineCategory.BASIC_PAY,
+  PayslipLineCategory.PAID_LEAVE,
   PayslipLineCategory.OVERTIME_REGULAR,
   PayslipLineCategory.OVERTIME_REST_DAY,
   PayslipLineCategory.OVERTIME_HOLIDAY,
