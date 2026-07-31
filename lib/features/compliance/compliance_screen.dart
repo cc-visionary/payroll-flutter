@@ -126,6 +126,7 @@ class _ExportMenu extends ConsumerWidget {
           leadingIcon: const Icon(Icons.receipt_long_outlined),
           onPressed: () => showDialog<void>(
             context: context,
+            barrierDismissible: false,
             builder: (_) => const MonthlyContributionsDialog(),
           ),
           child: const Text('Monthly Contributions Report'),
