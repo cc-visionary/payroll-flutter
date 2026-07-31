@@ -10,6 +10,7 @@ import '../../engine/daily_rate.dart';
 import '../../engine/effective_compensation.dart';
 import '../../engine/statutory_tables.dart';
 import '../../engine/types.dart' as e;
+import '../../leave/paid_leave_matcher.dart';
 
 /// Orchestrates a full payroll compute for a given run:
 ///   1. Load payroll run + pay period + calendar
@@ -227,7 +228,7 @@ class PayrollComputeService {
     final warnings = <String>[];
     for (final row in employees) {
       try {
-        engineInputs.add(_buildEmployeeInput(
+        engineInputs.add(await _buildEmployeeInput(
           row: row,
           payPeriod: payPeriodInput,
           comp: compByEmp[row['id']] ?? const [],
@@ -635,7 +636,7 @@ class PayrollComputeService {
 
   // ----- input builder ----------------------------------------------------
 
-  e.EmployeePayrollInput _buildEmployeeInput({
+  Future<e.EmployeePayrollInput> _buildEmployeeInput({
     required Map<String, dynamic> row,
     required e.PayPeriodInput payPeriod,
     required List<CompensationChange> comp,
@@ -646,7 +647,7 @@ class PayrollComputeService {
     required List<Map<String, dynamic>> penalties,
     required Map<String, Map<String, dynamic>> shifts,
     required e.PreviousYtd previousYtd,
-  }) {
+  }) async {
     final employeeId = row['id'] as String;
     final roleCard = row['role_scorecards'] as Map<String, dynamic>?;
     if (roleCard == null) {
@@ -759,9 +760,33 @@ class PayrollComputeService {
           hoursPerDay: hoursPerDay,
         );
 
+    // Approved paid/unpaid leaves overlapping the period — drives the
+    // PAID_LEAVE line + the unmatched-leave warning.
+    final leaveRows = await _client
+        .from('leave_requests')
+        .select('start_date, end_date, leave_days, '
+            'leave_types!inner(is_paid, name, code)')
+        .eq('employee_id', employeeId)
+        .eq('status', 'APPROVED')
+        .lte('start_date', payPeriod.endDate.toIso8601String().substring(0, 10))
+        .gte('end_date', payPeriod.startDate.toIso8601String().substring(0, 10));
+    final approvedLeaves = <ApprovedLeaveDay>[
+      for (final r in (leaveRows as List).cast<Map<String, dynamic>>())
+        ApprovedLeaveDay(
+          start: DateTime.parse(r['start_date'] as String),
+          end: DateTime.parse(r['end_date'] as String),
+          isPaid: (r['leave_types'] as Map<String, dynamic>?)?['is_paid'] as bool? ?? false,
+          typeName: ((r['leave_types'] as Map<String, dynamic>?)?['name'] as String?) ??
+              ((r['leave_types'] as Map<String, dynamic>?)?['code'] as String?) ??
+              'Leave',
+          leaveDays: Decimal.tryParse((r['leave_days'] ?? '1').toString()) ?? Decimal.one,
+        ),
+    ];
+
     final attendanceInputs =
         attendance
-            .map((r) => _attendanceFromRow(r, shifts, defaultShift, compRateFor))
+            .map((r) => _attendanceFromRow(
+                r, shifts, defaultShift, compRateFor, approvedLeaves))
             .whereType<e.AttendanceDayInput>()
             .toList();
 
@@ -821,6 +846,7 @@ class PayrollComputeService {
     Map<String, Map<String, dynamic>> shifts,
     Map<String, dynamic>? defaultShift,
     Decimal? Function(DateTime) compRateFor,
+    List<ApprovedLeaveDay> approvedLeaves,
   ) {
     // Day-type rule, mirrors AttendanceRowVm.dayType:
     //   - Holiday day types (REGULAR_HOLIDAY / SPECIAL_HOLIDAY /
@@ -1037,6 +1063,14 @@ class PayrollComputeService {
       ndMinutes = _nightDiffMinutesInRange(effIn, effOut);
     }
 
+    // Resolve once — feeds isOnLeave/leaveIsPaid/paidLeaveFraction/
+    // leaveTypeName below without re-matching against approvedLeaves per field.
+    final leaveRes = resolvePaidLeaveForDay(
+      date: attendanceDate,
+      statusIsLeave: status.contains('LEAVE'),
+      approved: approvedLeaves,
+    );
+
     return e.AttendanceDayInput(
       id: r['id'] as String,
       attendanceDate: attendanceDate,
@@ -1058,7 +1092,9 @@ class PayrollComputeService {
       lateOutApproved: r['late_out_approved'] as bool? ?? false,
       nightDiffMinutes: ndMinutes,
       isOnLeave: status.contains('LEAVE'),
-      leaveIsPaid: false,
+      leaveIsPaid: leaveRes.isPaid,
+      paidLeaveFraction: leaveRes.fraction,
+      leaveTypeName: leaveRes.typeName,
       dailyRateOverride: dailyRateOverride,
     );
   }
