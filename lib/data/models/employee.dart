@@ -56,6 +56,14 @@ class Employee {
   final String? paymentMethod;
   final String? paymentSourceAccount;
   final String? larkUserId;
+  /// Authorized-signatory flags. At most one employee per company holds each
+  /// capacity (partial unique indexes, migration 20260801000001). The title
+  /// is what documents PRINT (e.g. 'HR Manager'), independent of jobTitle.
+  final bool isHrSignatory;
+  final bool isLegalSignatory;
+  final String? signatoryTitle;
+  /// Transparent-PNG signature, base64. Rendered onto generated documents.
+  final String? signaturePngB64;
   /// Running sum of BASIC_PAY earned since this employee's last 13th-month
   /// distribution. Ticks up on every payroll release; resets to 0 when a
   /// distribution pays them out.
@@ -106,6 +114,10 @@ class Employee {
     this.paymentMethod,
     this.paymentSourceAccount,
     this.larkUserId,
+    this.isHrSignatory = false,
+    this.isLegalSignatory = false,
+    this.signatoryTitle,
+    this.signaturePngB64,
     Decimal? accruedThirteenthMonthBasis,
     this.deletedAt,
   }) : accruedThirteenthMonthBasis = accruedThirteenthMonthBasis ?? Decimal.zero;
@@ -183,6 +195,10 @@ class Employee {
         paymentMethod: r['payment_method'] as String?,
         paymentSourceAccount: r['payment_source_account'] as String?,
         larkUserId: r['lark_user_id'] as String?,
+        isHrSignatory: r['is_hr_signatory'] as bool? ?? false,
+        isLegalSignatory: r['is_legal_signatory'] as bool? ?? false,
+        signatoryTitle: r['signatory_title'] as String?,
+        signaturePngB64: r['signature_png'] as String?,
         accruedThirteenthMonthBasis:
             r['accrued_thirteenth_month_basis'] == null
                 ? Decimal.zero
