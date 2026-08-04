@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/pdf/signature_png.dart';
 import '../../../../data/models/employee.dart';
 import '../../../../data/repositories/employee_repository.dart';
 
@@ -41,7 +42,7 @@ class _SignatorySectionState extends ConsumerState<SignatorySection> {
     setState(() => _busy = true);
     try {
       await op();
-      _refresh();
+      if (mounted) _refresh();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -124,9 +125,7 @@ class _SignatorySectionState extends ConsumerState<SignatorySection> {
     // Watch the fresh row so toggles reflect writes without a manual reload.
     final emp = ref.watch(employeeByIdProvider(widget.employee.id)).asData?.value ??
         widget.employee;
-    final sigBytes = emp.signaturePngB64 == null
-        ? null
-        : base64Decode(emp.signaturePngB64!);
+    final sigBytes = decodeSignaturePngB64(emp.signaturePngB64);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -230,6 +229,7 @@ class _SignatorySectionState extends ConsumerState<SignatorySection> {
   }
 
   Future<void> _saveTitle() async {
+    if (_busy) return;
     final current = ref
             .read(employeeByIdProvider(widget.employee.id))
             .asData
