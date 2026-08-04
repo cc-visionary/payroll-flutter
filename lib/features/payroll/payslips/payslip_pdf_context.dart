@@ -148,7 +148,12 @@ Future<PayslipPdfContext> loadPayslipPdfContext(
   if (emp == null) {
     throw Exception('Employee not found for payslip ${ps.id}');
   }
-  final hrSig = await empRepo.signatoryFor(hr: true);
+  Employee? hrSig;
+  try {
+    hrSig = await empRepo.signatoryFor(hr: true);
+  } catch (_) {
+    hrSig = null; // pre-migration DB / transient failure → entity fallback
+  }
 
   final period = await _loadPeriod(ps.payrollRunId);
   // Period dates drive both the PDF header and the attendance page; fall

@@ -57,15 +57,25 @@ class _SignatorySectionState extends ConsumerState<SignatorySection> {
     final repo = ref.read(employeeRepositoryProvider);
     if (enable) {
       // Transfer confirm when someone else already holds the capacity.
-      final holder = await repo.signatoryFor(hr: hr);
-      if (holder != null && holder.id != widget.employee.id) {
+      Employee? holder;
+      try {
+        holder = await repo.signatoryFor(hr: hr);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Failed: $e')));
+        }
+        return;
+      }
+      final transferHolder = holder;
+      if (transferHolder != null && transferHolder.id != widget.employee.id) {
         if (!mounted) return;
         final ok = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
             title: Text('Transfer ${hr ? 'HR' : 'Legal'} Signatory?'),
             content: Text(
-                '${holder.fullName} currently holds this capacity. Transfer '
+                '${transferHolder.fullName} currently holds this capacity. Transfer '
                 'it to ${widget.employee.fullName}? New documents will carry '
                 'the new signatory; already-generated documents keep the '
                 'signature they were issued with.'),
