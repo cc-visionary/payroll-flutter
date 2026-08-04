@@ -5,6 +5,7 @@ import '../../../core/pdf/interpolate.dart';
 import '../../../core/pdf/signature_png.dart';
 import '../../../data/models/role_scorecard.dart';
 import '../../../data/repositories/applicant_repository.dart';
+import '../../../data/repositories/role_scorecard_repository.dart';
 
 import '../blocks/block.dart';
 import '../blocks/bullet_list_block.dart';
@@ -639,6 +640,24 @@ class EmploymentContractTemplate
       }
     }
 
+    // Personally-owned, off-card ACTIVE tasks append to Annex A as trailing
+    // areas (spec: 2026-08-04-contract-owned-tasks-annex-design.md).
+    // Best-effort like the scorecard read above — contract generation never
+    // breaks on a workforce-planning read.
+    List<ResponsibilityArea> ownedExtra = const [];
+    try {
+      final owned = await ctx.ref
+          .read(roleScorecardRepositoryProvider)
+          .activeTasksOwnedBy(emp.id);
+      ownedExtra = responsibilitiesFromAssignedTasks(
+        scorecardId ?? '',
+        owned,
+        fallbackArea: 'Additional Responsibilities',
+      );
+    } catch (_) {
+      ownedExtra = const [];
+    }
+
     // Latest HIRE event seeds the probation start; fall back to the
     // employee's hireDate. Wrapped so dev/test envs without Supabase
     // degrade gracefully (mirrors the Non-Reg autofill pattern).
@@ -712,12 +731,13 @@ class EmploymentContractTemplate
       employerSignatoryRole: repRole,
       companySignaturePngB64: ctx.legalSignatory?.signaturePngB64,
       missionStatement: scorecard?.missionStatement ?? '',
-      responsibilities: scorecard == null
-          ? const []
-          : scorecard.responsibilities
-              .map((r) =>
-                  ContractResponsibility(area: r.area, tasks: r.tasks))
-              .toList(),
+      responsibilities: [
+        ...?scorecard?.responsibilities,
+        ...dedupeAppendedAreas(
+            scorecard?.responsibilities ?? const [], ownedExtra),
+      ]
+          .map((r) => ContractResponsibility(area: r.area, tasks: r.tasks))
+          .toList(),
       kpis: scorecard == null
           ? const []
           : scorecard.kpis
