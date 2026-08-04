@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
 import '../../../core/pdf/interpolate.dart';
+import '../../../core/pdf/signature_png.dart';
 import '../../../data/models/role_scorecard.dart';
 import '../../../data/repositories/applicant_repository.dart';
 
@@ -545,12 +546,14 @@ class EmploymentContractTemplate
             }()
           : ctx.company;
 
-      final repName = entity?.hrManagerName ?? ctx.company?.hrManagerName ?? '';
-      final repRole = (entity?.legalSignatoryRole?.isNotEmpty == true)
-          ? entity!.legalSignatoryRole!
-          : (ctx.company?.legalSignatoryRole?.isNotEmpty == true)
-              ? ctx.company!.legalSignatoryRole!
-              : 'People Manager';
+      final repName = ctx.legalSignatory?.name ??
+          (entity?.hrManagerName ?? ctx.company?.hrManagerName ?? '');
+      final repRole = ctx.legalSignatory?.title ??
+          ((entity?.legalSignatoryRole?.isNotEmpty == true)
+              ? entity!.legalSignatoryRole!
+              : (ctx.company?.legalSignatoryRole?.isNotEmpty == true)
+                  ? ctx.company!.legalSignatoryRole!
+                  : 'People Manager');
 
       final place = <String?>[
         entity?.city ?? ctx.company?.city,
@@ -595,6 +598,7 @@ class EmploymentContractTemplate
         nonCompeteMonths: 24,
         employerSignatoryName: repName,
         employerSignatoryRole: repRole,
+        companySignaturePngB64: ctx.legalSignatory?.signaturePngB64,
         missionStatement: scorecard?.missionStatement ?? '',
         responsibilities: scorecard == null
             ? const []
@@ -655,10 +659,11 @@ class EmploymentContractTemplate
     final probStart = eventDate(hireRow) ?? emp.hireDate;
     final probEnd = defaultProbationaryEnd(probStart);
 
-    final repName = co?.hrManagerName ?? '';
-    final repRole = (co?.legalSignatoryRole?.isNotEmpty == true)
-        ? co!.legalSignatoryRole!
-        : 'People Manager';
+    final repName = ctx.legalSignatory?.name ?? (co?.hrManagerName ?? '');
+    final repRole = ctx.legalSignatory?.title ??
+        ((co?.legalSignatoryRole?.isNotEmpty == true)
+            ? co!.legalSignatoryRole!
+            : 'People Manager');
 
     final place = <String?>[co?.city, co?.province, 'Philippines']
         .where((s) => s != null && s.isNotEmpty)
@@ -705,6 +710,7 @@ class EmploymentContractTemplate
       nonCompeteMonths: 24,
       employerSignatoryName: repName,
       employerSignatoryRole: repRole,
+      companySignaturePngB64: ctx.legalSignatory?.signaturePngB64,
       missionStatement: scorecard?.missionStatement ?? '',
       responsibilities: scorecard == null
           ? const []
@@ -908,6 +914,7 @@ class EmploymentContractTemplate
       SignatoryLine(
         name: i.employerSignatoryName,
         role: i.employerSignatoryRole,
+        signatureImage: decodeSignaturePngB64(i.companySignaturePngB64),
       ),
       SignatoryLine(name: i.employeeFullName, role: i.position),
     ]));

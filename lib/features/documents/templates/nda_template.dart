@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
+import '../../../core/pdf/signature_png.dart';
 import '../blocks/block.dart';
 import '../blocks/bullet_list_block.dart';
 import '../blocks/emphasis_paragraph_block.dart';
@@ -287,12 +288,15 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
           : _composeAddress(co.addressLine1, co.addressLine2, co.city,
               co.province, co.zipCode),
       effectiveDate: hireDate ?? emp.hireDate,
-      authorizedSignatoryName: (co?.legalSignatoryName?.isNotEmpty == true)
-          ? co!.legalSignatoryName!
-          : (co?.hrManagerName ?? ''),
-      authorizedSignatoryRole: (co?.legalSignatoryRole?.isNotEmpty == true)
-          ? co!.legalSignatoryRole!
-          : 'Authorized Signatory',
+      authorizedSignatoryName: ctx.legalSignatory?.name ??
+          ((co?.legalSignatoryName?.isNotEmpty == true)
+              ? co!.legalSignatoryName!
+              : (co?.hrManagerName ?? '')),
+      authorizedSignatoryRole: ctx.legalSignatory?.title ??
+          ((co?.legalSignatoryRole?.isNotEmpty == true)
+              ? co!.legalSignatoryRole!
+              : 'Authorized Signatory'),
+      companySignaturePngB64: ctx.legalSignatory?.signaturePngB64,
       logoBytes: logo,
     );
   }
@@ -509,6 +513,7 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
           header: 'For the Company',
           name: i.authorizedSignatoryName,
           role: i.authorizedSignatoryRole,
+          signatureImage: decodeSignaturePngB64(i.companySignaturePngB64),
         ),
         SignatoryLine(
           header: 'Recipient',

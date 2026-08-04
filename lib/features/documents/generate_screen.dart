@@ -9,6 +9,7 @@ import '../../core/pdf/pdf_preview_scaffold.dart';
 import '../../core/pdf/pdf_theme.dart';
 import '../../data/repositories/audit_repository.dart';
 import '../../data/repositories/employee_document_repository.dart';
+import '../../data/repositories/employee_repository.dart';
 import '../employees/profile/providers.dart' show employeeDocumentsProvider;
 import 'blocks/block.dart';
 import 'brand_logo.dart';
@@ -632,6 +633,8 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
     final tpl = findTemplateById(widget.templateId);
     if (tpl == null) return;
     final co = await ref.read(hiringEntityByIdProvider(companyId).future);
+    final legalSig =
+        await ref.read(legalSignatoryProvider.future).catchError((_) => null);
     final logo = await loadCompanyLogoBytes(co);
     if (!mounted) return;
     final name = co?.name ?? '';
@@ -651,14 +654,16 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
                   .where((s) => s != null && s.isNotEmpty)
                   .cast<String>()
                   .join(', '),
-          representativeName: co?.hrManagerName ?? '',
-          representativeRole: (co?.legalSignatoryRole?.isNotEmpty ?? false)
-              ? co!.legalSignatoryRole!
-              : 'People Manager',
-          employerSignatoryName: co?.hrManagerName ?? '',
-          employerSignatoryRole: (co?.legalSignatoryRole?.isNotEmpty ?? false)
-              ? co!.legalSignatoryRole!
-              : 'People Manager',
+          representativeName: legalSig?.fullName ?? co?.hrManagerName ?? '',
+          representativeRole: legalSig?.signatoryTitle ??
+              ((co?.legalSignatoryRole?.isNotEmpty ?? false)
+                  ? co!.legalSignatoryRole!
+                  : 'People Manager'),
+          employerSignatoryName: legalSig?.fullName ?? co?.hrManagerName ?? '',
+          employerSignatoryRole: legalSig?.signatoryTitle ??
+              ((co?.legalSignatoryRole?.isNotEmpty ?? false)
+                  ? co!.legalSignatoryRole!
+                  : 'People Manager'),
         );
       } else if (tpl is CoeTemplate && _coe != null) {
         _coe = _coe!.copyWith(
@@ -696,12 +701,14 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           companyName: name,
           companyAddress: addr,
           logoBytes: logo,
-          authorizedSignatoryName: (co?.legalSignatoryName?.isNotEmpty ?? false)
-              ? co!.legalSignatoryName!
-              : (co?.hrManagerName ?? ''),
-          authorizedSignatoryRole: (co?.legalSignatoryRole?.isNotEmpty ?? false)
-              ? co!.legalSignatoryRole!
-              : 'Authorized Signatory',
+          authorizedSignatoryName: legalSig?.fullName ??
+              ((co?.legalSignatoryName?.isNotEmpty ?? false)
+                  ? co!.legalSignatoryName!
+                  : (co?.hrManagerName ?? '')),
+          authorizedSignatoryRole: legalSig?.signatoryTitle ??
+              ((co?.legalSignatoryRole?.isNotEmpty ?? false)
+                  ? co!.legalSignatoryRole!
+                  : 'Authorized Signatory'),
         );
       } else if (tpl is NodTemplate && _nod != null) {
         _nod = _nod!.copyWith(
