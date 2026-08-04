@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
@@ -11,7 +13,11 @@ class SignatoryLine {
   /// Optional caption rendered BOLD above the signature line, e.g.
   /// "For the Company" / "Recipient".
   final String? header;
-  const SignatoryLine({this.name, this.role, this.header});
+
+  /// Transparent-PNG signature rendered in the wet-signature space, sitting
+  /// on the line. Company-side signatories only.
+  final Uint8List? signatureImage;
+  const SignatoryLine({this.name, this.role, this.header, this.signatureImage});
 }
 
 /// Signature block in the "sign above the printed name" format: an empty
@@ -62,7 +68,14 @@ class SignatureLineBlock extends Block {
               bottom: pw.BorderSide(color: PdfColors.black, width: 0.7),
             ),
           ),
-          child: pw.SizedBox(height: 24),
+          child: s.signatureImage == null
+              ? pw.SizedBox(height: 24)
+              : pw.Container(
+                  height: 40,
+                  alignment: pw.Alignment.bottomCenter,
+                  child: pw.Image(pw.MemoryImage(s.signatureImage!),
+                      height: 38, fit: pw.BoxFit.contain),
+                ),
         ),
         pw.SizedBox(height: 3),
         if (hasName)

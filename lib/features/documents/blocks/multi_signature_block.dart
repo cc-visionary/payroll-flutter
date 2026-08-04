@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -8,7 +10,8 @@ class SignatoryParty {
   final String? name;
   final String? role;
   final DateTime? date;
-  const SignatoryParty({this.name, this.role, this.date});
+  final Uint8List? signatureImage;
+  const SignatoryParty({this.name, this.role, this.date, this.signatureImage});
 }
 
 class MultiSignatureBlock extends Block {
@@ -29,13 +32,25 @@ class MultiSignatureBlock extends Block {
                   bottom: pw.BorderSide(color: PdfColors.black, width: 0.7),
                 ),
               ),
-              child: pw.Text(
-                s.name ?? '',
-                style: pw.TextStyle(
-                  fontSize: theme.bodySize,
-                  fontWeight: pw.FontWeight.bold,
-                  color: theme.textColor,
-                ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  if (s.signatureImage != null)
+                    pw.Container(
+                      height: 40,
+                      alignment: pw.Alignment.bottomLeft,
+                      child: pw.Image(pw.MemoryImage(s.signatureImage!),
+                          height: 38, fit: pw.BoxFit.contain),
+                    ),
+                  pw.Text(
+                    s.name ?? '',
+                    style: pw.TextStyle(
+                      fontSize: theme.bodySize,
+                      fontWeight: pw.FontWeight.bold,
+                      color: theme.textColor,
+                    ),
+                  ),
+                ],
               ),
             ),
             pw.SizedBox(height: 4),
