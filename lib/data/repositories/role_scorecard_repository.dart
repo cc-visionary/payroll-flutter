@@ -446,6 +446,22 @@ class RoleScorecardRepository {
     return out;
   }
 
+  /// ACTIVE tasks personally owned by [employeeId], for the employment
+  /// contract's Annex A append (spec:
+  /// 2026-08-04-contract-owned-tasks-annex-design.md). Archived work is
+  /// excluded here; authored-on-own-card filtering happens in
+  /// responsibilitiesFromAssignedTasks. Task counts per person are small
+  /// (tens), so no paging.
+  Future<List<WpTask>> activeTasksOwnedBy(String employeeId) async {
+    final rows = (await _client
+            .from('wp_tasks')
+            .select()
+            .eq('owner_employee_id', employeeId)
+            .eq('status', 'ACTIVE'))
+        .cast<Map<String, dynamic>>();
+    return rows.map(WpTask.fromRow).toList();
+  }
+
   /// kpiId -> employees effectively tracked on it, across the whole company.
   /// Powers the KPI Library screen's "who's tracking this" line. See
   /// [employeesByKpi] for the assignment logic.
