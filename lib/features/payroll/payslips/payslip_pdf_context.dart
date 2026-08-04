@@ -11,6 +11,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/pdf/signature_png.dart';
 import '../../../data/models/calendar_event.dart';
 import '../../../data/models/employee.dart';
 import '../../../data/models/hiring_entity.dart';
@@ -92,6 +93,9 @@ Future<Map<String, PayslipPdfBuildResult>> buildPayslipPdfsForIds(
       periodEnd: ctx.periodEnd,
       payDate: ctx.payDate,
       attendanceRows: ctx.attendanceRows,
+      hrSignatoryName: ctx.hrSignatoryName,
+      hrSignatoryTitle: ctx.hrSignatoryTitle,
+      hrSignaturePng: ctx.hrSignaturePng,
     ));
     out[id] = PayslipPdfBuildResult(
       bytes: bytes,
@@ -114,6 +118,9 @@ class PayslipPdfContext {
   final DateTime periodEnd;
   final DateTime payDate;
   final List<AttendanceRowVm> attendanceRows;
+  final String? hrSignatoryName;
+  final String? hrSignatoryTitle;
+  final Uint8List? hrSignaturePng;
   const PayslipPdfContext({
     required this.employee,
     required this.companyName,
@@ -125,6 +132,9 @@ class PayslipPdfContext {
     required this.periodEnd,
     required this.payDate,
     required this.attendanceRows,
+    this.hrSignatoryName,
+    this.hrSignatoryTitle,
+    this.hrSignaturePng,
   });
 }
 
@@ -138,6 +148,7 @@ Future<PayslipPdfContext> loadPayslipPdfContext(
   if (emp == null) {
     throw Exception('Employee not found for payslip ${ps.id}');
   }
+  final hrSig = await empRepo.signatoryFor(hr: true);
 
   final period = await _loadPeriod(ps.payrollRunId);
   // Period dates drive both the PDF header and the attendance page; fall
@@ -241,6 +252,13 @@ Future<PayslipPdfContext> loadPayslipPdfContext(
     periodEnd: periodEnd,
     payDate: payDate,
     attendanceRows: attendanceRows,
+    hrSignatoryName: hrSig?.fullName ?? entity?.hrManagerName,
+    hrSignatoryTitle: hrSig != null
+        ? ((hrSig.signatoryTitle?.isNotEmpty ?? false)
+            ? hrSig.signatoryTitle
+            : 'HR Manager')
+        : ((entity?.hrManagerName?.isNotEmpty ?? false) ? 'HR Manager' : null),
+    hrSignaturePng: decodeSignaturePngB64(hrSig?.signaturePngB64),
   );
 }
 

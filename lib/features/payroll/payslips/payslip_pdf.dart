@@ -36,6 +36,11 @@ class PayslipPdfInput {
   /// PDF stays single-page — keeps the test fixture and legacy callers
   /// working without forcing them to assemble attendance data.
   final List<AttendanceRowVm>? attendanceRows;
+  /// Resolved HR signatory (from employees.is_hr_signatory, falling back to
+  /// the hiring entity's hr_manager_name). Null → blank sign line.
+  final String? hrSignatoryName;
+  final String? hrSignatoryTitle;
+  final Uint8List? hrSignaturePng;
 
   const PayslipPdfInput({
     required this.payslip,
@@ -49,6 +54,9 @@ class PayslipPdfInput {
     this.companyLogoBytes,
     this.companyLogoHeight = 48,
     this.attendanceRows,
+    this.hrSignatoryName,
+    this.hrSignatoryTitle,
+    this.hrSignaturePng,
   });
 }
 
@@ -475,8 +483,10 @@ pw.Widget _totalsBlock(Payslip p, PdfColor primary) {
 
 pw.Widget _signatureBlock(PayslipPdfInput i) {
   // Employee signature removed — receipt is captured via Lark approval
-  // (see send-payslip-approvals edge function). Only the HR
-  // authorized-representative name + title remains under the sign line.
+  // (see send-payslip-approvals edge function). The HR authorized
+  // representative is resolved from the employees signatory flags.
+  final name = (i.hrSignatoryName ?? '').trim();
+  final title = (i.hrSignatoryTitle ?? '').trim();
   return pw.Row(
     mainAxisAlignment: pw.MainAxisAlignment.center,
     children: [
@@ -485,26 +495,35 @@ pw.Widget _signatureBlock(PayslipPdfInput i) {
         child: pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
+            if (i.hrSignaturePng != null)
+              pw.Container(
+                height: 40,
+                alignment: pw.Alignment.bottomCenter,
+                child: pw.Image(pw.MemoryImage(i.hrSignaturePng!),
+                    height: 38, fit: pw.BoxFit.contain),
+              ),
             pw.Container(
               height: 1,
               color: PdfColors.grey500,
               margin: const pw.EdgeInsets.symmetric(horizontal: 12),
             ),
             pw.SizedBox(height: 2),
-            pw.Text(
-              'Brixter Del Mundo',
-              style: pw.TextStyle(
-                fontSize: 10,
-                fontWeight: pw.FontWeight.bold,
+            if (name.isNotEmpty)
+              pw.Text(
+                name,
+                style: pw.TextStyle(
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold,
+                ),
               ),
-            ),
-            pw.Text(
-              'HR Manager',
-              style: const pw.TextStyle(
-                fontSize: 9,
-                color: PdfColors.grey700,
+            if (title.isNotEmpty)
+              pw.Text(
+                title,
+                style: const pw.TextStyle(
+                  fontSize: 9,
+                  color: PdfColors.grey700,
+                ),
               ),
-            ),
           ],
         ),
       ),

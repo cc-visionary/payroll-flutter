@@ -132,6 +132,9 @@ class _PayslipPreviewBodyState extends ConsumerState<_PayslipPreviewBody> {
                   periodEnd: ctx.periodEnd,
                   payDate: ctx.payDate,
                   attendanceRows: ctx.attendanceRows,
+                  hrSignatoryName: ctx.hrSignatoryName,
+                  hrSignatoryTitle: ctx.hrSignatoryTitle,
+                  hrSignaturePng: ctx.hrSignaturePng,
                 )),
               );
             },
