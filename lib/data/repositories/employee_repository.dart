@@ -77,6 +77,51 @@ class EmployeeRepository {
     await _client.from('employees').update({'reports_to_id': managerId}).eq('id', employeeId);
   }
 
+  /// The single employee flagged for a signing capacity, or null when nobody
+  /// is flagged. At most one row per company carries each flag (partial
+  /// unique indexes, migration 20260801000001) and RLS scopes rows to the
+  /// caller's company, so `maybeSingle` is safe.
+  Future<Employee?> signatoryFor({required bool hr}) async {
+    final row = await _client
+        .from('employees')
+        .select()
+        .eq(hr ? 'is_hr_signatory' : 'is_legal_signatory', true)
+        .isFilter('deleted_at', null)
+        .maybeSingle();
+    if (row == null) return null;
+    return Employee.fromRow(row);
+  }
+
+  /// Enable/disable a signing capacity. Enabling clears the current holder
+  /// first so the partial unique index never trips; the index is the
+  /// backstop against concurrent claims.
+  Future<void> setSignatoryCapacity({
+    required String employeeId,
+    required bool hr,
+    required bool enabled,
+  }) async {
+    final col = hr ? 'is_hr_signatory' : 'is_legal_signatory';
+    if (enabled) {
+      await _client.from('employees').update({col: false}).eq(col, true);
+    }
+    await _client.from('employees').update({col: enabled}).eq('id', employeeId);
+  }
+
+  Future<void> setSignatoryTitle(String employeeId, String? title) async {
+    final t = title?.trim();
+    await _client
+        .from('employees')
+        .update({'signatory_title': (t == null || t.isEmpty) ? null : t})
+        .eq('id', employeeId);
+  }
+
+  Future<void> setSignaturePng(String employeeId, String? pngB64) async {
+    await _client
+        .from('employees')
+        .update({'signature_png': pngB64})
+        .eq('id', employeeId);
+  }
+
   Future<void> restore(String id) async {
     await _client.from('employees').update({'deleted_at': null}).eq('id', id);
   }
@@ -242,3 +287,9 @@ final employeeByIdProvider =
   final repo = ref.watch(employeeRepositoryProvider);
   return repo.byId(id);
 });
+
+/// The employee flagged as HR / Legal signatory (company-scoped via RLS).
+final hrSignatoryProvider = FutureProvider<Employee?>(
+    (ref) => ref.watch(employeeRepositoryProvider).signatoryFor(hr: true));
+final legalSignatoryProvider = FutureProvider<Employee?>(
+    (ref) => ref.watch(employeeRepositoryProvider).signatoryFor(hr: false));
