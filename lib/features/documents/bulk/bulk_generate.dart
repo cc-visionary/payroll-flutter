@@ -7,6 +7,7 @@ import '../../../core/pdf/pdf_theme.dart';
 import '../blocks/block.dart';
 import '../pdf/pdf_builder.dart';
 import '../providers.dart';
+import '../signatory_autofill.dart';
 import '../templates/document_template.dart';
 import '../templates/liability_waiver_inputs.dart';
 import '../templates/liability_waiver_template.dart';
@@ -56,6 +57,7 @@ Future<BulkGenerateResult> bulkGenerate({
   final skipped = <BulkSkip>[];
   final perEmployeeBlocks = <List<Block>>[];
   final today = DateTime.now();
+  final sigs = await loadAutofillSignatories(ref);
 
   for (final id in employeeIds) {
     final emp = await ref.read(documentEmployeeProvider(id).future);
@@ -66,7 +68,12 @@ Future<BulkGenerateResult> bulkGenerate({
     final co = emp.hiringEntityId == null
         ? null
         : await ref.read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
-    final ctx = AutofillContext(employee: emp, company: co, ref: ref);
+    final ctx = AutofillContext(
+        employee: emp,
+        company: co,
+        ref: ref,
+        hrSignatory: sigs.hr,
+        legalSignatory: sigs.legal);
 
     final gates = template.gates(ctx);
     if (gates.isNotEmpty) {

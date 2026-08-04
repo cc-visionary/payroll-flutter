@@ -8,6 +8,7 @@ import '../../core/pdf/pdf_preview_scaffold.dart';
 import '../../core/pdf/pdf_theme.dart';
 import '../../data/models/applicant.dart';
 import '../documents/pdf/pdf_builder.dart';
+import '../documents/signatory_autofill.dart';
 import '../documents/templates/document_template.dart';
 import '../documents/templates/employment_contract_template.dart';
 
@@ -25,6 +26,7 @@ Future<Uint8List> renderOfferLetter({
 }) async {
   final theme = await PdfTheme.defaults();
   const tpl = EmploymentContractTemplate();
+  final sigs = await loadAutofillSignatories(ref);
   final ctx = AutofillContext(
     // Applicant mode — employee is intentionally null. The template checks
     // ctx.applicantId != null first and branches accordingly.
@@ -34,6 +36,8 @@ Future<Uint8List> renderOfferLetter({
     company: null,
     ref: ref,
     applicantId: applicant.id,
+    hrSignatory: sigs.hr,
+    legalSignatory: sigs.legal,
   );
   final inputs = await tpl.autofill(ctx);
   final blocks = tpl.build(inputs);

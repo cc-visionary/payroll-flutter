@@ -27,6 +27,7 @@ import 'forms/resignation_acceptance_form.dart';
 import 'forms/salary_adjustment_form.dart';
 import 'pdf/pdf_builder.dart';
 import 'providers.dart';
+import 'signatory_autofill.dart';
 import 'templates/coe_inputs.dart';
 import 'templates/coe_template.dart';
 import 'templates/document_template.dart';
@@ -484,11 +485,14 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
     final co = (emp == null || emp.hiringEntityId == null)
         ? null
         : await ref.read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
+    final sigs = await loadAutofillSignatories(ref);
     return AutofillContext(
       employee: emp,
       company: co,
       ref: ref,
       compensationChangeId: widget.compensationChangeId,
+      hrSignatory: sigs.hr,
+      legalSignatory: sigs.legal,
     );
   }
 

@@ -5,6 +5,16 @@ import '../../../data/models/employee.dart';
 import '../../../data/models/hiring_entity.dart';
 import '../blocks/block.dart';
 
+/// Resolved signatory defaults for autofill: the employee flagged for a
+/// signing capacity, reduced to what templates print. `title` null →
+/// templates keep their per-document default role text.
+class SignatoryInfo {
+  final String name;
+  final String? title;
+  final String? signaturePngB64;
+  const SignatoryInfo({required this.name, this.title, this.signaturePngB64});
+}
+
 /// Read-only context handed to a template's autofill / gates methods.
 /// `ref` is provided so a template can pull from any Riverpod provider
 /// (employment events, payslip aggregates, etc.).
@@ -27,12 +37,20 @@ class AutofillContext {
   /// (rather than defaulting to the newest) so an older change's notice renders
   /// its own salary/mode. Null when not launched from such a workflow.
   final String? compensationChangeId;
+
+  /// Flagged authorized signatories (employees.is_hr_signatory /
+  /// is_legal_signatory). Null when unassigned or not loaded — templates
+  /// fall back to the hiring entity's text defaults.
+  final SignatoryInfo? hrSignatory;
+  final SignatoryInfo? legalSignatory;
   const AutofillContext({
     this.employee,
     this.company,
     required this.ref,
     this.applicantId,
     this.compensationChangeId,
+    this.hrSignatory,
+    this.legalSignatory,
   });
 }
 
