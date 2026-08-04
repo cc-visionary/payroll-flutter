@@ -63,6 +63,11 @@ class NonRegInputs extends TemplateInputs {
   final String witnessName;
   final Uint8List? logoBytes;
 
+  /// Base64 transparent-PNG signature of the company-side signatory,
+  /// snapshotted at generation so saved documents re-render as signed at
+  /// the time. Null (incl. legacy saved docs) → blank sign line.
+  final String? companySignaturePngB64;
+
   NonRegInputs({
     required this.employeeId,
     required this.employeeFullName,
@@ -81,6 +86,7 @@ class NonRegInputs extends TemplateInputs {
     required this.findings,
     this.witnessName = '',
     this.logoBytes,
+    this.companySignaturePngB64,
   });
 
   /// Inverse of [toJson]. `logoBytes` is intentionally absent from the JSON
@@ -114,6 +120,7 @@ class NonRegInputs extends TemplateInputs {
           .map((e) => FindingSection.fromJson((e as Map).cast<String, dynamic>()))
           .toList(),
       witnessName: json['witnessName'] as String? ?? '',
+      companySignaturePngB64: json['companySignaturePngB64'] as String?,
     );
   }
 
@@ -135,6 +142,7 @@ class NonRegInputs extends TemplateInputs {
     List<FindingSection>? findings,
     String? witnessName,
     Uint8List? logoBytes,
+    String? companySignaturePngB64,
   }) =>
       NonRegInputs(
         employeeId: employeeId ?? this.employeeId,
@@ -154,6 +162,8 @@ class NonRegInputs extends TemplateInputs {
         findings: findings ?? this.findings,
         witnessName: witnessName ?? this.witnessName,
         logoBytes: logoBytes ?? this.logoBytes,
+        companySignaturePngB64:
+            companySignaturePngB64 ?? this.companySignaturePngB64,
       );
 
   @override
@@ -163,6 +173,9 @@ class NonRegInputs extends TemplateInputs {
         'findingCount': findings.length,
         'subFindingCount':
             findings.fold<int>(0, (n, f) => n + f.subFindings.length),
+        'companySignaturePngB64': companySignaturePngB64 == null
+            ? null
+            : '<png b64, ${companySignaturePngB64!.length} chars>',
       };
 
   @override
@@ -183,5 +196,6 @@ class NonRegInputs extends TemplateInputs {
         'noteOnScope': noteOnScope,
         'findings': findings.map((f) => f.toJson()).toList(),
         'witnessName': witnessName,
+        'companySignaturePngB64': companySignaturePngB64,
       };
 }

@@ -24,6 +24,11 @@ class ResignationAcceptanceInputs extends TemplateInputs {
   // Excluded from toJson — re-resolved from the entity at view time.
   final Uint8List? logoBytes;
 
+  /// Base64 transparent-PNG signature of the company-side signatory,
+  /// snapshotted at generation so saved documents re-render as signed at
+  /// the time. Null (incl. legacy saved docs) → blank sign line.
+  final String? companySignaturePngB64;
+
   ResignationAcceptanceInputs({
     required this.employeeId,
     required this.employeeFullName,
@@ -40,6 +45,7 @@ class ResignationAcceptanceInputs extends TemplateInputs {
     this.includeClearanceMention = true,
     this.includeFinalPayMention = true,
     this.logoBytes,
+    this.companySignaturePngB64,
   });
 
   factory ResignationAcceptanceInputs.fromJson(Map<String, dynamic> json) {
@@ -68,6 +74,7 @@ class ResignationAcceptanceInputs extends TemplateInputs {
       includeClearanceMention:
           json['includeClearanceMention'] as bool? ?? true,
       includeFinalPayMention: json['includeFinalPayMention'] as bool? ?? true,
+      companySignaturePngB64: json['companySignaturePngB64'] as String?,
     );
   }
 
@@ -87,6 +94,7 @@ class ResignationAcceptanceInputs extends TemplateInputs {
     bool? includeClearanceMention,
     bool? includeFinalPayMention,
     Uint8List? logoBytes,
+    String? companySignaturePngB64,
   }) => ResignationAcceptanceInputs(
     employeeId: employeeId ?? this.employeeId,
     employeeFullName: employeeFullName ?? this.employeeFullName,
@@ -105,12 +113,17 @@ class ResignationAcceptanceInputs extends TemplateInputs {
     includeFinalPayMention:
         includeFinalPayMention ?? this.includeFinalPayMention,
     logoBytes: logoBytes ?? this.logoBytes,
+    companySignaturePngB64:
+        companySignaturePngB64 ?? this.companySignaturePngB64,
   );
 
   @override
   Map<String, dynamic> toDebugMap() => {
     'employeeId': employeeId,
     'lastDayOfWork': lastDayOfWork.toIso8601String(),
+    'companySignaturePngB64': companySignaturePngB64 == null
+        ? null
+        : '<png b64, ${companySignaturePngB64!.length} chars>',
   };
 
   @override
@@ -129,5 +142,6 @@ class ResignationAcceptanceInputs extends TemplateInputs {
     'turnoverInstructions': turnoverInstructions,
     'includeClearanceMention': includeClearanceMention,
     'includeFinalPayMention': includeFinalPayMention,
+    'companySignaturePngB64': companySignaturePngB64,
   };
 }

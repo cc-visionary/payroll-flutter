@@ -16,6 +16,11 @@ class NdaInputs extends TemplateInputs {
   // Excluded from toJson — re-resolved from the entity at view time.
   final Uint8List? logoBytes;
 
+  /// Base64 transparent-PNG signature of the company-side signatory,
+  /// snapshotted at generation so saved documents re-render as signed at
+  /// the time. Null (incl. legacy saved docs) → blank sign line.
+  final String? companySignaturePngB64;
+
   NdaInputs({
     required this.employeeId,
     required this.employeeFullName,
@@ -28,6 +33,7 @@ class NdaInputs extends TemplateInputs {
     this.authorizedSignatoryName = '',
     this.authorizedSignatoryRole = 'Authorized Signatory',
     this.logoBytes,
+    this.companySignaturePngB64,
   });
 
   /// Inverse of [toJson]. `effectiveDate` preserves null; the optional string
@@ -53,6 +59,7 @@ class NdaInputs extends TemplateInputs {
       authorizedSignatoryName: json['authorizedSignatoryName'] as String? ?? '',
       authorizedSignatoryRole:
           json['authorizedSignatoryRole'] as String? ?? 'Authorized Signatory',
+      companySignaturePngB64: json['companySignaturePngB64'] as String?,
     );
   }
 
@@ -68,6 +75,7 @@ class NdaInputs extends TemplateInputs {
     String? authorizedSignatoryName,
     String? authorizedSignatoryRole,
     Uint8List? logoBytes,
+    String? companySignaturePngB64,
   }) =>
       NdaInputs(
         employeeId: employeeId ?? this.employeeId,
@@ -85,6 +93,8 @@ class NdaInputs extends TemplateInputs {
         authorizedSignatoryRole:
             authorizedSignatoryRole ?? this.authorizedSignatoryRole,
         logoBytes: logoBytes ?? this.logoBytes,
+        companySignaturePngB64:
+            companySignaturePngB64 ?? this.companySignaturePngB64,
       );
 
   @override
@@ -92,6 +102,9 @@ class NdaInputs extends TemplateInputs {
         'employeeId': employeeId,
         'companyId': companyId,
         'position': employeePosition,
+        'companySignaturePngB64': companySignaturePngB64 == null
+            ? null
+            : '<png b64, ${companySignaturePngB64!.length} chars>',
       };
 
   @override
@@ -106,6 +119,7 @@ class NdaInputs extends TemplateInputs {
         'effectiveDate': effectiveDate?.toIso8601String(),
         'authorizedSignatoryName': authorizedSignatoryName,
         'authorizedSignatoryRole': authorizedSignatoryRole,
+        'companySignaturePngB64': companySignaturePngB64,
       };
 }
 

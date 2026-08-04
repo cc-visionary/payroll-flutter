@@ -46,6 +46,11 @@ class NodInputs extends TemplateInputs {
   final Uint8List? attachmentBytes;
   final String? attachmentCaption;
 
+  /// Base64 transparent-PNG signature of the company-side signatory,
+  /// snapshotted at generation so saved documents re-render as signed at
+  /// the time. Null (incl. legacy saved docs) → blank sign line.
+  final String? companySignaturePngB64;
+
   NodInputs({
     required this.employeeId,
     required this.employeeFullName,
@@ -67,6 +72,7 @@ class NodInputs extends TemplateInputs {
     this.logoBytes,
     this.attachmentBytes,
     this.attachmentCaption,
+    this.companySignaturePngB64,
   });
 
   factory NodInputs.fromJson(Map<String, dynamic> json) {
@@ -96,6 +102,7 @@ class NodInputs extends TemplateInputs {
       suspensionDays: (json['suspensionDays'] as num?)?.toInt() ?? 0,
       effectiveDate: parseDate(json['effectiveDate'])!,
       issueDate: parseDate(json['issueDate'])!,
+      companySignaturePngB64: json['companySignaturePngB64'] as String?,
     );
   }
 
@@ -120,6 +127,7 @@ class NodInputs extends TemplateInputs {
     Uint8List? logoBytes,
     Object? attachmentBytes = _undef,
     Object? attachmentCaption = _undef,
+    String? companySignaturePngB64,
   }) => NodInputs(
     employeeId: employeeId ?? this.employeeId,
     employeeFullName: employeeFullName ?? this.employeeFullName,
@@ -148,6 +156,8 @@ class NodInputs extends TemplateInputs {
     attachmentCaption: identical(attachmentCaption, _undef)
         ? this.attachmentCaption
         : attachmentCaption as String?,
+    companySignaturePngB64:
+        companySignaturePngB64 ?? this.companySignaturePngB64,
   );
 
   @override
@@ -155,6 +165,9 @@ class NodInputs extends TemplateInputs {
     'employeeId': employeeId,
     'decision': decision.name,
     'linkedNte': linkedNteDocumentId,
+    'companySignaturePngB64': companySignaturePngB64 == null
+        ? null
+        : '<png b64, ${companySignaturePngB64!.length} chars>',
   };
 
   @override
@@ -176,6 +189,7 @@ class NodInputs extends TemplateInputs {
     'suspensionDays': suspensionDays,
     'effectiveDate': effectiveDate.toIso8601String(),
     'issueDate': issueDate.toIso8601String(),
+    'companySignaturePngB64': companySignaturePngB64,
   };
 }
 

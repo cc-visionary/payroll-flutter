@@ -35,6 +35,11 @@ class FinalPayInputs extends TemplateInputs {
   // Excluded from toJson — re-resolved from the entity at view time.
   final Uint8List? logoBytes;
 
+  /// Base64 transparent-PNG signature of the company-side signatory,
+  /// snapshotted at generation so saved documents re-render as signed at
+  /// the time. Null (incl. legacy saved docs) → blank sign line.
+  final String? companySignaturePngB64;
+
   FinalPayInputs({
     required this.employeeId,
     required this.employeeFullName,
@@ -58,6 +63,7 @@ class FinalPayInputs extends TemplateInputs {
     required this.computedAsOf,
     required this.releaseDate,
     this.logoBytes,
+    this.companySignaturePngB64,
   }) : lastNetPay = lastNetPay ?? Decimal.zero,
        thirteenthMonth = thirteenthMonth ?? Decimal.zero,
        unusedLeaveConversion = unusedLeaveConversion ?? Decimal.zero,
@@ -103,6 +109,7 @@ class FinalPayInputs extends TemplateInputs {
           (json['outstandingCashAdvanceLocked'] as bool?) ?? false,
       computedAsOf: parseDate(json['computedAsOf'])!,
       releaseDate: parseDate(json['releaseDate'])!,
+      companySignaturePngB64: json['companySignaturePngB64'] as String?,
     );
   }
 
@@ -136,6 +143,7 @@ class FinalPayInputs extends TemplateInputs {
     DateTime? computedAsOf,
     DateTime? releaseDate,
     Uint8List? logoBytes,
+    String? companySignaturePngB64,
   }) => FinalPayInputs(
     employeeId: employeeId ?? this.employeeId,
     employeeFullName: employeeFullName ?? this.employeeFullName,
@@ -166,6 +174,8 @@ class FinalPayInputs extends TemplateInputs {
     computedAsOf: computedAsOf ?? this.computedAsOf,
     releaseDate: releaseDate ?? this.releaseDate,
     logoBytes: logoBytes ?? this.logoBytes,
+    companySignaturePngB64:
+        companySignaturePngB64 ?? this.companySignaturePngB64,
   );
 
   @override
@@ -173,6 +183,9 @@ class FinalPayInputs extends TemplateInputs {
     'employeeId': employeeId,
     'separation': employeeSeparationDate?.toIso8601String(),
     'total': total.toString(),
+    'companySignaturePngB64': companySignaturePngB64 == null
+        ? null
+        : '<png b64, ${companySignaturePngB64!.length} chars>',
   };
 
   @override
@@ -198,6 +211,7 @@ class FinalPayInputs extends TemplateInputs {
     'outstandingCashAdvanceLocked': outstandingCashAdvanceLocked,
     'computedAsOf': computedAsOf.toIso8601String(),
     'releaseDate': releaseDate.toIso8601String(),
+    'companySignaturePngB64': companySignaturePngB64,
   };
 }
 

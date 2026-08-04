@@ -22,6 +22,11 @@ class RegularizationInputs extends TemplateInputs {
   // Excluded from toJson — re-resolved from the entity at view time.
   final Uint8List? logoBytes;
 
+  /// Base64 transparent-PNG signature of the company-side signatory,
+  /// snapshotted at generation so saved documents re-render as signed at
+  /// the time. Null (incl. legacy saved docs) → blank sign line.
+  final String? companySignaturePngB64;
+
   RegularizationInputs({
     required this.employeeId,
     required this.employeeFullName,
@@ -38,6 +43,7 @@ class RegularizationInputs extends TemplateInputs {
     required this.issueDate,
     this.performanceSummary = '',
     this.logoBytes,
+    this.companySignaturePngB64,
   }) : baseSalary = baseSalary ?? Decimal.zero;
 
   factory RegularizationInputs.fromJson(Map<String, dynamic> json) {
@@ -67,6 +73,7 @@ class RegularizationInputs extends TemplateInputs {
       salaryPeriod: json['salaryPeriod'] as String? ?? 'MONTHLY',
       issueDate: parseDate(json['issueDate']) ?? DateTime.now(),
       performanceSummary: json['performanceSummary'] as String? ?? '',
+      companySignaturePngB64: json['companySignaturePngB64'] as String?,
     );
   }
 
@@ -86,6 +93,7 @@ class RegularizationInputs extends TemplateInputs {
     DateTime? issueDate,
     String? performanceSummary,
     Uint8List? logoBytes,
+    String? companySignaturePngB64,
   }) => RegularizationInputs(
     employeeId: employeeId ?? this.employeeId,
     employeeFullName: employeeFullName ?? this.employeeFullName,
@@ -104,12 +112,17 @@ class RegularizationInputs extends TemplateInputs {
     issueDate: issueDate ?? this.issueDate,
     performanceSummary: performanceSummary ?? this.performanceSummary,
     logoBytes: logoBytes ?? this.logoBytes,
+    companySignaturePngB64:
+        companySignaturePngB64 ?? this.companySignaturePngB64,
   );
 
   @override
   Map<String, dynamic> toDebugMap() => {
     'employeeId': employeeId,
     'regularizationDate': regularizationDate.toIso8601String(),
+    'companySignaturePngB64': companySignaturePngB64 == null
+        ? null
+        : '<png b64, ${companySignaturePngB64!.length} chars>',
   };
 
   @override
@@ -128,6 +141,7 @@ class RegularizationInputs extends TemplateInputs {
     'salaryPeriod': salaryPeriod,
     'issueDate': issueDate.toIso8601String(),
     'performanceSummary': performanceSummary,
+    'companySignaturePngB64': companySignaturePngB64,
   };
 }
 

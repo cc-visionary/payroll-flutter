@@ -54,6 +54,11 @@ class SalaryAdjustmentInputs extends TemplateInputs {
   // Excluded from toJson — re-resolved from the entity at view time.
   final Uint8List? logoBytes;
 
+  /// Base64 transparent-PNG signature of the company-side signatory,
+  /// snapshotted at generation so saved documents re-render as signed at
+  /// the time. Null (incl. legacy saved docs) → blank sign line.
+  final String? companySignaturePngB64;
+
   SalaryAdjustmentInputs({
     this.type = SalaryAdjustmentType.salaryAdjustment,
     required this.employeeId,
@@ -77,6 +82,7 @@ class SalaryAdjustmentInputs extends TemplateInputs {
     required this.issueDate,
     this.reason = '',
     this.logoBytes,
+    this.companySignaturePngB64,
   }) : oldSalary = oldSalary ?? Decimal.zero,
        newSalary = newSalary ?? Decimal.zero;
 
@@ -120,6 +126,7 @@ class SalaryAdjustmentInputs extends TemplateInputs {
       effectiveDate: parseDate(json['effectiveDate']),
       issueDate: parseDate(json['issueDate']),
       reason: json['reason'] as String? ?? '',
+      companySignaturePngB64: json['companySignaturePngB64'] as String?,
     );
   }
 
@@ -146,6 +153,7 @@ class SalaryAdjustmentInputs extends TemplateInputs {
     DateTime? issueDate,
     String? reason,
     Uint8List? logoBytes,
+    String? companySignaturePngB64,
   }) => SalaryAdjustmentInputs(
     type: type ?? this.type,
     employeeId: employeeId ?? this.employeeId,
@@ -173,6 +181,8 @@ class SalaryAdjustmentInputs extends TemplateInputs {
     issueDate: issueDate ?? this.issueDate,
     reason: reason ?? this.reason,
     logoBytes: logoBytes ?? this.logoBytes,
+    companySignaturePngB64:
+        companySignaturePngB64 ?? this.companySignaturePngB64,
   );
 
   @override
@@ -180,6 +190,9 @@ class SalaryAdjustmentInputs extends TemplateInputs {
     'type': type.name,
     'employeeId': employeeId,
     'effective': effectiveDate.toIso8601String(),
+    'companySignaturePngB64': companySignaturePngB64 == null
+        ? null
+        : '<png b64, ${companySignaturePngB64!.length} chars>',
   };
 
   @override
@@ -205,6 +218,7 @@ class SalaryAdjustmentInputs extends TemplateInputs {
     'effectiveDate': effectiveDate.toIso8601String(),
     'issueDate': issueDate.toIso8601String(),
     'reason': reason,
+    'companySignaturePngB64': companySignaturePngB64,
   };
 }
 

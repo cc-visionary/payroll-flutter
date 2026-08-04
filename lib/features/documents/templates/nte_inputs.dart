@@ -38,6 +38,11 @@ class NteInputs extends TemplateInputs {
   final Uint8List? attachmentBytes;
   final String? attachmentCaption;
 
+  /// Base64 transparent-PNG signature of the company-side signatory,
+  /// snapshotted at generation so saved documents re-render as signed at
+  /// the time. Null (incl. legacy saved docs) → blank sign line.
+  final String? companySignaturePngB64;
+
   NteInputs({
     required this.employeeId,
     required this.employeeFullName,
@@ -58,6 +63,7 @@ class NteInputs extends TemplateInputs {
     this.logoBytes,
     this.attachmentBytes,
     this.attachmentCaption,
+    this.companySignaturePngB64,
   });
 
   factory NteInputs.fromJson(Map<String, dynamic> json) {
@@ -86,6 +92,7 @@ class NteInputs extends TemplateInputs {
           .toList(),
       // logoBytes is intentionally excluded from toJson (binary), so it
       // cannot be reconstructed here; it stays null.
+      companySignaturePngB64: json['companySignaturePngB64'] as String?,
     );
   }
 
@@ -114,6 +121,7 @@ class NteInputs extends TemplateInputs {
     Uint8List? logoBytes,
     Object? attachmentBytes = _undef,
     Object? attachmentCaption = _undef,
+    String? companySignaturePngB64,
   }) =>
       NteInputs(
         employeeId: employeeId ?? this.employeeId,
@@ -140,6 +148,8 @@ class NteInputs extends TemplateInputs {
         attachmentCaption: identical(attachmentCaption, _undef)
             ? this.attachmentCaption
             : attachmentCaption as String?,
+        companySignaturePngB64:
+            companySignaturePngB64 ?? this.companySignaturePngB64,
       );
 
   @override
@@ -148,6 +158,9 @@ class NteInputs extends TemplateInputs {
         'companyId': companyId,
         'chargeCount': charges.length,
         'violationCount': applicableViolations.length,
+        'companySignaturePngB64': companySignaturePngB64 == null
+            ? null
+            : '<png b64, ${companySignaturePngB64!.length} chars>',
       };
 
   @override
@@ -168,6 +181,7 @@ class NteInputs extends TemplateInputs {
         'subjectSubtopic': subjectSubtopic,
         'charges': charges.map((c) => c.toJson()).toList(),
         'applicableViolations': applicableViolations,
+        'companySignaturePngB64': companySignaturePngB64,
       };
 }
 

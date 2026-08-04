@@ -18,6 +18,11 @@ class CoeInputs extends TemplateInputs {
   final DateTime dateIssued;
   final Uint8List? logoBytes;
 
+  /// Base64 transparent-PNG signature of the company-side signatory,
+  /// snapshotted at generation so saved documents re-render as signed at
+  /// the time. Null (incl. legacy saved docs) → blank sign line.
+  final String? companySignaturePngB64;
+
   CoeInputs({
     required this.employeeId,
     required this.employeeFullName,
@@ -33,6 +38,7 @@ class CoeInputs extends TemplateInputs {
     this.dateEnd,
     required this.dateIssued,
     this.logoBytes,
+    this.companySignaturePngB64,
   });
 
   factory CoeInputs.fromJson(Map<String, dynamic> json) {
@@ -59,6 +65,7 @@ class CoeInputs extends TemplateInputs {
       dateIssued: parseDate(json['dateIssued'])!,
       // logoBytes is intentionally excluded from toJson (binary), so it
       // cannot be reconstructed here; it stays null.
+      companySignaturePngB64: json['companySignaturePngB64'] as String?,
     );
   }
 
@@ -77,6 +84,7 @@ class CoeInputs extends TemplateInputs {
     DateTime? dateEnd,
     DateTime? dateIssued,
     Uint8List? logoBytes,
+    String? companySignaturePngB64,
   }) =>
       CoeInputs(
         employeeId: employeeId ?? this.employeeId,
@@ -93,11 +101,19 @@ class CoeInputs extends TemplateInputs {
         dateEnd: dateEnd ?? this.dateEnd,
         dateIssued: dateIssued ?? this.dateIssued,
         logoBytes: logoBytes ?? this.logoBytes,
+        companySignaturePngB64:
+            companySignaturePngB64 ?? this.companySignaturePngB64,
       );
 
   @override
-  Map<String, dynamic> toDebugMap() =>
-      {'employeeId': employeeId, 'companyId': companyId, 'position': position};
+  Map<String, dynamic> toDebugMap() => {
+        'employeeId': employeeId,
+        'companyId': companyId,
+        'position': position,
+        'companySignaturePngB64': companySignaturePngB64 == null
+            ? null
+            : '<png b64, ${companySignaturePngB64!.length} chars>',
+      };
 
   @override
   Map<String, dynamic> toJson() => {
@@ -114,5 +130,6 @@ class CoeInputs extends TemplateInputs {
         'dateStart': dateStart?.toIso8601String(),
         'dateEnd': dateEnd?.toIso8601String(),
         'dateIssued': dateIssued.toIso8601String(),
+        'companySignaturePngB64': companySignaturePngB64,
       };
 }

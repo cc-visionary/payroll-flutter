@@ -94,6 +94,11 @@ class EmploymentContractInputs extends TemplateInputs {
   // Branding
   final Uint8List? logoBytes;
 
+  /// Base64 transparent-PNG signature of the company-side signatory,
+  /// snapshotted at generation so saved documents re-render as signed at
+  /// the time. Null (incl. legacy saved docs) → blank sign line.
+  final String? companySignaturePngB64;
+
   EmploymentContractInputs({
     this.employeeId,
     this.applicantId,
@@ -126,6 +131,7 @@ class EmploymentContractInputs extends TemplateInputs {
     this.responsibilities = const [],
     this.kpis = const [],
     this.logoBytes,
+    this.companySignaturePngB64,
   }) : assert(
           (employeeId == null) != (applicantId == null),
           'Exactly one of employeeId or applicantId must be set',
@@ -163,6 +169,7 @@ class EmploymentContractInputs extends TemplateInputs {
     List<ContractResponsibility>? responsibilities,
     List<ContractKpi>? kpis,
     Uint8List? logoBytes,
+    String? companySignaturePngB64,
   }) =>
       EmploymentContractInputs(
         employeeId: identical(employeeId, _unset)
@@ -208,6 +215,8 @@ class EmploymentContractInputs extends TemplateInputs {
         responsibilities: responsibilities ?? this.responsibilities,
         kpis: kpis ?? this.kpis,
         logoBytes: logoBytes ?? this.logoBytes,
+        companySignaturePngB64:
+            companySignaturePngB64 ?? this.companySignaturePngB64,
       );
 
   @override
@@ -221,6 +230,9 @@ class EmploymentContractInputs extends TemplateInputs {
         'trainingWage': trainingWage == null
             ? null
             : '${trainingWage!.dailyRate}/${trainingWage!.trainingDays}d',
+        'companySignaturePngB64': companySignaturePngB64 == null
+            ? null
+            : '<png b64, ${companySignaturePngB64!.length} chars>',
       };
 
   @override
@@ -255,6 +267,7 @@ class EmploymentContractInputs extends TemplateInputs {
         'missionStatement': missionStatement,
         'responsibilities': responsibilities.map((r) => r.toJson()).toList(),
         'kpis': kpis.map((k) => k.toJson()).toList(),
+        'companySignaturePngB64': companySignaturePngB64,
       };
 
   /// Reconstructs inputs from a persisted [toJson] snapshot
@@ -304,6 +317,7 @@ class EmploymentContractInputs extends TemplateInputs {
       kpis: ((j['kpis'] as List?) ?? const [])
           .map((e) => ContractKpi.fromJson((e as Map).cast<String, dynamic>()))
           .toList(),
+      companySignaturePngB64: j['companySignaturePngB64'] as String?,
     );
   }
 }
