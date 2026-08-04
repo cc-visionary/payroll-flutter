@@ -6,6 +6,7 @@ import '../../../../data/models/employee.dart';
 import '../../../../data/repositories/employee_statutory_id_repository.dart';
 import '../../../auth/profile_provider.dart';
 import '../providers.dart';
+import '../widgets/signatory_section.dart';
 
 class ProfileTab extends ConsumerWidget {
   final Employee employee;
@@ -153,6 +154,10 @@ class ProfileTab extends ConsumerWidget {
               ),
             ]),
           ),
+        ],
+        if (profile?.canManageEmployees ?? false) ...[
+          const SizedBox(height: 16),
+          SignatorySection(employee: employee),
         ],
       ],
     );
