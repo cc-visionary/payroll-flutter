@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
+import '../../../core/pdf/signature_png.dart';
 import '../brand_logo.dart';
 import '../blocks/block.dart';
 import '../blocks/heading_block.dart';
@@ -79,10 +80,11 @@ class NodTemplate extends DocumentTemplate<NodInputs> {
               c.province,
               c.zipCode,
             ),
-      hrManagerName: c?.hrManagerName ?? '',
+      hrManagerName: ctx.hrSignatory?.name ?? c?.hrManagerName ?? '',
       issueDate: today,
       effectiveDate: today,
       logoBytes: logo,
+      companySignaturePngB64: ctx.hrSignatory?.signaturePngB64,
     );
   }
 
@@ -136,7 +138,11 @@ class NodTemplate extends DocumentTemplate<NodInputs> {
       ),
       const SpacerBlock(40),
       MultiSignatureBlock([
-        SignatoryParty(name: i.hrManagerName, role: 'HR Manager'),
+        SignatoryParty(
+          name: i.hrManagerName,
+          role: 'HR Manager',
+          signatureImage: decodeSignaturePngB64(i.companySignaturePngB64),
+        ),
         SignatoryParty(
           name: i.employeeFullName,
           role: 'Employee (Acknowledged)',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
+import '../../../core/pdf/signature_png.dart';
 import '../brand_logo.dart';
 import '../blocks/block.dart';
 import '../blocks/emphasis_paragraph_block.dart';
@@ -117,7 +118,7 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
       companyId: co?.id ?? '',
       companyName: co?.name ?? '',
       companyAddress: co == null ? null : _addressOf(co),
-      hrManagerName: co?.hrManagerName,
+      hrManagerName: ctx.hrSignatory?.name ?? co?.hrManagerName,
       dateIssued: today,
       probationaryStart: probStart,
       probationaryEnd: probEnd,
@@ -127,6 +128,7 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
           : '${emp.honorific} ${emp.lastName}',
       findings: const [],
       logoBytes: logo,
+      companySignaturePngB64: ctx.hrSignatory?.signaturePngB64,
     );
   }
 
@@ -255,6 +257,7 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
       name: i.hrManagerName,
       role: 'HR Manager\n${i.companyName}',
       date: i.dateIssued,
+      signatureImage: decodeSignaturePngB64(i.companySignaturePngB64),
     ));
 
     // 21-30. Acknowledgment page.

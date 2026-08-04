@@ -2,6 +2,7 @@ import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
+import '../../../core/pdf/signature_png.dart';
 import '../../../data/models/role_scorecard.dart';
 import '../brand_logo.dart';
 import '../blocks/block.dart';
@@ -100,7 +101,7 @@ class RegularizationTemplate extends DocumentTemplate<RegularizationInputs> {
               c.province,
               c.zipCode,
             ),
-      hrManagerName: c?.hrManagerName ?? '',
+      hrManagerName: ctx.hrSignatory?.name ?? c?.hrManagerName ?? '',
       hireDate: e?.hireDate,
       regularizationDate: today,
       baseSalary:
@@ -108,6 +109,7 @@ class RegularizationTemplate extends DocumentTemplate<RegularizationInputs> {
       salaryPeriod: scorecard?.wageType ?? 'MONTHLY',
       issueDate: today,
       logoBytes: logo,
+      companySignaturePngB64: ctx.hrSignatory?.signaturePngB64,
     );
   }
 
@@ -178,7 +180,11 @@ class RegularizationTemplate extends DocumentTemplate<RegularizationInputs> {
     blocks.add(const SpacerBlock(40));
     blocks.add(
       MultiSignatureBlock([
-        SignatoryParty(name: i.hrManagerName, role: 'HR Manager'),
+        SignatoryParty(
+          name: i.hrManagerName,
+          role: 'HR Manager',
+          signatureImage: decodeSignaturePngB64(i.companySignaturePngB64),
+        ),
         SignatoryParty(
           name: i.employeeFullName,
           role: 'Employee (Acknowledged)',

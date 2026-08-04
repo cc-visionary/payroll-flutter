@@ -2,11 +2,13 @@ import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../../../core/pdf/signature_png.dart';
 import '../brand_logo.dart';
 import '../blocks/block.dart';
 import '../blocks/emphasis_paragraph_block.dart';
 import '../blocks/letterhead_block.dart';
 import '../blocks/paragraph_block.dart';
+import '../blocks/signature_image_block.dart';
 import '../blocks/spacer_block.dart';
 import '../blocks/title_block.dart';
 import 'coe_gates.dart';
@@ -63,13 +65,14 @@ class CoeTemplate extends DocumentTemplate<CoeInputs> {
       companyId: co?.id ?? '',
       companyName: co?.name ?? '',
       companyAddress: co == null ? null : _addressOf(co),
-      hrManagerName: co?.hrManagerName,
+      hrManagerName: ctx.hrSignatory?.name ?? co?.hrManagerName,
       position: emp.jobTitle ?? '',
       place: co == null ? '' : _addressOf(co),
       dateStart: emp.hireDate,
       dateEnd: emp.separationDate,
       dateIssued: DateTime.now(),
       logoBytes: logo,
+      companySignaturePngB64: ctx.hrSignatory?.signaturePngB64,
     );
   }
 
@@ -93,7 +96,8 @@ class CoeTemplate extends DocumentTemplate<CoeInputs> {
     final honor = i.employeeHonorific.isEmpty ? 'Mr./Ms.' : i.employeeHonorific;
     final start = i.dateStart == null ? '—' : fmt.format(i.dateStart!);
     final end = i.dateEnd == null ? '—' : fmt.format(i.dateEnd!);
-    return [
+    final sig = decodeSignaturePngB64(i.companySignaturePngB64);
+    final blocks = <Block>[
       if (i.logoBytes != null || i.companyName.isNotEmpty)
         LetterheadBlock(
           logoBytes: i.logoBytes,
@@ -129,7 +133,13 @@ class CoeTemplate extends DocumentTemplate<CoeInputs> {
         '${DateFormat('MMMM').format(issued)} ${issued.year} at ${i.place}.',
         align: pw.TextAlign.center,
       ),
-      const SpacerBlock(48),
+      if (sig == null)
+        const SpacerBlock(48)
+      else ...[
+        const SpacerBlock(12),
+        SignatureImageBlock(sig),
+        const SpacerBlock(2),
+      ],
       EmphasisParagraphBlock(
         spans: [EmphasisSpan((i.hrManagerName ?? '').toUpperCase(), bold: true)],
         align: pw.TextAlign.center,
@@ -139,6 +149,7 @@ class CoeTemplate extends DocumentTemplate<CoeInputs> {
         align: pw.TextAlign.center,
       ),
     ];
+    return blocks;
   }
 }
 

@@ -2,6 +2,7 @@ import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
+import '../../../core/pdf/signature_png.dart';
 import '../blocks/block.dart';
 import '../blocks/heading_block.dart';
 import '../blocks/key_value_block.dart';
@@ -100,7 +101,7 @@ class FinalPayTemplate extends DocumentTemplate<FinalPayInputs> {
               c.province,
               c.zipCode,
             ),
-      hrManagerName: c?.hrManagerName ?? '',
+      hrManagerName: ctx.hrSignatory?.name ?? c?.hrManagerName ?? '',
       lastNetPay: bd?.lastNetPay ?? Decimal.zero,
       thirteenthMonth: bd?.thirteenthMonth ?? Decimal.zero,
       unusedLeaveConversion: bd?.unusedLeaveConversion ?? Decimal.zero,
@@ -108,6 +109,7 @@ class FinalPayTemplate extends DocumentTemplate<FinalPayInputs> {
       computedAsOf: today,
       releaseDate: today.add(const Duration(days: 30)),
       logoBytes: logo,
+      companySignaturePngB64: ctx.hrSignatory?.signaturePngB64,
     );
   }
 
@@ -194,6 +196,7 @@ class FinalPayTemplate extends DocumentTemplate<FinalPayInputs> {
           name: i.hrManagerName,
           role: 'HR Manager',
           date: i.computedAsOf,
+          signatureImage: decodeSignaturePngB64(i.companySignaturePngB64),
         ),
         SignatoryParty(
           name: i.employeeFullName,

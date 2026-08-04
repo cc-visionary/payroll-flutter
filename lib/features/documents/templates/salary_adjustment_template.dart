@@ -2,6 +2,7 @@ import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
+import '../../../core/pdf/signature_png.dart';
 import '../../../data/models/compensation_change.dart';
 import '../../../data/models/role_scorecard.dart';
 import '../../../data/repositories/compensation_change_repository.dart';
@@ -156,8 +157,8 @@ class SalaryAdjustmentTemplate
               c.province,
               c.zipCode,
             ),
-      hrManagerName: c?.hrManagerName ?? '',
-      signatoryRole: 'HR Manager',
+      hrManagerName: ctx.hrSignatory?.name ?? c?.hrManagerName ?? '',
+      signatoryRole: ctx.hrSignatory?.title ?? 'HR Manager',
       workDaysPerMonth: kStandardWorkDaysPerMonth,
       oldRoleScorecardId: change?.prevScorecardId ?? e?.roleScorecardId,
       newRoleScorecardId: change?.newScorecardId,
@@ -173,6 +174,7 @@ class SalaryAdjustmentTemplate
       issueDate: today,
       reason: change?.reason ?? '',
       logoBytes: logo,
+      companySignaturePngB64: ctx.hrSignatory?.signaturePngB64,
     );
   }
 
@@ -254,7 +256,11 @@ class SalaryAdjustmentTemplate
       ),
       const SpacerBlock(40),
       MultiSignatureBlock([
-        SignatoryParty(name: i.hrManagerName, role: i.signatoryRole),
+        SignatoryParty(
+          name: i.hrManagerName,
+          role: i.signatoryRole,
+          signatureImage: decodeSignaturePngB64(i.companySignaturePngB64),
+        ),
         SignatoryParty(
           name: i.employeeFullName,
           role: 'Employee (Acknowledged)',

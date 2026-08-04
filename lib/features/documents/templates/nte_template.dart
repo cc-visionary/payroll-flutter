@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
 import '../../../core/pdf/interpolate.dart';
+import '../../../core/pdf/signature_png.dart';
 import '../brand_logo.dart';
 import '../blocks/block.dart';
 import '../blocks/bullet_list_block.dart';
@@ -86,13 +87,14 @@ class NteTemplate extends DocumentTemplate<NteInputs> {
       companyId: co?.id ?? '',
       companyName: co?.name ?? '',
       companyAddress: co == null ? null : _addressOf(co),
-      hrManagerName: co?.hrManagerName,
+      hrManagerName: ctx.hrSignatory?.name ?? co?.hrManagerName,
       dateIssued: today,
       responseDeadline: today.add(const Duration(days: 5)),
       subjectSubtopic: '',
       charges: const [],
       applicableViolations: const [],
       logoBytes: logo,
+      companySignaturePngB64: ctx.hrSignatory?.signaturePngB64,
     );
   }
 
@@ -156,6 +158,7 @@ class NteTemplate extends DocumentTemplate<NteInputs> {
       name: i.hrManagerName,
       role: 'HR Manager — ${i.companyName}',
       date: i.dateIssued,
+      signatureImage: decodeSignaturePngB64(i.companySignaturePngB64),
     ));
     blocks.add(const SpacerBlock(24));
     blocks.add(const MemoAcknowledgmentBlock());

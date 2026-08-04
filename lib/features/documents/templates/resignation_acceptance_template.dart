@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' show Icons, IconData;
 import 'package:intl/intl.dart';
 
+import '../../../core/pdf/signature_png.dart';
 import '../brand_logo.dart';
 import '../blocks/block.dart';
 import '../blocks/heading_block.dart';
@@ -78,11 +79,12 @@ class ResignationAcceptanceTemplate
               c.province,
               c.zipCode,
             ),
-      hrManagerName: c?.hrManagerName ?? '',
+      hrManagerName: ctx.hrSignatory?.name ?? c?.hrManagerName ?? '',
       resignationDate: today,
       lastDayOfWork: today.add(const Duration(days: 30)),
       issueDate: today,
       logoBytes: logo,
+      companySignaturePngB64: ctx.hrSignatory?.signaturePngB64,
     );
   }
 
@@ -156,7 +158,11 @@ class ResignationAcceptanceTemplate
     blocks.add(const SpacerBlock(40));
     blocks.add(
       MultiSignatureBlock([
-        SignatoryParty(name: i.hrManagerName, role: 'HR Manager'),
+        SignatoryParty(
+          name: i.hrManagerName,
+          role: 'HR Manager',
+          signatureImage: decodeSignaturePngB64(i.companySignaturePngB64),
+        ),
         SignatoryParty(
           name: i.employeeFullName,
           role: 'Employee (Acknowledged)',
