@@ -79,11 +79,14 @@ List<ResponsibilityArea> responsibilitiesFromTaskRows(List<Map<String, dynamic>>
 /// card's authored responsibilities, never interleave: a shared row must not
 /// reorder, reword, or otherwise alter the authored output (Risk #2 — this
 /// list feeds the role-card PDF and the employment contract's Annex A).
-/// A task with no `responsibility_area` lands in a "Shared" bucket.
+/// A task with no `responsibility_area` lands in the [fallbackArea] bucket
+/// ("Shared" by default; the contract's owned-task append passes
+/// "Additional Responsibilities").
 List<ResponsibilityArea> responsibilitiesFromAssignedTasks(
   String cardId,
-  List<WpTask> assignedToCard,
-) {
+  List<WpTask> assignedToCard, {
+  String fallbackArea = 'Shared',
+}) {
   final areaSort = <String, int>{};
   final byArea = <String, List<({int sort, String name, String id})>>{};
   for (final t in assignedToCard) {
@@ -91,7 +94,7 @@ List<ResponsibilityArea> responsibilitiesFromAssignedTasks(
     final name = t.name.trim();
     if (name.isEmpty) continue;
     final rawArea = t.responsibilityArea?.trim() ?? '';
-    final area = rawArea.isEmpty ? 'Shared' : rawArea;
+    final area = rawArea.isEmpty ? fallbackArea : rawArea;
     final prev = areaSort[area];
     areaSort[area] = prev == null || t.areaSort < prev ? t.areaSort : prev;
     (byArea[area] ??= []).add((sort: t.taskSort, name: name, id: t.id));
@@ -113,6 +116,36 @@ List<ResponsibilityArea> responsibilitiesFromAssignedTasks(
             .toList(),
       ),
   ];
+}
+
+/// Drops from [appended] any task whose trimmed, case-insensitive name
+/// already appears in [existing] or earlier in [appended]; prunes areas
+/// left empty. Order is otherwise preserved. The employment contract's
+/// Annex A uses this so a task that is both shared to the card and
+/// personally owned by the employee doesn't render twice.
+List<ResponsibilityArea> dedupeAppendedAreas(
+  List<ResponsibilityArea> existing,
+  List<ResponsibilityArea> appended,
+) {
+  final seen = <String>{
+    for (final a in existing)
+      for (final t in a.tasks) t.trim().toLowerCase(),
+  };
+  final out = <ResponsibilityArea>[];
+  for (final a in appended) {
+    final kept = <String>[];
+    for (final t in a.tasks) {
+      final key = t.trim().toLowerCase();
+      if (key.isEmpty || !seen.add(key)) continue;
+      kept.add(t);
+    }
+    if (kept.length == a.tasks.length) {
+      out.add(a); // untouched — preserve identity for callers and tests
+    } else if (kept.isNotEmpty) {
+      out.add(ResponsibilityArea(area: a.area, tasks: kept));
+    }
+  }
+  return out;
 }
 
 class KpiItem {

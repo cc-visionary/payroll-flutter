@@ -326,4 +326,63 @@ void main() {
       );
     },
   );
+
+  group('owned-task append primitives', () {
+    test('fallbackArea labels area-less tasks; default stays Shared', () {
+      const noArea = WpTask(
+        id: 't-x',
+        companyId: 'c1',
+        name: 'Ad-hoc vendor audit',
+        roleScorecardId: 'card-2',
+        areaSort: 5,
+        taskSort: 1,
+      );
+      expect(
+        responsibilitiesFromAssignedTasks('card-1', [noArea]).single.area,
+        'Shared',
+      );
+      expect(
+        responsibilitiesFromAssignedTasks(
+          'card-1',
+          [noArea],
+          fallbackArea: 'Additional Responsibilities',
+        ).single.area,
+        'Additional Responsibilities',
+      );
+    });
+
+    group('dedupeAppendedAreas', () {
+      const existing = [
+        ResponsibilityArea(
+            area: 'Ops', tasks: ['Pack orders', 'Book couriers']),
+      ];
+
+      test('drops case-insensitive/whitespace name collisions, prunes empty areas',
+          () {
+        final out = dedupeAppendedAreas(existing, const [
+          ResponsibilityArea(area: 'Logistics', tasks: ['  pack orders ']),
+        ]);
+        expect(out, isEmpty);
+      });
+
+      test('keeps non-colliding tasks in order, dedupes within appended', () {
+        final out = dedupeAppendedAreas(existing, const [
+          ResponsibilityArea(
+              area: 'Finance', tasks: ['Reconcile Xendit', 'Book couriers']),
+          ResponsibilityArea(area: 'Extra', tasks: ['Reconcile Xendit']),
+        ]);
+        expect(out.length, 1);
+        expect(out.single.area, 'Finance');
+        expect(out.single.tasks, ['Reconcile Xendit']);
+      });
+
+      test('empty appended → empty; empty existing keeps appended verbatim', () {
+        expect(dedupeAppendedAreas(existing, const []), isEmpty);
+        const appended = [
+          ResponsibilityArea(area: 'A', tasks: ['One', 'Two']),
+        ];
+        expect(dedupeAppendedAreas(const [], appended), appended);
+      });
+    });
+  });
 }
