@@ -68,7 +68,7 @@ New **"Authorized Signatory"** card on the employee profile (`lib/features/emplo
 
 ## 4. PDF signature blocks
 
-`SignatureBlock`, `MultiSignatureBlock`/`SignatoryParty`, and `CenteredSignatureBlock` (`lib/features/documents/blocks/`) gain an optional signature-image parameter (`Uint8List`), rendered overlapping the sign line — transparent PNG, ~40 pt tall, anchored so it sits on/above the line like a wet signature.
+`SignatureBlock`, `MultiSignatureBlock`/`SignatoryParty`, and `SignatureLineBlock`/`SignatoryLine` (`lib/features/documents/blocks/`) gain an optional signature-image parameter (`Uint8List`), rendered sitting on the sign line — transparent PNG, ~40 pt tall, like a wet signature. A new small `SignatureImageBlock` covers the COE, which renders its signatory as a centered name paragraph rather than a line block. (`CenteredSignatureBlock` is employee-side only — quitclaim — and stays untouched.)
 
 **Only company-side parties get the image.** Employee/counterparty lines always stay blank for physical signing.
 
