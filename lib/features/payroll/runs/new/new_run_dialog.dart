@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../data/models/payroll_run.dart';
 import '../../../../data/repositories/payroll_repository.dart';
 import '../../../auth/profile_provider.dart';
+import '../../../lark/lark_sync_bundle.dart';
 import '../compute/compute_service.dart';
 import 'default_pay_period.dart';
 
@@ -140,6 +141,22 @@ class _NewRunDialogState extends ConsumerState<_NewRunDialog> {
         _employeesError = err.toString();
       });
     }
+  }
+
+  /// Pulls attendance + leaves + reimbursements from Lark for the current pay
+  /// period — the same bundle as the Attendance screen's sync button — then
+  /// reloads the employee list so newly-synced attendance shows up without
+  /// closing and reopening the dialog.
+  Future<void> _syncFromLark() async {
+    if (_busy) return;
+    final ok = await runLarkBundleSync(
+      context,
+      ref,
+      companyId: widget.companyId,
+      from: _startDate,
+      to: _endDate,
+    );
+    if (ok && mounted) _reloadEmployees();
   }
 
   String get _derivedCode =>
@@ -312,6 +329,7 @@ class _NewRunDialogState extends ConsumerState<_NewRunDialog> {
                   error: _employeesError,
                   employees: _employees,
                   selectedIds: _selectedEmployeeIds,
+                  onSync: _busy ? null : _syncFromLark,
                   onToggle: (id) => setState(() {
                     if (_selectedEmployeeIds.contains(id)) {
                       _selectedEmployeeIds.remove(id);
@@ -576,6 +594,8 @@ class _EmployeesSection extends StatelessWidget {
   final String? error;
   final List<Map<String, dynamic>>? employees;
   final Set<String> selectedIds;
+  /// Null while the dialog is busy creating the run (sync disabled).
+  final VoidCallback? onSync;
   final ValueChanged<String> onToggle;
   final VoidCallback onSelectAll;
   final VoidCallback onDeselectAll;
@@ -585,6 +605,7 @@ class _EmployeesSection extends StatelessWidget {
     required this.error,
     required this.employees,
     required this.selectedIds,
+    required this.onSync,
     required this.onToggle,
     required this.onSelectAll,
     required this.onDeselectAll,
@@ -610,11 +631,17 @@ class _EmployeesSection extends StatelessWidget {
                   ),
             ),
             const Spacer(),
-            if (total > 0)
+            if (total > 0) ...[
+              TextButton.icon(
+                onPressed: onSync,
+                icon: const Icon(Icons.sync, size: 16),
+                label: const Text('Sync from Lark'),
+              ),
               TextButton(
                 onPressed: allSelected ? onDeselectAll : onSelectAll,
                 child: Text(allSelected ? 'Deselect All' : 'Select All'),
               ),
+            ],
           ],
         ),
         const SizedBox(height: 6),
@@ -662,12 +689,24 @@ class _EmployeesSection extends StatelessWidget {
     if (rows == null || rows.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(16),
-        child: Text(
-          'No employees have attendance in this range. Sync attendance from Lark or adjust the dates.',
-          style: TextStyle(
-            fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'No employees have attendance in this range. Sync from Lark for this pay period or adjust the dates.',
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 10),
+            FilledButton.tonalIcon(
+              onPressed: onSync,
+              icon: const Icon(Icons.sync, size: 16),
+              label: const Text('Sync attendance from Lark'),
+            ),
+          ],
         ),
       );
     }

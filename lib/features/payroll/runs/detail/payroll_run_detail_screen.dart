@@ -9,6 +9,7 @@ import '../../../../data/repositories/audit_repository.dart';
 import '../../../../data/repositories/payroll_repository.dart';
 import '../../../../widgets/syncing_dialog.dart';
 import '../../../auth/profile_provider.dart';
+import '../../../lark/lark_sync_bundle.dart';
 import '../compute/compute_service.dart';
 import '../../payslips/payslip_pdf_context.dart';
 import 'finance_export.dart';
@@ -369,17 +370,28 @@ class _ActionBar extends ConsumerWidget {
       spacing: 12,
       runSpacing: 12,
       children: [
-        if (status == 'DRAFT')
+        if (status == 'DRAFT') ...[
           FilledButton.icon(
             onPressed: () => _compute(context, ref),
             icon: const Icon(Icons.play_arrow, size: 16),
             label: const Text('Compute Payroll'),
           ),
+          OutlinedButton.icon(
+            onPressed: () => _syncAndRecompute(context, ref),
+            icon: const Icon(Icons.sync, size: 16),
+            label: const Text('Sync & Compute'),
+          ),
+        ],
         if (status == 'REVIEW') ...[
           OutlinedButton.icon(
             onPressed: () => _compute(context, ref, isRecompute: true),
             icon: const Icon(Icons.refresh, size: 16),
             label: const Text('Recompute'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () => _syncAndRecompute(context, ref),
+            icon: const Icon(Icons.sync, size: 16),
+            label: const Text('Sync & Recompute'),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -554,12 +566,60 @@ class _ActionBar extends ConsumerWidget {
     }
   }
 
+  /// "Sync & Compute/Recompute": pulls the Lark bundle (attendance + leaves +
+  /// reimbursements) for the run's pay period, then re-runs compute so the
+  /// payslips reflect what was just synced. On REVIEW runs the destructive
+  /// recompute is confirmed up front in one combined prompt — [_compute] is
+  /// then told to skip its own confirmation so the user isn't asked twice.
+  Future<void> _syncAndRecompute(BuildContext context, WidgetRef ref) async {
+    final profile = ref.read(userProfileProvider).asData?.value;
+    final companyId = profile?.companyId;
+    if (companyId == null || companyId.isEmpty) return;
+    final isRecompute = detail.run.status == 'REVIEW';
+    if (isRecompute) {
+      final ok = await showDialog<bool>(
+            context: context,
+            builder: (c) => AlertDialog(
+              title: const Text('Sync from Lark & recompute?'),
+              content: const Text(
+                'This pulls attendance, leaves, and reimbursements from Lark '
+                'for this pay period, then deletes the current payslips and '
+                'computes fresh ones. Approval statuses already sent to Lark '
+                'will be cleared.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(c, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(c, true),
+                  child: const Text('Sync & Recompute'),
+                ),
+              ],
+            ),
+          ) ??
+          false;
+      if (!ok || !context.mounted) return;
+    }
+    final synced = await runLarkBundleSync(
+      context,
+      ref,
+      companyId: companyId,
+      from: detail.payPeriodStart,
+      to: detail.payPeriodEnd,
+    );
+    if (!synced || !context.mounted) return;
+    await _compute(context, ref, isRecompute: isRecompute, skipConfirm: true);
+  }
+
   Future<void> _compute(
     BuildContext context,
     WidgetRef ref, {
     bool isRecompute = false,
+    bool skipConfirm = false,
   }) async {
-    if (isRecompute) {
+    if (isRecompute && !skipConfirm) {
       final ok = await showDialog<bool>(
             context: context,
             builder: (c) => AlertDialog(
