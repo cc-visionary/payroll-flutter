@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import 'adjuncts_repository.dart' show AdjunctDeleteException;
+
 /// Result of persisting a generated document's settings: the saved row id.
 ///
 /// The PDF itself is never stored — it is always rendered on the fly — so the
@@ -136,6 +138,25 @@ class EmployeeDocumentRepository {
           .update(payload)
           .eq('id', sessionRecordId);
       return SavedDocument(id: sessionRecordId);
+    }
+  }
+
+  /// Hard-deletes one document record via the `delete_employee_document` RPC
+  /// (migration 20260806000001). Unlinks the workflow step that produced it and
+  /// any successor that supersedes it, then removes the row.
+  ///
+  /// This is the manual counterpart to the penalty-workflow cascade: for
+  /// paperwork left stranded when whatever it documented was removed by hand.
+  Future<void> deleteDocument(String id) async {
+    try {
+      await _client.rpc('delete_employee_document', params: {'p_id': id});
+    } on PostgrestException catch (e) {
+      if (e.message.contains('DELETE_FORBIDDEN')) {
+        throw AdjunctDeleteException(
+          'You do not have permission to delete this document.',
+        );
+      }
+      throw AdjunctDeleteException("Couldn't delete this document.");
     }
   }
 }

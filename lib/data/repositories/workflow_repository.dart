@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/workflow_instance.dart';
 import '../models/workflow_step.dart';
+import 'adjuncts_repository.dart' show AdjunctDeleteException;
 import 'compensation_change_repository.dart'
     show DeleteForbiddenException, deleteForbiddenFrom;
 
@@ -263,6 +264,44 @@ class WorkflowRepository {
       if (forbidden != null) throw forbidden;
       rethrow;
     }
+  }
+
+  /// Hard-deletes a CANCELLED REPAYMENT_AGREEMENT workflow together with the
+  /// agreement it generated AND the penalty it documents (installments cascade)
+  /// — the penalty equivalent of `deleteChange` for comp-linked workflows.
+  ///
+  /// The RPC guards the penalty before touching anything, so a penalty already
+  /// deducted or sitting on a run aborts the whole delete rather than leaving
+  /// the workflow half-removed. A penalty deleted by hand beforehand is not an
+  /// error: the workflow and document still get cleaned up.
+  ///
+  /// Throws [AdjunctDeleteException] with a user-facing message on every
+  /// guard, mirroring how the Adjuncts screen reports a refused delete.
+  Future<void> deletePenaltyWorkflow(String instanceId) async {
+    try {
+      await _client
+          .rpc('delete_penalty_workflow', params: {'p_instance_id': instanceId});
+    } on PostgrestException catch (e) {
+      throw AdjunctDeleteException(_penaltyWorkflowDeleteMessage(e.message));
+    }
+  }
+
+  String _penaltyWorkflowDeleteMessage(String raw) {
+    if (raw.contains('RELEASED_PAYROLL')) {
+      return "Can't delete — this penalty is already deducted on a released "
+          'payslip. Cancel the penalty instead of deleting it.';
+    }
+    if (raw.contains('ON_PAYROLL_RUN')) {
+      return "Can't delete — this penalty is on an unreleased payroll run. "
+          'Discard or recompute that run first.';
+    }
+    if (raw.contains('WORKFLOW_NOT_CANCELLED')) {
+      return 'Cancel the workflow before deleting it.';
+    }
+    if (raw.contains('DELETE_FORBIDDEN')) {
+      return 'You do not have permission to delete this workflow.';
+    }
+    return "Couldn't delete this workflow.";
   }
 
   /// Undo a mistaken completion: revert the most-recently-finished step back to

@@ -6,12 +6,15 @@ import '../../app/status_colors.dart';
 import '../../data/models/compensation_change.dart';
 import '../../data/models/workflow_instance.dart';
 import '../../data/models/workflow_step.dart';
+import '../../data/repositories/adjuncts_repository.dart'
+    show AdjunctDeleteException;
 import '../../data/repositories/compensation_change_repository.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../data/repositories/workflow_repository.dart';
 import '../auth/profile_provider.dart';
 import '../documents/providers.dart' show allDocumentsProvider;
-import '../employees/profile/providers.dart' show employeeDocumentsProvider, timelineProvider;
+import '../employees/profile/providers.dart'
+    show employeeDocumentsProvider, financialsByEmployeeProvider, timelineProvider;
 import 'generate_url.dart';
 import 'remarks_dialog.dart';
 
@@ -214,12 +217,19 @@ class _Body extends ConsumerWidget {
         await ref.read(compensationChangeByWorkflowProvider(w.id).future);
     if (!context.mounted) return;
 
+    final isPenalty = w.workflowType == 'REPAYMENT_AGREEMENT';
     final body = change != null
         ? 'This permanently deletes the workflow, its steps, and the linked '
             'compensation change — including its notice document and timeline '
             'entry. This cannot be undone.'
-        : 'This permanently deletes the workflow and its steps. This cannot be '
-            'undone.';
+        : isPenalty
+            ? 'This permanently deletes the workflow, its steps, the repayment '
+                'agreement it generated, and the penalty itself with its '
+                'installment schedule. This cannot be undone.\n\n'
+                'Blocked if any installment has already been deducted or is '
+                'sitting on a payroll run.'
+            : 'This permanently deletes the workflow and its steps. This cannot '
+                'be undone.';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dctx) => AlertDialog(
@@ -248,9 +258,16 @@ class _Body extends ConsumerWidget {
         await ref
             .read(compensationChangeRepositoryProvider)
             .deleteChange(change.id);
+      } else if (isPenalty) {
+        // Takes the agreement and the penalty with it, the same way the
+        // comp-linked path takes the change, its notice, and its event.
+        await ref.read(workflowRepositoryProvider).deletePenaltyWorkflow(w.id);
       } else {
         await ref.read(workflowRepositoryProvider).deleteWorkflow(w.id);
       }
+    } on AdjunctDeleteException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      return;
     } on ReleasedPayrollException catch (e) {
       messenger.showSnackBar(SnackBar(
         content: Text(
@@ -270,6 +287,13 @@ class _Body extends ConsumerWidget {
     }
 
     ref.invalidate(workflowListProvider);
+    if (isPenalty) {
+      // The agreement and the penalty went with it — refresh the Documents
+      // list and the employee's Financials tab so neither shows a ghost.
+      ref.invalidate(employeeDocumentsProvider(w.employeeId));
+      ref.invalidate(allDocumentsProvider);
+      ref.invalidate(financialsByEmployeeProvider);
+    }
     if (change != null) {
       // Comp-linked delete also removed the change's notice document and
       // timeline entry (delete_compensation_change RPC) — refresh every

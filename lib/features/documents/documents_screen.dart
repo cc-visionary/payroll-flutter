@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../data/repositories/adjuncts_repository.dart'
+    show AdjunctDeleteException;
+import '../../data/repositories/employee_document_repository.dart';
 import '../auth/profile_provider.dart';
+import '../employees/profile/providers.dart' show employeeDocumentsProvider;
 import '../employees/profile/widgets/info_card.dart';
 import 'providers.dart';
 import 'templates/template_picker_field.dart';
@@ -180,12 +184,62 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
   }
 }
 
-class _RegistryRow extends StatelessWidget {
+class _RegistryRow extends ConsumerWidget {
   final DocumentRegistryEntry entry;
   const _RegistryRow({required this.entry});
 
+  /// Removes the document record. Meant for paperwork left stranded when what
+  /// it documented was deleted by hand — a penalty cleared off the Financials
+  /// tab leaves its agreement behind, and nothing else in the app can remove
+  /// one. Deleting a penalty's workflow takes its agreement automatically.
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Delete this document record?'),
+        content: Text(
+          '"${entry.title}" is removed from Documents on File. The generated '
+          'PDF is rebuilt on demand and is not stored, so nothing else is '
+          'lost. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(c).colorScheme.error,
+              foregroundColor: Theme.of(c).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref
+          .read(employeeDocumentRepositoryProvider)
+          .deleteDocument(entry.id);
+    } on AdjunctDeleteException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      return;
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+      return;
+    }
+    ref.invalidate(allDocumentsProvider);
+    ref.invalidate(employeeDocumentsProvider(entry.employeeId));
+    messenger.showSnackBar(const SnackBar(content: Text('Document deleted.')));
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final canManage =
+        ref.watch(userProfileProvider).asData?.value?.isHrOrAdmin ?? false;
     final created = entry.createdAt;
     final meta = [
       if (entry.documentType.isNotEmpty) entry.documentType,
@@ -236,6 +290,13 @@ class _RegistryRow extends StatelessWidget {
                 label: entry.status,
                 tone: toneForStatus(entry.status),
               ),
+              if (canManage)
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  tooltip: 'Delete document record',
+                  color: Theme.of(context).colorScheme.error,
+                  onPressed: () => _confirmDelete(context, ref),
+                ),
               const SizedBox(width: 8),
               Icon(
                 Icons.chevron_right,
