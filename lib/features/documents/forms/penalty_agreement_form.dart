@@ -56,6 +56,25 @@ class _PenaltyAgreementFormState extends ConsumerState<PenaltyAgreementForm> {
     widget.onChanged(next);
   }
 
+  /// Move one installment to a different payroll cut-off. The projected 15th /
+  /// month-end defaults are a best guess — a skipped period or an agreed
+  /// deferral needs HR to say so on the agreement itself.
+  Future<void> _pickCutoff(int index) async {
+    final line = _i.installments[index];
+    final initial = line.scheduledDate ?? _i.effectiveDate;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(initial.year - 2),
+      lastDate: DateTime(initial.year + 5),
+      helpText: 'Payroll cut-off for installment ${line.number}',
+    );
+    if (picked == null) return;
+    final next = [..._i.installments];
+    next[index] = line.copyWith(scheduledDate: picked);
+    _set(_i.copyWith(installments: next));
+  }
+
   String? _errFor(String field) {
     for (final e in validatePenaltyAgreement(_i)) {
       if (e.field == field) return e.message;
@@ -184,8 +203,9 @@ class _PenaltyAgreementFormState extends ConsumerState<PenaltyAgreementForm> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Read-only — the schedule comes from the penalty record. Edit it '
-            'on the employee’s Financials tab.',
+            'Amounts come from the penalty record — edit those on the '
+            'employee’s Financials tab. Cut-off dates default to the 15th and '
+            'month-end from the effective date; tap one to move it.',
             style: TextStyle(
               fontSize: 12,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -201,7 +221,7 @@ class _PenaltyAgreementFormState extends ConsumerState<PenaltyAgreementForm> {
               ),
             )
           else
-            for (final l in _i.installments)
+            for (var idx = 0; idx < _i.installments.length; idx++)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
@@ -209,13 +229,31 @@ class _PenaltyAgreementFormState extends ConsumerState<PenaltyAgreementForm> {
                     SizedBox(
                       width: 40,
                       child: Text(
-                        '${l.number}.',
+                        '${_i.installments[idx].number}.',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
-                    Expanded(child: Text(money.format(l.amount.toDouble()))),
+                    SizedBox(
+                      width: 96,
+                      child: Text(
+                        money.format(_i.installments[idx].amount.toDouble()),
+                      ),
+                    ),
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => _pickCutoff(idx),
+                        child: Text(
+                          _i.installments[idx].scheduledDate == null
+                              ? 'Set cut-off'
+                              : DateFormat('MMM d, yyyy')
+                                  .format(_i.installments[idx].scheduledDate!),
+                        ),
+                      ),
+                    ),
                     Text(
-                      l.isDeducted ? 'Deducted' : 'Scheduled',
+                      _i.installments[idx].isDeducted
+                          ? 'Deducted'
+                          : 'Scheduled',
                       style: TextStyle(
                         fontSize: 12,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,

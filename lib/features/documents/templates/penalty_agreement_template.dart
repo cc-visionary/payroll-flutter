@@ -19,6 +19,7 @@ import '../providers.dart';
 import 'document_template.dart';
 import 'penalty_agreement_inputs.dart';
 import 'penalty_agreement_validate.dart';
+import 'penalty_schedule_dates.dart';
 
 class PenaltyAgreementTemplate
     extends DocumentTemplate<PenaltyAgreementInputs> {
@@ -120,14 +121,7 @@ class PenaltyAgreementTemplate
       totalAmount: p?.totalAmount ?? Decimal.zero,
       effectiveDate: p?.effectiveDate ?? today,
       remarks: p?.remarks,
-      installments: [
-        for (final r in p?.installments ?? const <PenaltyInstallmentRow>[])
-          PenaltyInstallmentLine(
-            number: r.number,
-            amount: r.amount,
-            isDeducted: r.isDeducted,
-          ),
-      ],
+      installments: _scheduleLines(p, fallbackFrom: today),
       logoBytes: logo,
       companySignaturePngB64: ctx.hrSignatory?.signaturePngB64,
       employeeSignaturePngB64: e?.signaturePngB64,
@@ -156,10 +150,15 @@ class PenaltyAgreementTemplate
         : i.companyName.trim();
     final remarks = (i.remarks ?? '').trim();
 
+    // Legacy saved agreements have no dates on their lines; drop the column
+    // entirely rather than printing a blank one.
+    final hasDates = i.installments.any((l) => l.scheduledDate != null);
     final rows = <List<String>>[
       for (final l in i.installments)
         [
           l.number.toString(),
+          if (hasDates)
+            l.scheduledDate == null ? '—' : dateFmt.format(l.scheduledDate!),
           fmtMoney(l.amount),
           l.isDeducted ? 'Deducted' : 'Scheduled',
         ],
@@ -199,7 +198,12 @@ class PenaltyAgreementTemplate
       const HeadingBlock('Repayment Schedule'),
       const SpacerBlock(8),
       TableBlock(
-        headers: const ['Installment', 'Amount', 'Status'],
+        headers: [
+          'Installment',
+          if (hasDates) 'Payroll Cut-Off',
+          'Amount',
+          'Status',
+        ],
         rows: rows,
       ),
       const SpacerBlock(16),
@@ -207,7 +211,7 @@ class PenaltyAgreementTemplate
       // Authorization paragraph — the Art. 113 written consent.
       ParagraphBlock(
         'I authorize $employer to deduct the amounts shown in the schedule '
-        'above from my salary on the corresponding payroll cut-offs, until the '
+        'above from my salary on the payroll cut-offs indicated, until the '
         'total of ${fmtMoney(i.totalAmount)} is fully repaid. I confirm that I '
         'have read and understood this agreement, that I enter into it '
         'voluntarily, and that the deductions above are made with my written '
@@ -235,6 +239,32 @@ class PenaltyAgreementTemplate
       ]),
     ];
   }
+}
+
+/// Installment rows with a projected payroll cut-off on each. The penalty's
+/// installments carry no dates in the database — deduction timing emerges from
+/// which payroll run picks them up — so the agreement states the standard
+/// semi-monthly cut-offs from the effective date onward. HR can overwrite any
+/// row on the form.
+List<PenaltyInstallmentLine> _scheduleLines(
+  PenaltyRecord? p, {
+  required DateTime fallbackFrom,
+}) {
+  final rows = p?.installments ?? const <PenaltyInstallmentRow>[];
+  if (rows.isEmpty) return const [];
+  final dates = projectedCutoffDates(
+    from: p?.effectiveDate ?? fallbackFrom,
+    count: rows.length,
+  );
+  return [
+    for (var idx = 0; idx < rows.length; idx++)
+      PenaltyInstallmentLine(
+        number: rows[idx].number,
+        amount: rows[idx].amount,
+        isDeducted: rows[idx].isDeducted,
+        scheduledDate: idx < dates.length ? dates[idx] : null,
+      ),
+  ];
 }
 
 String _composeAddress(

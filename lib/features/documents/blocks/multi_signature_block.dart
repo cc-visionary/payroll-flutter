@@ -35,13 +35,20 @@ class MultiSignatureBlock extends Block {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  if (s.signatureImage != null)
-                    pw.Container(
-                      height: 40,
-                      alignment: pw.Alignment.bottomLeft,
-                      child: pw.Image(pw.MemoryImage(s.signatureImage!),
-                          height: 38, fit: pw.BoxFit.contain),
-                    ),
+                  // The signature strip is reserved for EVERY party, signed or
+                  // not. Sizing it only when an image exists let unsigned
+                  // parties float 40pt up, so a document signed on one side
+                  // came out with its two sign lines at different heights.
+                  // Reserving it also leaves an unsigned party room to sign by
+                  // hand.
+                  pw.Container(
+                    height: 40,
+                    alignment: pw.Alignment.bottomLeft,
+                    child: s.signatureImage == null
+                        ? null
+                        : pw.Image(pw.MemoryImage(s.signatureImage!),
+                            height: 38, fit: pw.BoxFit.contain),
+                  ),
                   pw.Text(
                     s.name ?? '',
                     style: pw.TextStyle(

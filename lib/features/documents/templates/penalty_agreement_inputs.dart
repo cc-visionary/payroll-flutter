@@ -12,16 +12,32 @@ class PenaltyInstallmentLine {
   final int number;
   final Decimal amount;
   final bool isDeducted;
+
+  /// The payroll cut-off this installment is scheduled to come out on.
+  /// Defaulted from [projectedCutoffDates] at autofill and overridable per row
+  /// on the form. Null on legacy saved agreements, which print no date column.
+  final DateTime? scheduledDate;
+
   const PenaltyInstallmentLine({
     required this.number,
     required this.amount,
     this.isDeducted = false,
+    this.scheduledDate,
   });
+
+  PenaltyInstallmentLine copyWith({DateTime? scheduledDate}) =>
+      PenaltyInstallmentLine(
+        number: number,
+        amount: amount,
+        isDeducted: isDeducted,
+        scheduledDate: scheduledDate ?? this.scheduledDate,
+      );
 
   Map<String, dynamic> toJson() => {
     'number': number,
     'amount': amount.toString(),
     'isDeducted': isDeducted,
+    'scheduledDate': scheduledDate?.toIso8601String(),
   };
 
   factory PenaltyInstallmentLine.fromJson(Map<String, dynamic> json) =>
@@ -29,6 +45,10 @@ class PenaltyInstallmentLine {
         number: (json['number'] as num?)?.toInt() ?? 0,
         amount: Decimal.parse((json['amount'] as String?) ?? '0'),
         isDeducted: (json['isDeducted'] as bool?) ?? false,
+        scheduledDate: switch (json['scheduledDate']) {
+          final String s when s.isNotEmpty => DateTime.tryParse(s),
+          _ => null,
+        },
       );
 }
 

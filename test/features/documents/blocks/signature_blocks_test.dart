@@ -1,9 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/core/pdf/pdf_theme.dart';
 import 'package:payroll_flutter/features/documents/blocks/signature_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/multi_signature_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/receipt_block.dart';
 import 'package:payroll_flutter/features/documents/blocks/refusal_clause_block.dart';
+
+final _onePixelPng = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+);
 
 void main() {
   test('SignatureBlock stores fields', () {
@@ -31,6 +37,23 @@ void main() {
       () => const MultiSignatureBlock([party]).toPdf(theme),
       returnsNormally,
     );
+  });
+
+  test('MultiSignatureBlock renders a mixed signed/unsigned pair', () {
+    // A one-sided signature used to shift that party's sign line 40pt down
+    // relative to the unsigned one; the strip is now reserved for every party.
+    final theme = PdfTheme.testStub();
+    final signed = MultiSignatureBlock([
+      SignatoryParty(
+        name: 'Brixter',
+        role: 'HR Manager',
+        signatureImage: _onePixelPng,
+      ),
+      const SignatoryParty(name: 'Christopher', role: 'Employee (Conforme)'),
+    ]);
+    expect(() => signed.toPdf(theme), returnsNormally);
+    expect(signed.signatories.first.signatureImage, isNotNull);
+    expect(signed.signatories.last.signatureImage, isNull);
   });
 
   test('ReceiptBlock holds field list', () {
