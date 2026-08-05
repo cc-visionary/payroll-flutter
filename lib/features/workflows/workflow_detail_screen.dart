@@ -13,6 +13,7 @@ import '../auth/profile_provider.dart';
 import '../documents/providers.dart' show allDocumentsProvider;
 import '../employees/profile/providers.dart' show employeeDocumentsProvider, timelineProvider;
 import 'generate_url.dart';
+import 'remarks_dialog.dart';
 
 class WorkflowDetailScreen extends ConsumerWidget {
   final String instanceId;
@@ -182,14 +183,26 @@ class _Body extends ConsumerWidget {
   }
 
   Future<void> _cancelWorkflow(BuildContext context, WidgetRef ref) async {
-    final reason = await _remarksDialog(context, 'Cancel this workflow?', 'Cancellation reason (required)', requireNonEmpty: true);
+    final messenger = ScaffoldMessenger.of(context);
+    final reason = await showRemarksDialog(context, 'Cancel this workflow?', 'Cancellation reason (required)', requireNonEmpty: true);
     if (reason == null) return;
-    await ref.read(workflowRepositoryProvider).cancelInstance(
-          instanceId: w.id,
-          cancelReason: reason.trim(),
-        );
+    // Without this the write's failure went nowhere — an RLS refusal or a
+    // dropped connection looked identical to success, since the only feedback
+    // was the status chip quietly not changing.
+    try {
+      await ref.read(workflowRepositoryProvider).cancelInstance(
+            instanceId: w.id,
+            cancelReason: reason.trim(),
+          );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Cancel failed: $e')));
+      return;
+    }
     ref.invalidate(workflowByIdProvider(w.id));
     ref.invalidate(workflowListProvider);
+    messenger.showSnackBar(const SnackBar(
+      content: Text('Workflow cancelled. You can now delete it.'),
+    ));
   }
 
   Future<void> _deleteWorkflow(BuildContext context, WidgetRef ref) async {
@@ -622,7 +635,7 @@ class _StepActions extends ConsumerWidget {
   }
 
   Future<void> _markComplete(BuildContext context, WidgetRef ref) async {
-    final remarks = await _remarksDialog(context, 'Mark step complete?', 'Remarks (optional)');
+    final remarks = await showRemarksDialog(context, 'Mark step complete?', 'Remarks (optional)');
     if (remarks == null) return;
     final profile = ref.read(userProfileProvider).asData!.value!;
     await ref.read(workflowRepositoryProvider).markStepCompleted(
@@ -638,7 +651,7 @@ class _StepActions extends ConsumerWidget {
   }
 
   Future<void> _approve(BuildContext context, WidgetRef ref) async {
-    final remarks = await _remarksDialog(context, 'Approve this step?', 'Approval remarks (optional)');
+    final remarks = await showRemarksDialog(context, 'Approve this step?', 'Approval remarks (optional)');
     if (remarks == null) return;
     final profile = ref.read(userProfileProvider).asData!.value!;
     await ref.read(workflowRepositoryProvider).markStepCompleted(
@@ -653,7 +666,7 @@ class _StepActions extends ConsumerWidget {
   }
 
   Future<void> _reject(BuildContext context, WidgetRef ref) async {
-    final remarks = await _remarksDialog(context, 'Reject this step?', 'Rejection reason (required)', requireNonEmpty: true);
+    final remarks = await showRemarksDialog(context, 'Reject this step?', 'Rejection reason (required)', requireNonEmpty: true);
     if (remarks == null) return;
     final profile = ref.read(userProfileProvider).asData!.value!;
     await ref.read(workflowRepositoryProvider).markStepRejected(
@@ -667,7 +680,7 @@ class _StepActions extends ConsumerWidget {
   }
 
   Future<void> _skip(BuildContext context, WidgetRef ref) async {
-    final remarks = await _remarksDialog(context, 'Skip this step?', 'Skip reason (optional)');
+    final remarks = await showRemarksDialog(context, 'Skip this step?', 'Skip reason (optional)');
     if (remarks == null) return;
     final profile = ref.read(userProfileProvider).asData!.value!;
     await ref.read(workflowRepositoryProvider).markStepSkipped(
@@ -679,43 +692,5 @@ class _StepActions extends ConsumerWidget {
     ref.invalidate(workflowStepsProvider(workflow.id));
     ref.invalidate(workflowByIdProvider(workflow.id));
     ref.invalidate(workflowListProvider);
-  }
-}
-
-Future<String?> _remarksDialog(
-  BuildContext context,
-  String title,
-  String label, {
-  bool requireNonEmpty = false,
-}) async {
-  final ctl = TextEditingController();
-  try {
-    return await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: ctl,
-          autofocus: true,
-          maxLines: 3,
-          decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(null),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (requireNonEmpty && ctl.text.trim().isEmpty) return;
-              Navigator.of(ctx).pop(ctl.text);
-            },
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
-    );
-  } finally {
-    ctl.dispose();
   }
 }
