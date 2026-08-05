@@ -13,6 +13,7 @@ import '../../../auth/profile_provider.dart';
 import '../../../workflows/seeders.dart';
 import '../providers.dart';
 import 'info_card.dart';
+import 'penalty_workflow_action.dart';
 
 /// Back link + name/title block + action buttons + four info cards.
 /// Pure layout — all data comes in via props so this works in tests too.
@@ -138,13 +139,7 @@ class ProfileHeader extends ConsumerWidget {
       children: [
         if (canManage)
           OutlinedButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content:
-                        Text('Workflow launcher — coming soon.')),
-              );
-            },
+            onPressed: () => _startWorkflow(context, ref, isAdmin: isAdmin),
             child: const Text('Start Workflow'),
           ),
         if (canManage)
@@ -277,6 +272,70 @@ class ProfileHeader extends ConsumerWidget {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
+  }
+
+  /// Workflow launcher. Every workflow is a side effect of the HR action that
+  /// justifies it — there is no "blank workflow" to create — so this routes to
+  /// the action that seeds each type rather than inserting an empty instance.
+  /// Hiring is absent by design: that workflow is seeded by converting an
+  /// applicant, which happens before an employee record exists.
+  Future<void> _startWorkflow(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool isAdmin,
+  }) async {
+    final isActive = employee.employmentStatus == 'ACTIVE';
+    // Captured before the await: the tab controller belongs to the profile
+    // screen above this widget and is unreachable from the dialog's context.
+    final tabs = DefaultTabController.maybeOf(context);
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (c) => SimpleDialog(
+        title: const Text('Start Workflow'),
+        children: [
+          _WorkflowChoice(
+            title: 'Penalty Repayment Agreement',
+            subtitle:
+                'Record a penalty, then generate the agreement to sign.',
+            onTap: () => Navigator.pop(c, 'penalty'),
+          ),
+          _WorkflowChoice(
+            title: 'Compensation / Role Change',
+            subtitle: 'Salary adjustment, promotion, or transfer notice.',
+            onTap: () => Navigator.pop(c, 'compensation'),
+          ),
+          if (isAdmin && isActive)
+            _WorkflowChoice(
+              title: 'Separation',
+              subtitle: 'Final pay, quitclaim, and clearance documents.',
+              onTap: () => Navigator.pop(c, 'separation'),
+            ),
+        ],
+      ),
+    );
+    if (choice == null || !context.mounted) return;
+    switch (choice) {
+      case 'penalty':
+        await runPenaltyWorkflow(
+          ref: ref,
+          context: context,
+          employee: employee,
+        );
+      case 'compensation':
+        // The change dialog lives on the Role & Responsibilities tab, where
+        // the current scorecard it needs is already loaded.
+        tabs?.animateTo(3);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+              'Use "Change Compensation / Role" on this tab to start the '
+              'workflow.',
+            ),
+          ));
+        }
+      case 'separation':
+        await _confirmSeparate(context, ref);
+    }
   }
 
   Future<void> _confirmSeparate(BuildContext context, WidgetRef ref) async {
@@ -605,4 +664,25 @@ class _DocOption {
   final String code;
   final String label;
   const _DocOption(this.code, this.label);
+}
+
+/// One row in the Start Workflow picker.
+class _WorkflowChoice extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  const _WorkflowChoice({
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
+      onTap: onTap,
+    );
+  }
 }

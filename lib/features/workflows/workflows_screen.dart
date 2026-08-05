@@ -80,7 +80,7 @@ class _HintBanner extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Workflows are created automatically when you confirm a separation or convert an applicant. No manual create in v1.',
+              'Workflows start from the HR action that justifies them — use "Start Workflow" on an employee\'s profile, convert an applicant, or record a penalty.',
               style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ),
