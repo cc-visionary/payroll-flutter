@@ -17,6 +17,8 @@ import '../templates/non_reg_inputs.dart';
 import '../templates/non_reg_template.dart';
 import '../templates/nte_inputs.dart';
 import '../templates/nte_template.dart';
+import '../templates/penalty_agreement_inputs.dart';
+import '../templates/penalty_agreement_template.dart';
 import '../templates/quitclaim_inputs.dart';
 import '../templates/quitclaim_template.dart';
 import '../templates/regularization_inputs.dart';
@@ -49,6 +51,7 @@ const Set<String> kReRenderableSavedTemplateIds = {
   'nda',
   'nod',
   'final_pay',
+  'penalty_agreement',
   'quitclaim',
   'regularization',
   'resignation_acceptance',
@@ -100,6 +103,10 @@ List<Block> blocksForSavedDocument(
     case 'final_pay':
       return const FinalPayTemplate()
           .build(FinalPayInputs.fromJson(o).copyWith(logoBytes: logoBytes));
+    case 'penalty_agreement':
+      return const PenaltyAgreementTemplate()
+          .build(PenaltyAgreementInputs.fromJson(o)
+              .copyWith(logoBytes: logoBytes));
     case 'quitclaim':
       return const QuitclaimTemplate()
           .build(QuitclaimInputs.fromJson(o).copyWith(logoBytes: logoBytes));

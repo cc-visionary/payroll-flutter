@@ -41,6 +41,29 @@ void main() {
     expect(seed.steps, isEmpty);
   });
 
+  test('seedPenaltyWorkflow produces a generate step then a signature approval', () {
+    final seed = seedPenaltyWorkflow(
+      companyId: 'c1',
+      employeeId: 'e1',
+      employeeFullName: 'Gylian Gangawan',
+      penaltyId: 'p1',
+      employeeDocumentId: 'd1',
+      initiatedById: 'u1',
+    );
+    expect(seed.instance.workflowType, 'REPAYMENT_AGREEMENT');
+    expect(seed.instance.title, 'Penalty Repayment — Gylian Gangawan');
+    expect(seed.instance.context['penalty_id'], 'p1');
+    expect(seed.steps.length, 2);
+    expect(seed.steps[0].stepType, 'DOCUMENT_GENERATION');
+    expect(seed.steps[0].inputData?['template_id'], 'penalty_agreement');
+    // The penalty id must ride on the step: _generateNow reads it from
+    // input_data to render THIS penalty rather than the newest active one.
+    expect(seed.steps[0].inputData?['penalty_id'], 'p1');
+    expect(seed.steps[0].generatedDocumentId, 'd1');
+    expect(seed.steps[1].stepIndex, 1);
+    expect(seed.steps[1].stepType, 'APPROVAL');
+  });
+
   test('seedHiringWorkflow produces 4 default STATUS_UPDATE onboarding steps', () {
     final seed = seedHiringWorkflow(
       companyId: 'c1',

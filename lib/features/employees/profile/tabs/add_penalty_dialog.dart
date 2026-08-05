@@ -17,13 +17,15 @@ import '../providers.dart';
 /// guard. On edit we replace the installments wholesale (safe under the
 /// "no installment has been deducted" precondition).
 ///
-/// Returns true when the penalty was saved.
-Future<bool?> showAddPenaltyDialog({
+/// Returns the penalty id when saved (the new id on create, the existing id on
+/// edit), or null when cancelled. Callers chaining follow-up work — the
+/// repayment-agreement workflow in `penalty_workflow_action.dart` — need the id.
+Future<String?> showAddPenaltyDialog({
   required BuildContext context,
   required String employeeId,
   Map<String, dynamic>? existing,
 }) {
-  return showDialog<bool>(
+  return showDialog<String>(
     context: context,
     builder: (_) => _AddPenaltyDialog(
       employeeId: employeeId,
@@ -195,7 +197,7 @@ class _AddPenaltyDialogState extends ConsumerState<_AddPenaltyDialog> {
       ]);
       ref.invalidate(financialsByEmployeeProvider);
       if (!mounted) return;
-      Navigator.pop(context, true);
+      Navigator.pop(context, penaltyId);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -321,7 +323,7 @@ class _AddPenaltyDialogState extends ConsumerState<_AddPenaltyDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: _saving ? null : () => Navigator.pop(context, false),
+          onPressed: _saving ? null : () => Navigator.pop(context, null),
           child: const Text('Cancel'),
         ),
         FilledButton(

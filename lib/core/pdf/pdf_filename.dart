@@ -52,6 +52,8 @@ String _prefixFor(String templateId) {
       return 'COE';
     case 'nte':
       return 'NTE';
+    case 'penalty_agreement':
+      return 'PenaltyAgreement';
     case 'non_reg':
       return 'NonReg';
     case 'employment_contract':

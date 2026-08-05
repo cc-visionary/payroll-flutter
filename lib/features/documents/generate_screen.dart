@@ -22,6 +22,7 @@ import 'forms/nda_form.dart';
 import 'forms/nod_form.dart';
 import 'forms/non_reg_form.dart';
 import 'forms/nte_form.dart';
+import 'forms/penalty_agreement_form.dart';
 import 'forms/quitclaim_form.dart';
 import 'forms/regularization_form.dart';
 import 'forms/resignation_acceptance_form.dart';
@@ -46,6 +47,8 @@ import 'templates/non_reg_inputs.dart';
 import 'templates/non_reg_template.dart';
 import 'templates/nte_inputs.dart';
 import 'templates/nte_template.dart';
+import 'templates/penalty_agreement_inputs.dart';
+import 'templates/penalty_agreement_template.dart';
 import 'templates/quitclaim_inputs.dart';
 import 'templates/quitclaim_template.dart';
 import 'templates/regularization_inputs.dart';
@@ -127,6 +130,11 @@ class GenerateScreen extends ConsumerStatefulWidget {
   /// salary-adjustment template renders THIS change rather than the newest.
   final String? compensationChangeId;
 
+  /// When launched from a penalty-repayment workflow, the linked
+  /// `penalties.id`. Threaded into [AutofillContext] so the penalty-agreement
+  /// template renders THIS penalty rather than the most recent ACTIVE one.
+  final String? penaltyId;
+
   /// The workflow step's pre-inserted DRAFT `employee_documents` row. When set,
   /// saving UPDATES that row (marking it ISSUED) instead of inserting a second
   /// document. Null for ad-hoc generation from the Documents screen.
@@ -149,6 +157,7 @@ class GenerateScreen extends ConsumerStatefulWidget {
     required this.templateId,
     this.employeeId,
     this.compensationChangeId,
+    this.penaltyId,
     this.documentId,
     this.pdfThemeOverride,
     this.showLivePreview = true,
@@ -171,6 +180,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
   NodInputs? _nod;
   RegularizationInputs? _regularization;
   ResignationAcceptanceInputs? _resignationAcceptance;
+  PenaltyAgreementInputs? _penaltyAgreement;
   bool _autofillDone = false;
   String? _autofillError;
   bool _dirty = false;
@@ -444,6 +454,24 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         });
         return;
       }
+      if (tpl is PenaltyAgreementTemplate) {
+        if (eId == null) {
+          setState(() {
+            _penaltyAgreement = tpl.emptyInputs();
+            _autofillDone = true;
+            _autofillRev++;
+          });
+          return;
+        }
+        final ctx = await _contextFor(eId);
+        final filled = await tpl.autofill(ctx);
+        setState(() {
+          _penaltyAgreement = filled;
+          _autofillDone = true;
+          _autofillRev++;
+        });
+        return;
+      }
       if (tpl is! QuitclaimTemplate) {
         setState(() => _autofillDone = true);
         return;
@@ -492,6 +520,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       company: co,
       ref: ref,
       compensationChangeId: widget.compensationChangeId,
+      penaltyId: widget.penaltyId,
       hrSignatory: sigs.hr,
       legalSignatory: sigs.legal,
     );
@@ -590,6 +619,14 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         if (!mounted) return;
         setState(() {
           _resignationAcceptance = filled;
+          _autofillRev++;
+          _dirty = true;
+        });
+      } else if (tpl is PenaltyAgreementTemplate) {
+        final filled = await tpl.autofill(ctx);
+        if (!mounted) return;
+        setState(() {
+          _penaltyAgreement = filled;
           _autofillRev++;
           _dirty = true;
         });
@@ -765,6 +802,16 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           companyAddress: addr,
           hrManagerName: _salaryAdjustment!.hrManagerName.isNotEmpty
               ? _salaryAdjustment!.hrManagerName
+              : hr,
+          logoBytes: logo,
+        );
+      } else if (tpl is PenaltyAgreementTemplate && _penaltyAgreement != null) {
+        _penaltyAgreement = _penaltyAgreement!.copyWith(
+          companyId: companyId,
+          companyName: name,
+          companyAddress: addr,
+          hrManagerName: _penaltyAgreement!.hrManagerName.isNotEmpty
+              ? _penaltyAgreement!.hrManagerName
               : hr,
           logoBytes: logo,
         );
@@ -1330,6 +1377,19 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         onCompanyChanged: _onPickerCompanyChanged,
       );
     }
+    if (tpl is PenaltyAgreementTemplate && _penaltyAgreement != null) {
+      return PenaltyAgreementForm(
+        key: ValueKey('penalty_agreement-$_autofillRev'),
+        initial: _penaltyAgreement!,
+        employeeLocked: widget.employeeId != null,
+        onChanged: (next) => setState(() {
+          _penaltyAgreement = next;
+          _dirty = true;
+        }),
+        onEmployeeChanged: _onPickerEmployeeChanged,
+        onCompanyChanged: _onPickerCompanyChanged,
+      );
+    }
     return const Center(child: Text('Form not implemented'));
   }
 
@@ -1674,6 +1734,35 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           'template_id': 'resignation_acceptance',
           'employee_id':
               inputs.employeeId.isEmpty ? null : inputs.employeeId,
+          'file_name': filename,
+          'action': action,
+        },
+      );
+    }
+    if (tpl is PenaltyAgreementTemplate && _penaltyAgreement != null) {
+      final inputs = _penaltyAgreement!;
+      final filename = filenameForDocument(
+        templateId: 'penalty_agreement',
+        employeeNumber: null,
+        employeeId: inputs.employeeId.isEmpty ? '00000000' : inputs.employeeId,
+        date: inputs.effectiveDate,
+      );
+      return _descriptor(
+        templateId: 'penalty_agreement',
+        inputs: inputs,
+        errors: tpl.validate(inputs),
+        fileName: filename,
+        employeeId: scopedEmployeeId(inputs.employeeId),
+        docType: docType,
+        blocks: () => tpl.build(inputs),
+        who: _who(inputs.employeeFullName, inputs.employeeId),
+        auditDescription: (action, who) =>
+            'Penalty Repayment Agreement PDF $action: $who',
+        auditMetadata: (action) => {
+          'template_id': 'penalty_agreement',
+          'employee_id':
+              inputs.employeeId.isEmpty ? null : inputs.employeeId,
+          'penalty_id': inputs.penaltyId,
           'file_name': filename,
           'action': action,
         },

@@ -162,6 +162,120 @@ final finalPayBreakdownProvider =
       );
     });
 
+// --- Penalty repayment agreement ------------------------------------------
+
+/// Coerce a Postgres numeric (num or string) to [Decimal]; anything
+/// unparseable degrades to zero rather than throwing mid-autofill.
+Decimal _asDecimal(Object? v) {
+  if (v == null) return Decimal.zero;
+  if (v is num) return Decimal.parse(v.toString());
+  if (v is String) {
+    try {
+      return Decimal.parse(v);
+    } catch (_) {
+      return Decimal.zero;
+    }
+  }
+  return Decimal.zero;
+}
+
+/// One `penalty_installments` row reduced to what the agreement prints.
+class PenaltyInstallmentRow {
+  final int number;
+  final Decimal amount;
+  final bool isDeducted;
+  const PenaltyInstallmentRow({
+    required this.number,
+    required this.amount,
+    required this.isDeducted,
+  });
+}
+
+/// A `penalties` row plus its ordered repayment schedule. Backs the Penalty
+/// Repayment Agreement autofill and its "no active penalty" gate.
+class PenaltyRecord {
+  final String id;
+  final String description;
+  final Decimal totalAmount;
+  final int installmentCount;
+  final Decimal installmentAmount;
+  final DateTime? effectiveDate;
+  final String? remarks;
+  final String status;
+  final List<PenaltyInstallmentRow> installments;
+  const PenaltyRecord({
+    required this.id,
+    required this.description,
+    required this.totalAmount,
+    required this.installmentCount,
+    required this.installmentAmount,
+    required this.effectiveDate,
+    required this.remarks,
+    required this.status,
+    required this.installments,
+  });
+}
+
+/// The penalty an agreement documents, with its installment schedule.
+///
+/// When `penaltyId` is supplied (the workflow path threads it through
+/// `AutofillContext.penaltyId`) THAT penalty is loaded regardless of status,
+/// so re-generating an older agreement renders its own schedule. Otherwise the
+/// employee's most recent ACTIVE penalty wins. Null when there is none.
+final penaltyForAgreementProvider = FutureProvider.family<
+  PenaltyRecord?,
+  ({String employeeId, String? penaltyId})
+>((ref, key) async {
+  final client = Supabase.instance.client;
+  const cols =
+      'id, custom_description, total_amount, installment_count, '
+      'installment_amount, effective_date, remarks, status';
+
+  Map<String, dynamic>? row;
+  final pid = key.penaltyId;
+  if (pid != null && pid.isNotEmpty) {
+    row = await client.from('penalties').select(cols).eq('id', pid).maybeSingle();
+  } else {
+    if (key.employeeId.isEmpty) return null;
+    row = await client
+        .from('penalties')
+        .select(cols)
+        .eq('employee_id', key.employeeId)
+        .eq('status', 'ACTIVE')
+        .order('created_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+  }
+  if (row == null) return null;
+
+  final instRows = await client
+      .from('penalty_installments')
+      .select('installment_number, amount, is_deducted')
+      .eq('penalty_id', row['id'] as String)
+      .order('installment_number', ascending: true);
+
+  return PenaltyRecord(
+    id: row['id'] as String,
+    description: (row['custom_description'] as String?) ?? '',
+    totalAmount: _asDecimal(row['total_amount']),
+    installmentCount: (row['installment_count'] as num?)?.toInt() ?? 0,
+    installmentAmount: _asDecimal(row['installment_amount']),
+    effectiveDate: row['effective_date'] == null
+        ? null
+        : DateTime.tryParse(row['effective_date'] as String),
+    remarks: row['remarks'] as String?,
+    status: (row['status'] as String?) ?? '',
+    installments: [
+      for (final r in (instRows as List<dynamic>).cast<Map<String, dynamic>>())
+        PenaltyInstallmentRow(
+          number: (r['installment_number'] as num?)?.toInt() ?? 0,
+          amount: _asDecimal(r['amount']),
+          isDeducted: (r['is_deducted'] as bool?) ?? false,
+        ),
+    ],
+  );
+});
+
 // --- Company-wide documents registry --------------------------------------
 
 /// One row of the company-wide documents registry. Maps a non-deleted

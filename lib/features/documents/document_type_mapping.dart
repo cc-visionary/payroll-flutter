@@ -29,6 +29,8 @@ const Map<String, DocumentTypeInfo> kDocumentTypeByTemplateId = {
   'non_reg':
       DocumentTypeInfo('NON_REGULARIZATION', 'Notice of Non-Regularization'),
   'nte': DocumentTypeInfo('NTE', 'Notice to Explain'),
+  'penalty_agreement':
+      DocumentTypeInfo('PENALTY_AGREEMENT', 'Penalty Repayment Agreement'),
   'quitclaim': DocumentTypeInfo('QUITCLAIM', 'Quitclaim'),
   'regularization': DocumentTypeInfo('REGULARIZATION', 'Regularization'),
   'resignation_acceptance':

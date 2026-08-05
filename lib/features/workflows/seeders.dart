@@ -19,6 +19,7 @@ const _templateIdByDocType = <String, String>{
   'EMPLOYMENT_CONTRACT': 'employment_contract',
   'NDA': 'nda',
   'LIABILITY_WAIVER': 'liability_waiver',
+  'PENALTY_AGREEMENT': 'penalty_agreement',
 };
 
 /// Human-readable label for a document type.
@@ -30,6 +31,7 @@ const _docLabel = <String, String>{
   'EMPLOYMENT_CONTRACT': 'Employment Contract',
   'NDA': 'NDA',
   'LIABILITY_WAIVER': 'Liability Waiver',
+  'PENALTY_AGREEMENT': 'Penalty Repayment Agreement',
 };
 
 /// Build a SEPARATION workflow: one DOCUMENT_GENERATION step per selected
@@ -110,6 +112,59 @@ WorkflowSeed seedHiringWorkflow({
       initiatedById: initiatedById,
     ),
     steps: steps,
+  );
+}
+
+/// Build a REPAYMENT_AGREEMENT workflow for a recorded penalty: generate the
+/// repayment agreement, then track the employee's signed copy coming back.
+///
+/// The penalty row and its installments are written before this seed is built
+/// (same ordering as the compensation-change chain) — the workflow documents
+/// and tracks a deduction that already exists, it doesn't create one.
+///
+/// Step 1 is a manual APPROVAL by design: no workflow in this app is wired to
+/// Lark approvals, so HR marks it when the signed agreement is physically back.
+WorkflowSeed seedPenaltyWorkflow({
+  required String companyId,
+  required String employeeId,
+  required String employeeFullName,
+  required String penaltyId,
+  required String employeeDocumentId,
+  required String initiatedById,
+}) {
+  return WorkflowSeed(
+    instance: WorkflowInstanceInput(
+      companyId: companyId,
+      employeeId: employeeId,
+      workflowType: 'REPAYMENT_AGREEMENT',
+      title: 'Penalty Repayment — $employeeFullName',
+      context: {'penalty_id': penaltyId},
+      initiatedById: initiatedById,
+    ),
+    steps: [
+      WorkflowStepInput(
+        stepIndex: 0,
+        stepType: 'DOCUMENT_GENERATION',
+        name: 'Generate Penalty Repayment Agreement',
+        description:
+            'Render the agreement with the installment schedule and mark this '
+            'step complete.',
+        inputData: {
+          'template_id': 'penalty_agreement',
+          'penalty_id': penaltyId,
+          'employee_document_id': employeeDocumentId,
+        },
+        generatedDocumentId: employeeDocumentId,
+      ),
+      WorkflowStepInput(
+        stepIndex: 1,
+        stepType: 'APPROVAL',
+        name: 'Employee signed the agreement',
+        description:
+            'Approve once the employee has signed and returned the agreement. '
+            'Deductions run on the schedule regardless; this records consent.',
+      ),
+    ],
   );
 }
 

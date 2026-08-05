@@ -9,6 +9,7 @@ import 'nda_template.dart';
 import 'nod_template.dart';
 import 'non_reg_template.dart';
 import 'nte_template.dart';
+import 'penalty_agreement_template.dart';
 import 'quitclaim_template.dart';
 import 'regularization_template.dart';
 import 'resignation_acceptance_template.dart';
@@ -66,6 +67,7 @@ const List<DocumentCategory> kDocumentCategories = [
     templates: [
       NteTemplate(),
       NodTemplate(),
+      PenaltyAgreementTemplate(),
     ],
   ),
   DocumentCategory(

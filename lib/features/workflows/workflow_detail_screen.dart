@@ -549,12 +549,20 @@ class _StepActions extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Wrap(spacing: 8, children: [
-        if (step.stepType == 'DOCUMENT_GENERATION')
+        if (step.stepType == 'DOCUMENT_GENERATION') ...[
           FilledButton.icon(
             onPressed: () => _generateNow(context, ref),
             icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
             label: const Text('Generate now'),
           ),
+          // "Generate now" navigates away to the generate screen and never
+          // returns, so without this a DOCUMENT_GENERATION step could only
+          // ever be skipped — it had no path to COMPLETED at all.
+          FilledButton.tonal(
+            onPressed: () => _markComplete(context, ref),
+            child: const Text('Mark complete'),
+          ),
+        ],
         if (step.stepType != 'DOCUMENT_GENERATION' && step.stepType != 'APPROVAL')
           FilledButton.tonal(
             onPressed: () => _markComplete(context, ref),
@@ -599,11 +607,15 @@ class _StepActions extends ConsumerWidget {
           await ref.read(compensationChangeByWorkflowProvider(workflow.id).future);
       changeId = change?.id;
     }
+    // Same idea for a repayment agreement: render THIS penalty's schedule, not
+    // whichever penalty happens to be the employee's newest active one.
+    final penaltyId = step.inputData?['penalty_id'] as String?;
     if (!context.mounted) return;
     final url = buildGenerateDocumentUrl(
       templateId: templateId,
       employeeId: workflow.employeeId,
       changeId: changeId,
+      penaltyId: penaltyId,
       documentId: step.generatedDocumentId,
     );
     context.go(url);

@@ -148,11 +148,13 @@ class _SignatorySectionState extends ConsumerState<SignatorySection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Authorized Signatory',
+          Text('Signature & Signing Authority',
               style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 4),
           Text(
-            'Documents auto-fill this employee\'s name, title, and signature.',
+            'The signature below signs documents this employee is a party to — '
+            'such as their penalty repayment agreement. The capacities also put '
+            'it on documents they sign on the company\'s behalf.',
             style: TextStyle(
                 fontSize: 12,
                 color: Theme.of(context).colorScheme.onSurfaceVariant),
@@ -224,7 +226,9 @@ class _SignatorySectionState extends ConsumerState<SignatorySection> {
                               .setSignaturePng(widget.employee.id, null)),
                       child: const Text('Remove'),
                     ),
-                  Text('Transparent PNG, max 1 MB',
+                  Text(
+                      'Transparent PNG, max 1 MB.\n'
+                      'Leave empty to print a blank line for wet signing.',
                       style: TextStyle(
                           fontSize: 11,
                           color:

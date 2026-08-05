@@ -38,6 +38,13 @@ class AutofillContext {
   /// its own salary/mode. Null when not launched from such a workflow.
   final String? compensationChangeId;
 
+  /// The specific `penalties.id` this document belongs to, when the generation
+  /// was launched from a penalty-repayment workflow. The penalty-agreement
+  /// template renders THIS penalty (rather than defaulting to the employee's
+  /// most recent ACTIVE one) so an older penalty's agreement keeps its own
+  /// schedule. Null when not launched from such a workflow.
+  final String? penaltyId;
+
   /// Flagged authorized signatories (employees.is_hr_signatory /
   /// is_legal_signatory). Null when unassigned or not loaded — templates
   /// fall back to the hiring entity's text defaults.
@@ -49,6 +56,7 @@ class AutofillContext {
     required this.ref,
     this.applicantId,
     this.compensationChangeId,
+    this.penaltyId,
     this.hrSignatory,
     this.legalSignatory,
   });

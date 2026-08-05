@@ -11,6 +11,7 @@ import '../../../lark/lark_repository.dart';
 import '../../../../widgets/syncing_dialog.dart';
 import '../providers.dart';
 import '../widgets/info_card.dart';
+import '../widgets/penalty_workflow_action.dart';
 import 'add_penalty_dialog.dart';
 
 class FinancialsTab extends ConsumerStatefulWidget {
@@ -163,15 +164,14 @@ extension on _FinancialsTabState {
   Future<void> _onAdd(BuildContext context) async {
     switch (_kind) {
       case FinancialKind.penalties:
-        final created = await showAddPenaltyDialog(
+        // Recording a penalty runs the repayment-agreement workflow: penalty →
+        // DRAFT agreement → workflow → generate screen. Editing an existing
+        // penalty still uses the bare dialog (no second workflow).
+        await runPenaltyWorkflow(
+          ref: ref,
           context: context,
-          employeeId: widget.employee.id,
+          employee: widget.employee,
         );
-        if (created == true && context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Penalty recorded.')),
-          );
-        }
         break;
       case FinancialKind.cashAdvances:
       case FinancialKind.reimbursements:
@@ -190,7 +190,7 @@ extension on _FinancialsTabState {
       employeeId: widget.employee.id,
       existing: row,
     );
-    if (saved == true && context.mounted) {
+    if (saved != null && context.mounted) {
       // Any in-review payroll run that computed a line for this penalty
       // now points at an orphaned installment reference (the dialog nulls
       // it on save — see add_penalty_dialog.dart). Prompt the user to

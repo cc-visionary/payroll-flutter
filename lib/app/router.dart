@@ -336,6 +336,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               templateId: s.pathParameters['templateId']!,
               employeeId: s.uri.queryParameters['employeeId'],
               compensationChangeId: s.uri.queryParameters['changeId'],
+              penaltyId: s.uri.queryParameters['penaltyId'],
               documentId: s.uri.queryParameters['documentId'],
             ),
           ),
