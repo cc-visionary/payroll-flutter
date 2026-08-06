@@ -1,7 +1,7 @@
 # STATE
 
 Task: TASK-001 — deterministic verification gate   Contract: docs/tasks/TASK-001.json
-Branch: main                  Last commit: 32dc213
+Branch: main                  Last commit: 4ada116
 Agent: Claude (started 2026-08-06T14:56Z)
 
 ## Done
@@ -9,6 +9,9 @@ Agent: Claude (started 2026-08-06T14:56Z)
 - scripts/verify.sh added (dart format / flutter analyze / flutter test gate)
 - docs/tasks/TASK-001.json added and validated against the contract schema
   (`load_contract()` returns id "TASK-001", exit 0)
+- `dart format .` run once and committed alone (4ada116, 438 files, .dart only);
+  sha recorded in .git-blame-ignore-revs and blame.ignoreRevsFile configured.
+  verify.sh's format gate now passes and the run reaches analyze + test.
 
 ## In flight
 - none
@@ -33,12 +36,21 @@ Agent: Claude (started 2026-08-06T14:56Z)
   stays clean apart from .ai/
 
 ## Blockers
-- `scripts/verify.sh` exits 1 at its first step. `dart format --set-exit-if-changed`
-  reports 438 of 614 files would be reformatted — pre-existing drift, not caused by
-  the wiring commit. `set -e` aborts there, so `flutter analyze` and `flutter test`
-  have never run under verify.sh. Decision needed: run `dart format .` once and
-  commit, or drop the format check from verify.sh. Not fixed here — reformatting
-  438 files is a production change outside this task's scope.
+- `scripts/verify.sh` now clears `dart format` and fails at `flutter analyze`:
+  19 warnings, 0 errors, 192 infos. `flutter test` was run separately and is
+  green (1171 passed, 1 skipped), so analyze is the only remaining gate.
+  The 19 split three ways:
+    * 3 redundant operators (unnecessary `!`, cast, `?.`) — compiler-provably no-ops
+    * 5 unreferenced private helpers (`_min`, `_toFixed3`, `_toFixed3d`,
+      `toDouble`, `_MonthBar`) — genuinely dead
+    * 11 unused fields in `_SortOrder` (payslip_generator.dart) — NOT dead in
+      the design sense: a deliberate sort-order catalog ported from
+      payrollos/lib/payroll/payslip-generator.ts. The unused codes (500
+      REIMBURSEMENT, 700 BONUS, 1100 SSS_EE, 1200 TAX_WITHHOLDING, ...) hold
+      slots in a numbering scheme. Deleting them would damage the catalog;
+      the correct treatment is to keep them and silence the lint.
+  Decision needed before verify.sh can go green. Not fixed here — editing the
+  payroll engine is outside this task's scope.
 - Gemini CLI unusable: Google discontinued Gemini Code Assist for individuals
   (IneligibleTierError) and no GEMINI_API_KEY is set. The `explore` stage dry-run
   is blocked until that is resolved.
