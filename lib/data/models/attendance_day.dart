@@ -34,7 +34,7 @@ class AttendanceDay {
     final name = [
       employeeFirstName,
       employeeLastName,
-    ].where((s) => s != null && s!.isNotEmpty).join(' ');
+    ].where((s) => s != null && s.isNotEmpty).join(' ');
     if (employeeNumber != null && name.isNotEmpty)
       return '$employeeNumber · $name';
     if (employeeNumber != null) return employeeNumber!;

@@ -132,9 +132,7 @@ class _RunsTable extends ConsumerWidget {
             (r) => DataRow2(
               onTap: () => context.push('/payroll/${r.id}'),
               cells: [
-                DataCell(
-                  Text(r.payDate?.toIso8601String().substring(0, 10) ?? '—'),
-                ),
+                DataCell(Text(r.payDate.toIso8601String().substring(0, 10))),
                 DataCell(_RunStatusChip(status: r.status)),
                 DataCell(Text(r.employeeCount.toString())),
                 DataCell(Text(Money.fmtPhp(r.totalGrossPay))),

@@ -20,19 +20,6 @@ Decimal _fromDouble(double v) => Decimal.parse(v.toString());
 Decimal _div(Decimal a, Decimal b) =>
     (a / b).toDecimal(scaleOnInfinitePrecision: 10);
 Decimal _max(Decimal a, Decimal b) => a >= b ? a : b;
-Decimal _min(Decimal a, Decimal b) => a <= b ? a : b;
-
-String _toFixed3(int v) => v.toStringAsFixed(3);
-String _toFixed3d(Decimal v) {
-  final f = Decimal.fromInt(1000);
-  final rounded = ((v * f).round(scale: 0) / f).toDecimal(
-    scaleOnInfinitePrecision: 3,
-  );
-  final parts = rounded.toString().split('.');
-  if (parts.length == 1) return '${parts[0]}.000';
-  final frac = parts[1].padRight(3, '0').substring(0, 3);
-  return '${parts[0]}.$frac';
-}
 
 // =============================================================================
 // Public entry points
@@ -929,8 +916,4 @@ Decimal _getPeriodsPerMonth(PayFrequency payFrequency) {
     case PayFrequency.WEEKLY:
       return Decimal.parse('4.33');
   }
-}
-
-extension _DecimalToDouble on Decimal {
-  double toDouble() => double.parse(toString());
 }

@@ -4,6 +4,16 @@ import 'wage_calculator.dart';
 
 /// Payslip line generators — ported from payrollos/lib/payroll/payslip-generator.ts.
 
+// ignore_for_file: unused_field
+// _SortOrder below is a complete sort-order catalog mirroring the TypeScript
+// original. Codes for line types this engine does not emit yet (REIMBURSEMENT,
+// BONUS, SSS_EE, TAX_WITHHOLDING, ...) intentionally hold their slots so the
+// numbering stays stable and comparable with payrollos. Do not delete unused
+// entries — add the missing generators instead.
+// _SortOrder is the only class in this file, so this ignore cannot mask an
+// unused field anywhere else.
+
+/// Sort-order codes for payslip lines. Lower sorts first.
 class _SortOrder {
   static const int BASIC_PAY = 100;
   static const int REGULAR_HOLIDAY_PAY = 110;

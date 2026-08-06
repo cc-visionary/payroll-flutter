@@ -25,7 +25,7 @@ class EmployeeRepository {
     final out = <Employee>[];
     for (final r in rows) {
       try {
-        out.add(Employee.fromRow(r as Map<String, dynamic>));
+        out.add(Employee.fromRow(r));
       } catch (e, st) {
         // ignore: avoid_print
         print('Employee.fromRow failed for ${r['id']}: $e\n$st\nrow=$r');
