@@ -49,3 +49,10 @@ env/*.json
 !env/example.json
 supabase/seed/.env
 supabase/seed/node_modules/
+
+# Multi-agent standards wiring
+# docs/standards is a symlink to ~/dev-standards/playbooks — outside the repo,
+# would be a broken link for other collaborators/clones.
+docs/standards
+.ai/
+.worktrees/
