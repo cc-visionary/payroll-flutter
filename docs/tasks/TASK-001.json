@@ -1,0 +1,22 @@
+{
+  "id": "TASK-001",
+  "title": "Verify the multi-agent pipeline end to end",
+  "goal": "Prove a contract can move through explore and plan stages and produce schema-valid artifacts without manual prompt copying.",
+  "requirements": [
+    "The explorer stage produces a repository impact map",
+    "The plan stage produces an ordered set of actions",
+    "Neither stage modifies any tracked file"
+  ],
+  "constraints": [
+    "No new production dependency",
+    "No schema changes"
+  ],
+  "acceptance_criteria": [
+    "Both stages exit zero",
+    "Both artifacts validate against schemas/stage-output.schema.json",
+    "git status in the pilot repo is unchanged after the run"
+  ],
+  "verification_commands": [
+    "./scripts/verify.sh"
+  ]
+}
