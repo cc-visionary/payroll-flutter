@@ -1,0 +1,5 @@
+# Mechanical reformats — ignored by `git blame`.
+# Enable locally: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: dart format (no behaviour change)
+4ada116cb647206cca2289fdb628ffc358270792
