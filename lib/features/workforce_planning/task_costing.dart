@@ -31,16 +31,16 @@ class CostDraft {
   final double? hoursPerMonth;
 
   factory CostDraft.fromTask(WpTask t) => CostDraft(
-        timesSource: t.timesSource,
-        timesManual: t.timesManual,
-        driverId: t.driverId,
-        driverFactor: t.driverFactor,
-        minutesSource: t.minutesSource,
-        minutesManual: t.minutesManual,
-        rateId: t.rateId,
-        nodeId: t.nodeId,
-        hoursPerMonth: t.hoursPerMonth,
-      );
+    timesSource: t.timesSource,
+    timesManual: t.timesManual,
+    driverId: t.driverId,
+    driverFactor: t.driverFactor,
+    minutesSource: t.minutesSource,
+    minutesManual: t.minutesManual,
+    rateId: t.rateId,
+    nodeId: t.nodeId,
+    hoursPerMonth: t.hoursPerMonth,
+  );
 
   CostDraft copyWith({
     String? timesSource,
@@ -58,52 +58,53 @@ class CostDraft {
     bool clearRateId = false,
     bool clearNodeId = false,
     bool clearHoursPerMonth = false,
-  }) =>
-      CostDraft(
-        timesSource: timesSource ?? this.timesSource,
-        timesManual: clearTimesManual ? null : (timesManual ?? this.timesManual),
-        driverId: clearDriverId ? null : (driverId ?? this.driverId),
-        driverFactor: driverFactor ?? this.driverFactor,
-        minutesSource: minutesSource ?? this.minutesSource,
-        minutesManual:
-            clearMinutesManual ? null : (minutesManual ?? this.minutesManual),
-        rateId: clearRateId ? null : (rateId ?? this.rateId),
-        nodeId: clearNodeId ? null : (nodeId ?? this.nodeId),
-        hoursPerMonth:
-            clearHoursPerMonth ? null : (hoursPerMonth ?? this.hoursPerMonth),
-      );
+  }) => CostDraft(
+    timesSource: timesSource ?? this.timesSource,
+    timesManual: clearTimesManual ? null : (timesManual ?? this.timesManual),
+    driverId: clearDriverId ? null : (driverId ?? this.driverId),
+    driverFactor: driverFactor ?? this.driverFactor,
+    minutesSource: minutesSource ?? this.minutesSource,
+    minutesManual: clearMinutesManual
+        ? null
+        : (minutesManual ?? this.minutesManual),
+    rateId: clearRateId ? null : (rateId ?? this.rateId),
+    nodeId: clearNodeId ? null : (nodeId ?? this.nodeId),
+    hoursPerMonth: clearHoursPerMonth
+        ? null
+        : (hoursPerMonth ?? this.hoursPerMonth),
+  );
 
   /// Applies this draft onto its task, leaving every non-costing column alone.
   WpTask applyTo(WpTask t) => WpTask(
-        id: t.id,
-        companyId: t.companyId,
-        name: t.name,
-        nodeId: nodeId,
-        brandScope: t.brandScope,
-        cadence: t.cadence,
-        timesSource: timesSource,
-        timesManual: timesManual,
-        driverId: driverId,
-        driverFactor: driverFactor,
-        minutesSource: minutesSource,
-        minutesManual: minutesManual,
-        rateId: rateId,
-        hoursPerMonth: hoursPerMonth,
-        skillTier: t.skillTier,
-        risk: t.risk,
-        capability: t.capability,
-        ownerEmployeeId: t.ownerEmployeeId,
-        roleScorecardId: t.roleScorecardId,
-        responsibilityArea: t.responsibilityArea,
-        notes: t.notes,
-        externalRef: t.externalRef,
-        areaSort: t.areaSort,
-        taskSort: t.taskSort,
-        criticality: t.criticality,
-        isEssential: t.isEssential,
-        status: t.status,
-        isExpectation: t.isExpectation,
-      );
+    id: t.id,
+    companyId: t.companyId,
+    name: t.name,
+    nodeId: nodeId,
+    brandScope: t.brandScope,
+    cadence: t.cadence,
+    timesSource: timesSource,
+    timesManual: timesManual,
+    driverId: driverId,
+    driverFactor: driverFactor,
+    minutesSource: minutesSource,
+    minutesManual: minutesManual,
+    rateId: rateId,
+    hoursPerMonth: hoursPerMonth,
+    skillTier: t.skillTier,
+    risk: t.risk,
+    capability: t.capability,
+    ownerEmployeeId: t.ownerEmployeeId,
+    roleScorecardId: t.roleScorecardId,
+    responsibilityArea: t.responsibilityArea,
+    notes: t.notes,
+    externalRef: t.externalRef,
+    areaSort: t.areaSort,
+    taskSort: t.taskSort,
+    criticality: t.criticality,
+    isEssential: t.isEssential,
+    status: t.status,
+    isExpectation: t.isExpectation,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -119,8 +120,17 @@ class CostDraft {
       other.hoursPerMonth == hoursPerMonth;
 
   @override
-  int get hashCode => Object.hash(timesSource, timesManual, driverId,
-      driverFactor, minutesSource, minutesManual, rateId, nodeId, hoursPerMonth);
+  int get hashCode => Object.hash(
+    timesSource,
+    timesManual,
+    driverId,
+    driverFactor,
+    minutesSource,
+    minutesManual,
+    rateId,
+    nodeId,
+    hoursPerMonth,
+  );
 }
 
 /// Times per month, matching `wp_task_computed.times_per_month_base`:
@@ -148,7 +158,9 @@ double draftHoursPerMonth(
   Map<String, WpRate> rateById,
 ) {
   if (d.hoursPerMonth != null) return d.hoursPerMonth!;
-  return draftTimesPerMonth(d, driverById) * draftMinutesEach(d, rateById) / 60.0;
+  return draftTimesPerMonth(d, driverById) *
+      draftMinutesEach(d, rateById) /
+      60.0;
 }
 
 /// A task counts as costed when a direct hours figure is set, OR when BOTH
@@ -160,7 +172,8 @@ bool draftIsCosted(
   Map<String, WpRate> rateById,
 ) {
   if ((d.hoursPerMonth ?? 0) > 0) return true;
-  return draftTimesPerMonth(d, driverById) > 0 && draftMinutesEach(d, rateById) > 0;
+  return draftTimesPerMonth(d, driverById) > 0 &&
+      draftMinutesEach(d, rateById) > 0;
 }
 
 /// Whether the task's hours respond to the growth multiplier — true only when
@@ -254,9 +267,13 @@ Map<String, dynamic> draftPatch(CostDraft d) {
     return {
       'node_id': d.nodeId,
       'hours_per_month': d.hoursPerMonth,
-      'times_source': 'manual', 'times_manual': null, 'driver_id': null,
+      'times_source': 'manual',
+      'times_manual': null,
+      'driver_id': null,
       'driver_factor': d.driverFactor,
-      'minutes_source': 'manual', 'minutes_manual': null, 'rate_id': null,
+      'minutes_source': 'manual',
+      'minutes_manual': null,
+      'rate_id': null,
     };
   }
   return {

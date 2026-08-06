@@ -85,21 +85,14 @@ class ProfileHeader extends ConsumerWidget {
                 color: Color(0xFF6B7280),
               ),
             ),
-            const Text('│',
-                style: TextStyle(color: Color(0xFF9CA3AF))),
-            StatusChip(
-              label: typeLabel,
-              tone: toneForStatus(typeLabel),
-            ),
+            const Text('│', style: TextStyle(color: Color(0xFF9CA3AF))),
+            StatusChip(label: typeLabel, tone: toneForStatus(typeLabel)),
             StatusChip(
               label: statusLabel,
-              tone: archived
-                  ? ChipTone.danger
-                  : toneForStatus(statusLabel),
+              tone: archived ? ChipTone.danger : toneForStatus(statusLabel),
             ),
             if (employee.larkUserId != null) ...[
-              const Text('│',
-                  style: TextStyle(color: Color(0xFF9CA3AF))),
+              const Text('│', style: TextStyle(color: Color(0xFF9CA3AF))),
               Text(
                 'Lark: ${employee.larkUserId}',
                 style: const TextStyle(
@@ -114,20 +107,14 @@ class ProfileHeader extends ConsumerWidget {
         const SizedBox(height: 6),
         Text(
           _buildSubtitle(effectiveJobTitle, deptName),
-          style: const TextStyle(
-            fontSize: 14,
-            color: Color(0xFF374151),
-          ),
+          style: const TextStyle(fontSize: 14, color: Color(0xFF374151)),
         ),
         if (entityName != null)
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(
               'Hired under: $entityName',
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF6B7280),
-              ),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
             ),
           ),
       ],
@@ -144,8 +131,7 @@ class ProfileHeader extends ConsumerWidget {
           ),
         if (canManage)
           OutlinedButton(
-            onPressed: () =>
-                context.push('/employees/${employee.id}/edit'),
+            onPressed: () => context.push('/employees/${employee.id}/edit'),
             child: const Text('Edit Employee'),
           ),
         if (isAdmin && employee.employmentStatus == 'ACTIVE')
@@ -194,11 +180,7 @@ class ProfileHeader extends ConsumerWidget {
         if (mobile)
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              nameBlock,
-              const SizedBox(height: 12),
-              actionButtons,
-            ],
+            children: [nameBlock, const SizedBox(height: 12), actionButtons],
           )
         else
           Row(
@@ -211,50 +193,52 @@ class ProfileHeader extends ConsumerWidget {
           ),
         const SizedBox(height: 20),
         // Info cards row
-        LayoutBuilder(builder: (ctx, c) {
-          // Four cards: wrap when narrow.
-          final cardWidth = c.maxWidth >= 920
-              ? (c.maxWidth - 3 * 12) / 4
-              : c.maxWidth >= 600
-                  ? (c.maxWidth - 12) / 2
-                  : c.maxWidth;
-          return Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              SizedBox(
-                width: cardWidth,
-                child: InfoCard(
-                  label: 'Hire Date',
-                  value: _fmtDate(employee.hireDate),
+        LayoutBuilder(
+          builder: (ctx, c) {
+            // Four cards: wrap when narrow.
+            final cardWidth = c.maxWidth >= 920
+                ? (c.maxWidth - 3 * 12) / 4
+                : c.maxWidth >= 600
+                ? (c.maxWidth - 12) / 2
+                : c.maxWidth;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                SizedBox(
+                  width: cardWidth,
+                  child: InfoCard(
+                    label: 'Hire Date',
+                    value: _fmtDate(employee.hireDate),
+                  ),
                 ),
-              ),
-              SizedBox(
-                width: cardWidth,
-                child: InfoCard(
-                  label: 'Regularization Date',
-                  value: employee.regularizationDate == null
-                      ? '—'
-                      : _fmtDate(employee.regularizationDate!),
+                SizedBox(
+                  width: cardWidth,
+                  child: InfoCard(
+                    label: 'Regularization Date',
+                    value: employee.regularizationDate == null
+                        ? '—'
+                        : _fmtDate(employee.regularizationDate!),
+                  ),
                 ),
-              ),
-              SizedBox(
-                width: cardWidth,
-                child: InfoCard(
-                  label: 'OT Eligible',
-                  value: employee.isOtEligible ? 'Yes' : 'No',
+                SizedBox(
+                  width: cardWidth,
+                  child: InfoCard(
+                    label: 'OT Eligible',
+                    value: employee.isOtEligible ? 'Yes' : 'No',
+                  ),
                 ),
-              ),
-              SizedBox(
-                width: cardWidth,
-                child: InfoCard(
-                  label: 'Reports To',
-                  value: managerName ?? '—',
+                SizedBox(
+                  width: cardWidth,
+                  child: InfoCard(
+                    label: 'Reports To',
+                    value: managerName ?? '—',
+                  ),
                 ),
-              ),
-            ],
-          );
-        }),
+              ],
+            );
+          },
+        ),
       ],
     );
   }
@@ -268,8 +252,18 @@ class ProfileHeader extends ConsumerWidget {
 
   String _fmtDate(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
@@ -295,8 +289,7 @@ class ProfileHeader extends ConsumerWidget {
         children: [
           _WorkflowChoice(
             title: 'Penalty Repayment Agreement',
-            subtitle:
-                'Record a penalty, then generate the agreement to sign.',
+            subtitle: 'Record a penalty, then generate the agreement to sign.',
             onTap: () => Navigator.pop(c, 'penalty'),
           ),
           _WorkflowChoice(
@@ -326,12 +319,14 @@ class ProfileHeader extends ConsumerWidget {
         // the current scorecard it needs is already loaded.
         tabs?.animateTo(3);
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text(
-              'Use "Change Compensation / Role" on this tab to start the '
-              'workflow.',
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Use "Change Compensation / Role" on this tab to start the '
+                'workflow.',
+              ),
             ),
-          ));
+          );
         }
       case 'separation':
         await _confirmSeparate(context, ref);
@@ -357,101 +352,106 @@ class ProfileHeader extends ConsumerWidget {
     if (result == null || !context.mounted) return;
 
     try {
-    final client = Supabase.instance.client;
+      final client = Supabase.instance.client;
 
-    // 1) Update employment status + separation date on the employee row.
-    //    When the user opts to archive on separation, also stamp deleted_at
-    //    so the employee disappears from active lists and payroll runs.
-    await client.from('employees').update({
-      'employment_status': result.status,
-      'separation_date': result.date.toIso8601String().substring(0, 10),
-      if (result.archive) 'deleted_at': DateTime.now().toUtc().toIso8601String(),
-    }).eq('id', employee.id);
+      // 1) Update employment status + separation date on the employee row.
+      //    When the user opts to archive on separation, also stamp deleted_at
+      //    so the employee disappears from active lists and payroll runs.
+      await client
+          .from('employees')
+          .update({
+            'employment_status': result.status,
+            'separation_date': result.date.toIso8601String().substring(0, 10),
+            if (result.archive)
+              'deleted_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', employee.id);
 
-    // 2) Append SEPARATION_CONFIRMED to the timeline. Capture the new event
-    //    id so generated documents can link back to it for audit.
-    final eventRow = await client
-        .from('employment_events')
-        .insert({
-          'employee_id': employee.id,
-          'event_type': 'SEPARATION_CONFIRMED',
-          'event_date': result.date.toIso8601String().substring(0, 10),
-          'status': 'APPROVED',
-          'payload': {'reason': result.status},
-          if (result.reason.isNotEmpty) 'remarks': result.reason,
-          if (actorId != null) 'requested_by_id': actorId,
-          if (actorId != null) 'approved_by_id': actorId,
-          if (actorId != null)
-            'approved_at': DateTime.now().toUtc().toIso8601String(),
-        })
-        .select('id')
-        .single();
-    final eventId = eventRow['id'] as String;
-
-    // 3) Queue document placeholders (DRAFT) + insert a SEPARATION workflow
-    //    so HR has a single "what's in-flight" inbox. The workflow_steps link
-    //    to the placeholder rows via input_data + generated_document_id; the
-    //    actual PDF rendering happens via "Generate now" on /workflows/:id.
-    if (result.documents.isNotEmpty) {
-      final docs = [
-        for (final type in result.documents)
-          {
+      // 2) Append SEPARATION_CONFIRMED to the timeline. Capture the new event
+      //    id so generated documents can link back to it for audit.
+      final eventRow = await client
+          .from('employment_events')
+          .insert({
             'employee_id': employee.id,
-            'document_type': type,
-            'title': _docTitleFor(type),
-            'file_name': '${employee.fullName} — ${_docTitleFor(type)}.pdf',
-            'status': 'DRAFT',
-            'generated_from_event_id': eventId,
-            if (actorId != null) 'uploaded_by_id': actorId,
-          },
-      ];
-      // Insert with .select() so we get the new ids back to link the workflow steps.
-      final insertedDocs = await client
-          .from('employee_documents')
-          .insert(docs)
-          .select('id, document_type');
-      final docIdByType = <String, String>{
-        for (final d in (insertedDocs as List))
-          (d as Map<String, dynamic>)['document_type'] as String:
-              d['id'] as String,
-      };
-      if (actorId != null) {
-        final seed = seedSeparationWorkflow(
-          companyId: employee.companyId,
-          employeeId: employee.id,
-          employeeFullName: employee.fullName,
-          documentTypes: result.documents,
-          eventId: eventId,
-          docIdByType: docIdByType,
-          initiatedById: actorId,
-        );
-        await container
-            .read(workflowRepositoryProvider)
-            .insertWithSteps(instance: seed.instance, steps: seed.steps);
-        container.invalidate(workflowListProvider);
+            'event_type': 'SEPARATION_CONFIRMED',
+            'event_date': result.date.toIso8601String().substring(0, 10),
+            'status': 'APPROVED',
+            'payload': {'reason': result.status},
+            if (result.reason.isNotEmpty) 'remarks': result.reason,
+            if (actorId != null) 'requested_by_id': actorId,
+            if (actorId != null) 'approved_by_id': actorId,
+            if (actorId != null)
+              'approved_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .select('id')
+          .single();
+      final eventId = eventRow['id'] as String;
+
+      // 3) Queue document placeholders (DRAFT) + insert a SEPARATION workflow
+      //    so HR has a single "what's in-flight" inbox. The workflow_steps link
+      //    to the placeholder rows via input_data + generated_document_id; the
+      //    actual PDF rendering happens via "Generate now" on /workflows/:id.
+      if (result.documents.isNotEmpty) {
+        final docs = [
+          for (final type in result.documents)
+            {
+              'employee_id': employee.id,
+              'document_type': type,
+              'title': _docTitleFor(type),
+              'file_name': '${employee.fullName} — ${_docTitleFor(type)}.pdf',
+              'status': 'DRAFT',
+              'generated_from_event_id': eventId,
+              if (actorId != null) 'uploaded_by_id': actorId,
+            },
+        ];
+        // Insert with .select() so we get the new ids back to link the workflow steps.
+        final insertedDocs = await client
+            .from('employee_documents')
+            .insert(docs)
+            .select('id, document_type');
+        final docIdByType = <String, String>{
+          for (final d in (insertedDocs as List))
+            (d as Map<String, dynamic>)['document_type'] as String:
+                d['id'] as String,
+        };
+        if (actorId != null) {
+          final seed = seedSeparationWorkflow(
+            companyId: employee.companyId,
+            employeeId: employee.id,
+            employeeFullName: employee.fullName,
+            documentTypes: result.documents,
+            eventId: eventId,
+            docIdByType: docIdByType,
+            initiatedById: actorId,
+          );
+          await container
+              .read(workflowRepositoryProvider)
+              .insertWithSteps(instance: seed.instance, steps: seed.steps);
+          container.invalidate(workflowListProvider);
+        }
       }
-    }
 
-    container.invalidate(employeeByIdProvider(employee.id));
-    container.invalidate(employeeListProvider);
-    container.invalidate(timelineProvider(employee.id));
-    container.invalidate(employeeDocumentsProvider(employee.id));
+      container.invalidate(employeeByIdProvider(employee.id));
+      container.invalidate(employeeListProvider);
+      container.invalidate(timelineProvider(employee.id));
+      container.invalidate(employeeDocumentsProvider(employee.id));
 
-    if (context.mounted) {
-      final docCount = result.documents.length;
-      final tail = [
-        if (docCount > 0) '$docCount document${docCount == 1 ? '' : 's'} queued',
-        if (result.archive) 'archived',
-      ].join(' · ');
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            '${employee.fullName} separated as ${result.status}'
-            '${tail.isEmpty ? '.' : ' · $tail.'}',
+      if (context.mounted) {
+        final docCount = result.documents.length;
+        final tail = [
+          if (docCount > 0)
+            '$docCount document${docCount == 1 ? '' : 's'} queued',
+          if (result.archive) 'archived',
+        ].join(' · ');
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              '${employee.fullName} separated as ${result.status}'
+              '${tail.isEmpty ? '.' : ' · $tail.'}',
+            ),
           ),
-        ),
-      );
-    }
+        );
+      }
     } catch (e, st) {
       messenger.showSnackBar(SnackBar(content: Text('Separate failed: $e')));
       // ignore: avoid_print
@@ -509,7 +509,9 @@ class _SeparationDialogState extends State<_SeparationDialog> {
     _DocOption('CERTIFICATE_OF_EMPLOYMENT', 'Certificate of Employment'),
     _DocOption('QUITCLAIM', 'Quitclaim and Release'),
     _DocOption(
-        'POST_EMPLOYMENT_CONFIDENTIALITY', 'Post-Employment Confidentiality'),
+      'POST_EMPLOYMENT_CONFIDENTIALITY',
+      'Post-Employment Confidentiality',
+    ),
     _DocOption('SEPARATION_LETTER', 'Separation Letter'),
     _DocOption('CLEARANCE_FORM', 'Clearance Form'),
   ];
@@ -550,17 +552,22 @@ class _SeparationDialogState extends State<_SeparationDialog> {
                   labelText: 'Separation type',
                   border: OutlineInputBorder(),
                 ),
-                items: const [
-                  'RESIGNED',
-                  'TERMINATED',
-                  'AWOL',
-                  'END_OF_CONTRACT',
-                  'RETIRED',
-                  'DECEASED',
-                ]
-                    .map((s) => DropdownMenuItem(
-                        value: s, child: Text(s.replaceAll('_', ' '))))
-                    .toList(),
+                items:
+                    const [
+                          'RESIGNED',
+                          'TERMINATED',
+                          'AWOL',
+                          'END_OF_CONTRACT',
+                          'RETIRED',
+                          'DECEASED',
+                        ]
+                        .map(
+                          (s) => DropdownMenuItem(
+                            value: s,
+                            child: Text(s.replaceAll('_', ' ')),
+                          ),
+                        )
+                        .toList(),
                 onChanged: (v) => setState(() => _status = v!),
               ),
               const SizedBox(height: 12),

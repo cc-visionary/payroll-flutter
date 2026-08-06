@@ -5,8 +5,8 @@ class PerformanceCheckIn {
   final String periodId;
   final String employeeId;
   final String? reviewerId;
-  final String status;       // enum: DRAFT|SUBMITTED|UNDER_REVIEW|COMPLETED|SKIPPED
-  final int? overallRating;  // 1-5
+  final String status; // enum: DRAFT|SUBMITTED|UNDER_REVIEW|COMPLETED|SKIPPED
+  final int? overallRating; // 1-5
   final String? overallComments;
   final String? accomplishments;
   final String? challenges;

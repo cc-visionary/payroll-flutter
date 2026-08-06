@@ -245,8 +245,9 @@ class _PenaltyAgreementFormState extends ConsumerState<PenaltyAgreementForm> {
                         child: Text(
                           _i.installments[idx].scheduledDate == null
                               ? 'Set cut-off'
-                              : DateFormat('MMM d, yyyy')
-                                  .format(_i.installments[idx].scheduledDate!),
+                              : DateFormat(
+                                  'MMM d, yyyy',
+                                ).format(_i.installments[idx].scheduledDate!),
                         ),
                       ),
                     ),

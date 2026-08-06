@@ -26,6 +26,7 @@ class AutofillContext {
   final Employee? employee;
   final HiringEntity? company;
   final WidgetRef ref;
+
   /// Set when generating a document for a hiring applicant rather than an
   /// existing employee. The template is responsible for reading the Applicant
   /// from [applicantByIdProvider] using this id.

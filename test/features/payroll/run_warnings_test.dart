@@ -16,51 +16,51 @@ AttendanceDay _day({
   int? approvedOtMinutes,
   DateTime? date,
   String empFirst = 'Jane',
-}) =>
-    AttendanceDay(
-      id: 'A1',
-      employeeId: 'E1',
-      attendanceDate: date ?? DateTime(2026, 6, 15),
-      dayType: 'WORKDAY',
-      actualTimeIn: tIn,
-      actualTimeOut: tOut,
-      attendanceStatus: 'PRESENT',
-      sourceType: 'LARK',
-      earlyInApproved: earlyInApproved,
-      lateOutApproved: lateOutApproved,
-      lateInApproved: false,
-      earlyOutApproved: false,
-      approvedOtMinutes: approvedOtMinutes,
-      isLocked: false,
-      shiftTemplateId: shiftId,
-      employeeNumber: 'EMP-001',
-      employeeFirstName: empFirst,
-      employeeLastName: 'Doe',
-    );
+}) => AttendanceDay(
+  id: 'A1',
+  employeeId: 'E1',
+  attendanceDate: date ?? DateTime(2026, 6, 15),
+  dayType: 'WORKDAY',
+  actualTimeIn: tIn,
+  actualTimeOut: tOut,
+  attendanceStatus: 'PRESENT',
+  sourceType: 'LARK',
+  earlyInApproved: earlyInApproved,
+  lateOutApproved: lateOutApproved,
+  lateInApproved: false,
+  earlyOutApproved: false,
+  approvedOtMinutes: approvedOtMinutes,
+  isLocked: false,
+  shiftTemplateId: shiftId,
+  employeeNumber: 'EMP-001',
+  employeeFirstName: empFirst,
+  employeeLastName: 'Doe',
+);
 
 ShiftTemplate _shift({bool overnight = false}) => ShiftTemplate(
-      id: 'S1',
-      companyId: 'C1',
-      code: 'DAY',
-      name: 'Day Shift',
-      startTime: '09:00:00',
-      endTime: '18:00:00',
-      isOvernight: overnight,
-      breakType: 'AUTO_DEDUCT',
-      breakMinutes: 60,
-      graceMinutesLate: 0,
-      graceMinutesEarlyOut: 0,
-      scheduledWorkMinutes: 480,
-      isActive: true,
-    );
+  id: 'S1',
+  companyId: 'C1',
+  code: 'DAY',
+  name: 'Day Shift',
+  startTime: '09:00:00',
+  endTime: '18:00:00',
+  isOvernight: overnight,
+  breakType: 'AUTO_DEDUCT',
+  breakMinutes: 60,
+  graceMinutesLate: 0,
+  graceMinutesEarlyOut: 0,
+  scheduledWorkMinutes: 480,
+  isActive: true,
+);
 
-List<RunWarning> _run(List<AttendanceDay> records,
-        {Map<String, ShiftTemplate>? shifts}) =>
-    detectWarnings(
-      records: records,
-      shiftsById: shifts ?? {'S1': _shift()},
-      today: _today,
-    );
+List<RunWarning> _run(
+  List<AttendanceDay> records, {
+  Map<String, ShiftTemplate>? shifts,
+}) => detectWarnings(
+  records: records,
+  shiftsById: shifts ?? {'S1': _shift()},
+  today: _today,
+);
 
 void main() {
   test('missing clock-out is flagged', () {
@@ -96,14 +96,24 @@ void main() {
 
   test('Lark-approved OT suppresses the overtime warning', () {
     final w = _run([
-      _day(tIn: _at(9, 0), tOut: _at(18, 45), shiftId: 'S1', approvedOtMinutes: 60)
+      _day(
+        tIn: _at(9, 0),
+        tOut: _at(18, 45),
+        shiftId: 'S1',
+        approvedOtMinutes: 60,
+      ),
     ]);
     expect(w, isEmpty);
   });
 
   test('late-out approval flag suppresses the overtime warning', () {
     final w = _run([
-      _day(tIn: _at(9, 0), tOut: _at(18, 45), shiftId: 'S1', lateOutApproved: true)
+      _day(
+        tIn: _at(9, 0),
+        tOut: _at(18, 45),
+        shiftId: 'S1',
+        lateOutApproved: true,
+      ),
     ]);
     expect(w, isEmpty);
   });
@@ -118,19 +128,24 @@ void main() {
     expect(w.single.type, WarningType.unapprovedOvertime);
   });
 
-  test('overnight shift skips the OT check but still flags missing clock-out', () {
-    final shifts = {'S1': _shift(overnight: true)};
-    final ot = _run([_day(tIn: _at(9, 0), tOut: _at(23, 0), shiftId: 'S1')],
-        shifts: shifts);
-    expect(ot, isEmpty); // OT skipped for overnight
-    final missing = _run([_day(tIn: _at(9, 0), tOut: null, shiftId: 'S1')],
-        shifts: shifts);
-    expect(missing.single.type, WarningType.missingClockOut);
-  });
+  test(
+    'overnight shift skips the OT check but still flags missing clock-out',
+    () {
+      final shifts = {'S1': _shift(overnight: true)};
+      final ot = _run([
+        _day(tIn: _at(9, 0), tOut: _at(23, 0), shiftId: 'S1'),
+      ], shifts: shifts);
+      expect(ot, isEmpty); // OT skipped for overnight
+      final missing = _run([
+        _day(tIn: _at(9, 0), tOut: null, shiftId: 'S1'),
+      ], shifts: shifts);
+      expect(missing.single.type, WarningType.missingClockOut);
+    },
+  );
 
   test('today/future records are skipped', () {
     final w = _run([
-      _day(tIn: _at(9, 0), tOut: null, shiftId: 'S1', date: _today)
+      _day(tIn: _at(9, 0), tOut: null, shiftId: 'S1', date: _today),
     ]);
     expect(w, isEmpty);
   });
@@ -144,8 +159,18 @@ void main() {
 
   test('warnings are sorted by date then employee', () {
     final w = _run([
-      _day(tIn: _at(9, 0), tOut: null, shiftId: 'S1', date: DateTime(2026, 6, 17)),
-      _day(tIn: _at(9, 0), tOut: null, shiftId: 'S1', date: DateTime(2026, 6, 15)),
+      _day(
+        tIn: _at(9, 0),
+        tOut: null,
+        shiftId: 'S1',
+        date: DateTime(2026, 6, 17),
+      ),
+      _day(
+        tIn: _at(9, 0),
+        tOut: null,
+        shiftId: 'S1',
+        date: DateTime(2026, 6, 15),
+      ),
     ]);
     expect(w.first.date, DateTime(2026, 6, 15));
     expect(w.last.date, DateTime(2026, 6, 17));
@@ -153,7 +178,12 @@ void main() {
 
   test('early-in approval flag suppresses the overtime warning', () {
     final w = _run([
-      _day(tIn: _at(8, 20), tOut: _at(18, 0), shiftId: 'S1', earlyInApproved: true)
+      _day(
+        tIn: _at(8, 20),
+        tOut: _at(18, 0),
+        shiftId: 'S1',
+        earlyInApproved: true,
+      ),
     ]);
     expect(w, isEmpty);
   });
@@ -165,16 +195,37 @@ void main() {
 
   test('a future-dated record is skipped', () {
     final w = _run([
-      _day(tIn: _at(9, 0), tOut: null, shiftId: 'S1', date: DateTime(2026, 7, 5))
+      _day(
+        tIn: _at(9, 0),
+        tOut: null,
+        shiftId: 'S1',
+        date: DateTime(2026, 7, 5),
+      ),
     ]);
     expect(w, isEmpty);
   });
 
   test('same-date warnings are sorted by employee label', () {
     final date = DateTime(2026, 6, 15);
-    final zara = _day(tIn: _at(9, 0), tOut: null, shiftId: 'S1', date: date, empFirst: 'Zara');
-    final alice = _day(tIn: _at(9, 0), tOut: null, shiftId: 'S1', date: date, empFirst: 'Alice');
-    final w = detectWarnings(records: [zara, alice], shiftsById: {'S1': _shift()}, today: _today);
+    final zara = _day(
+      tIn: _at(9, 0),
+      tOut: null,
+      shiftId: 'S1',
+      date: date,
+      empFirst: 'Zara',
+    );
+    final alice = _day(
+      tIn: _at(9, 0),
+      tOut: null,
+      shiftId: 'S1',
+      date: date,
+      empFirst: 'Alice',
+    );
+    final w = detectWarnings(
+      records: [zara, alice],
+      shiftsById: {'S1': _shift()},
+      today: _today,
+    );
     expect(w.first.employeeLabel, contains('Alice'));
     expect(w.last.employeeLabel, contains('Zara'));
   });

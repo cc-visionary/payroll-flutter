@@ -101,16 +101,19 @@ void main() {
     );
   });
 
-  test('blocks the employee signing their own notice (case/space-insensitive)', () {
-    final i = _base().copyWith(
-      employeeFullName: 'Jane Cruz',
-      hrManagerName: '  jane   cruz ',
-    );
-    expect(
-      validateSalaryAdjustment(i).map((e) => e.field),
-      contains('hrManager'),
-    );
-  });
+  test(
+    'blocks the employee signing their own notice (case/space-insensitive)',
+    () {
+      final i = _base().copyWith(
+        employeeFullName: 'Jane Cruz',
+        hrManagerName: '  jane   cruz ',
+      );
+      expect(
+        validateSalaryAdjustment(i).map((e) => e.field),
+        contains('hrManager'),
+      );
+    },
+  );
 
   test('a different signatory name has no self-approval error', () {
     final i = _base().copyWith(
@@ -118,8 +121,11 @@ void main() {
       hrManagerName: 'Alex Reyes',
     );
     expect(
-      validateSalaryAdjustment(i).where((e) =>
-          e.field == 'hrManager' && e.message.contains('cannot be the employee')),
+      validateSalaryAdjustment(i).where(
+        (e) =>
+            e.field == 'hrManager' &&
+            e.message.contains('cannot be the employee'),
+      ),
       isEmpty,
     );
   });

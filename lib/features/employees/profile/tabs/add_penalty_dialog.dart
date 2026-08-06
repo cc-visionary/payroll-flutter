@@ -27,10 +27,8 @@ Future<String?> showAddPenaltyDialog({
 }) {
   return showDialog<String>(
     context: context,
-    builder: (_) => _AddPenaltyDialog(
-      employeeId: employeeId,
-      existing: existing,
-    ),
+    builder: (_) =>
+        _AddPenaltyDialog(employeeId: employeeId, existing: existing),
   );
 }
 
@@ -68,9 +66,7 @@ class _AddPenaltyDialogState extends ConsumerState<_AddPenaltyDialog> {
     _installments = TextEditingController(
       text: e == null ? '1' : (e['installment_count']?.toString() ?? '1'),
     );
-    _remarks = TextEditingController(
-      text: (e?['remarks'] as String?) ?? '',
-    );
+    _remarks = TextEditingController(text: (e?['remarks'] as String?) ?? '');
     final effectiveStr = e?['effective_date'] as String?;
     _effectiveDate = effectiveStr != null
         ? DateTime.parse(effectiveStr)
@@ -112,8 +108,9 @@ class _AddPenaltyDialogState extends ConsumerState<_AddPenaltyDialog> {
 
     // Split the total across N installments, 2dp rounding. The last slot
     // absorbs any rounding remainder so sum(installments) == total exactly.
-    final perInstallment = (total / Decimal.fromInt(count))
-        .toDecimal(scaleOnInfinitePrecision: 2);
+    final perInstallment = (total / Decimal.fromInt(count)).toDecimal(
+      scaleOnInfinitePrecision: 2,
+    );
     final amounts = List<Decimal>.generate(count, (_) => perInstallment);
     final residual = total - amounts.fold(Decimal.zero, (s, a) => s + a);
     amounts[amounts.length - 1] = amounts.last + residual;
@@ -124,16 +121,14 @@ class _AddPenaltyDialogState extends ConsumerState<_AddPenaltyDialog> {
     });
     try {
       final client = Supabase.instance.client;
-      final effectiveIso =
-          _effectiveDate.toIso8601String().substring(0, 10);
+      final effectiveIso = _effectiveDate.toIso8601String().substring(0, 10);
       final fields = <String, dynamic>{
         'custom_description': _description.text.trim(),
         'total_amount': total.toString(),
         'installment_count': count,
         'installment_amount': perInstallment.toString(),
         'effective_date': effectiveIso,
-        'remarks':
-            _remarks.text.trim().isEmpty ? null : _remarks.text.trim(),
+        'remarks': _remarks.text.trim().isEmpty ? null : _remarks.text.trim(),
       };
 
       String penaltyId;
@@ -158,10 +153,7 @@ class _AddPenaltyDialogState extends ConsumerState<_AddPenaltyDialog> {
         final oldInstallmentIds = (oldInstallments as List)
             .map((r) => (r as Map)['id'] as String)
             .toList();
-        await client
-            .from('penalties')
-            .update(fields)
-            .eq('id', penaltyId);
+        await client.from('penalties').update(fields).eq('id', penaltyId);
         if (oldInstallmentIds.isNotEmpty) {
           await client
               .from('payslip_lines')
@@ -227,8 +219,7 @@ class _AddPenaltyDialogState extends ConsumerState<_AddPenaltyDialog> {
                   labelText: 'Description',
                   hintText: 'e.g. Equipment damage, Policy violation',
                 ),
-                validator: (v) =>
-                    (v ?? '').trim().isEmpty ? 'Required' : null,
+                validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
                 textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 12),
@@ -276,9 +267,7 @@ class _AddPenaltyDialogState extends ConsumerState<_AddPenaltyDialog> {
               ),
               const SizedBox(height: 12),
               InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Effective date',
-                ),
+                decoration: const InputDecoration(labelText: 'Effective date'),
                 child: Row(
                   children: [
                     Expanded(child: Text(dateStr)),

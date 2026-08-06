@@ -9,12 +9,12 @@ class ParagraphBlock extends Block {
 
   @override
   pw.Widget toPdf(PdfTheme theme) => pw.Text(
-        text,
-        textAlign: align,
-        style: pw.TextStyle(
-          fontSize: theme.bodySize,
-          color: theme.textColor,
-          lineSpacing: 1.0,
-        ),
-      );
+    text,
+    textAlign: align,
+    style: pw.TextStyle(
+      fontSize: theme.bodySize,
+      color: theme.textColor,
+      lineSpacing: 1.0,
+    ),
+  );
 }

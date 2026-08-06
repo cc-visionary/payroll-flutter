@@ -73,8 +73,11 @@ class SignatureLineBlock extends Block {
               : pw.Container(
                   height: 40,
                   alignment: pw.Alignment.bottomCenter,
-                  child: pw.Image(pw.MemoryImage(s.signatureImage!),
-                      height: 38, fit: pw.BoxFit.contain),
+                  child: pw.Image(
+                    pw.MemoryImage(s.signatureImage!),
+                    height: 38,
+                    fit: pw.BoxFit.contain,
+                  ),
                 ),
         ),
         pw.SizedBox(height: 3),

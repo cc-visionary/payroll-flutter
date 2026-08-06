@@ -13,7 +13,8 @@ class _FakeRepo implements WorkforcePlanningRepository {
   final List<(String, bool)> archived = [];
   final List<(String, String?)> carded = [];
   @override
-  Future<void> setTaskArchived(String id, bool a) async => archived.add((id, a));
+  Future<void> setTaskArchived(String id, bool a) async =>
+      archived.add((id, a));
   @override
   Future<void> setTaskCard(String id, String? c) async => carded.add((id, c));
   @override
@@ -24,22 +25,44 @@ class _FakeCards implements RoleScorecardRepository {
   final List<(String, List<String>)> drafted = [];
   @override
   Future<String> createDraftRoleFromTasks({
-      required String companyId, required String jobTitle, required List<String> taskIds}) async {
+    required String companyId,
+    required String jobTitle,
+    required List<String> taskIds,
+  }) async {
     drafted.add((jobTitle, taskIds));
     return 'new-card';
   }
+
   @override
   noSuchMethod(Invocation i) => super.noSuchMethod(i);
 }
 
 final _card = RoleScorecard(
-  id: 'rs1', companyId: 'c', jobTitle: 'Ops', missionStatement: '',
-  responsibilities: const [], kpis: const [], wageType: 'MONTHLY',
-  workHoursPerDay: 8, workDaysPerWeek: 'MON_FRI', isActive: true,
-  effectiveDate: DateTime(2026, 1, 1));
+  id: 'rs1',
+  companyId: 'c',
+  jobTitle: 'Ops',
+  missionStatement: '',
+  responsibilities: const [],
+  kpis: const [],
+  wageType: 'MONTHLY',
+  workHoursPerDay: 8,
+  workDaysPerWeek: 'MON_FRI',
+  isActive: true,
+  effectiveDate: DateTime(2026, 1, 1),
+);
 
-const _p1 = WpTask(id: 'p1', companyId: 'c', name: 'Pack orders', hoursPerMonth: 10);
-const _p2 = WpTask(id: 'p2', companyId: 'c', name: 'Pack the orders', hoursPerMonth: 5);
+const _p1 = WpTask(
+  id: 'p1',
+  companyId: 'c',
+  name: 'Pack orders',
+  hoursPerMonth: 10,
+);
+const _p2 = WpTask(
+  id: 'p2',
+  companyId: 'c',
+  name: 'Pack the orders',
+  hoursPerMonth: 5,
+);
 
 Widget _host(_FakeRepo repo, _FakeCards cards) {
   final router = GoRouter(
@@ -48,7 +71,11 @@ Widget _host(_FakeRepo repo, _FakeCards cards) {
       GoRoute(
         path: '/unassigned',
         builder: (_, _) => Scaffold(
-          body: SizedBox(width: 1200, height: 900, child: const UnassignedTab()),
+          body: SizedBox(
+            width: 1200,
+            height: 900,
+            child: const UnassignedTab(),
+          ),
         ),
       ),
       GoRoute(
@@ -61,10 +88,12 @@ Widget _host(_FakeRepo repo, _FakeCards cards) {
     overrides: [
       wpTasksProvider.overrideWith((ref) async => const [_p1, _p2]),
       wpActiveEmployeesProvider.overrideWith((ref) async => const []),
-      wpAllTaskComputedProvider.overrideWith((ref) async => const [
-            WpTaskComputed(taskId: 'p1', companyId: 'c', hoursPerMonthBase: 10),
-            WpTaskComputed(taskId: 'p2', companyId: 'c', hoursPerMonthBase: 5),
-          ]),
+      wpAllTaskComputedProvider.overrideWith(
+        (ref) async => const [
+          WpTaskComputed(taskId: 'p1', companyId: 'c', hoursPerMonthBase: 10),
+          WpTaskComputed(taskId: 'p2', companyId: 'c', hoursPerMonthBase: 5),
+        ],
+      ),
       wpGrowthMultiplierProvider.overrideWithValue(1.0),
       roleScorecardListProvider.overrideWith((ref) async => [_card]),
       workforcePlanningRepositoryProvider.overrideWithValue(repo),
@@ -75,14 +104,18 @@ Widget _host(_FakeRepo repo, _FakeCards cards) {
 }
 
 void main() {
-  testWidgets('renders a cluster of the two similar orphans with total hours', (tester) async {
+  testWidgets('renders a cluster of the two similar orphans with total hours', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(_FakeRepo(), _FakeCards()));
     await tester.pumpAndSettle();
     expect(find.text('Pack orders'), findsWidgets);
     expect(find.textContaining('Propose role from these'), findsOneWidget);
   });
 
-  testWidgets('Propose role drafts an inactive card from the cluster', (tester) async {
+  testWidgets('Propose role drafts an inactive card from the cluster', (
+    tester,
+  ) async {
     final cards = _FakeCards();
     await tester.pumpWidget(_host(_FakeRepo(), cards));
     await tester.pumpAndSettle();

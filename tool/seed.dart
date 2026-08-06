@@ -42,7 +42,8 @@ Future<void> main(List<String> argv) async {
     ..addFlag(
       'print-credentials',
       defaultsTo: false,
-      help: 'Print seeded user emails + passwords at the end (dev only; logs secrets)',
+      help:
+          'Print seeded user emails + passwords at the end (dev only; logs secrets)',
     )
     ..addFlag('verbose', abbr: 'v', defaultsTo: false)
     ..addFlag('help', abbr: 'h', negatable: false);
@@ -73,7 +74,9 @@ Future<void> main(List<String> argv) async {
     _fail('Missing SUPABASE_SERVICE_ROLE_KEY in $envPath');
   }
   if (!url.startsWith('https://') || !url.endsWith('.supabase.co')) {
-    _warn('SUPABASE_URL "$url" does not look like a Supabase URL. Continuing anyway.');
+    _warn(
+      'SUPABASE_URL "$url" does not look like a Supabase URL. Continuing anyway.',
+    );
   }
   if (!_looksLikeServiceRoleJwt(serviceRoleKey)) {
     _fail(
@@ -114,7 +117,11 @@ Future<void> main(List<String> argv) async {
   final dryRun = args['dry-run'] as bool;
   final verbose = args['verbose'] as bool;
   final runner = _SeedRunner(
-    SupabaseClient(url, serviceRoleKey, authOptions: const AuthClientOptions(autoRefreshToken: false)),
+    SupabaseClient(
+      url,
+      serviceRoleKey,
+      authOptions: const AuthClientOptions(autoRefreshToken: false),
+    ),
     dryRun: dryRun,
     verbose: verbose,
   );
@@ -149,15 +156,19 @@ Future<void> main(List<String> argv) async {
   if (args['print-credentials'] as bool) {
     _printCredentials(env, allowDefaults: allowDefaults);
   } else {
-    stdout.writeln('(pass --print-credentials to print the test user emails + passwords)');
+    stdout.writeln(
+      '(pass --print-credentials to print the test user emails + passwords)',
+    );
   }
 
   exit(0);
 }
 
 void _printCredentials(Map<String, String> env, {required bool allowDefaults}) {
-  const divider = '═══════════════════════════════════════════════════════════════════════════';
-  const thin = '───────────────────────────────────────────────────────────────────────────';
+  const divider =
+      '═══════════════════════════════════════════════════════════════════════════';
+  const thin =
+      '───────────────────────────────────────────────────────────────────────────';
   stdout
     ..writeln('')
     ..writeln(divider)
@@ -177,7 +188,9 @@ void _printCredentials(Map<String, String> env, {required bool allowDefaults}) {
   }
   stdout
     ..writeln('')
-    ..writeln('  ⚠️  Never commit passwords or share this output in chat / tickets.')
+    ..writeln(
+      '  ⚠️  Never commit passwords or share this output in chat / tickets.',
+    )
     ..writeln(divider)
     ..writeln('');
 }
@@ -202,37 +215,56 @@ class _SeedRunner {
   }
 
   Future<void> departments() async {
-    await _upsert('departments', seedDepartments, onConflict: 'company_id,code');
+    await _upsert(
+      'departments',
+      seedDepartments,
+      onConflict: 'company_id,code',
+    );
   }
 
   Future<void> roleScorecards() async {
-    await _upsert('role_scorecards', loadRoleScorecards(),
-        onConflict: 'company_id,job_title,effective_date');
+    await _upsert(
+      'role_scorecards',
+      loadRoleScorecards(),
+      onConflict: 'company_id,job_title,effective_date',
+    );
   }
 
   Future<void> employees() async {
-    await _upsert('employees', loadEmployees(), onConflict: 'company_id,employee_number');
+    await _upsert(
+      'employees',
+      loadEmployees(),
+      onConflict: 'company_id,employee_number',
+    );
     // Replace any existing statutory IDs for seeded employees to stay idempotent
     // (employee_statutory_ids has no stable natural key — delete-and-reinsert pattern).
     final stat = loadEmployeeStatutoryIds();
     if (stat.isEmpty) return;
     final empIds = stat.map((r) => r['employee_id']).toSet().toList();
     if (!dryRun) {
-      await db.from('employee_statutory_ids').delete().inFilter('employee_id', empIds);
+      await db
+          .from('employee_statutory_ids')
+          .delete()
+          .inFilter('employee_id', empIds);
       await db.from('employee_statutory_ids').insert(stat);
     }
     stdout.writeln('  ✓ employee_statutory_ids: ${stat.length} row(s)');
   }
 
-  Future<void> adminUsers(Map<String, String> env, {required bool allowDefaults}) async {
+  Future<void> adminUsers(
+    Map<String, String> env, {
+    required bool allowDefaults,
+  }) async {
     // Pre-load role id map
     final roleRows = await db.from('roles').select('id, code') as List<dynamic>;
     final roleIdByCode = {
-      for (final r in roleRows.cast<Map<String, dynamic>>()) r['code'] as String: r['id'] as String,
+      for (final r in roleRows.cast<Map<String, dynamic>>())
+        r['code'] as String: r['id'] as String,
     };
 
     for (final u in seedUsers) {
-      final password = env[u.passwordEnvKey] ?? (allowDefaults ? u.defaultPassword : null);
+      final password =
+          env[u.passwordEnvKey] ?? (allowDefaults ? u.defaultPassword : null);
       if (password == null) {
         _warn('Skipping ${u.email}: no password provided.');
         continue;
@@ -251,10 +283,7 @@ class _SeedRunner {
       return;
     }
 
-    final appMetadata = {
-      'app_role': u.appRole,
-      'company_id': seedCompanyId,
-    };
+    final appMetadata = {'app_role': u.appRole, 'company_id': seedCompanyId};
 
     String userId;
     try {
@@ -297,10 +326,10 @@ class _SeedRunner {
       _warn('    role "${u.roleCode}" not found; skipping link.');
       return;
     }
-    await db.from('user_roles').upsert(
-      {'user_id': userId, 'role_id': roleId},
-      onConflict: 'user_id,role_id',
-    );
+    await db.from('user_roles').upsert({
+      'user_id': userId,
+      'role_id': roleId,
+    }, onConflict: 'user_id,role_id');
   }
 
   Future<String?> _findAuthUserByEmail(String email) async {
@@ -358,8 +387,7 @@ Map<String, String> _loadEnv(String path) {
   }
   if (parsed is! Map) _fail('Env file $path must be a JSON object.');
   return {
-    for (final e in parsed.entries)
-      e.key as String: e.value?.toString() ?? '',
+    for (final e in parsed.entries) e.key as String: e.value?.toString() ?? '',
   };
 }
 
@@ -370,7 +398,11 @@ bool _looksLikeServiceRoleJwt(String s) {
   if (parts.length != 3) return false;
   try {
     final padded = parts[1] + ('=' * ((4 - parts[1].length % 4) % 4));
-    final payload = jsonDecode(utf8.decode(base64.decode(padded.replaceAll('-', '+').replaceAll('_', '/'))));
+    final payload = jsonDecode(
+      utf8.decode(
+        base64.decode(padded.replaceAll('-', '+').replaceAll('_', '/')),
+      ),
+    );
     return payload is Map && payload['role'] == 'service_role';
   } catch (_) {
     return false;

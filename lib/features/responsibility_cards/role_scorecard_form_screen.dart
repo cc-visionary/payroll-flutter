@@ -16,7 +16,8 @@ import '../../data/models/workforce_planning.dart';
 import '../../data/repositories/workforce_planning_repository.dart';
 import '../workforce_planning/assignable_pool.dart';
 import '../workforce_planning/duplicate_check.dart';
-import '../workforce_planning/tabs/role_view_tab.dart' show ownerComputedProvider;
+import '../workforce_planning/tabs/role_view_tab.dart'
+    show ownerComputedProvider;
 import '../workforce_planning/wp_providers.dart';
 import 'responsibility_rows.dart';
 import 'scorecard_base_salary.dart';
@@ -151,8 +152,7 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
     // candidate in the first place.
     _existingResponsibilityRows = [
       for (final r in rows.cast<Map<String, dynamic>>())
-        if (((r['responsibility_area'] as String?) ?? '').trim().isNotEmpty)
-          r,
+        if (((r['responsibility_area'] as String?) ?? '').trim().isNotEmpty) r,
     ];
     _areas.clear();
     final areaOrder = <String>[];
@@ -190,9 +190,11 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
   Future<void> _linkExistingTask(int areaIndex) async {
     final all = ref.read(wpTasksProvider).asData?.value ?? const <WpTask>[];
     final allCards =
-        ref.read(roleScorecardListProvider).asData?.value ?? const <RoleScorecard>[];
+        ref.read(roleScorecardListProvider).asData?.value ??
+        const <RoleScorecard>[];
     final assignments =
-        ref.read(wpTaskAssignmentsProvider).asData?.value ?? const <WpTaskAssignment>[];
+        ref.read(wpTaskAssignmentsProvider).asData?.value ??
+        const <WpTaskAssignment>[];
     final alreadyDrafted = {
       for (final a in _areas)
         for (final t in a.tasks)
@@ -207,24 +209,34 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
     }
 
     final onThisCard = tasksOnCard(
-        cardId: widget.cardId, allTasks: all, allAssignments: assignments);
-    final pool = [
-      for (final t in all)
-        if (t.status == 'ACTIVE' && !t.isExpectation &&
-            !alreadyDrafted.contains(t.id) &&
-            !onThisCard.contains(t.id)) t,   // M1 (authored here) + I2 (shared here)
-    ]..sort((a, b) {
-        final aUnlinked = a.roleScorecardId == null;
-        final bUnlinked = b.roleScorecardId == null;
-        if (aUnlinked != bUnlinked) return aUnlinked ? -1 : 1;
-        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-      });
+      cardId: widget.cardId,
+      allTasks: all,
+      allAssignments: assignments,
+    );
+    final pool =
+        [
+          for (final t in all)
+            if (t.status == 'ACTIVE' &&
+                !t.isExpectation &&
+                !alreadyDrafted.contains(t.id) &&
+                !onThisCard.contains(t.id))
+              t, // M1 (authored here) + I2 (shared here)
+        ]..sort((a, b) {
+          final aUnlinked = a.roleScorecardId == null;
+          final bUnlinked = b.roleScorecardId == null;
+          if (aUnlinked != bUnlinked) return aUnlinked ? -1 : 1;
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        });
 
     if (pool.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('No unlinked tasks left — every task already sits on a card.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No unlinked tasks left — every task already sits on a card.',
+          ),
+        ),
+      );
       return;
     }
 
@@ -237,8 +249,11 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
     if (picked.roleScorecardId == null) {
       // True orphan — keep today's behavior: draft it so saveResponsibilities
       // adopts it (repoints role_scorecard_id) onto THIS card on save.
-      setState(() =>
-          _areas[areaIndex].tasks.add(RespDraft(id: picked.id, name: picked.name)));
+      setState(
+        () => _areas[areaIndex].tasks.add(
+          RespDraft(id: picked.id, name: picked.name),
+        ),
+      );
       return;
     }
 
@@ -255,16 +270,23 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
   Future<bool> _shareTask(WpTask picked, String fromLabel) async {
     final thisCardId = widget.cardId;
     if (thisCardId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Save this card first, then you can share tasks from other cards.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Save this card first, then you can share tasks from other cards.',
+          ),
+        ),
+      );
       return false;
     }
     final companyId =
-        _existing?.companyId ?? ref.read(userProfileProvider).asData?.value?.companyId;
+        _existing?.companyId ??
+        ref.read(userProfileProvider).asData?.value?.companyId;
     if (companyId == null) return false;
     try {
-      await ref.read(workforcePlanningRepositoryProvider).upsertAssignment(
+      await ref
+          .read(workforcePlanningRepositoryProvider)
+          .upsertAssignment(
             WpTaskAssignment(
               id: '',
               companyId: companyId,
@@ -275,20 +297,24 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
             ),
           );
       ref.invalidate(wpTaskAssignmentsProvider);
-      _invalidateAfterSave(thisCardId); // I1: refresh the card's responsibility list (detail/PDF/Annex A)
+      _invalidateAfterSave(
+        thisCardId,
+      ); // I1: refresh the card's responsibility list (detail/PDF/Annex A)
       if (!mounted) return true;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-          'Shared "${picked.name}" from $fromLabel — '
-          "set its split in the responsibility's Assignment panel.",
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Shared "${picked.name}" from $fromLabel — '
+            "set its split in the responsibility's Assignment panel.",
+          ),
         ),
-      ));
+      );
       return true;
     } catch (e) {
       if (!mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not share "${picked.name}": $e'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not share "${picked.name}": $e')),
+      );
       return false;
     }
   }
@@ -306,8 +332,11 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
   ) {
     final draft = _areas[areaIndex].tasks[taskIndex];
     if (draft.id != null) return const SizedBox.shrink();
-    final matches =
-        findSimilarAccountabilities(typed: draft.name, all: allTasks, limit: 1);
+    final matches = findSimilarAccountabilities(
+      typed: draft.name,
+      all: allTasks,
+      limit: 1,
+    );
     if (matches.isEmpty) return const SizedBox.shrink();
     final match = matches.first;
     var cardTitle = 'no card';
@@ -339,8 +368,12 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
             onPressed: () async {
               if (match.task.roleScorecardId == null) {
                 // True orphan — adopt it onto this card (replace the typed line).
-                setState(() => _areas[areaIndex].tasks[taskIndex] =
-                    RespDraft(id: match.task.id, name: match.task.name));
+                setState(
+                  () => _areas[areaIndex].tasks[taskIndex] = RespDraft(
+                    id: match.task.id,
+                    name: match.task.name,
+                  ),
+                );
               } else {
                 // Owned by another card — share it, and drop the typed line
                 // (the shared row surfaces on this card via the union read).
@@ -436,23 +469,23 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
         isActive: _isActive,
         effectiveDate: _effectiveDate,
       );
-      final saved = await ref.read(roleScorecardRepositoryProvider).upsert(card);
-      await ref.read(roleScorecardRepositoryProvider).saveRoleScorecardKpis(
-        saved.id,
-        saved.companyId,
-        [
-          for (final k in _kpis)
-            if (k.name.trim().isNotEmpty)
-              KpiLinkInput(
-                kpiId: k.kpiId,
-                name: k.name.trim(),
-                measurementUnit: k.measurement.trim(),
-                category: k.category,
-                target: k.target.trim(),
-                frequency: k.frequency.trim(),
-              ),
-        ],
-      );
+      final saved = await ref
+          .read(roleScorecardRepositoryProvider)
+          .upsert(card);
+      await ref
+          .read(roleScorecardRepositoryProvider)
+          .saveRoleScorecardKpis(saved.id, saved.companyId, [
+            for (final k in _kpis)
+              if (k.name.trim().isNotEmpty)
+                KpiLinkInput(
+                  kpiId: k.kpiId,
+                  name: k.name.trim(),
+                  measurementUnit: k.measurement.trim(),
+                  category: k.category,
+                  target: k.target.trim(),
+                  frequency: k.frequency.trim(),
+                ),
+          ]);
 
       try {
         // Diff against the raw rows captured on load (never against
@@ -465,12 +498,14 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
           cardId: saved.id,
           companyId: saved.companyId,
         );
-        await ref.read(roleScorecardRepositoryProvider).saveResponsibilities(
-          cardId: saved.id,
-          inserts: diff.inserts,
-          updates: diff.updates,
-          deleteIds: diff.deleteIds,
-        );
+        await ref
+            .read(roleScorecardRepositoryProvider)
+            .saveResponsibilities(
+              cardId: saved.id,
+              inserts: diff.inserts,
+              updates: diff.updates,
+              deleteIds: diff.deleteIds,
+            );
       } catch (_) {
         // saveResponsibilities is multi-statement and non-transactional
         // (insert -> per-row update -> delete -> legacy-column clear). A
@@ -508,19 +543,26 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final kpiLibrary = ref.watch(kpiLibraryProvider).asData?.value ?? const <Kpi>[];
+    final kpiLibrary =
+        ref.watch(kpiLibraryProvider).asData?.value ?? const <Kpi>[];
     // For the duplicate-responsibility nudge below each NEW task line.
     final wpTasksForDupeCheck =
         ref.watch(wpTasksProvider).asData?.value ?? const <WpTask>[];
     final scorecardsForDupeCheck =
-        ref.watch(roleScorecardListProvider).asData?.value ?? const <RoleScorecard>[];
+        ref.watch(roleScorecardListProvider).asData?.value ??
+        const <RoleScorecard>[];
     // Never nudge toward a task already on THIS card — see tasksOnCard.
     final assignmentsForDupeCheck =
-        ref.watch(wpTaskAssignmentsProvider).asData?.value ?? const <WpTaskAssignment>[];
+        ref.watch(wpTaskAssignmentsProvider).asData?.value ??
+        const <WpTaskAssignment>[];
     final onThisCardForDupe = tasksOnCard(
-        cardId: widget.cardId, allTasks: wpTasksForDupeCheck, allAssignments: assignmentsForDupeCheck);
+      cardId: widget.cardId,
+      allTasks: wpTasksForDupeCheck,
+      allAssignments: assignmentsForDupeCheck,
+    );
     final dupeCandidates = [
-      for (final t in wpTasksForDupeCheck) if (!onThisCardForDupe.contains(t.id)) t,
+      for (final t in wpTasksForDupeCheck)
+        if (!onThisCardForDupe.contains(t.id)) t,
     ];
     return Scaffold(
       appBar: AppBar(
@@ -814,7 +856,8 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                                   top: 4,
                                 ),
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
                                     Row(
                                       children: [
@@ -824,9 +867,14 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                                             // not-yet-saved line) so the field follows
                                             // its responsibility, not its index — see
                                             // the note on the Area field above.
-                                            key: ValueKey(_areas[i].tasks[j].id ??
-                                                identityHashCode(_areas[i].tasks[j])),
-                                            initialValue: _areas[i].tasks[j].name,
+                                            key: ValueKey(
+                                              _areas[i].tasks[j].id ??
+                                                  identityHashCode(
+                                                    _areas[i].tasks[j],
+                                                  ),
+                                            ),
+                                            initialValue:
+                                                _areas[i].tasks[j].name,
                                             decoration: const InputDecoration(
                                               labelText: 'Task',
                                               border: OutlineInputBorder(),
@@ -841,15 +889,22 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                                           ),
                                         ),
                                         IconButton(
-                                          icon: const Icon(Icons.close, size: 18),
+                                          icon: const Icon(
+                                            Icons.close,
+                                            size: 18,
+                                          ),
                                           onPressed: () => setState(
                                             () => _areas[i].tasks.removeAt(j),
                                           ),
                                         ),
                                       ],
                                     ),
-                                    _duplicateWarning(i, j, dupeCandidates,
-                                        scorecardsForDupeCheck),
+                                    _duplicateWarning(
+                                      i,
+                                      j,
+                                      dupeCandidates,
+                                      scorecardsForDupeCheck,
+                                    ),
                                   ],
                                 ),
                               ),
@@ -982,7 +1037,8 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
               ),
               onChanged: (value) => setState(() {
                 _kpis[index].name = value;
-                _kpis[index].kpiId = null; // typing a fresh name = new library KPI
+                _kpis[index].kpiId =
+                    null; // typing a fresh name = new library KPI
               }),
             ),
       ),
@@ -1251,8 +1307,10 @@ class _LinkTaskDialogState extends State<_LinkTaskDialog> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Link an existing task',
-                      style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'Link an existing task',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   Text(
                     '${widget.pool.length} tasks are available. Picking an unassigned '
                     'one adopts it and brings its costing with it; picking one that '
@@ -1277,8 +1335,11 @@ class _LinkTaskDialogState extends State<_LinkTaskDialog> {
             Expanded(
               child: rows.isEmpty
                   ? Center(
-                      child: Text('Nothing matches.',
-                          style: TextStyle(color: cs.onSurfaceVariant)))
+                      child: Text(
+                        'Nothing matches.',
+                        style: TextStyle(color: cs.onSurfaceVariant),
+                      ),
+                    )
                   : ListView.builder(
                       itemCount: rows.length,
                       itemBuilder: (context, i) {
@@ -1295,7 +1356,10 @@ class _LinkTaskDialogState extends State<_LinkTaskDialog> {
                           title: Text(t.name),
                           subtitle: Text(
                             subtitle,
-                            style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: cs.onSurfaceVariant,
+                            ),
                           ),
                           onTap: () => Navigator.pop(context, t),
                         );

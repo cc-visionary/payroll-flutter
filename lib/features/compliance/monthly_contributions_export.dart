@@ -51,11 +51,13 @@ Decimal declaredMonthlySalary({
   required String? scorecardWageType,
   int workHoursPerDay = 8,
 }) {
-  final overrideActive = declaredWageOverride != null &&
+  final overrideActive =
+      declaredWageOverride != null &&
       declaredWageType != null &&
       declaredWageOverride > Decimal.zero;
-  final rate =
-      overrideActive ? declaredWageOverride : (scorecardBaseSalary ?? Decimal.zero);
+  final rate = overrideActive
+      ? declaredWageOverride
+      : (scorecardBaseSalary ?? Decimal.zero);
   final type = overrideActive ? declaredWageType : scorecardWageType;
 
   Decimal daily;
@@ -171,23 +173,27 @@ List<MonthlyContributionRow> buildMonthlyContributionRows({
   required List<StatutoryPayableBreakdownRow> breakdown,
   required Map<String, MonthlyContributionEmployee> employeesById,
 }) {
-  final byEmployee = <String, Map<StatutoryAgency, StatutoryPayableBreakdownRow>>{};
+  final byEmployee =
+      <String, Map<StatutoryAgency, StatutoryPayableBreakdownRow>>{};
   for (final r in breakdown) {
     if (r.agency == StatutoryAgency.employeeLoan) continue;
     byEmployee.putIfAbsent(r.employeeId, () => {})[r.agency] = r;
   }
 
-  Decimal ee(Map<StatutoryAgency, StatutoryPayableBreakdownRow> m,
-          StatutoryAgency a) =>
-      m[a]?.eeShare ?? Decimal.zero;
-  Decimal er(Map<StatutoryAgency, StatutoryPayableBreakdownRow> m,
-          StatutoryAgency a) =>
-      m[a]?.erShare ?? Decimal.zero;
+  Decimal ee(
+    Map<StatutoryAgency, StatutoryPayableBreakdownRow> m,
+    StatutoryAgency a,
+  ) => m[a]?.eeShare ?? Decimal.zero;
+  Decimal er(
+    Map<StatutoryAgency, StatutoryPayableBreakdownRow> m,
+    StatutoryAgency a,
+  ) => m[a]?.erShare ?? Decimal.zero;
 
   final rows = <MonthlyContributionRow>[
     for (final e in byEmployee.entries)
       MonthlyContributionRow(
-        employee: employeesById[e.key] ??
+        employee:
+            employeesById[e.key] ??
             MonthlyContributionEmployee(
               employeeId: e.key,
               employeeNumber: '',
@@ -230,16 +236,24 @@ List<RemittanceStatusLine> buildRemittanceStatusLines({
   required List<StatutoryPaymentSummary> paidSummaries,
 }) {
   Decimal due(StatutoryAgency a) => switch (a) {
-        StatutoryAgency.sssContribution => rows.fold(
-            Decimal.zero, (s, r) => s + r.sssEe + r.sssEr),
-        StatutoryAgency.philhealthContribution => rows.fold(
-            Decimal.zero, (s, r) => s + r.philhealthEe + r.philhealthEr),
-        StatutoryAgency.pagibigContribution => rows.fold(
-            Decimal.zero, (s, r) => s + r.pagibigEe + r.pagibigEr),
-        StatutoryAgency.birWithholding =>
-          rows.fold(Decimal.zero, (s, r) => s + r.withholdingTax),
-        StatutoryAgency.employeeLoan => Decimal.zero,
-      };
+    StatutoryAgency.sssContribution => rows.fold(
+      Decimal.zero,
+      (s, r) => s + r.sssEe + r.sssEr,
+    ),
+    StatutoryAgency.philhealthContribution => rows.fold(
+      Decimal.zero,
+      (s, r) => s + r.philhealthEe + r.philhealthEr,
+    ),
+    StatutoryAgency.pagibigContribution => rows.fold(
+      Decimal.zero,
+      (s, r) => s + r.pagibigEe + r.pagibigEr,
+    ),
+    StatutoryAgency.birWithholding => rows.fold(
+      Decimal.zero,
+      (s, r) => s + r.withholdingTax,
+    ),
+    StatutoryAgency.employeeLoan => Decimal.zero,
+  };
 
   return [
     for (final agency in _statusAgencies)
@@ -280,12 +294,14 @@ Future<int> releasedRunCountForMonth(
   String iso(DateTime d) => d.toIso8601String().substring(0, 10);
   final monthStart = DateTime(year, month, 1);
   final monthEnd = DateTime(year, month + 1, 0);
-  final rows = await client
-      .from('payroll_runs')
-      .select('id')
-      .eq('status', 'RELEASED')
-      .gte('period_end', iso(monthStart))
-      .lte('period_end', iso(monthEnd)) as List<dynamic>;
+  final rows =
+      await client
+              .from('payroll_runs')
+              .select('id')
+              .eq('status', 'RELEASED')
+              .gte('period_end', iso(monthStart))
+              .lte('period_end', iso(monthEnd))
+          as List<dynamic>;
   return rows.length;
 }
 
@@ -301,26 +317,33 @@ Future<List<MonthlyContributionsSheet>> buildMonthlyContributionsSheets({
   required Set<String> brandFilter,
   required List<HiringEntity> brands,
 }) async {
-  final raw = await client
-      .from('statutory_payable_breakdown_v')
-      .select()
-      .eq('period_year', year)
-      .eq('period_month', month) as List<dynamic>;
+  final raw =
+      await client
+              .from('statutory_payable_breakdown_v')
+              .select()
+              .eq('period_year', year)
+              .eq('period_month', month)
+          as List<dynamic>;
   final breakdown = raw
       .cast<Map<String, dynamic>>()
       .map(StatutoryPayableBreakdownRow.fromRow)
-      .where((r) =>
-          brandFilter.isEmpty || brandFilter.contains(r.hiringEntityId))
+      .where(
+        (r) => brandFilter.isEmpty || brandFilter.contains(r.hiringEntityId),
+      )
       .toList();
   if (breakdown.isEmpty) return const [];
 
   final empIds = breakdown.map((r) => r.employeeId).toSet().toList();
-  final empRows = await client
-      .from('employees')
-      .select('id, employee_number, first_name, last_name, '
-          'declared_wage_override, declared_wage_type, '
-          'role_scorecards(base_salary, wage_type, work_hours_per_day)')
-      .inFilter('id', empIds) as List<dynamic>;
+  final empRows =
+      await client
+              .from('employees')
+              .select(
+                'id, employee_number, first_name, last_name, '
+                'declared_wage_override, declared_wage_type, '
+                'role_scorecards(base_salary, wage_type, work_hours_per_day)',
+              )
+              .inFilter('id', empIds)
+          as List<dynamic>;
   final employeesById = <String, MonthlyContributionEmployee>{};
   for (final r in empRows.cast<Map<String, dynamic>>()) {
     final sc = r['role_scorecards'] as Map<String, dynamic>?;
@@ -356,8 +379,9 @@ Future<List<MonthlyContributionsSheet>> buildMonthlyContributionsSheets({
     byBrand.putIfAbsent(r.hiringEntityId, () => []).add(r);
   }
   final sortedIds = byBrand.keys.toList()
-    ..sort((a, b) =>
-        (brandById[a]?.name ?? '').compareTo(brandById[b]?.name ?? ''));
+    ..sort(
+      (a, b) => (brandById[a]?.name ?? '').compareTo(brandById[b]?.name ?? ''),
+    );
 
   final out = <MonthlyContributionsSheet>[];
   for (final id in sortedIds) {
@@ -368,15 +392,16 @@ Future<List<MonthlyContributionsSheet>> buildMonthlyContributionsSheets({
       employeesById: employeesById,
     );
     if (rows.isEmpty) continue;
-    out.add(MonthlyContributionsSheet(
-      brand: brand,
-      rows: rows,
-      statusLines: buildRemittanceStatusLines(
+    out.add(
+      MonthlyContributionsSheet(
+        brand: brand,
         rows: rows,
-        paidSummaries:
-            paid.where((p) => p.hiringEntityId == id).toList(),
+        statusLines: buildRemittanceStatusLines(
+          rows: rows,
+          paidSummaries: paid.where((p) => p.hiringEntityId == id).toList(),
+        ),
       ),
-    ));
+    );
   }
   return out;
 }
@@ -422,16 +447,13 @@ Future<String?> _shareExcel(Excel excel, String fileName) async {
   final named = safe.toLowerCase().endsWith('.xlsx') ? safe : '$safe.xlsx';
   final path = '${dir.path}${Platform.pathSeparator}$named';
   await File(path).writeAsBytes(bytes);
-  final result = await Share.shareXFiles(
-    [
-      XFile(
-        path,
-        mimeType:
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      ),
-    ],
-    subject: fileName,
-  );
+  final result = await Share.shareXFiles([
+    XFile(
+      path,
+      mimeType:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ),
+  ], subject: fileName);
   if (result.status == ShareResultStatus.dismissed) return null;
   return path;
 }
@@ -535,12 +557,15 @@ void _appendSheet(
       DoubleCellValue(n(line.due)),
       DoubleCellValue(n(line.paid)),
       TextCellValue(
-          line.lastPaidOn == null ? '' : dateFmt.format(line.lastPaidOn!)),
-      TextCellValue(s == null
-          ? '—'
-          : s == PayableStatus.overpaid
-              ? 'PAID'
-              : s.label.toUpperCase()),
+        line.lastPaidOn == null ? '' : dateFmt.format(line.lastPaidOn!),
+      ),
+      TextCellValue(
+        s == null
+            ? '—'
+            : s == PayableStatus.overpaid
+            ? 'PAID'
+            : s.label.toUpperCase(),
+      ),
     ]);
   }
 }

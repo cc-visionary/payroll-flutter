@@ -68,9 +68,9 @@ void main() {
   });
 
   test('build includes the logo in MemoHeaderBlock when logoBytes set', () {
-    final blocks = const NodTemplate().build(_i().copyWith(
-      logoBytes: Uint8List.fromList(const [137, 80, 78, 71]),
-    ));
+    final blocks = const NodTemplate().build(
+      _i().copyWith(logoBytes: Uint8List.fromList(const [137, 80, 78, 71])),
+    );
     expect(blocks.first, isA<MemoHeaderBlock>());
     expect((blocks.first as MemoHeaderBlock).logoBytes, isNotNull);
   });
@@ -84,10 +84,12 @@ void main() {
 
   test('appends attachment section when attachmentBytes is set', () {
     const t = NodTemplate();
-    final blocks = t.build(_i().copyWith(
-      attachmentBytes: Uint8List.fromList([9, 8, 7]),
-      attachmentCaption: 'Damaged unit',
-    ));
+    final blocks = t.build(
+      _i().copyWith(
+        attachmentBytes: Uint8List.fromList([9, 8, 7]),
+        attachmentCaption: 'Damaged unit',
+      ),
+    );
     final img = blocks.whereType<ImageAttachmentBlock>().toList();
     expect(img.length, 1);
     expect(img.first.caption, 'Damaged unit');
@@ -98,8 +100,9 @@ void main() {
     );
 
     final iPage = blocks.indexWhere((b) => b is PageBreakBlock);
-    final iHeading =
-        blocks.indexWhere((b) => b is HeadingBlock && b.text == 'Annex A');
+    final iHeading = blocks.indexWhere(
+      (b) => b is HeadingBlock && b.text == 'Annex A',
+    );
     final iImage = blocks.indexWhere((b) => b is ImageAttachmentBlock);
     expect(iPage, greaterThanOrEqualTo(0));
     expect(iPage, lessThan(iHeading));

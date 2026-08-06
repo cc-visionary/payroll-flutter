@@ -3,15 +3,16 @@
 class CheckInGoal {
   final String id;
   final String checkInId;
-  final String goalType;     // enum: PERFORMANCE|LEARNING|PROJECT|BEHAVIORAL
+  final String goalType; // enum: PERFORMANCE|LEARNING|PROJECT|BEHAVIORAL
   final String title;
   final String? description;
   final DateTime? targetDate;
-  final int progress;        // 0-100
-  final String status;       // enum: NOT_STARTED|IN_PROGRESS|COMPLETED|PARTIALLY_MET|NOT_MET|DEFERRED
+  final int progress; // 0-100
+  final String
+  status; // enum: NOT_STARTED|IN_PROGRESS|COMPLETED|PARTIALLY_MET|NOT_MET|DEFERRED
   final String? selfAssessment;
   final String? managerAssessment;
-  final int? rating;         // 1-5
+  final int? rating; // 1-5
   final bool carryForward;
   final DateTime createdAt;
   final DateTime updatedAt;

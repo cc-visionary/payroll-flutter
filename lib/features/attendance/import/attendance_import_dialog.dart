@@ -139,26 +139,34 @@ class _State extends ConsumerState<_AttendanceImportDialog> {
         try {
           date = DateTime.parse(dateStr);
         } catch (_) {
-          errors.add('Row ${i + 1}: invalid date "$dateStr" (expected YYYY-MM-DD).');
+          errors.add(
+            'Row ${i + 1}: invalid date "$dateStr" (expected YYYY-MM-DD).',
+          );
           continue;
         }
         final tIn = _toTimestamp(date, inStr);
         final tOut = _toTimestamp(date, outStr);
         if (inStr.isNotEmpty && tIn == null) {
-          errors.add('Row ${i + 1}: invalid time_in "$inStr" (expected HH:MM).');
+          errors.add(
+            'Row ${i + 1}: invalid time_in "$inStr" (expected HH:MM).',
+          );
           continue;
         }
         if (outStr.isNotEmpty && tOut == null) {
-          errors.add('Row ${i + 1}: invalid time_out "$outStr" (expected HH:MM).');
+          errors.add(
+            'Row ${i + 1}: invalid time_out "$outStr" (expected HH:MM).',
+          );
           continue;
         }
-        parsed.add(_ParsedRow(
-          employeeId: empId,
-          employeeNumber: empNum,
-          date: DateTime(date.year, date.month, date.day),
-          timeIn: tIn,
-          timeOut: tOut,
-        ));
+        parsed.add(
+          _ParsedRow(
+            employeeId: empId,
+            employeeNumber: empNum,
+            date: DateTime(date.year, date.month, date.day),
+            timeIn: tIn,
+            timeOut: tOut,
+          ),
+        );
       }
 
       setState(() {
@@ -195,33 +203,37 @@ class _State extends ConsumerState<_AttendanceImportDialog> {
     final client = Supabase.instance.client;
     try {
       // 1) Record the import batch so uploads are auditable.
-      final importRow = await client.from('attendance_imports').insert({
-        'company_id': profile.companyId,
-        'file_name': _fileName ?? 'manual.csv',
-        'file_path': 'manual://${DateTime.now().millisecondsSinceEpoch}',
-        'file_size': _fileBytes?.length,
-        'status': 'PROCESSING',
-        'total_rows': _rows.length,
-        'uploaded_by_id': profile.userId,
-        'started_at': DateTime.now().toIso8601String(),
-      }).select('id').single();
+      final importRow = await client
+          .from('attendance_imports')
+          .insert({
+            'company_id': profile.companyId,
+            'file_name': _fileName ?? 'manual.csv',
+            'file_path': 'manual://${DateTime.now().millisecondsSinceEpoch}',
+            'file_size': _fileBytes?.length,
+            'status': 'PROCESSING',
+            'total_rows': _rows.length,
+            'uploaded_by_id': profile.userId,
+            'started_at': DateTime.now().toIso8601String(),
+          })
+          .select('id')
+          .single();
       final importId = importRow['id'] as String;
 
       // 2) Build payloads (no FKs beyond employee_id — shift + day_type default).
       final payloads = _rows
-          .map((r) => {
-                'employee_id': r.employeeId,
-                'attendance_date':
-                    r.date.toIso8601String().substring(0, 10),
-                'actual_time_in': r.timeIn?.toUtc().toIso8601String(),
-                'actual_time_out': r.timeOut?.toUtc().toIso8601String(),
-                'attendance_status':
-                    r.timeIn != null ? 'PRESENT' : 'ABSENT',
-                'day_type': 'WORKDAY',
-                'source_type': 'MANUAL',
-                'source_batch_id': importId,
-                'entered_by_id': profile.userId,
-              })
+          .map(
+            (r) => {
+              'employee_id': r.employeeId,
+              'attendance_date': r.date.toIso8601String().substring(0, 10),
+              'actual_time_in': r.timeIn?.toUtc().toIso8601String(),
+              'actual_time_out': r.timeOut?.toUtc().toIso8601String(),
+              'attendance_status': r.timeIn != null ? 'PRESENT' : 'ABSENT',
+              'day_type': 'WORKDAY',
+              'source_type': 'MANUAL',
+              'source_batch_id': importId,
+              'entered_by_id': profile.userId,
+            },
+          )
           .toList();
 
       int inserted = 0;
@@ -232,13 +244,13 @@ class _State extends ConsumerState<_AttendanceImportDialog> {
         // Upsert merges into existing rows; can't distinguish insert vs update
         // in one round-trip, so count them separately via a pre-fetch.
         final existingKeys = await _fetchExistingKeys(payloads);
-        inserted =
-            payloads.where((p) => !existingKeys.contains(_keyOf(p))).length;
+        inserted = payloads
+            .where((p) => !existingKeys.contains(_keyOf(p)))
+            .length;
         updated = payloads.length - inserted;
-        await client.from('attendance_day_records').upsert(
-              payloads,
-              onConflict: 'employee_id,attendance_date',
-            );
+        await client
+            .from('attendance_day_records')
+            .upsert(payloads, onConflict: 'employee_id,attendance_date');
       } else {
         final existingKeys = await _fetchExistingKeys(payloads);
         final fresh = payloads
@@ -251,23 +263,27 @@ class _State extends ConsumerState<_AttendanceImportDialog> {
         }
       }
 
-      await client.from('attendance_imports').update({
-        'status': 'COMPLETED',
-        'processed_rows': payloads.length,
-        'valid_rows': inserted + updated,
-        'duplicate_rows': skipped,
-        'invalid_rows':
-            _unknownEmployeeNumbers.length + _parseErrors.length,
-        'completed_at': DateTime.now().toIso8601String(),
-      }).eq('id', importId);
+      await client
+          .from('attendance_imports')
+          .update({
+            'status': 'COMPLETED',
+            'processed_rows': payloads.length,
+            'valid_rows': inserted + updated,
+            'duplicate_rows': skipped,
+            'invalid_rows':
+                _unknownEmployeeNumbers.length + _parseErrors.length,
+            'completed_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', importId);
 
       if (!mounted) return;
       ref.invalidate(attendanceListProvider);
       final summary = _dedup == _DedupMode.overwrite
           ? 'Imported — $inserted new, $updated overwritten.'
           : 'Imported — $inserted new, $skipped skipped (already on file).';
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(summary)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(summary)));
       Navigator.pop(context);
     } catch (e) {
       setState(() => _statusMsg = 'Import failed: $e');
@@ -280,10 +296,13 @@ class _State extends ConsumerState<_AttendanceImportDialog> {
       '${p['employee_id']}|${p['attendance_date']}';
 
   Future<Set<String>> _fetchExistingKeys(
-      List<Map<String, dynamic>> payloads) async {
+    List<Map<String, dynamic>> payloads,
+  ) async {
     if (payloads.isEmpty) return const {};
-    final empIds =
-        payloads.map((p) => p['employee_id'] as String).toSet().toList();
+    final empIds = payloads
+        .map((p) => p['employee_id'] as String)
+        .toSet()
+        .toList();
     final dates = payloads.map((p) => p['attendance_date'] as String).toList()
       ..sort();
     final rows = await Supabase.instance.client
@@ -307,16 +326,19 @@ class _State extends ConsumerState<_AttendanceImportDialog> {
         constraints: const BoxConstraints(maxWidth: 640, maxHeight: 640),
         child: SingleChildScrollView(
           child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _helpBlock(context),
-                const SizedBox(height: 12),
-                Row(children: [
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _helpBlock(context),
+              const SizedBox(height: 12),
+              Row(
+                children: [
                   FilledButton.tonalIcon(
                     onPressed: _busy ? null : _pickFile,
                     icon: const Icon(Icons.upload_file_outlined),
-                    label: Text(_fileName == null ? 'Choose CSV' : 'Replace file'),
+                    label: Text(
+                      _fileName == null ? 'Choose CSV' : 'Replace file',
+                    ),
                   ),
                   const SizedBox(width: 12),
                   if (_fileName != null)
@@ -324,56 +346,61 @@ class _State extends ConsumerState<_AttendanceImportDialog> {
                       child: Text(
                         '$_fileName  •  ${_rows.length} valid row${_rows.length == 1 ? '' : 's'}',
                         style: const TextStyle(
-                            color: Colors.grey, fontSize: 13),
+                          color: Colors.grey,
+                          fontSize: 13,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                ]),
-                if (_rows.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  _previewTable(),
                 ],
-                if (_unknownEmployeeNumbers.isNotEmpty)
-                  _warnBlock(
-                    context,
-                    'Unknown employee numbers — rows skipped:',
-                    _unknownEmployeeNumbers,
-                  ),
-                if (_parseErrors.isNotEmpty)
-                  _warnBlock(
-                    context,
-                    'Parse errors:',
-                    _parseErrors,
-                  ),
+              ),
+              if (_rows.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                const Text('Duplicate handling',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                RadioListTile<_DedupMode>(
-                  contentPadding: EdgeInsets.zero,
-                  value: _DedupMode.skip,
-                  groupValue: _dedup,
-                  onChanged: (v) => setState(() => _dedup = v!),
-                  title: const Text('Skip existing records'),
-                  subtitle: const Text(
-                      'If a record exists for (employee, date), leave it alone.'),
+                _previewTable(),
+              ],
+              if (_unknownEmployeeNumbers.isNotEmpty)
+                _warnBlock(
+                  context,
+                  'Unknown employee numbers — rows skipped:',
+                  _unknownEmployeeNumbers,
                 ),
-                RadioListTile<_DedupMode>(
-                  contentPadding: EdgeInsets.zero,
-                  value: _DedupMode.overwrite,
-                  groupValue: _dedup,
-                  onChanged: (v) => setState(() => _dedup = v!),
-                  title: const Text('Overwrite existing records'),
-                  subtitle: const Text(
-                      'Replace matching rows with the values from this file.'),
+              if (_parseErrors.isNotEmpty)
+                _warnBlock(context, 'Parse errors:', _parseErrors),
+              const SizedBox(height: 16),
+              const Text(
+                'Duplicate handling',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              RadioListTile<_DedupMode>(
+                contentPadding: EdgeInsets.zero,
+                value: _DedupMode.skip,
+                groupValue: _dedup,
+                onChanged: (v) => setState(() => _dedup = v!),
+                title: const Text('Skip existing records'),
+                subtitle: const Text(
+                  'If a record exists for (employee, date), leave it alone.',
                 ),
-                if (_statusMsg != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Text(_statusMsg!,
-                        style: const TextStyle(
-                            color: Colors.red, fontSize: 13)),
+              ),
+              RadioListTile<_DedupMode>(
+                contentPadding: EdgeInsets.zero,
+                value: _DedupMode.overwrite,
+                groupValue: _dedup,
+                onChanged: (v) => setState(() => _dedup = v!),
+                title: const Text('Overwrite existing records'),
+                subtitle: const Text(
+                  'Replace matching rows with the values from this file.',
+                ),
+              ),
+              if (_statusMsg != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    _statusMsg!,
+                    style: const TextStyle(color: Colors.red, fontSize: 13),
                   ),
-              ]),
+                ),
+            ],
+          ),
         ),
       ),
       actions: [
@@ -387,10 +414,13 @@ class _State extends ConsumerState<_AttendanceImportDialog> {
               ? const SizedBox(
                   width: 14,
                   height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2))
-              : Text(_rows.isEmpty
-                  ? 'Import'
-                  : 'Import ${_rows.length} row${_rows.length == 1 ? '' : 's'}'),
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(
+                  _rows.isEmpty
+                      ? 'Import'
+                      : 'Import ${_rows.length} row${_rows.length == 1 ? '' : 's'}',
+                ),
         ),
       ],
     );
@@ -404,18 +434,21 @@ class _State extends ConsumerState<_AttendanceImportDialog> {
         borderRadius: BorderRadius.circular(6),
       ),
       child: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Expected CSV format',
-                style: TextStyle(fontWeight: FontWeight.w600)),
-            SizedBox(height: 4),
-            Text(
-              'Header row: employee_number, date, time_in, time_out\n'
-              'date = YYYY-MM-DD   •   time_in / time_out = HH:MM (24h)\n'
-              'Leave time fields blank for absent days.',
-              style: TextStyle(fontFamily: 'monospace', fontSize: 12),
-            ),
-          ]),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Expected CSV format',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          SizedBox(height: 4),
+          Text(
+            'Header row: employee_number, date, time_in, time_out\n'
+            'date = YYYY-MM-DD   •   time_in / time_out = HH:MM (24h)\n'
+            'Leave time fields blank for absent days.',
+            style: TextStyle(fontFamily: 'monospace', fontSize: 12),
+          ),
+        ],
+      ),
     );
   }
 
@@ -426,48 +459,73 @@ class _State extends ConsumerState<_AttendanceImportDialog> {
         border: Border.all(color: Theme.of(context).dividerColor),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Column(children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(children: [
-            const Text('Preview',
-                style: TextStyle(fontWeight: FontWeight.w600)),
-            const Spacer(),
-            Text('showing ${preview.length} of ${_rows.length}',
-                style: const TextStyle(color: Colors.grey, fontSize: 12)),
-          ]),
-        ),
-        const Divider(height: 1),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            columnSpacing: 18,
-            headingRowHeight: 32,
-            dataRowMinHeight: 32,
-            dataRowMaxHeight: 32,
-            columns: const [
-              DataColumn(label: Text('Employee #')),
-              DataColumn(label: Text('Date')),
-              DataColumn(label: Text('In')),
-              DataColumn(label: Text('Out')),
-            ],
-            rows: [
-              for (final r in preview)
-                DataRow(cells: [
-                  DataCell(Text(r.employeeNumber,
-                      style: const TextStyle(fontFamily: 'monospace'))),
-                  DataCell(Text(
-                      r.date.toIso8601String().substring(0, 10),
-                      style: const TextStyle(fontFamily: 'monospace'))),
-                  DataCell(Text(_hhmm(r.timeIn),
-                      style: const TextStyle(fontFamily: 'monospace'))),
-                  DataCell(Text(_hhmm(r.timeOut),
-                      style: const TextStyle(fontFamily: 'monospace'))),
-                ]),
-            ],
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                const Text(
+                  'Preview',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
+                Text(
+                  'showing ${preview.length} of ${_rows.length}',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ),
           ),
-        ),
-      ]),
+          const Divider(height: 1),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columnSpacing: 18,
+              headingRowHeight: 32,
+              dataRowMinHeight: 32,
+              dataRowMaxHeight: 32,
+              columns: const [
+                DataColumn(label: Text('Employee #')),
+                DataColumn(label: Text('Date')),
+                DataColumn(label: Text('In')),
+                DataColumn(label: Text('Out')),
+              ],
+              rows: [
+                for (final r in preview)
+                  DataRow(
+                    cells: [
+                      DataCell(
+                        Text(
+                          r.employeeNumber,
+                          style: const TextStyle(fontFamily: 'monospace'),
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          r.date.toIso8601String().substring(0, 10),
+                          style: const TextStyle(fontFamily: 'monospace'),
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          _hhmm(r.timeIn),
+                          style: const TextStyle(fontFamily: 'monospace'),
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          _hhmm(r.timeOut),
+                          style: const TextStyle(fontFamily: 'monospace'),
+                        ),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -489,22 +547,28 @@ class _State extends ConsumerState<_AttendanceImportDialog> {
           borderRadius: BorderRadius.circular(6),
         ),
         child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF92400E))),
-              const SizedBox(height: 4),
-              for (final s in items.take(10))
-                Text('• $s',
-                    style: const TextStyle(
-                        color: Color(0xFF92400E), fontSize: 12)),
-              if (items.length > 10)
-                Text('… and ${items.length - 10} more',
-                    style: const TextStyle(
-                        color: Color(0xFF92400E), fontSize: 12)),
-            ]),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF92400E),
+              ),
+            ),
+            const SizedBox(height: 4),
+            for (final s in items.take(10))
+              Text(
+                '• $s',
+                style: const TextStyle(color: Color(0xFF92400E), fontSize: 12),
+              ),
+            if (items.length > 10)
+              Text(
+                '… and ${items.length - 10} more',
+                style: const TextStyle(color: Color(0xFF92400E), fontSize: 12),
+              ),
+          ],
+        ),
       ),
     );
   }

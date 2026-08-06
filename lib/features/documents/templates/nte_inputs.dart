@@ -12,9 +12,9 @@ class NteCharge {
   Map<String, dynamic> toJson() => {'title': title, 'body': body.toJson()};
 
   factory NteCharge.fromJson(Map<String, dynamic> json) => NteCharge(
-        title: json['title'] as String,
-        body: Delta.fromJson((json['body'] as List?) ?? const []),
-      );
+    title: json['title'] as String,
+    body: Delta.fromJson((json['body'] as List?) ?? const []),
+  );
 }
 
 class NteInputs extends TemplateInputs {
@@ -87,9 +87,10 @@ class NteInputs extends TemplateInputs {
       charges: ((json['charges'] as List?) ?? const [])
           .map((e) => NteCharge.fromJson((e as Map).cast<String, dynamic>()))
           .toList(),
-      applicableViolations: ((json['applicableViolations'] as List?) ?? const [])
-          .map((e) => e as String)
-          .toList(),
+      applicableViolations:
+          ((json['applicableViolations'] as List?) ?? const [])
+              .map((e) => e as String)
+              .toList(),
       // logoBytes is intentionally excluded from toJson (binary), so it
       // cannot be reconstructed here; it stays null.
       companySignaturePngB64: json['companySignaturePngB64'] as String?,
@@ -122,67 +123,65 @@ class NteInputs extends TemplateInputs {
     Object? attachmentBytes = _undef,
     Object? attachmentCaption = _undef,
     String? companySignaturePngB64,
-  }) =>
-      NteInputs(
-        employeeId: employeeId ?? this.employeeId,
-        employeeFullName: employeeFullName ?? this.employeeFullName,
-        employeeFirstName: employeeFirstName ?? this.employeeFirstName,
-        employeeLastName: employeeLastName ?? this.employeeLastName,
-        employeeHonorific: employeeHonorific ?? this.employeeHonorific,
-        employeePosition: employeePosition ?? this.employeePosition,
-        employeeDepartment: employeeDepartment ?? this.employeeDepartment,
-        companyId: companyId ?? this.companyId,
-        companyName: companyName ?? this.companyName,
-        companyAddress: companyAddress ?? this.companyAddress,
-        hrManagerName: hrManagerName ?? this.hrManagerName,
-        dateIssued: dateIssued ?? this.dateIssued,
-        responseDeadline: responseDeadline ?? this.responseDeadline,
-        subjectSubtopic: subjectSubtopic ?? this.subjectSubtopic,
-        charges: charges ?? this.charges,
-        applicableViolations:
-            applicableViolations ?? this.applicableViolations,
-        logoBytes: logoBytes ?? this.logoBytes,
-        attachmentBytes: identical(attachmentBytes, _undef)
-            ? this.attachmentBytes
-            : attachmentBytes as Uint8List?,
-        attachmentCaption: identical(attachmentCaption, _undef)
-            ? this.attachmentCaption
-            : attachmentCaption as String?,
-        companySignaturePngB64:
-            companySignaturePngB64 ?? this.companySignaturePngB64,
-      );
+  }) => NteInputs(
+    employeeId: employeeId ?? this.employeeId,
+    employeeFullName: employeeFullName ?? this.employeeFullName,
+    employeeFirstName: employeeFirstName ?? this.employeeFirstName,
+    employeeLastName: employeeLastName ?? this.employeeLastName,
+    employeeHonorific: employeeHonorific ?? this.employeeHonorific,
+    employeePosition: employeePosition ?? this.employeePosition,
+    employeeDepartment: employeeDepartment ?? this.employeeDepartment,
+    companyId: companyId ?? this.companyId,
+    companyName: companyName ?? this.companyName,
+    companyAddress: companyAddress ?? this.companyAddress,
+    hrManagerName: hrManagerName ?? this.hrManagerName,
+    dateIssued: dateIssued ?? this.dateIssued,
+    responseDeadline: responseDeadline ?? this.responseDeadline,
+    subjectSubtopic: subjectSubtopic ?? this.subjectSubtopic,
+    charges: charges ?? this.charges,
+    applicableViolations: applicableViolations ?? this.applicableViolations,
+    logoBytes: logoBytes ?? this.logoBytes,
+    attachmentBytes: identical(attachmentBytes, _undef)
+        ? this.attachmentBytes
+        : attachmentBytes as Uint8List?,
+    attachmentCaption: identical(attachmentCaption, _undef)
+        ? this.attachmentCaption
+        : attachmentCaption as String?,
+    companySignaturePngB64:
+        companySignaturePngB64 ?? this.companySignaturePngB64,
+  );
 
   @override
   Map<String, dynamic> toDebugMap() => {
-        'employeeId': employeeId,
-        'companyId': companyId,
-        'chargeCount': charges.length,
-        'violationCount': applicableViolations.length,
-        'companySignaturePngB64': companySignaturePngB64 == null
-            ? null
-            : '<png b64, ${companySignaturePngB64!.length} chars>',
-      };
+    'employeeId': employeeId,
+    'companyId': companyId,
+    'chargeCount': charges.length,
+    'violationCount': applicableViolations.length,
+    'companySignaturePngB64': companySignaturePngB64 == null
+        ? null
+        : '<png b64, ${companySignaturePngB64!.length} chars>',
+  };
 
   @override
   Map<String, dynamic> toJson() => {
-        'employeeId': employeeId,
-        'employeeFullName': employeeFullName,
-        'employeeFirstName': employeeFirstName,
-        'employeeLastName': employeeLastName,
-        'employeeHonorific': employeeHonorific,
-        'employeePosition': employeePosition,
-        'employeeDepartment': employeeDepartment,
-        'companyId': companyId,
-        'companyName': companyName,
-        'companyAddress': companyAddress,
-        'hrManagerName': hrManagerName,
-        'dateIssued': dateIssued.toIso8601String(),
-        'responseDeadline': responseDeadline.toIso8601String(),
-        'subjectSubtopic': subjectSubtopic,
-        'charges': charges.map((c) => c.toJson()).toList(),
-        'applicableViolations': applicableViolations,
-        'companySignaturePngB64': companySignaturePngB64,
-      };
+    'employeeId': employeeId,
+    'employeeFullName': employeeFullName,
+    'employeeFirstName': employeeFirstName,
+    'employeeLastName': employeeLastName,
+    'employeeHonorific': employeeHonorific,
+    'employeePosition': employeePosition,
+    'employeeDepartment': employeeDepartment,
+    'companyId': companyId,
+    'companyName': companyName,
+    'companyAddress': companyAddress,
+    'hrManagerName': hrManagerName,
+    'dateIssued': dateIssued.toIso8601String(),
+    'responseDeadline': responseDeadline.toIso8601String(),
+    'subjectSubtopic': subjectSubtopic,
+    'charges': charges.map((c) => c.toJson()).toList(),
+    'applicableViolations': applicableViolations,
+    'companySignaturePngB64': companySignaturePngB64,
+  };
 }
 
 const _undef = Object();

@@ -126,8 +126,10 @@ class _PeriodControl extends ConsumerWidget {
     final now = DateTime.now();
     final picked = await showDateRangePicker(
       context: context,
-      initialDateRange:
-          DateTimeRange(start: period.rangeStart, end: period.rangeEnd),
+      initialDateRange: DateTimeRange(
+        start: period.rangeStart,
+        end: period.rangeEnd,
+      ),
       firstDate: DateTime(now.year - 5, 1, 1),
       lastDate: DateTime(now.year + 1, 12, 31),
       helpText: 'Remittance period',
@@ -167,9 +169,7 @@ class _BrandPickerButton extends ConsumerWidget {
           ),
         );
         if (updated != null) {
-          ref
-              .read(complianceBrandFilterProvider.notifier)
-              .setAll(updated);
+          ref.read(complianceBrandFilterProvider.notifier).setAll(updated);
         }
       },
     );
@@ -179,10 +179,7 @@ class _BrandPickerButton extends ConsumerWidget {
 class _BrandMultiSelectDialog extends StatefulWidget {
   final List<HiringEntity> brands;
   final Set<String> initial;
-  const _BrandMultiSelectDialog({
-    required this.brands,
-    required this.initial,
-  });
+  const _BrandMultiSelectDialog({required this.brands, required this.initial});
 
   @override
   State<_BrandMultiSelectDialog> createState() =>

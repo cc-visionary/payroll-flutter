@@ -33,7 +33,9 @@ class AmountWithBreakdown extends StatelessWidget {
           onChanged: (s) {
             try {
               onChanged(Decimal.parse(s));
-            } catch (_) {/* ignore parse errors mid-typing */}
+            } catch (_) {
+              /* ignore parse errors mid-typing */
+            }
           },
         ),
         if (breakdown != null) ...[
@@ -67,18 +69,18 @@ class AmountWithBreakdown extends StatelessWidget {
   }
 
   Widget _row(String label, String value, {bool bold = false}) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Expanded(child: Text(label)),
-            Text(
-              value,
-              style: TextStyle(
-                fontWeight: bold ? FontWeight.w700 : FontWeight.normal,
-                fontFamily: 'monospace',
-              ),
-            ),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      children: [
+        Expanded(child: Text(label)),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: bold ? FontWeight.w700 : FontWeight.normal,
+            fontFamily: 'monospace',
+          ),
         ),
-      );
+      ],
+    ),
+  );
 }

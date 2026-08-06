@@ -60,9 +60,9 @@ void main() {
   });
 
   test('build: MemoHeaderBlock is first and carries logoBytes when set', () {
-    final blocks = const ResignationAcceptanceTemplate().build(_i().copyWith(
-      logoBytes: Uint8List.fromList(const [137, 80, 78, 71]),
-    ));
+    final blocks = const ResignationAcceptanceTemplate().build(
+      _i().copyWith(logoBytes: Uint8List.fromList(const [137, 80, 78, 71])),
+    );
     expect(blocks.first, isA<MemoHeaderBlock>());
     expect((blocks.first as MemoHeaderBlock).logoBytes, isNotNull);
   });

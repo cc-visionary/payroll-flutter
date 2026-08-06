@@ -29,53 +29,63 @@ class HiringEntitiesSettingsScreen extends ConsumerWidget {
 
     return Padding(
       padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            Text('Hiring Entities / Companies',
-                style: Theme.of(context).textTheme.headlineSmall),
-            FilledButton.icon(
-              onPressed: () => _openForm(context, ref),
-              icon: const Icon(Icons.add),
-              label: const Text('Add Hiring Entity'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          'Legal entities that can hire employees. Each hiring entity has its '
-          'own government registrations (TIN, SSS, PhilHealth, Pag-IBIG) and '
-          'is used for contracts, payslips, and government reports.',
-          style: TextStyle(color: Colors.grey),
-        ),
-        const SizedBox(height: 16),
-        Expanded(
-          child: entitiesAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(
-                child: Text('Error: $e',
-                    style: const TextStyle(color: Colors.red))),
-            data: (entities) => entities.isEmpty
-                ? const Center(
-                    child: Text(
-                        'No hiring entities yet. Click "Add Hiring Entity" to create one.'))
-                : ListView.separated(
-                    itemCount: entities.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) => _EntityCard(
-                      entity: entities[i],
-                      employeeCount:
-                          countsAsync.asData?.value[entities[i].id] ?? 0,
-                      onEdit: () =>
-                          _openForm(context, ref, existing: entities[i]),
-                    ),
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'Hiring Entities / Companies',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              FilledButton.icon(
+                onPressed: () => _openForm(context, ref),
+                icon: const Icon(Icons.add),
+                label: const Text('Add Hiring Entity'),
+              ),
+            ],
           ),
-        ),
-      ]),
+          const SizedBox(height: 4),
+          const Text(
+            'Legal entities that can hire employees. Each hiring entity has its '
+            'own government registrations (TIN, SSS, PhilHealth, Pag-IBIG) and '
+            'is used for contracts, payslips, and government reports.',
+            style: TextStyle(color: Colors.grey),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: entitiesAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(
+                child: Text(
+                  'Error: $e',
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
+              data: (entities) => entities.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No hiring entities yet. Click "Add Hiring Entity" to create one.',
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: entities.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                      itemBuilder: (_, i) => _EntityCard(
+                        entity: entities[i],
+                        employeeCount:
+                            countsAsync.asData?.value[entities[i].id] ?? 0,
+                        onEdit: () =>
+                            _openForm(context, ref, existing: entities[i]),
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -122,64 +132,95 @@ class _EntityCard extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(entity.name,
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  StatusChip(
-                    label: entity.isActive ? 'Active' : 'Inactive',
-                    tone: entity.isActive
-                        ? StatusTone.success
-                        : StatusTone.neutral,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        entity.name,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      StatusChip(
+                        label: entity.isActive ? 'Active' : 'Inactive',
+                        tone: entity.isActive
+                            ? StatusTone.success
+                            : StatusTone.neutral,
+                      ),
+                    ],
                   ),
-                ],
+                ),
+                TextButton(onPressed: onEdit, child: const Text('Edit')),
+              ],
+            ),
+            if (entity.tradeName != null && entity.tradeName!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  'DBA: ${entity.tradeName}',
+                  style: const TextStyle(color: Colors.grey, fontSize: 13),
+                ),
               ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 24,
+              runSpacing: 8,
+              children: [
+                _field(context, 'Code', entity.code, mono: mono),
+                _field(context, 'TIN', entity.tin ?? '—', mono: mono),
+                _field(context, 'SSS', entity.sssEmployerId ?? '—', mono: mono),
+                _field(
+                  context,
+                  'PhilHealth',
+                  entity.philhealthEmployerId ?? '—',
+                  mono: mono,
+                ),
+                _field(
+                  context,
+                  'Pag-IBIG',
+                  entity.pagibigEmployerId ?? '—',
+                  mono: mono,
+                ),
+              ],
             ),
-            TextButton(onPressed: onEdit, child: const Text('Edit')),
-          ]),
-          if (entity.tradeName != null && entity.tradeName!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text('DBA: ${entity.tradeName}',
-                  style: const TextStyle(color: Colors.grey, fontSize: 13)),
+            const SizedBox(height: 8),
+            Text(
+              '$employeeCount employee${employeeCount == 1 ? '' : 's'}',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
             ),
-          const SizedBox(height: 12),
-          Wrap(spacing: 24, runSpacing: 8, children: [
-            _field(context, 'Code', entity.code, mono: mono),
-            _field(context, 'TIN', entity.tin ?? '—', mono: mono),
-            _field(context, 'SSS', entity.sssEmployerId ?? '—', mono: mono),
-            _field(context, 'PhilHealth', entity.philhealthEmployerId ?? '—',
-                mono: mono),
-            _field(context, 'Pag-IBIG', entity.pagibigEmployerId ?? '—',
-                mono: mono),
-          ]),
-          const SizedBox(height: 8),
-          Text('$employeeCount employee${employeeCount == 1 ? '' : 's'}',
-              style: const TextStyle(color: Colors.grey, fontSize: 12)),
-        ]),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _field(BuildContext context, String label, String value,
-      {required TextStyle mono}) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label,
+  Widget _field(
+    BuildContext context,
+    String label,
+    String value, {
+    required TextStyle mono,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
           style: const TextStyle(
-              fontSize: 11,
-              color: Colors.grey,
-              fontWeight: FontWeight.w500)),
-      Text(value, style: mono),
-    ]);
+            fontSize: 11,
+            color: Colors.grey,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        Text(value, style: mono),
+      ],
+    );
   }
 }
 
@@ -199,31 +240,36 @@ class _EntityForm extends ConsumerStatefulWidget {
 
 class _FormState extends ConsumerState<_EntityForm> {
   late final _name = TextEditingController(text: widget.existing?.name ?? '');
-  late final _tradeName =
-      TextEditingController(text: widget.existing?.tradeName ?? '');
+  late final _tradeName = TextEditingController(
+    text: widget.existing?.tradeName ?? '',
+  );
   late final _code = TextEditingController(text: widget.existing?.code ?? '');
   late final _tin = TextEditingController(text: widget.existing?.tin ?? '');
-  late final _rdo =
-      TextEditingController(text: widget.existing?.rdoCode ?? '');
-  late final _sss =
-      TextEditingController(text: widget.existing?.sssEmployerId ?? '');
+  late final _rdo = TextEditingController(text: widget.existing?.rdoCode ?? '');
+  late final _sss = TextEditingController(
+    text: widget.existing?.sssEmployerId ?? '',
+  );
   late final _philhealth = TextEditingController(
-      text: widget.existing?.philhealthEmployerId ?? '');
+    text: widget.existing?.philhealthEmployerId ?? '',
+  );
   late final _pagibig = TextEditingController(
-      text: widget.existing?.pagibigEmployerId ?? '');
-  late final _line1 =
-      TextEditingController(text: widget.existing?.addressLine1 ?? '');
-  late final _line2 =
-      TextEditingController(text: widget.existing?.addressLine2 ?? '');
+    text: widget.existing?.pagibigEmployerId ?? '',
+  );
+  late final _line1 = TextEditingController(
+    text: widget.existing?.addressLine1 ?? '',
+  );
+  late final _line2 = TextEditingController(
+    text: widget.existing?.addressLine2 ?? '',
+  );
   late final _city = TextEditingController(text: widget.existing?.city ?? '');
-  late final _province =
-      TextEditingController(text: widget.existing?.province ?? '');
-  late final _zip =
-      TextEditingController(text: widget.existing?.zipCode ?? '');
-  late final _phone =
-      TextEditingController(text: widget.existing?.phoneNumber ?? '');
-  late final _email =
-      TextEditingController(text: widget.existing?.email ?? '');
+  late final _province = TextEditingController(
+    text: widget.existing?.province ?? '',
+  );
+  late final _zip = TextEditingController(text: widget.existing?.zipCode ?? '');
+  late final _phone = TextEditingController(
+    text: widget.existing?.phoneNumber ?? '',
+  );
+  late final _email = TextEditingController(text: widget.existing?.email ?? '');
   late String _signatoryName = widget.existing?.legalSignatoryName ?? '';
   late String _signatoryRole = widget.existing?.legalSignatoryRole ?? '';
   late String _hrManager = widget.existing?.hrManagerName ?? '';
@@ -238,8 +284,7 @@ class _FormState extends ConsumerState<_EntityForm> {
   void initState() {
     super.initState();
     if (widget.existing != null) {
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _loadExistingLogo());
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadExistingLogo());
     }
   }
 
@@ -298,7 +343,7 @@ class _FormState extends ConsumerState<_EntityForm> {
       _province,
       _zip,
       _phone,
-      _email
+      _email,
     ]) {
       c.dispose();
     }
@@ -319,7 +364,9 @@ class _FormState extends ConsumerState<_EntityForm> {
     try {
       String? t(TextEditingController c) =>
           c.text.trim().isEmpty ? null : c.text.trim();
-      await ref.read(hiringEntityRepositoryProvider).upsert(
+      await ref
+          .read(hiringEntityRepositoryProvider)
+          .upsert(
             id: widget.existing?.id,
             companyId: widget.companyId,
             code: code,
@@ -337,12 +384,13 @@ class _FormState extends ConsumerState<_EntityForm> {
             zipCode: t(_zip),
             phoneNumber: t(_phone),
             email: t(_email),
-            legalSignatoryName:
-                _signatoryName.trim().isEmpty ? null : _signatoryName.trim(),
-            legalSignatoryRole:
-                _signatoryRole.trim().isEmpty ? null : _signatoryRole.trim(),
-            hrManagerName:
-                _hrManager.trim().isEmpty ? null : _hrManager.trim(),
+            legalSignatoryName: _signatoryName.trim().isEmpty
+                ? null
+                : _signatoryName.trim(),
+            legalSignatoryRole: _signatoryRole.trim().isEmpty
+                ? null
+                : _signatoryRole.trim(),
+            hrManagerName: _hrManager.trim().isEmpty ? null : _hrManager.trim(),
             updateLogo: _logoChanged,
             logoBase64: _logoBytes == null ? null : base64.encode(_logoBytes!),
             logoMime: _logoMime,
@@ -363,173 +411,190 @@ class _FormState extends ConsumerState<_EntityForm> {
         ? MediaQuery.sizeOf(context).width - 48
         : 560.0;
     return AlertDialog(
-      title: Text(widget.existing == null
-          ? 'Add Hiring Entity'
-          : 'Edit Hiring Entity'),
+      title: Text(
+        widget.existing == null ? 'Add Hiring Entity' : 'Edit Hiring Entity',
+      ),
       content: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: dialogMax),
         child: SingleChildScrollView(
           child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _sectionHeader(context, 'Identity'),
-                _row([
-                  _text(_name, 'Legal Name'),
-                  _text(_tradeName, 'Trade Name / DBA'),
-                ]),
-                _row([
-                  _text(_code, 'Code',
-                      mono: true,
-                      formatters: [
-                        FilteringTextInputFormatter.allow(
-                            RegExp(r'[A-Za-z0-9_-]')),
-                        LengthLimitingTextInputFormatter(20),
-                      ]),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: _isActive,
-                    onChanged: (v) => setState(() => _isActive = v),
-                    title: Text(_isActive ? 'Active' : 'Inactive'),
-                  ),
-                ]),
-                const SizedBox(height: 16),
-                _sectionHeader(context, 'Government IDs'),
-                _row([
-                  _text(_tin, 'TIN',
-                      hint: '000-000-000-000', mono: true),
-                  _text(_rdo, 'RDO Code', mono: true),
-                ]),
-                _row([
-                  _text(_sss, 'SSS Employer ID',
-                      hint: '00-0000000-0', mono: true),
-                  _text(_philhealth, 'PhilHealth Employer ID',
-                      hint: '00-000000000-0', mono: true),
-                ]),
-                _row([
-                  _text(_pagibig, 'Pag-IBIG Employer ID',
-                      hint: '0000-0000-0000', mono: true),
-                  const SizedBox.shrink(),
-                ]),
-                const SizedBox(height: 16),
-                _sectionHeader(context, 'Contact & Address'),
-                _row([
-                  _text(_phone, 'Phone'),
-                  _text(_email, 'Email'),
-                ]),
-                _row([_text(_line1, 'Address Line 1')]),
-                _row([_text(_line2, 'Address Line 2')]),
-                _row([
-                  _text(_city, 'City'),
-                  _text(_province, 'Province'),
-                  _text(_zip, 'ZIP'),
-                ]),
-                const SizedBox(height: 16),
-                _sectionHeader(context, 'Document Defaults'),
-                _row([
-                  EmployeeNameField(
-                    value: _signatoryName,
-                    labelText: 'Legal Signatory Name',
-                    hintText: 'e.g. Clinton Xu',
-                    onChanged: (v) => setState(() => _signatoryName = v),
-                  ),
-                  RoleTitleField(
-                    value: _signatoryRole,
-                    labelText: 'Legal Signatory Role',
-                    hintText: 'e.g. CEO',
-                    onChanged: (v) => setState(() => _signatoryRole = v),
-                  ),
-                ]),
-                _row([
-                  EmployeeNameField(
-                    value: _hrManager,
-                    labelText: 'HR Manager Name',
-                    hintText: 'e.g. Brixter Del Mundo',
-                    onChanged: (v) => setState(() => _hrManager = v),
-                  ),
-                  const SizedBox.shrink(),
-                ]),
-                const SizedBox(height: 16),
-                _sectionHeader(context, 'Branding'),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        border:
-                            Border.all(color: Theme.of(context).dividerColor),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: _logoBytes != null
-                          ? Image.memory(_logoBytes!, fit: BoxFit.contain)
-                          : Center(
-                              child: Icon(
-                                Icons.image_outlined,
-                                color: Theme.of(context).disabledColor,
-                                size: 32,
-                              ),
-                            ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        FilledButton.tonal(
-                          onPressed: _pickLogo,
-                          child: const Text('Upload logo'),
-                        ),
-                        if (_logoBytes != null) ...[
-                          const SizedBox(height: 8),
-                          TextButton(
-                            onPressed: () => setState(() {
-                              _logoBytes = null;
-                              _logoMime = null;
-                              _logoChanged = true;
-                            }),
-                            style: TextButton.styleFrom(
-                              foregroundColor:
-                                  Theme.of(context).colorScheme.error,
-                            ),
-                            child: const Text('Remove'),
-                          ),
-                        ],
-                        const SizedBox(height: 4),
-                        Builder(
-                          builder: (context) => Text(
-                            'PNG or JPG · max 300 KB',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionHeader(context, 'Identity'),
+              _row([
+                _text(_name, 'Legal Name'),
+                _text(_tradeName, 'Trade Name / DBA'),
+              ]),
+              _row([
+                _text(
+                  _code,
+                  'Code',
+                  mono: true,
+                  formatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9_-]')),
+                    LengthLimitingTextInputFormatter(20),
                   ],
                 ),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Text(_error!,
-                        style: const TextStyle(color: Colors.red, fontSize: 13)),
-                  ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _isActive,
+                  onChanged: (v) => setState(() => _isActive = v),
+                  title: Text(_isActive ? 'Active' : 'Inactive'),
+                ),
               ]),
+              const SizedBox(height: 16),
+              _sectionHeader(context, 'Government IDs'),
+              _row([
+                _text(_tin, 'TIN', hint: '000-000-000-000', mono: true),
+                _text(_rdo, 'RDO Code', mono: true),
+              ]),
+              _row([
+                _text(
+                  _sss,
+                  'SSS Employer ID',
+                  hint: '00-0000000-0',
+                  mono: true,
+                ),
+                _text(
+                  _philhealth,
+                  'PhilHealth Employer ID',
+                  hint: '00-000000000-0',
+                  mono: true,
+                ),
+              ]),
+              _row([
+                _text(
+                  _pagibig,
+                  'Pag-IBIG Employer ID',
+                  hint: '0000-0000-0000',
+                  mono: true,
+                ),
+                const SizedBox.shrink(),
+              ]),
+              const SizedBox(height: 16),
+              _sectionHeader(context, 'Contact & Address'),
+              _row([_text(_phone, 'Phone'), _text(_email, 'Email')]),
+              _row([_text(_line1, 'Address Line 1')]),
+              _row([_text(_line2, 'Address Line 2')]),
+              _row([
+                _text(_city, 'City'),
+                _text(_province, 'Province'),
+                _text(_zip, 'ZIP'),
+              ]),
+              const SizedBox(height: 16),
+              _sectionHeader(context, 'Document Defaults'),
+              _row([
+                EmployeeNameField(
+                  value: _signatoryName,
+                  labelText: 'Legal Signatory Name',
+                  hintText: 'e.g. Clinton Xu',
+                  onChanged: (v) => setState(() => _signatoryName = v),
+                ),
+                RoleTitleField(
+                  value: _signatoryRole,
+                  labelText: 'Legal Signatory Role',
+                  hintText: 'e.g. CEO',
+                  onChanged: (v) => setState(() => _signatoryRole = v),
+                ),
+              ]),
+              _row([
+                EmployeeNameField(
+                  value: _hrManager,
+                  labelText: 'HR Manager Name',
+                  hintText: 'e.g. Brixter Del Mundo',
+                  onChanged: (v) => setState(() => _hrManager = v),
+                ),
+                const SizedBox.shrink(),
+              ]),
+              const SizedBox(height: 16),
+              _sectionHeader(context, 'Branding'),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Theme.of(context).dividerColor),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: _logoBytes != null
+                        ? Image.memory(_logoBytes!, fit: BoxFit.contain)
+                        : Center(
+                            child: Icon(
+                              Icons.image_outlined,
+                              color: Theme.of(context).disabledColor,
+                              size: 32,
+                            ),
+                          ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      FilledButton.tonal(
+                        onPressed: _pickLogo,
+                        child: const Text('Upload logo'),
+                      ),
+                      if (_logoBytes != null) ...[
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: () => setState(() {
+                            _logoBytes = null;
+                            _logoMime = null;
+                            _logoChanged = true;
+                          }),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Theme.of(
+                              context,
+                            ).colorScheme.error,
+                          ),
+                          child: const Text('Remove'),
+                        ),
+                      ],
+                      const SizedBox(height: 4),
+                      Builder(
+                        builder: (context) => Text(
+                          'PNG or JPG · max 300 KB',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
       actions: [
         TextButton(
-            onPressed: _saving ? null : () => Navigator.pop(context),
-            child: const Text('Cancel')),
+          onPressed: _saving ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           onPressed: _saving ? null : _save,
           child: _saving
               ? const SizedBox(
                   width: 14,
                   height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2))
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text('Save'),
         ),
       ],
@@ -537,13 +602,14 @@ class _FormState extends ConsumerState<_EntityForm> {
   }
 
   Widget _sectionHeader(BuildContext context, String label) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(label,
-            style: Theme.of(context)
-                .textTheme
-                .labelLarge
-                ?.copyWith(fontWeight: FontWeight.w600)),
-      );
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(
+      label,
+      style: Theme.of(
+        context,
+      ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+    ),
+  );
 
   Widget _row(List<Widget> children) {
     if (isMobile(context)) {
@@ -563,13 +629,14 @@ class _FormState extends ConsumerState<_EntityForm> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (int i = 0; i < children.length; i++) ...[
-              Expanded(child: children[i]),
-              if (i < children.length - 1) const SizedBox(width: 12),
-            ],
-          ]),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (int i = 0; i < children.length; i++) ...[
+            Expanded(child: children[i]),
+            if (i < children.length - 1) const SizedBox(width: 12),
+          ],
+        ],
+      ),
     );
   }
 
@@ -579,16 +646,15 @@ class _FormState extends ConsumerState<_EntityForm> {
     String? hint,
     bool mono = false,
     List<TextInputFormatter>? formatters,
-  }) =>
-      TextField(
-        controller: c,
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: hint,
-          border: const OutlineInputBorder(),
-          isDense: true,
-        ),
-        style: mono ? const TextStyle(fontFamily: 'monospace') : null,
-        inputFormatters: formatters,
-      );
+  }) => TextField(
+    controller: c,
+    decoration: InputDecoration(
+      labelText: label,
+      hintText: hint,
+      border: const OutlineInputBorder(),
+      isDense: true,
+    ),
+    style: mono ? const TextStyle(fontFamily: 'monospace') : null,
+    inputFormatters: formatters,
+  );
 }

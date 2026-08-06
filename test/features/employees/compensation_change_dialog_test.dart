@@ -9,35 +9,35 @@ import 'package:payroll_flutter/features/documents/templates/salary_adjustment_i
 import 'package:payroll_flutter/features/employees/profile/widgets/compensation_change_dialog.dart';
 
 Employee _emp() => Employee(
-      id: 'e1',
-      companyId: 'c1',
-      employeeNumber: 'EMP-001',
-      firstName: 'Maria',
-      lastName: 'Santos',
-      employmentType: 'REGULAR',
-      employmentStatus: 'ACTIVE',
-      hireDate: DateTime.utc(2024, 1, 1),
-      isRankAndFile: true,
-      isOtEligible: true,
-      isNdEligible: true,
-      isHolidayPayEligible: true,
-      taxOnFullEarnings: false,
-    );
+  id: 'e1',
+  companyId: 'c1',
+  employeeNumber: 'EMP-001',
+  firstName: 'Maria',
+  lastName: 'Santos',
+  employmentType: 'REGULAR',
+  employmentStatus: 'ACTIVE',
+  hireDate: DateTime.utc(2024, 1, 1),
+  isRankAndFile: true,
+  isOtEligible: true,
+  isNdEligible: true,
+  isHolidayPayEligible: true,
+  taxOnFullEarnings: false,
+);
 
 RoleScorecard _card(String id, String title, Decimal base) => RoleScorecard(
-      id: id,
-      companyId: 'c1',
-      jobTitle: title,
-      missionStatement: '',
-      responsibilities: const [],
-      kpis: const [],
-      baseSalary: base,
-      wageType: 'MONTHLY',
-      workHoursPerDay: 8,
-      workDaysPerWeek: 'Monday to Saturday',
-      isActive: true,
-      effectiveDate: DateTime.utc(2025, 1, 1),
-    );
+  id: id,
+  companyId: 'c1',
+  jobTitle: title,
+  missionStatement: '',
+  responsibilities: const [],
+  kpis: const [],
+  baseSalary: base,
+  wageType: 'MONTHLY',
+  workHoursPerDay: 8,
+  workDaysPerWeek: 'Monday to Saturday',
+  isActive: true,
+  effectiveDate: DateTime.utc(2025, 1, 1),
+);
 
 final _current = _card('rc1', 'Associate', Decimal.fromInt(30000));
 final _target = _card('rc2', 'Senior Associate', Decimal.fromInt(40000));
@@ -75,8 +75,9 @@ Future<void> _openDialog(
 
 void main() {
   group('widget', () {
-    testWidgets('salary field is hidden for a lateral transfer',
-        (tester) async {
+    testWidgets('salary field is hidden for a lateral transfer', (
+      tester,
+    ) async {
       await _openDialog(tester, onResult: (_) {});
 
       // Default change type shows the new-salary field.
@@ -93,35 +94,47 @@ void main() {
     });
 
     testWidgets(
-        'salary increase equal to current shows an error and keeps the dialog '
-        'open', (tester) async {
-      CompensationChangeRequest? result;
-      var resolved = false;
-      await _openDialog(tester, onResult: (r) {
-        result = r;
-        resolved = true;
-      });
+      'salary increase equal to current shows an error and keeps the dialog '
+      'open',
+      (tester) async {
+        CompensationChangeRequest? result;
+        var resolved = false;
+        await _openDialog(
+          tester,
+          onResult: (r) {
+            result = r;
+            resolved = true;
+          },
+        );
 
-      // Default type is Salary Increase. Enter a value equal to current salary.
-      await tester.enterText(
-          find.byKey(const Key('newSalaryField')), '30000');
-      await tester.enterText(
-          find.byKey(const Key('reasonField')), 'Annual review');
-      await tester.tap(find.text('Confirm'));
-      await tester.pumpAndSettle();
+        // Default type is Salary Increase. Enter a value equal to current salary.
+        await tester.enterText(
+          find.byKey(const Key('newSalaryField')),
+          '30000',
+        );
+        await tester.enterText(
+          find.byKey(const Key('reasonField')),
+          'Annual review',
+        );
+        await tester.tap(find.text('Confirm'));
+        await tester.pumpAndSettle();
 
-      // Validation blocks the confirm: dialog is still on screen…
-      expect(find.textContaining('Adjust Compensation'), findsOneWidget);
-      // …the error surfaces under the salary field…
-      expect(find.text('New salary must differ from current'),
-          findsOneWidget);
-      // …and the future never resolved (dialog did not pop).
-      expect(resolved, isFalse);
-      expect(result, isNull);
-    });
+        // Validation blocks the confirm: dialog is still on screen…
+        expect(find.textContaining('Adjust Compensation'), findsOneWidget);
+        // …the error surfaces under the salary field…
+        expect(
+          find.text('New salary must differ from current'),
+          findsOneWidget,
+        );
+        // …and the future never resolved (dialog did not pop).
+        expect(resolved, isFalse);
+        expect(result, isNull);
+      },
+    );
 
-    testWidgets(
-        'valid salary increase pops with a populated request', (tester) async {
+    testWidgets('valid salary increase pops with a populated request', (
+      tester,
+    ) async {
       CompensationChangeRequest? result;
       await _openDialog(tester, onResult: (r) => result = r);
 
@@ -131,15 +144,16 @@ void main() {
       final expectedEffective = DateTime(now.year, now.month + 1, 1);
 
       // New salary strictly greater than current (30000).
-      await tester.enterText(
-          find.byKey(const Key('newSalaryField')), '35000');
+      await tester.enterText(find.byKey(const Key('newSalaryField')), '35000');
       // Change the wage type so its flow-through is actually exercised.
       await tester.tap(find.byKey(const Key('wageTypeDropdown')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Daily').last);
       await tester.pumpAndSettle();
       await tester.enterText(
-          find.byKey(const Key('reasonField')), 'Annual merit increase');
+        find.byKey(const Key('reasonField')),
+        'Annual merit increase',
+      );
 
       await tester.tap(find.text('Confirm'));
       await tester.pumpAndSettle();
@@ -157,38 +171,41 @@ void main() {
     });
 
     testWidgets(
-        'valid lateral transfer pops carrying current salary + target role',
-        (tester) async {
-      CompensationChangeRequest? result;
-      await _openDialog(tester, onResult: (r) => result = r);
+      'valid lateral transfer pops carrying current salary + target role',
+      (tester) async {
+        CompensationChangeRequest? result;
+        await _openDialog(tester, onResult: (r) => result = r);
 
-      // Switch to Lateral Transfer — hides the salary field, shows the role
-      // dropdown.
-      await tester.tap(find.byKey(const Key('changeTypeDropdown')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Lateral Transfer').last);
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('newSalaryField')), findsNothing);
+        // Switch to Lateral Transfer — hides the salary field, shows the role
+        // dropdown.
+        await tester.tap(find.byKey(const Key('changeTypeDropdown')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Lateral Transfer').last);
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('newSalaryField')), findsNothing);
 
-      // Pick the different target role (_target = 'Senior Associate', rc2).
-      await tester.tap(find.byKey(const Key('roleDropdown')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Senior Associate').last);
-      await tester.pumpAndSettle();
-      await tester.enterText(
-          find.byKey(const Key('reasonField')), 'Team realignment');
+        // Pick the different target role (_target = 'Senior Associate', rc2).
+        await tester.tap(find.byKey(const Key('roleDropdown')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Senior Associate').last);
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const Key('reasonField')),
+          'Team realignment',
+        );
 
-      await tester.tap(find.text('Confirm'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Confirm'));
+        await tester.pumpAndSettle();
 
-      expect(find.textContaining('Adjust Compensation'), findsNothing);
-      expect(result, isNotNull);
-      expect(result!.changeType, 'LATERAL_TRANSFER');
-      expect(result!.newScorecardId, 'rc2');
-      // Lateral carries the CURRENT salary (30000) unchanged.
-      expect(result!.newSalary, Decimal.fromInt(30000));
-      expect(result!.reason, 'Team realignment');
-    });
+        expect(find.textContaining('Adjust Compensation'), findsNothing);
+        expect(result, isNotNull);
+        expect(result!.changeType, 'LATERAL_TRANSFER');
+        expect(result!.newScorecardId, 'rc2');
+        // Lateral carries the CURRENT salary (30000) unchanged.
+        expect(result!.newSalary, Decimal.fromInt(30000));
+        expect(result!.reason, 'Team realignment');
+      },
+    );
   });
 
   group('validateCompensationRequest', () {
@@ -365,16 +382,26 @@ void main() {
     });
 
     test('change type maps to the right salary-adjustment type', () {
-      expect(changeTypeToAdjustmentType('SALARY_INCREASE'),
-          SalaryAdjustmentType.salaryAdjustment);
-      expect(changeTypeToAdjustmentType('SALARY_DECREASE'),
-          SalaryAdjustmentType.salaryAdjustment);
-      expect(changeTypeToAdjustmentType('PROMOTION'),
-          SalaryAdjustmentType.promotion);
-      expect(changeTypeToAdjustmentType('LATERAL_TRANSFER'),
-          SalaryAdjustmentType.lateral);
-      expect(changeTypeToAdjustmentType('DEMOTION'),
-          SalaryAdjustmentType.demotion);
+      expect(
+        changeTypeToAdjustmentType('SALARY_INCREASE'),
+        SalaryAdjustmentType.salaryAdjustment,
+      );
+      expect(
+        changeTypeToAdjustmentType('SALARY_DECREASE'),
+        SalaryAdjustmentType.salaryAdjustment,
+      );
+      expect(
+        changeTypeToAdjustmentType('PROMOTION'),
+        SalaryAdjustmentType.promotion,
+      );
+      expect(
+        changeTypeToAdjustmentType('LATERAL_TRANSFER'),
+        SalaryAdjustmentType.lateral,
+      );
+      expect(
+        changeTypeToAdjustmentType('DEMOTION'),
+        SalaryAdjustmentType.demotion,
+      );
     });
   });
 }

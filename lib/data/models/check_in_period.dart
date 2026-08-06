@@ -6,7 +6,8 @@ class CheckInPeriod {
   final String id;
   final String companyId;
   final String name;
-  final String periodType;       // enum: MONTHLY|QUARTERLY|ANNUAL|PROBATION_1M|PROBATION_3M|PROBATION_5M
+  final String
+  periodType; // enum: MONTHLY|QUARTERLY|ANNUAL|PROBATION_1M|PROBATION_3M|PROBATION_5M
   final DateTime startDate;
   final DateTime endDate;
   final DateTime dueDate;

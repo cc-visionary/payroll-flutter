@@ -10,19 +10,24 @@ import 'payslip_generator.dart';
 
 Decimal _round3(Decimal v) {
   final factor = Decimal.fromInt(1000);
-  return ((v * factor).round(scale: 0) / factor).toDecimal(scaleOnInfinitePrecision: 3);
+  return ((v * factor).round(scale: 0) / factor).toDecimal(
+    scaleOnInfinitePrecision: 3,
+  );
 }
 
 Decimal _fromInt(int i) => Decimal.fromInt(i);
 Decimal _fromDouble(double v) => Decimal.parse(v.toString());
-Decimal _div(Decimal a, Decimal b) => (a / b).toDecimal(scaleOnInfinitePrecision: 10);
+Decimal _div(Decimal a, Decimal b) =>
+    (a / b).toDecimal(scaleOnInfinitePrecision: 10);
 Decimal _max(Decimal a, Decimal b) => a >= b ? a : b;
 Decimal _min(Decimal a, Decimal b) => a <= b ? a : b;
 
 String _toFixed3(int v) => v.toStringAsFixed(3);
 String _toFixed3d(Decimal v) {
   final f = Decimal.fromInt(1000);
-  final rounded = ((v * f).round(scale: 0) / f).toDecimal(scaleOnInfinitePrecision: 3);
+  final rounded = ((v * f).round(scale: 0) / f).toDecimal(
+    scaleOnInfinitePrecision: 3,
+  );
   final parts = rounded.toString().split('.');
   if (parts.length == 1) return '${parts[0]}.000';
   final frac = parts[1].padRight(3, '0').substring(0, 3);
@@ -46,10 +51,12 @@ PayrollComputationResult computePayroll(
       final ps = computeEmployeePayslip(payPeriod, ruleset, employee);
       payslips.add(ps);
     } catch (e) {
-      errors.add(PayrollComputationError(
-        employeeId: employee.profile.employeeId,
-        error: e.toString(),
-      ));
+      errors.add(
+        PayrollComputationError(
+          employeeId: employee.profile.employeeId,
+          error: e.toString(),
+        ),
+      );
     }
   }
 
@@ -97,7 +104,8 @@ ComputedPayslip computeEmployeePayslip(
 
   // 2. Work-day attendance
   final workDayAttendance = attendance.where((a) {
-    if (a.isOnLeave && a.leaveIsPaid && profile.wageType == WageType.MONTHLY) return true;
+    if (a.isOnLeave && a.leaveIsPaid && profile.wageType == WageType.MONTHLY)
+      return true;
     if (a.workedMinutes > 0 &&
         a.dayType != DayType.REGULAR_HOLIDAY &&
         a.dayType != DayType.SPECIAL_HOLIDAY &&
@@ -138,27 +146,31 @@ ComputedPayslip computeEmployeePayslip(
       }
       basicPayTotal = _round3(basicPayTotal);
       basicPayTotalActual += basicPayTotal;
-      lines.add(ComputedPayslipLine(
-        category: PayslipLineCategory.BASIC_PAY,
-        description: 'Basic Pay ($label)',
-        amount: basicPayTotal,
-        sortOrder: 100,
-        ruleCode: 'BASIC_PAY',
-      ));
+      lines.add(
+        ComputedPayslipLine(
+          category: PayslipLineCategory.BASIC_PAY,
+          description: 'Basic Pay ($label)',
+          amount: basicPayTotal,
+          sortOrder: 100,
+          ruleCode: 'BASIC_PAY',
+        ),
+      );
     } else {
       for (final g in rateGroups.values) {
         final amount = _round3(g.rate * _fromInt(g.count));
         basicPayTotalActual += amount;
-        lines.add(ComputedPayslipLine(
-          category: PayslipLineCategory.BASIC_PAY,
-          description:
-              'Basic Pay ($label) — ${g.count} day${g.count != 1 ? 's' : ''}',
-          quantity: _fromInt(g.count),
-          rate: g.rate,
-          amount: amount,
-          sortOrder: 100,
-          ruleCode: 'BASIC_PAY',
-        ));
+        lines.add(
+          ComputedPayslipLine(
+            category: PayslipLineCategory.BASIC_PAY,
+            description:
+                'Basic Pay ($label) — ${g.count} day${g.count != 1 ? 's' : ''}',
+            quantity: _fromInt(g.count),
+            rate: g.rate,
+            amount: amount,
+            sortOrder: 100,
+            ruleCode: 'BASIC_PAY',
+          ),
+        );
       }
     }
   } else {
@@ -174,16 +186,18 @@ ComputedPayslip computeEmployeePayslip(
       final qty = g.count.toDouble();
       final amount = _round3(g.rate * _fromDouble(qty));
       basicPayTotalActual += amount;
-      lines.add(ComputedPayslipLine(
-        category: PayslipLineCategory.BASIC_PAY,
-        description:
-            'Basic Pay (${qty.toStringAsFixed(3)} day${g.count != 1 ? 's' : ''})',
-        quantity: _fromDouble(qty),
-        rate: g.rate,
-        amount: amount,
-        sortOrder: 100,
-        ruleCode: 'BASIC_PAY',
-      ));
+      lines.add(
+        ComputedPayslipLine(
+          category: PayslipLineCategory.BASIC_PAY,
+          description:
+              'Basic Pay (${qty.toStringAsFixed(3)} day${g.count != 1 ? 's' : ''})',
+          quantity: _fromDouble(qty),
+          rate: g.rate,
+          amount: amount,
+          sortOrder: 100,
+          ruleCode: 'BASIC_PAY',
+        ),
+      );
     }
   }
 
@@ -200,14 +214,15 @@ ComputedPayslip computeEmployeePayslip(
   for (final day in attendance) {
     if (!day.isOnLeave || !day.leaveIsPaid) continue;
     if (day.paidLeaveFraction <= Decimal.zero) continue;
-    if (day.workedMinutes > 0) continue; // mixed day → warning path, not paid here
+    if (day.workedMinutes > 0)
+      continue; // mixed day → warning path, not paid here
     final typeName = day.leaveTypeName ?? 'Leave';
     final dayRates = getDayRates(rates, hpd, day.dailyRateOverride);
     final amount = profile.wageType == WageType.MONTHLY
         ? Decimal.zero
         : _round3(dayRates.dailyRate * day.paidLeaveFraction);
-    final prev = paidLeaveByType[typeName] ??
-        (days: Decimal.zero, amount: Decimal.zero);
+    final prev =
+        paidLeaveByType[typeName] ?? (days: Decimal.zero, amount: Decimal.zero);
     paidLeaveByType[typeName] = (
       days: prev.days + day.paidLeaveFraction,
       amount: prev.amount + amount,
@@ -215,14 +230,16 @@ ComputedPayslip computeEmployeePayslip(
   }
   paidLeaveByType.forEach((typeName, agg) {
     final dayLabel = agg.days == Decimal.one ? 'day' : 'days';
-    lines.add(ComputedPayslipLine(
-      category: PayslipLineCategory.PAID_LEAVE,
-      description: 'Paid Leave — $typeName (${agg.days} $dayLabel)',
-      quantity: agg.days,
-      amount: agg.amount,
-      sortOrder: 150,
-      ruleCode: 'PAID_LEAVE',
-    ));
+    lines.add(
+      ComputedPayslipLine(
+        category: PayslipLineCategory.PAID_LEAVE,
+        description: 'Paid Leave — $typeName (${agg.days} $dayLabel)',
+        quantity: agg.days,
+        amount: agg.amount,
+        sortOrder: 150,
+        ruleCode: 'PAID_LEAVE',
+      ),
+    );
   });
 
   // 4. Deductions (late/UT only)
@@ -267,27 +284,31 @@ ComputedPayslip computeEmployeePayslip(
 
   if (totalDeductionMinutes > 0) {
     lateUtDeductionAmount = _round3(lateUtDeductionAmount);
-    lines.add(ComputedPayslipLine(
-      category: PayslipLineCategory.LATE_UT_DEDUCTION,
-      description:
-          'Late/Undertime Deduction (${totalDeductionMinutes.toStringAsFixed(3)} mins)',
-      quantity: _fromDouble(totalDeductionMinutes),
-      rate: rates.minuteRate,
-      amount: lateUtDeductionAmount,
-      sortOrder: 1015,
-      ruleCode: 'LATE_UT_DEDUCT',
-    ));
+    lines.add(
+      ComputedPayslipLine(
+        category: PayslipLineCategory.LATE_UT_DEDUCTION,
+        description:
+            'Late/Undertime Deduction (${totalDeductionMinutes.toStringAsFixed(3)} mins)',
+        quantity: _fromDouble(totalDeductionMinutes),
+        rate: rates.minuteRate,
+        amount: lateUtDeductionAmount,
+        sortOrder: 1015,
+        ruleCode: 'LATE_UT_DEDUCT',
+      ),
+    );
   }
 
   // 5. Overtime — uses the netted OT minutes (late time absorbed first).
   if (profile.isOtEligible) {
-    lines.addAll(_generateOvertimeLines(
-      attendance,
-      rates,
-      standardMinutesPerDay,
-      hpd,
-      nettedOtPerDay: nettedOtPerDay,
-    ));
+    lines.addAll(
+      _generateOvertimeLines(
+        attendance,
+        rates,
+        standardMinutesPerDay,
+        hpd,
+        nettedOtPerDay: nettedOtPerDay,
+      ),
+    );
   }
 
   // 6. Night differential
@@ -298,32 +319,45 @@ ComputedPayslip computeEmployeePayslip(
       if (day.nightDiffMinutes > 0) {
         final dayRates = getDayRates(rates, hpd, day.dailyRateOverride);
         totalNdMinutes += day.nightDiffMinutes;
-        totalNdAmount += dayRates.hourlyRate *
+        totalNdAmount +=
+            dayRates.hourlyRate *
             _div(_fromDouble(day.nightDiffMinutes), _fromInt(60)) *
             PhMultipliers.NIGHT_DIFF;
       }
     }
     if (totalNdMinutes > 0) {
       totalNdAmount = _round3(totalNdAmount);
-      lines.add(ComputedPayslipLine(
-        category: PayslipLineCategory.NIGHT_DIFFERENTIAL,
-        description:
-            'Night Differential (${totalNdMinutes.toStringAsFixed(3)} mins @ 10%)',
-        quantity: _fromDouble(totalNdMinutes),
-        rate: rates.minuteRate,
-        multiplier: PhMultipliers.NIGHT_DIFF,
-        amount: totalNdAmount,
-        sortOrder: 300,
-        ruleCode: 'NIGHT_DIFF',
-        ruleDescription: 'Night Differential (10%)',
-      ));
+      lines.add(
+        ComputedPayslipLine(
+          category: PayslipLineCategory.NIGHT_DIFFERENTIAL,
+          description:
+              'Night Differential (${totalNdMinutes.toStringAsFixed(3)} mins @ 10%)',
+          quantity: _fromDouble(totalNdMinutes),
+          rate: rates.minuteRate,
+          multiplier: PhMultipliers.NIGHT_DIFF,
+          amount: totalNdAmount,
+          sortOrder: 300,
+          ruleCode: 'NIGHT_DIFF',
+          ruleDescription: 'Night Differential (10%)',
+        ),
+      );
     }
   }
 
   // 7. Holiday and rest day premiums
-  lines.addAll(generateHolidayPremiumLines(attendance, rates, standardMinutesPerDay,
-      standardHoursPerDay: hpd));
-  final restDayLine = generateRestDayPremiumLine(attendance, rates, standardHoursPerDay: hpd);
+  lines.addAll(
+    generateHolidayPremiumLines(
+      attendance,
+      rates,
+      standardMinutesPerDay,
+      standardHoursPerDay: hpd,
+    ),
+  );
+  final restDayLine = generateRestDayPremiumLine(
+    attendance,
+    rates,
+    standardHoursPerDay: hpd,
+  );
   if (restDayLine != null) lines.add(restDayLine);
 
   // 8. Allowances
@@ -334,41 +368,47 @@ ComputedPayslip computeEmployeePayslip(
 
   // 10. Penalty deductions
   for (final p in employee.penaltyDeductions) {
-    lines.add(ComputedPayslipLine(
-      category: PayslipLineCategory.PENALTY_DEDUCTION,
-      description: p.description,
-      amount: p.amount,
-      sortOrder: 1350,
-      penaltyInstallmentId: p.installmentId,
-      ruleCode: 'PENALTY_DEDUCTION',
-      ruleDescription: 'Penalty installment deduction',
-    ));
+    lines.add(
+      ComputedPayslipLine(
+        category: PayslipLineCategory.PENALTY_DEDUCTION,
+        description: p.description,
+        amount: p.amount,
+        sortOrder: 1350,
+        penaltyInstallmentId: p.installmentId,
+        ruleCode: 'PENALTY_DEDUCTION',
+        ruleDescription: 'Penalty installment deduction',
+      ),
+    );
   }
 
   // 11. Cash advance deductions
   for (final ca in employee.cashAdvanceDeductions) {
-    lines.add(ComputedPayslipLine(
-      category: PayslipLineCategory.CASH_ADVANCE_DEDUCTION,
-      description: ca.description,
-      amount: ca.amount,
-      sortOrder: 1300,
-      cashAdvanceId: ca.cashAdvanceId,
-      ruleCode: 'CASH_ADVANCE',
-      ruleDescription: 'Cash advance deduction from Lark approval',
-    ));
+    lines.add(
+      ComputedPayslipLine(
+        category: PayslipLineCategory.CASH_ADVANCE_DEDUCTION,
+        description: ca.description,
+        amount: ca.amount,
+        sortOrder: 1300,
+        cashAdvanceId: ca.cashAdvanceId,
+        ruleCode: 'CASH_ADVANCE',
+        ruleDescription: 'Cash advance deduction from Lark approval',
+      ),
+    );
   }
 
   // 12. Reimbursements
   for (final r in employee.reimbursements) {
-    lines.add(ComputedPayslipLine(
-      category: PayslipLineCategory.REIMBURSEMENT,
-      description: r.description,
-      amount: r.amount,
-      sortOrder: 500,
-      reimbursementId: r.id,
-      ruleCode: 'REIMBURSEMENT',
-      ruleDescription: 'Reimbursement from Lark approval',
-    ));
+    lines.add(
+      ComputedPayslipLine(
+        category: PayslipLineCategory.REIMBURSEMENT,
+        description: r.description,
+        amount: r.amount,
+        sortOrder: 500,
+        reimbursementId: r.id,
+        ruleCode: 'REIMBURSEMENT',
+        ruleDescription: 'Reimbursement from Lark approval',
+      ),
+    );
   }
 
   // 13. Statutory deductions
@@ -392,8 +432,7 @@ ComputedPayslip computeEmployeePayslip(
   // Per-benefit gating: each statutory benefit fires when the base gate
   // passes OR the per-benefit override is explicitly set. Admin can
   // force-enrol an employee in SSS independently of PhilHealth and Pag-IBIG.
-  final sssEligible =
-      isStatutoryEligibleBase || profile.sssEligibilityOverride;
+  final sssEligible = isStatutoryEligibleBase || profile.sssEligibilityOverride;
   final philhealthEligible =
       isStatutoryEligibleBase || profile.philhealthEligibilityOverride;
   final pagibigEligible =
@@ -429,24 +468,33 @@ ComputedPayslip computeEmployeePayslip(
     }
 
     if (sssEligible) {
-      final sssLines =
-          generateSSSLines(monthlyGross, sssTable, periodsPerMonth);
+      final sssLines = generateSSSLines(
+        monthlyGross,
+        sssTable,
+        periodsPerMonth,
+      );
       lines.add(sssLines.eeLine);
       sssEe = sssLines.eeLine.amount;
       sssEr = sssLines.erLine.amount;
     }
 
     if (philhealthEligible) {
-      final philhealthLines =
-          generatePhilHealthLines(monthlyGross, philhealthTable, periodsPerMonth);
+      final philhealthLines = generatePhilHealthLines(
+        monthlyGross,
+        philhealthTable,
+        periodsPerMonth,
+      );
       lines.add(philhealthLines.eeLine);
       philhealthEe = philhealthLines.eeLine.amount;
       philhealthEr = philhealthLines.erLine.amount;
     }
 
     if (pagibigEligible) {
-      final pagibigLines =
-          generatePagIBIGLines(monthlyGross, pagibigTable, periodsPerMonth);
+      final pagibigLines = generatePagIBIGLines(
+        monthlyGross,
+        pagibigTable,
+        periodsPerMonth,
+      );
       lines.add(pagibigLines.eeLine);
       pagibigEe = pagibigLines.eeLine.amount;
       pagibigEr = pagibigLines.erLine.amount;
@@ -504,8 +552,9 @@ ComputedPayslip computeEmployeePayslip(
         // double-counting.
         taxBasicPay += _round3(taxDailyRate * paidLeaveDaysTotal);
       }
-      taxLateUtDeduction =
-          _round3(taxMinuteRate * _fromDouble(totalDeductionMinutes));
+      taxLateUtDeduction = _round3(
+        taxMinuteRate * _fromDouble(totalDeductionMinutes),
+      );
     } else {
       // No declared-wage override: tax the pay that was ACTUALLY computed.
       // When every day shares one rate this is arithmetically identical to the
@@ -540,8 +589,9 @@ ComputedPayslip computeEmployeePayslip(
       );
     }
 
-    final totalPeriodsPerYear =
-        (periodsPerMonth * Decimal.fromInt(12)).toBigInt().toInt();
+    final totalPeriodsPerYear = (periodsPerMonth * Decimal.fromInt(12))
+        .toBigInt()
+        .toInt();
 
     // Period number for the withholding-tax projection. Counting the actual
     // released payslips for this employee this year is the only reliable
@@ -559,8 +609,8 @@ ComputedPayslip computeEmployeePayslip(
     // expected cycle for the year. Off-cycle December bonus runs that
     // push the count beyond the schedule fall through to normal
     // cumulative math.
-    final isYearEndAnnualization = payPeriod.endDate.month == 12 &&
-        taxPeriodNumber == totalPeriodsPerYear;
+    final isYearEndAnnualization =
+        payPeriod.endDate.month == 12 && taxPeriodNumber == totalPeriodsPerYear;
 
     if (isYearEndAnnualization) {
       final actualAnnualTaxable =
@@ -571,28 +621,32 @@ ComputedPayslip computeEmployeePayslip(
 
       if (diff > Decimal.zero) {
         // Under-withheld YTD → take the shortfall this period.
-        lines.add(ComputedPayslipLine(
-          category: PayslipLineCategory.TAX_WITHHOLDING,
-          description: 'Withholding Tax (Year-End Adjustment)',
-          amount: diff,
-          sortOrder: 1200,
-          ruleCode: 'WITHHOLDING_TAX_ANNUALIZATION',
-          ruleDescription:
-              'Year-end annualisation (BIR RR 11-2018) — shortfall from projected vs actual annual tax',
-        ));
+        lines.add(
+          ComputedPayslipLine(
+            category: PayslipLineCategory.TAX_WITHHOLDING,
+            description: 'Withholding Tax (Year-End Adjustment)',
+            amount: diff,
+            sortOrder: 1200,
+            ruleCode: 'WITHHOLDING_TAX_ANNUALIZATION',
+            ruleDescription:
+                'Year-end annualisation (BIR RR 11-2018) — shortfall from projected vs actual annual tax',
+          ),
+        );
         withholdingTax = diff;
       } else if (diff < Decimal.zero) {
         // Over-withheld YTD → refund on the earnings side.
         final refundAmount = _round3(-diff);
-        lines.add(ComputedPayslipLine(
-          category: PayslipLineCategory.TAX_REFUND,
-          description: 'Tax Refund (Year-End Annualization)',
-          amount: refundAmount,
-          sortOrder: 350,
-          ruleCode: 'TAX_REFUND_ANNUALIZATION',
-          ruleDescription:
-              'Year-end annualisation (BIR RR 11-2018) — refund of projected over-withholding',
-        ));
+        lines.add(
+          ComputedPayslipLine(
+            category: PayslipLineCategory.TAX_REFUND,
+            description: 'Tax Refund (Year-End Annualization)',
+            amount: refundAmount,
+            sortOrder: 350,
+            ruleCode: 'TAX_REFUND_ANNUALIZATION',
+            ruleDescription:
+                'Year-end annualisation (BIR RR 11-2018) — refund of projected over-withholding',
+          ),
+        );
         // Net withholding for this period is negative — cumulative YTD
         // tax withheld accumulator on the payslip subtracts the refund.
         withholdingTax = diff;
@@ -624,7 +678,8 @@ ComputedPayslip computeEmployeePayslip(
   final netPay = _round3(totalEarnings - totalDeductions);
 
   final ytdGrossPay = employee.previousYtd.grossPay + grossPay;
-  final ytdTaxableIncome = employee.previousYtd.taxableIncome + currentPeriodTaxable;
+  final ytdTaxableIncome =
+      employee.previousYtd.taxableIncome + currentPeriodTaxable;
   final ytdTaxWithheld = employee.previousYtd.taxWithheld + withholdingTax;
 
   return ComputedPayslip(
@@ -678,7 +733,11 @@ List<ComputedPayslipLine> _generateOvertimeLines(
 
   for (final a in attendance) {
     if (a.workedMinutes <= 0) continue;
-    final dayRates = getDayRates(rates, standardHoursPerDay, a.dailyRateOverride);
+    final dayRates = getDayRates(
+      rates,
+      standardHoursPerDay,
+      a.dailyRateOverride,
+    );
 
     if (a.dayType == DayType.WORKDAY) {
       // Use the late-vs-OT-netted minutes when provided (workday OT only —
@@ -687,7 +746,8 @@ List<ComputedPayslipLine> _generateOvertimeLines(
       final ot = nettedOtPerDay?[a.id] ?? a.otMinutes;
       if (ot > 0) {
         regularOtMinutes += ot;
-        regularOtAmount += dayRates.hourlyRate *
+        regularOtAmount +=
+            dayRates.hourlyRate *
             _div(_fromDouble(ot), _fromInt(60)) *
             PhMultipliers.OT_REGULAR;
       }
@@ -701,7 +761,8 @@ List<ComputedPayslipLine> _generateOvertimeLines(
       final ot = a.overtimeRestDayMinutes;
       if (ot > 0) {
         restDayOtMinutes += ot;
-        restDayOtAmount += dayRates.hourlyRate *
+        restDayOtAmount +=
+            dayRates.hourlyRate *
             _div(_fromDouble(ot), _fromInt(60)) *
             PhMultipliers.REST_DAY_OT;
       }
@@ -714,7 +775,8 @@ List<ComputedPayslipLine> _generateOvertimeLines(
       if (ot <= 0) ot = a.otMinutes;
       if (ot > 0) {
         regularHolidayOtMinutes += ot;
-        regularHolidayOtAmount += dayRates.hourlyRate *
+        regularHolidayOtAmount +=
+            dayRates.hourlyRate *
             _div(_fromDouble(ot), _fromInt(60)) *
             PhMultipliers.REGULAR_HOLIDAY_OT;
       }
@@ -724,7 +786,8 @@ List<ComputedPayslipLine> _generateOvertimeLines(
       if (ot <= 0) ot = a.otMinutes;
       if (ot > 0) {
         specialHolidayOtMinutes += ot;
-        specialHolidayOtAmount += dayRates.hourlyRate *
+        specialHolidayOtAmount +=
+            dayRates.hourlyRate *
             _div(_fromDouble(ot), _fromInt(60)) *
             PhMultipliers.SPECIAL_HOLIDAY_OT;
       }
@@ -732,60 +795,68 @@ List<ComputedPayslipLine> _generateOvertimeLines(
   }
 
   if (regularOtMinutes > 0) {
-    lines.add(ComputedPayslipLine(
-      category: PayslipLineCategory.OVERTIME_REGULAR,
-      description:
-          'Regular Overtime (${regularOtMinutes.toStringAsFixed(3)} mins @ 125%)',
-      quantity: _fromDouble(regularOtMinutes),
-      rate: rates.minuteRate,
-      multiplier: PhMultipliers.OT_REGULAR,
-      amount: _round3(regularOtAmount),
-      sortOrder: 200,
-      ruleCode: 'OT_REGULAR',
-      ruleDescription: 'Regular Day Overtime (125%)',
-    ));
+    lines.add(
+      ComputedPayslipLine(
+        category: PayslipLineCategory.OVERTIME_REGULAR,
+        description:
+            'Regular Overtime (${regularOtMinutes.toStringAsFixed(3)} mins @ 125%)',
+        quantity: _fromDouble(regularOtMinutes),
+        rate: rates.minuteRate,
+        multiplier: PhMultipliers.OT_REGULAR,
+        amount: _round3(regularOtAmount),
+        sortOrder: 200,
+        ruleCode: 'OT_REGULAR',
+        ruleDescription: 'Regular Day Overtime (125%)',
+      ),
+    );
   }
   if (restDayOtMinutes > 0) {
-    lines.add(ComputedPayslipLine(
-      category: PayslipLineCategory.OVERTIME_REST_DAY,
-      description:
-          'Rest Day Overtime (${restDayOtMinutes.toStringAsFixed(3)} mins @ 169%)',
-      quantity: _fromDouble(restDayOtMinutes),
-      rate: rates.minuteRate,
-      multiplier: PhMultipliers.REST_DAY_OT,
-      amount: _round3(restDayOtAmount),
-      sortOrder: 210,
-      ruleCode: 'OT_REST_DAY',
-      ruleDescription: 'Rest Day Overtime (169%)',
-    ));
+    lines.add(
+      ComputedPayslipLine(
+        category: PayslipLineCategory.OVERTIME_REST_DAY,
+        description:
+            'Rest Day Overtime (${restDayOtMinutes.toStringAsFixed(3)} mins @ 169%)',
+        quantity: _fromDouble(restDayOtMinutes),
+        rate: rates.minuteRate,
+        multiplier: PhMultipliers.REST_DAY_OT,
+        amount: _round3(restDayOtAmount),
+        sortOrder: 210,
+        ruleCode: 'OT_REST_DAY',
+        ruleDescription: 'Rest Day Overtime (169%)',
+      ),
+    );
   }
   if (regularHolidayOtMinutes > 0) {
-    lines.add(ComputedPayslipLine(
-      category: PayslipLineCategory.OVERTIME_HOLIDAY,
-      description:
-          'Regular Holiday OT (${regularHolidayOtMinutes.toStringAsFixed(3)} mins @ 260%)',
-      quantity: _fromDouble(regularHolidayOtMinutes),
-      rate: rates.minuteRate,
-      multiplier: PhMultipliers.REGULAR_HOLIDAY_OT,
-      amount: _round3(regularHolidayOtAmount),
-      sortOrder: 220,
-      ruleCode: 'OT_REGULAR_HOLIDAY',
-      ruleDescription: 'Regular Holiday Overtime (260%)',
-    ));
+    lines.add(
+      ComputedPayslipLine(
+        category: PayslipLineCategory.OVERTIME_HOLIDAY,
+        description:
+            'Regular Holiday OT (${regularHolidayOtMinutes.toStringAsFixed(3)} mins @ 260%)',
+        quantity: _fromDouble(regularHolidayOtMinutes),
+        rate: rates.minuteRate,
+        multiplier: PhMultipliers.REGULAR_HOLIDAY_OT,
+        amount: _round3(regularHolidayOtAmount),
+        sortOrder: 220,
+        ruleCode: 'OT_REGULAR_HOLIDAY',
+        ruleDescription: 'Regular Holiday Overtime (260%)',
+      ),
+    );
   }
   if (specialHolidayOtMinutes > 0) {
-    lines.add(ComputedPayslipLine(
-      category: PayslipLineCategory.OVERTIME_HOLIDAY,
-      description:
-          'Special Holiday OT (${specialHolidayOtMinutes.toStringAsFixed(3)} mins @ 169%)',
-      quantity: _fromDouble(specialHolidayOtMinutes),
-      rate: rates.minuteRate,
-      multiplier: PhMultipliers.SPECIAL_HOLIDAY_OT,
-      amount: _round3(specialHolidayOtAmount),
-      sortOrder: 220,
-      ruleCode: 'OT_SPECIAL_HOLIDAY',
-      ruleDescription: 'Special Holiday Overtime (169%)',
-    ));
+    lines.add(
+      ComputedPayslipLine(
+        category: PayslipLineCategory.OVERTIME_HOLIDAY,
+        description:
+            'Special Holiday OT (${specialHolidayOtMinutes.toStringAsFixed(3)} mins @ 169%)',
+        quantity: _fromDouble(specialHolidayOtMinutes),
+        rate: rates.minuteRate,
+        multiplier: PhMultipliers.SPECIAL_HOLIDAY_OT,
+        amount: _round3(specialHolidayOtAmount),
+        sortOrder: 220,
+        ruleCode: 'OT_SPECIAL_HOLIDAY',
+        ruleDescription: 'Special Holiday Overtime (169%)',
+      ),
+    );
   }
 
   return lines;
@@ -859,7 +930,6 @@ Decimal _getPeriodsPerMonth(PayFrequency payFrequency) {
       return Decimal.parse('4.33');
   }
 }
-
 
 extension _DecimalToDouble on Decimal {
   double toDouble() => double.parse(toString());

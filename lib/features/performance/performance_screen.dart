@@ -59,8 +59,11 @@ class _PerformanceScreenState extends ConsumerState<PerformanceScreen> {
       final rows = await fetchSelfEvalsForExport(profile.companyId);
       if (!mounted) return;
       if (rows.isEmpty) {
-        messenger.showSnackBar(const SnackBar(
-            content: Text('No self-evaluation responses to export.')));
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('No self-evaluation responses to export.'),
+          ),
+        );
         return;
       }
       final path = await exportSelfEvalsXlsx(rows: rows);

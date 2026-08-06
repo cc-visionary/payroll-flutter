@@ -14,11 +14,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 // ---------------------------------------------------------------------------
 class _FakeHiringEntityRepository extends HiringEntityRepository {
   _FakeHiringEntityRepository()
-      : super(SupabaseClient(
+    : super(
+        SupabaseClient(
           'https://stub.supabase.co',
           'stub-anon-key',
           authOptions: const AuthClientOptions(autoRefreshToken: false),
-        ));
+        ),
+      );
 
   static const _uploadedBytes = [0xFF, 0xFE];
   static final _uploadedB64 = base64.encode(_uploadedBytes);
@@ -57,8 +59,9 @@ void main() {
     setUp(() {
       container = ProviderContainer(
         overrides: [
-          hiringEntityRepositoryProvider
-              .overrideWithValue(_FakeHiringEntityRepository()),
+          hiringEntityRepositoryProvider.overrideWithValue(
+            _FakeHiringEntityRepository(),
+          ),
         ],
       );
     });
@@ -66,22 +69,23 @@ void main() {
     tearDown(() => container.dispose());
 
     test('entity returned by provider has non-null logoBase64', () async {
-      final entity =
-          await container.read(hiringEntityByIdProvider('x').future);
+      final entity = await container.read(hiringEntityByIdProvider('x').future);
       expect(entity, isNotNull);
       expect(entity!.logoBase64, isNotNull);
       expect(entity.logoBase64, isNotEmpty);
     });
 
     test(
-        'loadCompanyLogoBytes returns uploaded bytes, not bundled fallback',
-        () async {
-      final entity =
-          await container.read(hiringEntityByIdProvider('x').future);
-      final bytes = await loadCompanyLogoBytes(entity);
-      expect(bytes, isNotNull);
-      // Must equal the decoded uploaded bytes.
-      expect(bytes!.toList(), _FakeHiringEntityRepository._uploadedBytes);
-    });
+      'loadCompanyLogoBytes returns uploaded bytes, not bundled fallback',
+      () async {
+        final entity = await container.read(
+          hiringEntityByIdProvider('x').future,
+        );
+        final bytes = await loadCompanyLogoBytes(entity);
+        expect(bytes, isNotNull);
+        // Must equal the decoded uploaded bytes.
+        expect(bytes!.toList(), _FakeHiringEntityRepository._uploadedBytes);
+      },
+    );
   });
 }

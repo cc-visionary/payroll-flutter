@@ -114,7 +114,8 @@ class _BatchDialogState extends ConsumerState<_BatchDialog> {
     String? commonShiftId;
     for (final id in widget.recordIds) {
       final sid = widget.shiftIdByRecordId[id];
-      if (sid == null) return null; // a record without a shift breaks the consensus
+      if (sid == null)
+        return null; // a record without a shift breaks the consensus
       if (commonShiftId == null) {
         commonShiftId = sid;
       } else if (commonShiftId != sid) {
@@ -149,9 +150,7 @@ class _BatchDialogState extends ConsumerState<_BatchDialog> {
     final repo = ref.read(attendanceRepositoryProvider);
 
     // Fields that are identical for every selected row
-    final basePatch = <String, dynamic>{
-      'override_reason_code': _reasonCode,
-    };
+    final basePatch = <String, dynamic>{'override_reason_code': _reasonCode};
     if (_applyShift) basePatch['shift_template_id'] = _shiftId;
     if (_applyBreak) {
       basePatch['break_minutes_applied'] = int.tryParse(_breakCtrl.text.trim());
@@ -159,8 +158,9 @@ class _BatchDialogState extends ConsumerState<_BatchDialog> {
     if (_applyEarlyIn) basePatch['early_in_approved'] = _earlyInApproved;
     if (_applyLateOut) basePatch['late_out_approved'] = _lateOutApproved;
     if (_applyRate) {
-      basePatch['daily_rate_override'] =
-          _rateCtrl.text.trim().isEmpty ? null : _rateCtrl.text.trim();
+      basePatch['daily_rate_override'] = _rateCtrl.text.trim().isEmpty
+          ? null
+          : _rateCtrl.text.trim();
     }
 
     String? _combineDateTime(DateTime date, TimeOfDay? tod) {
@@ -169,7 +169,13 @@ class _BatchDialogState extends ConsumerState<_BatchDialog> {
       // serializing. Without `.toUtc()` the ISO string has no timezone
       // suffix and Postgres treats it as UTC — a PH-local 18:00 then
       // renders back as 02:00 AM next day.
-      final dt = DateTime(date.year, date.month, date.day, tod.hour, tod.minute);
+      final dt = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        tod.hour,
+        tod.minute,
+      );
       return dt.toUtc().toIso8601String();
     }
 
@@ -240,61 +246,76 @@ class _BatchDialogState extends ConsumerState<_BatchDialog> {
                     'clock times untouched.',
                 applied: _applyClockTimes,
                 onApplyChanged: (v) => setState(() => _applyClockTimes = v),
-                child: Column(children: [
-                  Row(children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.login, size: 16),
-                        label: Text(_clockIn == null
-                            ? 'Clock In: —'
-                            : 'Clock In: ${_fmtTod(_clockIn!)}'),
-                        onPressed: !_applyClockTimes
-                            ? null
-                            : () async {
-                                final t = await showTimePicker(
-                                  context: context,
-                                  initialTime: _clockIn ??
-                                      _shiftTod(
-                                        _defaultShift?.startTime,
-                                        fallback: const TimeOfDay(
-                                            hour: 9, minute: 0),
-                                      ),
-                                );
-                                if (t != null) setState(() => _clockIn = t);
-                              },
-                      ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.login, size: 16),
+                            label: Text(
+                              _clockIn == null
+                                  ? 'Clock In: —'
+                                  : 'Clock In: ${_fmtTod(_clockIn!)}',
+                            ),
+                            onPressed: !_applyClockTimes
+                                ? null
+                                : () async {
+                                    final t = await showTimePicker(
+                                      context: context,
+                                      initialTime:
+                                          _clockIn ??
+                                          _shiftTod(
+                                            _defaultShift?.startTime,
+                                            fallback: const TimeOfDay(
+                                              hour: 9,
+                                              minute: 0,
+                                            ),
+                                          ),
+                                    );
+                                    if (t != null) setState(() => _clockIn = t);
+                                  },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.logout, size: 16),
+                            label: Text(
+                              _clockOut == null
+                                  ? 'Clock Out: —'
+                                  : 'Clock Out: ${_fmtTod(_clockOut!)}',
+                            ),
+                            onPressed: !_applyClockTimes
+                                ? null
+                                : () async {
+                                    final t = await showTimePicker(
+                                      context: context,
+                                      initialTime:
+                                          _clockOut ??
+                                          _shiftTod(
+                                            _defaultShift?.endTime,
+                                            fallback: const TimeOfDay(
+                                              hour: 18,
+                                              minute: 0,
+                                            ),
+                                          ),
+                                    );
+                                    if (t != null)
+                                      setState(() => _clockOut = t);
+                                  },
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.logout, size: 16),
-                        label: Text(_clockOut == null
-                            ? 'Clock Out: —'
-                            : 'Clock Out: ${_fmtTod(_clockOut!)}'),
-                        onPressed: !_applyClockTimes
-                            ? null
-                            : () async {
-                                final t = await showTimePicker(
-                                  context: context,
-                                  initialTime: _clockOut ??
-                                      _shiftTod(
-                                        _defaultShift?.endTime,
-                                        fallback: const TimeOfDay(
-                                            hour: 18, minute: 0),
-                                      ),
-                                );
-                                if (t != null) setState(() => _clockOut = t);
-                              },
-                      ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Applied to every selected row using that row\'s own date. '
+                      'Leave either field empty (—) to clear that clock time.',
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
                     ),
-                  ]),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Applied to every selected row using that row\'s own date. '
-                    'Leave either field empty (—) to clear that clock time.',
-                    style: TextStyle(fontSize: 11, color: Colors.grey),
-                  ),
-                ]),
+                  ],
+                ),
               ),
               _ApplySection(
                 title: 'Shift Schedule',
@@ -316,12 +337,14 @@ class _BatchDialogState extends ConsumerState<_BatchDialog> {
                       (s) => DropdownMenuItem<String?>(
                         value: s.id,
                         child: Text(
-                            '${s.name} (${s.startTime.substring(0, 5)}–${s.endTime.substring(0, 5)})'),
+                          '${s.name} (${s.startTime.substring(0, 5)}–${s.endTime.substring(0, 5)})',
+                        ),
                       ),
                     ),
                   ],
-                  onChanged:
-                      _applyShift ? (v) => setState(() => _shiftId = v) : null,
+                  onChanged: _applyShift
+                      ? (v) => setState(() => _shiftId = v)
+                      : null,
                 ),
               ),
               _ApplySection(
@@ -374,8 +397,9 @@ class _BatchDialogState extends ConsumerState<_BatchDialog> {
                 child: TextFormField(
                   controller: _rateCtrl,
                   enabled: _applyRate,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: const InputDecoration(
                     hintText: 'PHP (leave blank to clear)',
                     border: OutlineInputBorder(),
@@ -387,9 +411,7 @@ class _BatchDialogState extends ConsumerState<_BatchDialog> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .errorContainer
+                  color: Theme.of(context).colorScheme.errorContainer
                       .withValues(alpha: _reasonCode == null ? 0.4 : 0.15),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
@@ -403,9 +425,13 @@ class _BatchDialogState extends ConsumerState<_BatchDialog> {
                   children: [
                     Row(
                       children: [
-                        const Text('Reason for change',
-                            style: TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w700)),
+                        const Text(
+                          'Reason for change',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           '*',
@@ -445,8 +471,10 @@ class _BatchDialogState extends ConsumerState<_BatchDialog> {
               ),
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Text('$_error — $_successCount succeeded',
-                    style: const TextStyle(color: Colors.red)),
+                Text(
+                  '$_error — $_successCount succeeded',
+                  style: const TextStyle(color: Colors.red),
+                ),
               ],
               const SizedBox(height: 12),
             ],
@@ -466,7 +494,8 @@ class _BatchDialogState extends ConsumerState<_BatchDialog> {
               ? const SizedBox(
                   height: 16,
                   width: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2))
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : Text('Apply to $n'),
         ),
       ],
@@ -496,7 +525,9 @@ class _ApplySection extends StatelessWidget {
         border: Border.all(color: Theme.of(context).dividerColor),
         borderRadius: BorderRadius.circular(8),
         color: applied
-            ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.2)
+            ? Theme.of(
+                context,
+              ).colorScheme.primaryContainer.withValues(alpha: 0.2)
             : null,
       ),
       child: Column(
@@ -514,17 +545,20 @@ class _ApplySection extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 10),
-                    Text(title,
-                        style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600)),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     if (subtitle != null) ...[
                       const SizedBox(height: 2),
                       Text(
                         subtitle!,
                         style: TextStyle(
                           fontSize: 11,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],

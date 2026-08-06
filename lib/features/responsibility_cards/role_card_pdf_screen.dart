@@ -23,8 +23,7 @@ class RoleCardPdfScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Role reference')),
       body: cardAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) =>
-            _message(context, 'Could not load the role card.\n$e'),
+        error: (e, _) => _message(context, 'Could not load the role card.\n$e'),
         data: (card) {
           if (card == null) {
             return _message(context, 'Role card not found.');
@@ -42,10 +41,10 @@ class RoleCardPdfScreen extends ConsumerWidget {
                   ? null
                   : await ref.read(hiringEntityByIdProvider(entityId).future);
               final logo = await loadCompanyLogoBytes(entity);
-              final address = [entity?.addressLine1, entity?.addressLine2]
-                  .whereType<String>()
-                  .where((s) => s.isNotEmpty)
-                  .join(', ');
+              final address = [
+                entity?.addressLine1,
+                entity?.addressLine2,
+              ].whereType<String>().where((s) => s.isNotEmpty).join(', ');
               return buildDocumentPdf(
                 blocks: roleCardBlocks(
                   card,
@@ -63,15 +62,13 @@ class RoleCardPdfScreen extends ConsumerWidget {
   }
 
   Widget _message(BuildContext context, String text) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      );
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+    ),
+  );
 }

@@ -80,7 +80,10 @@ class Payslip {
     this.lines = const [],
   });
 
-  factory Payslip.fromRow(Map<String, dynamic> r, {List<PayslipLine> lines = const []}) {
+  factory Payslip.fromRow(
+    Map<String, dynamic> r, {
+    List<PayslipLine> lines = const [],
+  }) {
     Decimal d(Object? v) => Decimal.parse((v ?? '0').toString());
     return Payslip(
       id: r['id'] as String,

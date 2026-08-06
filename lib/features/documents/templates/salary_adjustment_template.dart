@@ -113,10 +113,9 @@ class SalaryAdjustmentTemplate
           .where((cc) => cc.status != 'CANCELLED')
           .fold<CompensationChange?>(
             null,
-            (best, cc) =>
-                best == null || cc.createdAt.isAfter(best.createdAt)
-                    ? cc
-                    : best,
+            (best, cc) => best == null || cc.createdAt.isAfter(best.createdAt)
+                ? cc
+                : best,
           );
     } catch (_) {
       change = null;
@@ -164,7 +163,8 @@ class SalaryAdjustmentTemplate
       newRoleScorecardId: change?.newScorecardId,
       oldPosition: e?.jobTitle ?? scorecard?.jobTitle ?? '',
       newPosition: newScorecard?.jobTitle ?? '',
-      oldSalary: change?.prevBaseSalary ??
+      oldSalary:
+          change?.prevBaseSalary ??
           e?.declaredWageOverride ??
           scorecard?.baseSalary ??
           Decimal.zero,

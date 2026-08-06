@@ -14,17 +14,17 @@ import 'package:payroll_flutter/features/documents/templates/quitclaim_template.
 
 void main() {
   QuitclaimInputs filled() => QuitclaimInputs(
-        employeeId: 'emp-1',
-        employeeFullName: 'Donald Xu',
-        employeeAddress: '123 Mabini St, Manila',
-        civilStatus: 'single',
-        companyId: 'co-1',
-        companyName: 'LUXIUM TRADING CO.',
-        finalPayAmount: Decimal.parse('47250.00'),
-        dateTerminated: DateTime(2026, 4, 30),
-        dateSigned: DateTime(2026, 5, 5),
-        placeSigned: 'Manila City',
-      );
+    employeeId: 'emp-1',
+    employeeFullName: 'Donald Xu',
+    employeeAddress: '123 Mabini St, Manila',
+    civilStatus: 'single',
+    companyId: 'co-1',
+    companyName: 'LUXIUM TRADING CO.',
+    finalPayAmount: Decimal.parse('47250.00'),
+    dateTerminated: DateTime(2026, 4, 30),
+    dateSigned: DateTime(2026, 5, 5),
+    placeSigned: 'Manila City',
+  );
 
   test('build returns a non-empty block list', () {
     const t = QuitclaimTemplate();
@@ -33,20 +33,25 @@ void main() {
 
   test('quitclaim build prepends LetterheadBlock', () {
     final i = filled().copyWith(
-        logoBytes: Uint8List.fromList(const [137, 80, 78, 71]));
+      logoBytes: Uint8List.fromList(const [137, 80, 78, 71]),
+    );
     final blocks = const QuitclaimTemplate().build(i);
     expect(blocks.whereType<LetterheadBlock>(), isNotEmpty);
   });
 
-  test('first block is LetterheadBlock when companyName is set, canonical title is present', () {
-    const t = QuitclaimTemplate();
-    final blocks = t.build(filled());
-    expect(blocks.first, isA<LetterheadBlock>());
-    final titles = blocks.whereType<TitleBlock>().toList();
-    expect(
+  test(
+    'first block is LetterheadBlock when companyName is set, canonical title is present',
+    () {
+      const t = QuitclaimTemplate();
+      final blocks = t.build(filled());
+      expect(blocks.first, isA<LetterheadBlock>());
+      final titles = blocks.whereType<TitleBlock>().toList();
+      expect(
         titles.any((b) => b.text == 'QUITCLAIM AND RELEASE' && b.centered),
-        true);
-  });
+        true,
+      );
+    },
+  );
 
   test('build includes a centered employee signature block', () {
     const t = QuitclaimTemplate();
@@ -57,8 +62,10 @@ void main() {
 
   test('build includes the four notary lines', () {
     const t = QuitclaimTemplate();
-    final paras =
-        t.build(filled()).whereType<ParagraphBlock>().map((p) => p.text);
+    final paras = t
+        .build(filled())
+        .whereType<ParagraphBlock>()
+        .map((p) => p.text);
     expect(paras.any((s) => s.startsWith('Doc. No.')), true);
     expect(paras.any((s) => s.startsWith('Page No.')), true);
     expect(paras.any((s) => s.startsWith('Book No.')), true);

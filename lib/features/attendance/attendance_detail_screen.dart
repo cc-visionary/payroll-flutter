@@ -25,11 +25,12 @@ class AttendanceDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final attendanceAsync = ref.watch(attendanceListProvider(
-      AttendanceQuery(start: date, end: date, employeeId: employeeId),
-    ));
-    final employeeAsync =
-        ref.watch(employeeByIdProvider(employeeId));
+    final attendanceAsync = ref.watch(
+      attendanceListProvider(
+        AttendanceQuery(start: date, end: date, employeeId: employeeId),
+      ),
+    );
+    final employeeAsync = ref.watch(employeeByIdProvider(employeeId));
     final cardsAsync = ref.watch(roleScorecardListProvider);
     final roleTitleById = <String, String>{
       for (final c in cardsAsync.asData?.value ?? const []) c.id: c.jobTitle,
@@ -43,9 +44,9 @@ class AttendanceDetailScreen extends ConsumerWidget {
     final shift = record?.shiftTemplateId == null
         ? null
         : shiftsAsync.asData?.value
-            .where((s) => s.id == record!.shiftTemplateId)
-            .cast<ShiftTemplate?>()
-            .firstOrNull;
+              .where((s) => s.id == record!.shiftTemplateId)
+              .cast<ShiftTemplate?>()
+              .firstOrNull;
 
     final iso = date.toIso8601String().substring(0, 10);
     return Scaffold(
@@ -65,16 +66,16 @@ class AttendanceDetailScreen extends ConsumerWidget {
       body: attendanceAsync.isLoading || employeeAsync.isLoading
           ? const Center(child: CircularProgressIndicator())
           : attendanceAsync.hasError
-              ? Center(child: Text('Error: ${attendanceAsync.error}'))
-              : _Body(
-                  employee: employee,
-                  record: record,
-                  shift: shift,
-                  date: date,
-                  roleTitle: employee?.roleScorecardId != null
-                      ? roleTitleById[employee!.roleScorecardId]
-                      : null,
-                ),
+          ? Center(child: Text('Error: ${attendanceAsync.error}'))
+          : _Body(
+              employee: employee,
+              record: record,
+              shift: shift,
+              date: date,
+              roleTitle: employee?.roleScorecardId != null
+                  ? roleTitleById[employee!.roleScorecardId]
+                  : null,
+            ),
     );
   }
 }
@@ -95,27 +96,26 @@ class _Body extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = employee?.fullName ??
-        [record?.employeeFirstName, record?.employeeLastName]
-            .whereType<String>()
-            .where((s) => s.isNotEmpty)
-            .join(' ');
+    final name =
+        employee?.fullName ??
+        [
+          record?.employeeFirstName,
+          record?.employeeLastName,
+        ].whereType<String>().where((s) => s.isNotEmpty).join(' ');
     final empNo = employee?.employeeNumber ?? record?.employeeNumber ?? '—';
     final initials = _initials(name.isEmpty ? empNo : name);
     final status = _statusFor(record);
     final mobile = isMobile(context);
 
     final statusChip = Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: status.color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         status.label,
-        style: TextStyle(
-            color: status.color, fontWeight: FontWeight.w700),
+        style: TextStyle(color: status.color, fontWeight: FontWeight.w700),
       ),
     );
 
@@ -132,21 +132,27 @@ class _Body extends StatelessWidget {
                 CircleAvatar(
                   radius: mobile ? 24 : 32,
                   backgroundColor: status.color.withValues(alpha: 0.25),
-                  child: Text(initials,
-                      style: TextStyle(
-                          color: status.color,
-                          fontSize: mobile ? 14 : 18,
-                          fontWeight: FontWeight.w700)),
+                  child: Text(
+                    initials,
+                    style: TextStyle(
+                      color: status.color,
+                      fontSize: mobile ? 14 : 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name.isEmpty ? empNo : name,
-                          style: TextStyle(
-                              fontSize: mobile ? 17 : 20,
-                              fontWeight: FontWeight.w700)),
+                      Text(
+                        name.isEmpty ? empNo : name,
+                        style: TextStyle(
+                          fontSize: mobile ? 17 : 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         [empNo, roleTitle ?? employee?.jobTitle]
@@ -158,12 +164,12 @@ class _Body extends StatelessWidget {
                       const SizedBox(height: 6),
                       Text(
                         _longDate(date),
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
                       ),
-                      if (mobile) ...[
-                        const SizedBox(height: 8),
-                        statusChip,
-                      ],
+                      if (mobile) ...[const SizedBox(height: 8), statusChip],
                     ],
                   ),
                 ),
@@ -208,8 +214,11 @@ class _Body extends StatelessWidget {
                           color: status.color,
                         ),
                       ),
-                      const Icon(Icons.arrow_right_alt,
-                          color: Colors.grey, size: 32),
+                      const Icon(
+                        Icons.arrow_right_alt,
+                        color: Colors.grey,
+                        size: 32,
+                      ),
                       Expanded(
                         child: _BigField(
                           label: 'CLOCK OUT',
@@ -237,9 +246,10 @@ class _Body extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Details',
-                    style: TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w700)),
+                const Text(
+                  'Details',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                ),
                 const SizedBox(height: 12),
                 if (record == null)
                   const Text(
@@ -254,12 +264,17 @@ class _Body extends StatelessWidget {
                     _DetailRow('Holiday', record!.holidayName!),
                   if (record!.approvedOtMinutes != null)
                     _DetailRow(
-                        'Approved OT',
-                        '${record!.approvedOtMinutes} min'),
+                      'Approved OT',
+                      '${record!.approvedOtMinutes} min',
+                    ),
                   _DetailRow(
-                      'Early-in approved (OT)', record!.earlyInApproved ? 'Yes' : 'No'),
+                    'Early-in approved (OT)',
+                    record!.earlyInApproved ? 'Yes' : 'No',
+                  ),
                   _DetailRow(
-                      'Late-out approved (OT)', record!.lateOutApproved ? 'Yes' : 'No'),
+                    'Late-out approved (OT)',
+                    record!.lateOutApproved ? 'Yes' : 'No',
+                  ),
                   _DetailRow('Locked', record!.isLocked ? 'Yes' : 'No'),
                 ],
               ],
@@ -275,22 +290,34 @@ class _BigField extends StatelessWidget {
   final String label;
   final String value;
   final Color color;
-  const _BigField({required this.label, required this.value, required this.color});
+  const _BigField({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(label,
-            style: const TextStyle(
-                fontSize: 11,
-                color: Colors.grey,
-                letterSpacing: 1.2,
-                fontWeight: FontWeight.w600)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            color: Colors.grey,
+            letterSpacing: 1.2,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 6),
-        Text(value,
-            style: TextStyle(
-                fontSize: 22, fontWeight: FontWeight.w700, color: color)),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
       ],
     );
   }
@@ -308,12 +335,17 @@ class _DetailRow extends StatelessWidget {
         children: [
           SizedBox(
             width: isMobile(context) ? 120 : 160,
-            child: Text(label,
-                style: const TextStyle(color: Colors.grey, fontSize: 13)),
+            child: Text(
+              label,
+              style: const TextStyle(color: Colors.grey, fontSize: 13),
+            ),
           ),
           Expanded(
-              child: Text(value,
-                  style: const TextStyle(fontWeight: FontWeight.w500))),
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
         ],
       ),
     );
@@ -344,7 +376,7 @@ String _longDate(DateTime d) {
     'September',
     'October',
     'November',
-    'December'
+    'December',
   ];
   const weekdays = [
     'Monday',
@@ -353,7 +385,7 @@ String _longDate(DateTime d) {
     'Thursday',
     'Friday',
     'Saturday',
-    'Sunday'
+    'Sunday',
   ];
   return '${weekdays[(d.weekday - 1) % 7]}, ${months[(d.month - 1) % 12]} ${d.day}, ${d.year}';
 }
@@ -419,4 +451,3 @@ _DetailStatus _statusFor(AttendanceDay? r) {
   }
   return const _DetailStatus('No Data', Color(0xFF9CA3AF));
 }
-

@@ -46,8 +46,11 @@ QuarterWindow quarterWindow(int year, int quarter) {
   final start = DateTime.utc(year, startMonth, 1);
   // DateTime tolerates month overflow (e.g. month 13 → next January), so Q4's
   // end and due naturally roll into the following year.
-  final end = DateTime.utc(year, startMonth + 3, 1)
-      .subtract(const Duration(days: 1));
+  final end = DateTime.utc(
+    year,
+    startMonth + 3,
+    1,
+  ).subtract(const Duration(days: 1));
   final due = end.add(const Duration(days: 15));
   return (start: start, end: end, due: due);
 }
@@ -76,8 +79,11 @@ DateTime addMonths(DateTime d, int months) {
     month += 12;
     year -= 1;
   }
-  final lastDayOfTarget =
-      DateTime.utc(year, month + 1, 1).subtract(const Duration(days: 1)).day;
+  final lastDayOfTarget = DateTime.utc(
+    year,
+    month + 1,
+    1,
+  ).subtract(const Duration(days: 1)).day;
   final day = d.day > lastDayOfTarget ? lastDayOfTarget : d.day;
   return DateTime.utc(year, month, day);
 }

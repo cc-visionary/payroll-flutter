@@ -73,10 +73,9 @@ class _PayrollDisbursementTabState
         employeeBankCodes: bankCodes,
       );
       if (picked == null) continue;
-      writes.add(repo.updatePayslipDisbursement(
-        payslipId,
-        sourceAccount: picked,
-      ));
+      writes.add(
+        repo.updatePayslipDisbursement(payslipId, sourceAccount: picked),
+      );
     }
     if (writes.isEmpty) {
       _didAutoAssign = true;
@@ -130,11 +129,7 @@ class _PayrollDisbursementTabState
             ),
             const SizedBox(height: 12),
             for (final g in groups) ...[
-              _GroupCard(
-                runId: runId,
-                runStatus: runStatus,
-                group: g,
-              ),
+              _GroupCard(runId: runId, runStatus: runStatus, group: g),
               const SizedBox(height: 12),
             ],
             if (groups.isEmpty)
@@ -177,15 +172,16 @@ class _PayrollDisbursementTabState
     if (groups.isEmpty) return;
     // Period dates come from the run detail provider; the Summary tab already
     // watches this, so it's in cache by the time the user hits Export All.
-    final detail =
-        ref.read(payrollRunDetailProvider(runId)).asData?.value;
+    final detail = ref.read(payrollRunDetailProvider(runId)).asData?.value;
     final exports = groups
-        .map((g) => DisbursementGroupExport(
-              sourceAccountName: exportSourceAccountName(
-                g.key == '__none__' ? null : g.key,
-              ),
-              items: g.items.map(_toExportRow).toList(),
-            ))
+        .map(
+          (g) => DisbursementGroupExport(
+            sourceAccountName: exportSourceAccountName(
+              g.key == '__none__' ? null : g.key,
+            ),
+            items: g.items.map(_toExportRow).toList(),
+          ),
+        )
         .toList();
     try {
       final path = await exportDisbursementAllZip(
@@ -200,39 +196,37 @@ class _PayrollDisbursementTabState
         final total = exports
             .expand((g) => g.items)
             .fold<Decimal>(Decimal.zero, (s, r) => s + r.netPay);
-        final rowCount =
-            exports.fold<int>(0, (n, g) => n + g.items.length);
+        final rowCount = exports.fold<int>(0, (n, g) => n + g.items.length);
         // Strip directory prefix in a cross-platform way (handles both
         // `/` on Unix and `\` on Windows without needing dart:io here).
-        final fileName = path
-            .replaceAll('\\', '/')
-            .split('/')
-            .last;
-        ref.read(auditRepositoryProvider).logExport(
-          description:
-              'Disbursement export (all groups): $fileName · $rowCount rows · ₱${total.toStringAsFixed(2)}',
-          entityType: 'payroll_disbursement',
-          entityId: runId,
-          metadata: {
-            'file_name': fileName,
-            'record_count': rowCount,
-            'total': total.toString(),
-            'group_count': exports.length,
-            'payroll_run_id': runId,
-          },
-        );
+        final fileName = path.replaceAll('\\', '/').split('/').last;
+        ref
+            .read(auditRepositoryProvider)
+            .logExport(
+              description:
+                  'Disbursement export (all groups): $fileName · $rowCount rows · ₱${total.toStringAsFixed(2)}',
+              entityType: 'payroll_disbursement',
+              entityId: runId,
+              metadata: {
+                'file_name': fileName,
+                'record_count': rowCount,
+                'total': total.toString(),
+                'group_count': exports.length,
+                'payroll_run_id': runId,
+              },
+            );
       }
       if (!context.mounted) return;
       if (path != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Saved: $path')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Saved: $path')));
       }
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
     }
   }
 
@@ -254,9 +248,11 @@ Decimal _decFn(Object? v) => Decimal.parse((v ?? '0').toString());
 
 String _fullNameFn(Map<String, dynamic>? emp) {
   if (emp == null) return '';
-  return [emp['first_name'], emp['middle_name'], emp['last_name']]
-      .where((s) => s != null && (s as String).isNotEmpty)
-      .join(' ');
+  return [
+    emp['first_name'],
+    emp['middle_name'],
+    emp['last_name'],
+  ].where((s) => s != null && (s as String).isNotEmpty).join(' ');
 }
 
 /// Pull the distinct bank_codes off the employee's registered bank accounts.
@@ -274,8 +270,7 @@ Set<String> _employeeBankCodes(Map<String, dynamic>? emp) {
   return codes;
 }
 
-(String?, String?) _resolveAccount(
-    Map<String, dynamic> row, String? source) {
+(String?, String?) _resolveAccount(Map<String, dynamic> row, String? source) {
   if (source == null || source == 'CASH') return (null, null);
   final bank = paymentSourceBankCode(source);
   if (bank == null) return (null, null);
@@ -296,10 +291,7 @@ Set<String> _employeeBankCodes(Map<String, dynamic>? emp) {
   }
   final match = primary ?? any;
   if (match == null) return (null, null);
-  return (
-    match['account_number'] as String?,
-    match['account_name'] as String?,
-  );
+  return (match['account_number'] as String?, match['account_name'] as String?);
 }
 
 class _Group {
@@ -344,10 +336,7 @@ class _HeaderCard extends StatelessWidget {
               children: [
                 const Text(
                   'Disbursement List',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -417,8 +406,7 @@ class _GroupCard extends ConsumerWidget {
                         '${group.items.length} employee${group.items.length == 1 ? '' : 's'} · ${Money.fmtPhp(group.total)}',
                         style: TextStyle(
                           fontSize: 12,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -493,9 +481,9 @@ class _GroupCard extends ConsumerWidget {
     final tsv = buildGroupTsv(export);
     await Clipboard.setData(ClipboardData(text: tsv));
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Copied group as TSV.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Copied group as TSV.')));
     }
   }
 
@@ -509,37 +497,38 @@ class _GroupCard extends ConsumerWidget {
         periodEnd: detail?.payPeriodEnd,
       );
       if (path != null) {
-        final total = export.items
-            .fold<Decimal>(Decimal.zero, (s, r) => s + r.netPay);
-        final fileName = path
-            .replaceAll('\\', '/')
-            .split('/')
-            .last;
-        ref.read(auditRepositoryProvider).logExport(
-          description:
-              'Disbursement export (${export.sourceAccountName}): $fileName · ${export.items.length} rows · ₱${total.toStringAsFixed(2)}',
-          entityType: 'payroll_disbursement',
-          entityId: runId,
-          metadata: {
-            'file_name': fileName,
-            'source_account_name': export.sourceAccountName,
-            'record_count': export.items.length,
-            'total': total.toString(),
-            'payroll_run_id': runId,
-          },
+        final total = export.items.fold<Decimal>(
+          Decimal.zero,
+          (s, r) => s + r.netPay,
         );
+        final fileName = path.replaceAll('\\', '/').split('/').last;
+        ref
+            .read(auditRepositoryProvider)
+            .logExport(
+              description:
+                  'Disbursement export (${export.sourceAccountName}): $fileName · ${export.items.length} rows · ₱${total.toStringAsFixed(2)}',
+              entityType: 'payroll_disbursement',
+              entityId: runId,
+              metadata: {
+                'file_name': fileName,
+                'source_account_name': export.sourceAccountName,
+                'record_count': export.items.length,
+                'total': total.toString(),
+                'payroll_run_id': runId,
+              },
+            );
       }
       if (!context.mounted) return;
       if (path != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Saved: $path')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Saved: $path')));
       }
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Export failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Export failed: $e')));
     }
   }
 
@@ -721,13 +710,17 @@ class _SourceDropdown extends StatelessWidget {
     // a source where the employee has no matching account.
     final eligible = hasFilter
         ? paymentSourceAccounts
-            .where((p) => p.bankCode == null || employeeBankCodes.contains(p.bankCode))
-            .toList()
+              .where(
+                (p) =>
+                    p.bankCode == null ||
+                    employeeBankCodes.contains(p.bankCode),
+              )
+              .toList()
         : paymentSourceAccounts.toList();
     // Ensure the currently-selected value is always in the list, even if it
     // no longer matches the filter — so we don't flash a null value.
-    final ensureCurrent = value != null &&
-        !eligible.any((p) => p.value == value);
+    final ensureCurrent =
+        value != null && !eligible.any((p) => p.value == value);
     return DropdownButton<String>(
       value: value,
       isDense: true,

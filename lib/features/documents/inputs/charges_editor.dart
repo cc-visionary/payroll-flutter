@@ -14,10 +14,7 @@ class ChargesEditor extends StatelessWidget {
   });
 
   void _add() {
-    onChanged([
-      ...charges,
-      NteCharge(title: '', body: Delta()..insert('\n')),
-    ]);
+    onChanged([...charges, NteCharge(title: '', body: Delta()..insert('\n'))]);
   }
 
   void _remove(int idx) {
@@ -57,10 +54,8 @@ class ChargesEditor extends StatelessWidget {
                           border: const OutlineInputBorder(),
                           isDense: true,
                         ),
-                        onChanged: (s) => _set(
-                          i,
-                          NteCharge(title: s, body: charges[i].body),
-                        ),
+                        onChanged: (s) =>
+                            _set(i, NteCharge(title: s, body: charges[i].body)),
                       ),
                     ),
                     IconButton(
@@ -73,10 +68,8 @@ class ChargesEditor extends StatelessWidget {
                 const SizedBox(height: 8),
                 QuillField(
                   initial: charges[i].body,
-                  onChanged: (d) => _set(
-                    i,
-                    NteCharge(title: charges[i].title, body: d),
-                  ),
+                  onChanged: (d) =>
+                      _set(i, NteCharge(title: charges[i].title, body: d)),
                 ),
               ],
             ),

@@ -38,53 +38,75 @@ void main() {
   }
 
   roundTrip<CoeInputs>(
-      'CoeInputs',
-      const CoeTemplate().emptyInputs().copyWith(companySignaturePngB64: 'QUJD'),
-      CoeInputs.fromJson,
-      (i) => i.companySignaturePngB64);
+    'CoeInputs',
+    const CoeTemplate().emptyInputs().copyWith(companySignaturePngB64: 'QUJD'),
+    CoeInputs.fromJson,
+    (i) => i.companySignaturePngB64,
+  );
   roundTrip<NteInputs>(
-      'NteInputs',
-      const NteTemplate().emptyInputs().copyWith(companySignaturePngB64: 'QUJD'),
-      NteInputs.fromJson,
-      (i) => i.companySignaturePngB64);
+    'NteInputs',
+    const NteTemplate().emptyInputs().copyWith(companySignaturePngB64: 'QUJD'),
+    NteInputs.fromJson,
+    (i) => i.companySignaturePngB64,
+  );
   roundTrip<NonRegInputs>(
-      'NonRegInputs',
-      const NonRegTemplate().emptyInputs().copyWith(companySignaturePngB64: 'QUJD'),
-      NonRegInputs.fromJson,
-      (i) => i.companySignaturePngB64);
+    'NonRegInputs',
+    const NonRegTemplate().emptyInputs().copyWith(
+      companySignaturePngB64: 'QUJD',
+    ),
+    NonRegInputs.fromJson,
+    (i) => i.companySignaturePngB64,
+  );
   roundTrip<NodInputs>(
-      'NodInputs',
-      const NodTemplate().emptyInputs().copyWith(companySignaturePngB64: 'QUJD'),
-      NodInputs.fromJson,
-      (i) => i.companySignaturePngB64);
+    'NodInputs',
+    const NodTemplate().emptyInputs().copyWith(companySignaturePngB64: 'QUJD'),
+    NodInputs.fromJson,
+    (i) => i.companySignaturePngB64,
+  );
   roundTrip<FinalPayInputs>(
-      'FinalPayInputs',
-      const FinalPayTemplate().emptyInputs().copyWith(companySignaturePngB64: 'QUJD'),
-      FinalPayInputs.fromJson,
-      (i) => i.companySignaturePngB64);
+    'FinalPayInputs',
+    const FinalPayTemplate().emptyInputs().copyWith(
+      companySignaturePngB64: 'QUJD',
+    ),
+    FinalPayInputs.fromJson,
+    (i) => i.companySignaturePngB64,
+  );
   roundTrip<SalaryAdjustmentInputs>(
-      'SalaryAdjustmentInputs',
-      const SalaryAdjustmentTemplate().emptyInputs().copyWith(companySignaturePngB64: 'QUJD'),
-      SalaryAdjustmentInputs.fromJson,
-      (i) => i.companySignaturePngB64);
+    'SalaryAdjustmentInputs',
+    const SalaryAdjustmentTemplate().emptyInputs().copyWith(
+      companySignaturePngB64: 'QUJD',
+    ),
+    SalaryAdjustmentInputs.fromJson,
+    (i) => i.companySignaturePngB64,
+  );
   roundTrip<RegularizationInputs>(
-      'RegularizationInputs',
-      const RegularizationTemplate().emptyInputs().copyWith(companySignaturePngB64: 'QUJD'),
-      RegularizationInputs.fromJson,
-      (i) => i.companySignaturePngB64);
+    'RegularizationInputs',
+    const RegularizationTemplate().emptyInputs().copyWith(
+      companySignaturePngB64: 'QUJD',
+    ),
+    RegularizationInputs.fromJson,
+    (i) => i.companySignaturePngB64,
+  );
   roundTrip<ResignationAcceptanceInputs>(
-      'ResignationAcceptanceInputs',
-      const ResignationAcceptanceTemplate().emptyInputs().copyWith(companySignaturePngB64: 'QUJD'),
-      ResignationAcceptanceInputs.fromJson,
-      (i) => i.companySignaturePngB64);
+    'ResignationAcceptanceInputs',
+    const ResignationAcceptanceTemplate().emptyInputs().copyWith(
+      companySignaturePngB64: 'QUJD',
+    ),
+    ResignationAcceptanceInputs.fromJson,
+    (i) => i.companySignaturePngB64,
+  );
   roundTrip<NdaInputs>(
-      'NdaInputs',
-      const NdaTemplate().emptyInputs().copyWith(companySignaturePngB64: 'QUJD'),
-      NdaInputs.fromJson,
-      (i) => i.companySignaturePngB64);
+    'NdaInputs',
+    const NdaTemplate().emptyInputs().copyWith(companySignaturePngB64: 'QUJD'),
+    NdaInputs.fromJson,
+    (i) => i.companySignaturePngB64,
+  );
   roundTrip<EmploymentContractInputs>(
-      'EmploymentContractInputs',
-      const EmploymentContractTemplate().emptyInputs().copyWith(companySignaturePngB64: 'QUJD'),
-      EmploymentContractInputs.fromJson,
-      (i) => i.companySignaturePngB64);
+    'EmploymentContractInputs',
+    const EmploymentContractTemplate().emptyInputs().copyWith(
+      companySignaturePngB64: 'QUJD',
+    ),
+    EmploymentContractInputs.fromJson,
+    (i) => i.companySignaturePngB64,
+  );
 }

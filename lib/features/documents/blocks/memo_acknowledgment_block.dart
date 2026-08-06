@@ -17,10 +17,7 @@ class MemoAcknowledgmentBlock extends Block {
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
       children: [
         const ReceiptBlock([
-          ReceiptField(
-            label: 'Received by',
-            caption: '(Name & Signature)',
-          ),
+          ReceiptField(label: 'Received by', caption: '(Name & Signature)'),
           ReceiptField(label: 'Date & Time Received'),
         ]).toPdf(theme),
         pw.SizedBox(height: 16),

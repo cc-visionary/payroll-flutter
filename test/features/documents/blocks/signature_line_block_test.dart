@@ -4,18 +4,29 @@ import 'package:payroll_flutter/features/documents/blocks/signature_line_block.d
 
 void main() {
   test('stores signatories + flags', () {
-    const b = SignatureLineBlock(
-      [SignatoryLine(name: 'A', role: 'CEO'), SignatoryLine()],
-      row: true,
-    );
+    const b = SignatureLineBlock([
+      SignatoryLine(name: 'A', role: 'CEO'),
+      SignatoryLine(),
+    ], row: true);
     expect(b.signatories.length, 2);
     expect(b.row, true);
   });
 
   test('renders stacked and row without throwing', () {
     final theme = PdfTheme.testStub();
-    expect(() => const SignatureLineBlock([SignatoryLine(name: 'X', role: 'Y')]).toPdf(theme), returnsNormally);
-    expect(() => const SignatureLineBlock([SignatoryLine(), SignatoryLine()], row: true).toPdf(theme), returnsNormally);
+    expect(
+      () => const SignatureLineBlock([
+        SignatoryLine(name: 'X', role: 'Y'),
+      ]).toPdf(theme),
+      returnsNormally,
+    );
+    expect(
+      () => const SignatureLineBlock([
+        SignatoryLine(),
+        SignatoryLine(),
+      ], row: true).toPdf(theme),
+      returnsNormally,
+    );
   });
 
   test('renders header + showDate without throwing', () {

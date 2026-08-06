@@ -87,7 +87,8 @@ class DepartmentRepository {
 }
 
 final departmentRepositoryProvider = Provider<DepartmentRepository>(
-    (ref) => DepartmentRepository(Supabase.instance.client));
+  (ref) => DepartmentRepository(Supabase.instance.client),
+);
 
 final departmentListProvider = FutureProvider<List<Department>>((ref) async {
   final profile = ref.watch(userProfileProvider).asData?.value;
@@ -95,9 +96,12 @@ final departmentListProvider = FutureProvider<List<Department>>((ref) async {
   return ref.watch(departmentRepositoryProvider).list(profile.companyId);
 });
 
-final departmentEmployeeCountsProvider =
-    FutureProvider<Map<String, int>>((ref) async {
+final departmentEmployeeCountsProvider = FutureProvider<Map<String, int>>((
+  ref,
+) async {
   final profile = ref.watch(userProfileProvider).asData?.value;
   if (profile == null) return const {};
-  return ref.watch(departmentRepositoryProvider).employeeCounts(profile.companyId);
+  return ref
+      .watch(departmentRepositoryProvider)
+      .employeeCounts(profile.companyId);
 });

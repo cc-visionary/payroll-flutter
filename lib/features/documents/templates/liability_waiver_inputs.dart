@@ -64,44 +64,43 @@ class LiabilityWaiverInputs extends TemplateInputs {
     DateTime? dateSigned,
     String? signingPlace,
     Uint8List? logoBytes,
-  }) =>
-      LiabilityWaiverInputs(
-        employeeId: employeeId ?? this.employeeId,
-        employeeFullName: employeeFullName ?? this.employeeFullName,
-        employeeAddress: employeeAddress ?? this.employeeAddress,
-        companyId: companyId ?? this.companyId,
-        companyName: companyName ?? this.companyName,
-        dateOfEmployment: identical(dateOfEmployment, _undef)
-            ? this.dateOfEmployment
-            : dateOfEmployment as DateTime?,
-        outingDate: identical(outingDate, _undef)
-            ? this.outingDate
-            : outingDate as DateTime?,
-        outingLocation: outingLocation ?? this.outingLocation,
-        dateSigned: dateSigned ?? this.dateSigned,
-        signingPlace: signingPlace ?? this.signingPlace,
-        logoBytes: logoBytes ?? this.logoBytes,
-      );
+  }) => LiabilityWaiverInputs(
+    employeeId: employeeId ?? this.employeeId,
+    employeeFullName: employeeFullName ?? this.employeeFullName,
+    employeeAddress: employeeAddress ?? this.employeeAddress,
+    companyId: companyId ?? this.companyId,
+    companyName: companyName ?? this.companyName,
+    dateOfEmployment: identical(dateOfEmployment, _undef)
+        ? this.dateOfEmployment
+        : dateOfEmployment as DateTime?,
+    outingDate: identical(outingDate, _undef)
+        ? this.outingDate
+        : outingDate as DateTime?,
+    outingLocation: outingLocation ?? this.outingLocation,
+    dateSigned: dateSigned ?? this.dateSigned,
+    signingPlace: signingPlace ?? this.signingPlace,
+    logoBytes: logoBytes ?? this.logoBytes,
+  );
 
   @override
   Map<String, dynamic> toDebugMap() => {
-        'employeeId': employeeId,
-        'companyId': companyId,
-      };
+    'employeeId': employeeId,
+    'companyId': companyId,
+  };
 
   @override
   Map<String, dynamic> toJson() => {
-        'employeeId': employeeId,
-        'employeeFullName': employeeFullName,
-        'employeeAddress': employeeAddress,
-        'companyId': companyId,
-        'companyName': companyName,
-        'dateOfEmployment': dateOfEmployment?.toIso8601String(),
-        'outingDate': outingDate?.toIso8601String(),
-        'outingLocation': outingLocation,
-        'dateSigned': dateSigned.toIso8601String(),
-        'signingPlace': signingPlace,
-      };
+    'employeeId': employeeId,
+    'employeeFullName': employeeFullName,
+    'employeeAddress': employeeAddress,
+    'companyId': companyId,
+    'companyName': companyName,
+    'dateOfEmployment': dateOfEmployment?.toIso8601String(),
+    'outingDate': outingDate?.toIso8601String(),
+    'outingLocation': outingLocation,
+    'dateSigned': dateSigned.toIso8601String(),
+    'signingPlace': signingPlace,
+  };
 }
 
 const _undef = Object();

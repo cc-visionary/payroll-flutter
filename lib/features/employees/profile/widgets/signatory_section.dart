@@ -22,8 +22,9 @@ class SignatorySection extends ConsumerStatefulWidget {
 }
 
 class _SignatorySectionState extends ConsumerState<SignatorySection> {
-  late final TextEditingController _title =
-      TextEditingController(text: widget.employee.signatoryTitle ?? '');
+  late final TextEditingController _title = TextEditingController(
+    text: widget.employee.signatoryTitle ?? '',
+  );
   bool _busy = false;
 
   @override
@@ -45,8 +46,9 @@ class _SignatorySectionState extends ConsumerState<SignatorySection> {
       if (mounted) _refresh();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -62,8 +64,9 @@ class _SignatorySectionState extends ConsumerState<SignatorySection> {
         holder = await repo.signatoryFor(hr: hr);
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('Failed: $e')));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Failed: $e')));
         }
         return;
       }
@@ -75,25 +78,33 @@ class _SignatorySectionState extends ConsumerState<SignatorySection> {
           builder: (ctx) => AlertDialog(
             title: Text('Transfer ${hr ? 'HR' : 'Legal'} Signatory?'),
             content: Text(
-                '${transferHolder.fullName} currently holds this capacity. Transfer '
-                'it to ${widget.employee.fullName}? New documents will carry '
-                'the new signatory; already-generated documents keep the '
-                'signature they were issued with.'),
+              '${transferHolder.fullName} currently holds this capacity. Transfer '
+              'it to ${widget.employee.fullName}? New documents will carry '
+              'the new signatory; already-generated documents keep the '
+              'signature they were issued with.',
+            ),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text('Cancel')),
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
               FilledButton(
-                  onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text('Transfer')),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Transfer'),
+              ),
             ],
           ),
         );
         if (ok != true) return;
       }
     }
-    await _run(() => repo.setSignatoryCapacity(
-        employeeId: widget.employee.id, hr: hr, enabled: enable));
+    await _run(
+      () => repo.setSignatoryCapacity(
+        employeeId: widget.employee.id,
+        hr: hr,
+        enabled: enable,
+      ),
+    );
   }
 
   Future<void> _uploadSignature() async {
@@ -113,27 +124,36 @@ class _SignatorySectionState extends ConsumerState<SignatorySection> {
         bytes[2] != magic[2] ||
         bytes[3] != magic[3]) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Not a PNG file. Upload a transparent PNG.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Not a PNG file. Upload a transparent PNG.'),
+          ),
+        );
       }
       return;
     }
     if (bytes.length > 1024 * 1024) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Signature PNG must be 1 MB or smaller.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Signature PNG must be 1 MB or smaller.'),
+          ),
+        );
       }
       return;
     }
-    await _run(() => ref
-        .read(employeeRepositoryProvider)
-        .setSignaturePng(widget.employee.id, base64Encode(bytes)));
+    await _run(
+      () => ref
+          .read(employeeRepositoryProvider)
+          .setSignaturePng(widget.employee.id, base64Encode(bytes)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     // Watch the fresh row so toggles reflect writes without a manual reload.
-    final emp = ref.watch(employeeByIdProvider(widget.employee.id)).asData?.value ??
+    final emp =
+        ref.watch(employeeByIdProvider(widget.employee.id)).asData?.value ??
         widget.employee;
     final sigBytes = decodeSignaturePngB64(emp.signaturePngB64);
 
@@ -148,16 +168,19 @@ class _SignatorySectionState extends ConsumerState<SignatorySection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Signature & Signing Authority',
-              style: Theme.of(context).textTheme.titleSmall),
+          Text(
+            'Signature & Signing Authority',
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
           const SizedBox(height: 4),
           Text(
             'The signature below signs documents this employee is a party to — '
             'such as their penalty repayment agreement. The capacities also put '
             'it on documents they sign on the company\'s behalf.',
             style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 8),
           SwitchListTile(
@@ -204,10 +227,14 @@ class _SignatorySectionState extends ConsumerState<SignatorySection> {
                 child: sigBytes != null
                     ? Image.memory(sigBytes, fit: BoxFit.contain)
                     : Center(
-                        child: Text('No signature',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context).disabledColor))),
+                        child: Text(
+                          'No signature',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).disabledColor,
+                          ),
+                        ),
+                      ),
               ),
               const SizedBox(width: 12),
               Column(
@@ -221,18 +248,21 @@ class _SignatorySectionState extends ConsumerState<SignatorySection> {
                     TextButton(
                       onPressed: _busy
                           ? null
-                          : () => _run(() => ref
-                              .read(employeeRepositoryProvider)
-                              .setSignaturePng(widget.employee.id, null)),
+                          : () => _run(
+                              () => ref
+                                  .read(employeeRepositoryProvider)
+                                  .setSignaturePng(widget.employee.id, null),
+                            ),
                       child: const Text('Remove'),
                     ),
                   Text(
-                      'Transparent PNG, max 1 MB.\n'
-                      'Leave empty to print a blank line for wet signing.',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant)),
+                    'Transparent PNG, max 1 MB.\n'
+                    'Leave empty to print a blank line for wet signing.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -244,7 +274,8 @@ class _SignatorySectionState extends ConsumerState<SignatorySection> {
 
   Future<void> _saveTitle() async {
     if (_busy) return;
-    final current = ref
+    final current =
+        ref
             .read(employeeByIdProvider(widget.employee.id))
             .asData
             ?.value
@@ -252,8 +283,10 @@ class _SignatorySectionState extends ConsumerState<SignatorySection> {
         widget.employee.signatoryTitle ??
         '';
     if (_title.text.trim() == current.trim()) return;
-    await _run(() => ref
-        .read(employeeRepositoryProvider)
-        .setSignatoryTitle(widget.employee.id, _title.text));
+    await _run(
+      () => ref
+          .read(employeeRepositoryProvider)
+          .setSignatoryTitle(widget.employee.id, _title.text),
+    );
   }
 }

@@ -22,64 +22,67 @@ class MultiSignatureBlock extends Block {
   pw.Widget toPdf(PdfTheme theme) {
     final fmt = DateFormat('MMMM d, yyyy');
     pw.Widget one(SignatoryParty s) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Container(
-              width: 220,
-              padding: const pw.EdgeInsets.only(bottom: 2),
-              decoration: const pw.BoxDecoration(
-                border: pw.Border(
-                  bottom: pw.BorderSide(color: PdfColors.black, width: 0.7),
-                ),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  // The signature strip is reserved for EVERY party, signed or
-                  // not. Sizing it only when an image exists let unsigned
-                  // parties float 40pt up, so a document signed on one side
-                  // came out with its two sign lines at different heights.
-                  // Reserving it also leaves an unsigned party room to sign by
-                  // hand.
-                  pw.Container(
-                    height: 40,
-                    alignment: pw.Alignment.bottomLeft,
-                    child: s.signatureImage == null
-                        ? null
-                        : pw.Image(pw.MemoryImage(s.signatureImage!),
-                            height: 38, fit: pw.BoxFit.contain),
-                  ),
-                  pw.Text(
-                    s.name ?? '',
-                    style: pw.TextStyle(
-                      fontSize: theme.bodySize,
-                      fontWeight: pw.FontWeight.bold,
-                      color: theme.textColor,
-                    ),
-                  ),
-                ],
-              ),
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Container(
+          width: 220,
+          padding: const pw.EdgeInsets.only(bottom: 2),
+          decoration: const pw.BoxDecoration(
+            border: pw.Border(
+              bottom: pw.BorderSide(color: PdfColors.black, width: 0.7),
             ),
-            pw.SizedBox(height: 4),
-            if (s.role != null && s.role!.isNotEmpty)
+          ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // The signature strip is reserved for EVERY party, signed or
+              // not. Sizing it only when an image exists let unsigned
+              // parties float 40pt up, so a document signed on one side
+              // came out with its two sign lines at different heights.
+              // Reserving it also leaves an unsigned party room to sign by
+              // hand.
+              pw.Container(
+                height: 40,
+                alignment: pw.Alignment.bottomLeft,
+                child: s.signatureImage == null
+                    ? null
+                    : pw.Image(
+                        pw.MemoryImage(s.signatureImage!),
+                        height: 38,
+                        fit: pw.BoxFit.contain,
+                      ),
+              ),
               pw.Text(
-                s.role!,
+                s.name ?? '',
                 style: pw.TextStyle(
                   fontSize: theme.bodySize,
                   fontWeight: pw.FontWeight.bold,
                   color: theme.textColor,
                 ),
               ),
-            if (s.date != null)
-              pw.Text(
-                'Date: ${fmt.format(s.date!)}',
-                style: pw.TextStyle(
-                  fontSize: theme.bodySize,
-                  color: theme.textColor,
-                ),
-              ),
-          ],
-        );
+            ],
+          ),
+        ),
+        pw.SizedBox(height: 4),
+        if (s.role != null && s.role!.isNotEmpty)
+          pw.Text(
+            s.role!,
+            style: pw.TextStyle(
+              fontSize: theme.bodySize,
+              fontWeight: pw.FontWeight.bold,
+              color: theme.textColor,
+            ),
+          ),
+        if (s.date != null)
+          pw.Text(
+            'Date: ${fmt.format(s.date!)}',
+            style: pw.TextStyle(
+              fontSize: theme.bodySize,
+              color: theme.textColor,
+            ),
+          ),
+      ],
+    );
     return pw.Wrap(
       spacing: 40,
       runSpacing: 24,

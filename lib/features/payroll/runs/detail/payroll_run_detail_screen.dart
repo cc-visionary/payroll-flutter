@@ -153,8 +153,7 @@ class _PayrollRunDetailScreenState
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
-                            unselectedLabelStyle:
-                                const TextStyle(fontSize: 14),
+                            unselectedLabelStyle: const TextStyle(fontSize: 14),
                             tabs: [
                               const Tab(text: 'Summary'),
                               Tab(text: 'Payslips (${detail.payslipCount})'),
@@ -206,8 +205,11 @@ class _TabBarDelegate extends SliverPersistentHeaderDelegate {
   @override
   double get maxExtent => _h;
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) =>
-      SizedBox(height: _h, child: child);
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) => SizedBox(height: _h, child: child);
   @override
   bool shouldRebuild(covariant _TabBarDelegate oldDelegate) =>
       oldDelegate.child != child;
@@ -252,8 +254,7 @@ class _Header extends StatelessWidget {
                 ),
               ),
             ),
-            const Text('  /  ',
-                style: TextStyle(color: Color(0xFF9CA3AF))),
+            const Text('  /  ', style: TextStyle(color: Color(0xFF9CA3AF))),
             Flexible(
               child: Text(
                 code,
@@ -295,11 +296,7 @@ class _Header extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: fg,
-        ),
+        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: fg),
       ),
     );
 
@@ -328,7 +325,11 @@ class _Header extends StatelessWidget {
       case 'DRAFT':
         return ('Draft', const Color(0xFFF3F4F6), const Color(0xFF4B5563));
       case 'COMPUTING':
-        return ('Computing...', const Color(0xFFDBEAFE), const Color(0xFF1E40AF));
+        return (
+          'Computing...',
+          const Color(0xFFDBEAFE),
+          const Color(0xFF1E40AF),
+        );
       case 'REVIEW':
         return ('In Review', const Color(0xFFFEF3C7), const Color(0xFF92400E));
       case 'RELEASED':
@@ -342,8 +343,18 @@ class _Header extends StatelessWidget {
 
   static String _fmtDate(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
@@ -456,10 +467,7 @@ class _ActionBar extends ConsumerWidget {
     );
   }
 
-  Future<void> _exportPayslipsZip(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
+  Future<void> _exportPayslipsZip(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final rows = await ref
@@ -472,11 +480,14 @@ class _ActionBar extends ConsumerWidget {
         );
         return;
       }
-      messenger.showSnackBar(SnackBar(
-        content: Text(
-            'Generating ${ids.length} payslip PDF${ids.length == 1 ? '' : 's'}…'),
-        duration: const Duration(seconds: 30),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Generating ${ids.length} payslip PDF${ids.length == 1 ? '' : 's'}…',
+          ),
+          duration: const Duration(seconds: 30),
+        ),
+      );
       final result = await exportPayslipsZip(
         ref: ref,
         payslipIds: ids,
@@ -484,25 +495,33 @@ class _ActionBar extends ConsumerWidget {
         periodEnd: detail.payPeriodEnd,
         onProgress: (done, total) {
           messenger.hideCurrentSnackBar();
-          messenger.showSnackBar(SnackBar(
-            content: Text('Building payslip PDFs ($done of $total)…'),
-            duration: const Duration(seconds: 30),
-          ));
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('Building payslip PDFs ($done of $total)…'),
+              duration: const Duration(seconds: 30),
+            ),
+          );
         },
       );
       if (!context.mounted) return;
       messenger.hideCurrentSnackBar();
       if (result == null) return;
       messenger.showSnackBar(
-        SnackBar(content: Text('Exported ${result.pdfCount} payslip(s) to ${result.path}')),
+        SnackBar(
+          content: Text(
+            'Exported ${result.pdfCount} payslip(s) to ${result.path}',
+          ),
+        ),
       );
     } catch (e) {
       if (!context.mounted) return;
       messenger.hideCurrentSnackBar();
-      messenger.showSnackBar(SnackBar(
-        backgroundColor: Colors.red.shade600,
-        content: Text('Export failed: $e'),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red.shade600,
+          content: Text('Export failed: $e'),
+        ),
+      );
     }
   }
 
@@ -536,32 +555,27 @@ class _ActionBar extends ConsumerWidget {
         periodEnd: detail.payPeriodEnd,
       );
       if (path != null) {
-        final fileName = path
-            .replaceAll('\\', '/')
-            .split('/')
-            .last;
-        ref.read(auditRepositoryProvider).logExport(
-          description:
-              'Finance export: $fileName · ${exportRows.length} rows',
-          entityType: 'payroll_finance',
-          entityId: detail.run.id,
-          metadata: {
-            'file_name': fileName,
-            'record_count': exportRows.length,
-            'payroll_run_id': detail.run.id,
-          },
-        );
+        final fileName = path.replaceAll('\\', '/').split('/').last;
+        ref
+            .read(auditRepositoryProvider)
+            .logExport(
+              description:
+                  'Finance export: $fileName · ${exportRows.length} rows',
+              entityType: 'payroll_finance',
+              entityId: detail.run.id,
+              metadata: {
+                'file_name': fileName,
+                'record_count': exportRows.length,
+                'payroll_run_id': detail.run.id,
+              },
+            );
       }
       if (path != null && context.mounted) {
-        messenger.showSnackBar(
-          SnackBar(content: Text('Exported to $path')),
-        );
+        messenger.showSnackBar(SnackBar(content: Text('Exported to $path')));
       }
     } catch (e) {
       if (context.mounted) {
-        messenger.showSnackBar(
-          SnackBar(content: Text('Export failed: $e')),
-        );
+        messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
       }
     }
   }
@@ -577,7 +591,8 @@ class _ActionBar extends ConsumerWidget {
     if (companyId == null || companyId.isEmpty) return;
     final isRecompute = detail.run.status == 'REVIEW';
     if (isRecompute) {
-      final ok = await showDialog<bool>(
+      final ok =
+          await showDialog<bool>(
             context: context,
             builder: (c) => AlertDialog(
               title: const Text('Sync from Lark & recompute?'),
@@ -620,7 +635,8 @@ class _ActionBar extends ConsumerWidget {
     bool skipConfirm = false,
   }) async {
     if (isRecompute && !skipConfirm) {
-      final ok = await showDialog<bool>(
+      final ok =
+          await showDialog<bool>(
             context: context,
             builder: (c) => AlertDialog(
               title: const Text('Recompute payroll?'),
@@ -668,9 +684,11 @@ class _ActionBar extends ConsumerWidget {
       ref.invalidate(runWarningsProvider(runId));
       if (!context.mounted) return;
       if (outcome.errors.isEmpty && outcome.warnings.isEmpty) {
-        messenger.showSnackBar(SnackBar(
-          content: Text('Computed ${outcome.employeeCount} payslip(s).'),
-        ));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Computed ${outcome.employeeCount} payslip(s).'),
+          ),
+        );
       } else {
         final msg = StringBuffer()
           ..write('Computed ${outcome.employeeCount} payslip(s).');
@@ -680,49 +698,50 @@ class _ActionBar extends ConsumerWidget {
         if (outcome.errors.isNotEmpty) {
           msg.write(' ${outcome.errors.length} error(s).');
         }
-        messenger.showSnackBar(SnackBar(
-          content: Text(msg.toString()),
-          action: SnackBarAction(
-            label: 'Details',
-            onPressed: () => showDialog<void>(
-              context: context,
-              builder: (c) => AlertDialog(
-                title: const Text('Compute details'),
-                content: SingleChildScrollView(
-                  child: Text(
-                    [
-                      if (outcome.warnings.isNotEmpty) ...[
-                        'Skipped employees:',
-                        ...outcome.warnings,
-                        '',
-                      ],
-                      if (outcome.errors.isNotEmpty) ...[
-                        'Errors:',
-                        ...outcome.errors,
-                      ],
-                    ].join('\n'),
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(msg.toString()),
+            action: SnackBarAction(
+              label: 'Details',
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (c) => AlertDialog(
+                  title: const Text('Compute details'),
+                  content: SingleChildScrollView(
+                    child: Text(
+                      [
+                        if (outcome.warnings.isNotEmpty) ...[
+                          'Skipped employees:',
+                          ...outcome.warnings,
+                          '',
+                        ],
+                        if (outcome.errors.isNotEmpty) ...[
+                          'Errors:',
+                          ...outcome.errors,
+                        ],
+                      ].join('\n'),
+                    ),
                   ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(c),
+                      child: const Text('Close'),
+                    ),
+                  ],
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(c),
-                    child: const Text('Close'),
-                  ),
-                ],
               ),
             ),
           ),
-        ));
+        );
       }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(
-        content: Text('Compute failed: $e'),
-      ));
+      messenger.showSnackBar(SnackBar(content: Text('Compute failed: $e')));
     }
   }
 
   Future<void> _confirmRelease(BuildContext context, WidgetRef ref) async {
-    final ok = await showDialog<bool>(
+    final ok =
+        await showDialog<bool>(
           context: context,
           builder: (c) => AlertDialog(
             title: const Text('Release payroll?'),
@@ -771,7 +790,8 @@ class _ActionBar extends ConsumerWidget {
 
   Future<void> _confirmCancel(BuildContext context, WidgetRef ref) async {
     final controller = TextEditingController();
-    final ok = await showDialog<bool>(
+    final ok =
+        await showDialog<bool>(
           context: context,
           builder: (c) => AlertDialog(
             title: const Text('Cancel payroll run?'),
@@ -812,9 +832,13 @@ class _ActionBar extends ConsumerWidget {
         ) ??
         false;
     if (!ok || !context.mounted) return;
-    await ref.read(payrollRepositoryProvider).cancelRun(
+    await ref
+        .read(payrollRepositoryProvider)
+        .cancelRun(
           detail.run.id,
-          reason: controller.text.trim().isEmpty ? null : controller.text.trim(),
+          reason: controller.text.trim().isEmpty
+              ? null
+              : controller.text.trim(),
         );
     ref.invalidate(payrollRunDetailProvider(detail.run.id));
     ref.invalidate(payrollRunsProvider);
@@ -842,13 +866,11 @@ class _SendLarkApprovalsButton extends ConsumerWidget {
     final counts = countsAsync.asData?.value ?? const <String, int>{};
     // DRAFT_IN_REVIEW = never sent; RECALLED = previously sent, pulled back.
     // Both are eligible to dispatch — the edge function filters on both.
-    final unsent =
-        (counts['DRAFT_IN_REVIEW'] ?? 0) + (counts['RECALLED'] ?? 0);
+    final unsent = (counts['DRAFT_IN_REVIEW'] ?? 0) + (counts['RECALLED'] ?? 0);
     final alreadyTouched = counts.entries.fold<int>(
       0,
-      (s, e) => (e.key == 'DRAFT_IN_REVIEW' || e.key == 'RECALLED')
-          ? s
-          : s + e.value,
+      (s, e) =>
+          (e.key == 'DRAFT_IN_REVIEW' || e.key == 'RECALLED') ? s : s + e.value,
     );
 
     // `alreadyTouched` kept as a marker for "partial progress" phrasing, but
@@ -885,13 +907,15 @@ class _SendLarkApprovalsButton extends ConsumerWidget {
                         r['approval_status'] == 'RECALLED')
                       r['id'] as String,
                 ];
-                messenger.showSnackBar(SnackBar(
-                  content: Text(
-                      'Generating ${ids.length} payslip PDF${ids.length == 1 ? '' : 's'}…'),
-                  duration: const Duration(seconds: 3),
-                ));
-                final pdfs =
-                    await buildPayslipPdfsBase64ForIds(ref, ids);
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Generating ${ids.length} payslip PDF${ids.length == 1 ? '' : 's'}…',
+                    ),
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+                final pdfs = await buildPayslipPdfsBase64ForIds(ref, ids);
                 final res = await ref
                     .read(payrollRepositoryProvider)
                     .sendPayslipApprovals(
@@ -908,19 +932,25 @@ class _SendLarkApprovalsButton extends ConsumerWidget {
                 final errs = (res['errors'] as List?) ?? const [];
                 if (!context.mounted) return;
                 messenger.hideCurrentSnackBar();
-                messenger.showSnackBar(SnackBar(
-                  content: Text(failed == 0
-                      ? 'Sent $sent Lark approval${sent == 1 ? '' : 's'}.'
-                      : 'Sent $sent, $failed failed'
-                          '${errs.isNotEmpty ? ": ${(errs.first as Map)['error']}" : ''}.'),
-                ));
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      failed == 0
+                          ? 'Sent $sent Lark approval${sent == 1 ? '' : 's'}.'
+                          : 'Sent $sent, $failed failed'
+                                '${errs.isNotEmpty ? ": ${(errs.first as Map)['error']}" : ''}.',
+                    ),
+                  ),
+                );
               } catch (e) {
                 if (!context.mounted) return;
                 messenger.hideCurrentSnackBar();
-                messenger.showSnackBar(SnackBar(
-                  backgroundColor: Colors.red.shade600,
-                  content: Text('Send failed: $e'),
-                ));
+                messenger.showSnackBar(
+                  SnackBar(
+                    backgroundColor: Colors.red.shade600,
+                    content: Text('Send failed: $e'),
+                  ),
+                );
               }
             },
       style: OutlinedButton.styleFrom(

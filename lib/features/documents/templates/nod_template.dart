@@ -152,10 +152,7 @@ class NodTemplate extends DocumentTemplate<NodInputs> {
         const PageBreakBlock(),
         const HeadingBlock('Annex A'),
         const SpacerBlock(8),
-        ImageAttachmentBlock(
-          i.attachmentBytes!,
-          caption: i.attachmentCaption,
-        ),
+        ImageAttachmentBlock(i.attachmentBytes!, caption: i.attachmentCaption),
       ],
     ];
   }

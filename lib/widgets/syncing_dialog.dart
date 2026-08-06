@@ -7,15 +7,21 @@ class SyncingDialog extends StatelessWidget {
   const SyncingDialog({super.key, required this.label});
   @override
   Widget build(BuildContext context) => AlertDialog(
-        content: SizedBox(
-          width: 300,
-          child: Row(children: [
-            const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-            const SizedBox(width: 16),
-            Expanded(child: Text('Syncing $label...')),
-          ]),
-        ),
-      );
+    content: SizedBox(
+      width: 300,
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 16),
+          Expanded(child: Text('Syncing $label...')),
+        ],
+      ),
+    ),
+  );
 }
 
 /// Wraps any async action with a "Syncing..." modal. Dialog shows until the

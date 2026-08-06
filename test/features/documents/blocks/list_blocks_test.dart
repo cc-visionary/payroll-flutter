@@ -16,13 +16,15 @@ void main() {
   });
 
   test('NestedNumberedListBlock stores items + children', () {
-    const block = NestedNumberedListBlock(items: [
-      NestedNumberedItem(
-        leadBold: 'Immediate Payment Due',
-        body: 'The remaining...',
-      ),
-      NestedNumberedItem(leadBold: 'Legal Action', body: 'If the...'),
-    ]);
+    const block = NestedNumberedListBlock(
+      items: [
+        NestedNumberedItem(
+          leadBold: 'Immediate Payment Due',
+          body: 'The remaining...',
+        ),
+        NestedNumberedItem(leadBold: 'Legal Action', body: 'If the...'),
+      ],
+    );
     expect(block.items.length, 2);
     expect(block.items.first.leadBold, 'Immediate Payment Due');
   });
@@ -30,13 +32,17 @@ void main() {
   test('blocks render without throwing', () {
     final theme = PdfTheme.testStub();
     expect(
-        () => const BulletListBlock(['a', 'b']).toPdf(theme), returnsNormally);
+      () => const BulletListBlock(['a', 'b']).toPdf(theme),
+      returnsNormally,
+    );
     expect(
-        () => const NumberedListBlock(['x', 'y']).toPdf(theme), returnsNormally);
+      () => const NumberedListBlock(['x', 'y']).toPdf(theme),
+      returnsNormally,
+    );
     expect(
-      () => const NestedNumberedListBlock(items: [
-        NestedNumberedItem(leadBold: 'L', body: 'b'),
-      ]).toPdf(theme),
+      () => const NestedNumberedListBlock(
+        items: [NestedNumberedItem(leadBold: 'L', body: 'b')],
+      ).toPdf(theme),
       returnsNormally,
     );
   });

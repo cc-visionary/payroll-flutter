@@ -31,7 +31,8 @@ class PayslipPreviewScreen extends ConsumerWidget {
           child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
         ),
         data: (ps) {
-          if (ps == null) return const Center(child: Text('Payslip not found.'));
+          if (ps == null)
+            return const Center(child: Text('Payslip not found.'));
           return _PayslipPreviewBody(payslip: ps);
         },
       ),
@@ -52,8 +53,10 @@ class _PayslipPreviewBodyState extends ConsumerState<_PayslipPreviewBody> {
   // Cache the future so FutureBuilder doesn't rebind PdfPreview's internal
   // ScrollController on every rebuild — that race trips the Scrollbar
   // single-position assertion mid-scroll.
-  late final Future<PayslipPdfContext> _ctxFuture =
-      loadPayslipPdfContext(ref, widget.payslip);
+  late final Future<PayslipPdfContext> _ctxFuture = loadPayslipPdfContext(
+    ref,
+    widget.payslip,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -61,84 +64,87 @@ class _PayslipPreviewBodyState extends ConsumerState<_PayslipPreviewBody> {
     return FutureBuilder<PayslipPdfContext>(
       future: _ctxFuture,
       builder: (context, snap) {
-              if (snap.hasError) {
-                return Center(
-                  child: Text(
-                    'Failed to load payslip context: ${snap.error}',
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                );
-              }
-              if (!snap.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final ctx = snap.data!;
-              // Printing is only genuinely useful where the host OS has a
-              // print dialog. On web we skip it (browser printing of
-              // embedded PDFs is inconsistent across engines). Desktop +
-              // iOS/Android all get it.
-              final canPrint =
-                  !kIsWeb && (Platform.isLinux ||
-                      Platform.isMacOS ||
-                      Platform.isWindows ||
-                      Platform.isAndroid ||
-                      Platform.isIOS);
-              final filename = _filenameForPayslip(ps, ctx.employee.employeeNumber);
-              return PdfPreview(
-                // Disable built-in buttons so only our two custom actions
-                // show. `canChange*` flags already hide their dropdowns;
-                // turning off printing + sharing swaps their default icons
-                // out for our explicit "Download" / "Print" actions below.
-                allowPrinting: false,
-                allowSharing: false,
-                canChangeOrientation: false,
-                canChangePageFormat: false,
-                canDebug: false,
-                // Fit-width default: cap the rendered page to ~820 CSS
-                // pixels so the viewer opens on a "whole page visible"
-                // zoom level instead of the library's default 180%ish
-                // crop. Users can still scroll-wheel / pinch to zoom in.
-                maxPageWidth: 820,
-                actions: [
-                  PdfPreviewAction(
-                    icon: const Icon(Icons.download),
-                    onPressed: (ctx, build, pageFormat) async {
-                      final bytes = await build(pageFormat);
-                      await Printing.sharePdf(bytes: bytes, filename: filename);
-                      _logPayslipExport('download', ps, ctx2: snap.data!);
-                    },
-                  ),
-                  if (canPrint)
-                    PdfPreviewAction(
-                      icon: const Icon(Icons.print),
-                      onPressed: (ctx, build, pageFormat) async {
-                        await Printing.layoutPdf(
-                          onLayout: (format) => build(format),
-                          name: filename,
-                        );
-                        _logPayslipExport('print', ps, ctx2: snap.data!);
-                      },
-                    ),
-                ],
-                build: (format) async => buildPayslipPdf(PayslipPdfInput(
-                  payslip: ps,
-                  employee: ctx.employee,
-                  companyName: ctx.companyName,
-                  companyTradeName: ctx.companyTradeName,
-                  companyAddress: ctx.companyAddress,
-                  companyLogoBytes: ctx.companyLogoBytes,
-                  companyLogoHeight: ctx.companyLogoHeight,
-                  periodStart: ctx.periodStart,
-                  periodEnd: ctx.periodEnd,
-                  payDate: ctx.payDate,
-                  attendanceRows: ctx.attendanceRows,
-                  hrSignatoryName: ctx.hrSignatoryName,
-                  hrSignatoryTitle: ctx.hrSignatoryTitle,
-                  hrSignaturePng: ctx.hrSignaturePng,
-                )),
-              );
-            },
+        if (snap.hasError) {
+          return Center(
+            child: Text(
+              'Failed to load payslip context: ${snap.error}',
+              style: const TextStyle(color: Colors.red),
+            ),
           );
+        }
+        if (!snap.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final ctx = snap.data!;
+        // Printing is only genuinely useful where the host OS has a
+        // print dialog. On web we skip it (browser printing of
+        // embedded PDFs is inconsistent across engines). Desktop +
+        // iOS/Android all get it.
+        final canPrint =
+            !kIsWeb &&
+            (Platform.isLinux ||
+                Platform.isMacOS ||
+                Platform.isWindows ||
+                Platform.isAndroid ||
+                Platform.isIOS);
+        final filename = _filenameForPayslip(ps, ctx.employee.employeeNumber);
+        return PdfPreview(
+          // Disable built-in buttons so only our two custom actions
+          // show. `canChange*` flags already hide their dropdowns;
+          // turning off printing + sharing swaps their default icons
+          // out for our explicit "Download" / "Print" actions below.
+          allowPrinting: false,
+          allowSharing: false,
+          canChangeOrientation: false,
+          canChangePageFormat: false,
+          canDebug: false,
+          // Fit-width default: cap the rendered page to ~820 CSS
+          // pixels so the viewer opens on a "whole page visible"
+          // zoom level instead of the library's default 180%ish
+          // crop. Users can still scroll-wheel / pinch to zoom in.
+          maxPageWidth: 820,
+          actions: [
+            PdfPreviewAction(
+              icon: const Icon(Icons.download),
+              onPressed: (ctx, build, pageFormat) async {
+                final bytes = await build(pageFormat);
+                await Printing.sharePdf(bytes: bytes, filename: filename);
+                _logPayslipExport('download', ps, ctx2: snap.data!);
+              },
+            ),
+            if (canPrint)
+              PdfPreviewAction(
+                icon: const Icon(Icons.print),
+                onPressed: (ctx, build, pageFormat) async {
+                  await Printing.layoutPdf(
+                    onLayout: (format) => build(format),
+                    name: filename,
+                  );
+                  _logPayslipExport('print', ps, ctx2: snap.data!);
+                },
+              ),
+          ],
+          build: (format) async => buildPayslipPdf(
+            PayslipPdfInput(
+              payslip: ps,
+              employee: ctx.employee,
+              companyName: ctx.companyName,
+              companyTradeName: ctx.companyTradeName,
+              companyAddress: ctx.companyAddress,
+              companyLogoBytes: ctx.companyLogoBytes,
+              companyLogoHeight: ctx.companyLogoHeight,
+              periodStart: ctx.periodStart,
+              periodEnd: ctx.periodEnd,
+              payDate: ctx.payDate,
+              attendanceRows: ctx.attendanceRows,
+              hrSignatoryName: ctx.hrSignatoryName,
+              hrSignatoryTitle: ctx.hrSignatoryTitle,
+              hrSignaturePng: ctx.hrSignaturePng,
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _logPayslipExport(
@@ -148,16 +154,18 @@ class _PayslipPreviewBodyState extends ConsumerState<_PayslipPreviewBody> {
   }) {
     final who = ctx2.employee.fullName;
     final number = ps.payslipNumber ?? ps.id.substring(0, 8).toUpperCase();
-    ref.read(auditRepositoryProvider).logExport(
-      description: 'Payslip PDF $action: $who · $number',
-      entityType: 'payslips',
-      entityId: ps.id,
-      metadata: {
-        'payslip_number': ps.payslipNumber,
-        'employee_id': ctx2.employee.id,
-        'action': action,
-      },
-    );
+    ref
+        .read(auditRepositoryProvider)
+        .logExport(
+          description: 'Payslip PDF $action: $who · $number',
+          entityType: 'payslips',
+          entityId: ps.id,
+          metadata: {
+            'payslip_number': ps.payslipNumber,
+            'employee_id': ctx2.employee.id,
+            'action': action,
+          },
+        );
   }
 }
 
@@ -165,8 +173,8 @@ class _PayslipPreviewBodyState extends ConsumerState<_PayslipPreviewBody> {
 /// human-readable number (e.g. EMP-001-2026-01-001); fall back to employee +
 /// first 8 of the uuid so files still sort sensibly when the number is null.
 String _filenameForPayslip(Payslip ps, String employeeNumber) {
-  final base = ps.payslipNumber ??
+  final base =
+      ps.payslipNumber ??
       '$employeeNumber-${ps.id.substring(0, 8).toUpperCase()}';
   return '$base.pdf';
 }
-

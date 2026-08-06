@@ -85,10 +85,14 @@ class _PayrollRunsScreenState extends ConsumerState<PayrollRunsScreen>
         padding: const EdgeInsets.all(16),
         child: async.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.red))),
+          error: (e, _) => Center(
+            child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
+          ),
           data: (rows) => rows.isEmpty
               ? const Center(child: Text('No payroll runs yet.'))
-              : Card(child: _RunsTable(runs: rows, canRun: canRun)),
+              : Card(
+                  child: _RunsTable(runs: rows, canRun: canRun),
+                ),
         ),
       ),
     );
@@ -109,28 +113,44 @@ class _RunsTable extends ConsumerWidget {
       columns: const [
         DataColumn2(label: Text('Pay Date'), size: ColumnSize.S),
         DataColumn2(label: Text('Status'), size: ColumnSize.S),
-        DataColumn2(label: Text('Employees'), size: ColumnSize.S, numeric: true),
+        DataColumn2(
+          label: Text('Employees'),
+          size: ColumnSize.S,
+          numeric: true,
+        ),
         DataColumn2(label: Text('Gross'), size: ColumnSize.M, numeric: true),
-        DataColumn2(label: Text('Deductions'), size: ColumnSize.M, numeric: true),
+        DataColumn2(
+          label: Text('Deductions'),
+          size: ColumnSize.M,
+          numeric: true,
+        ),
         DataColumn2(label: Text('Net'), size: ColumnSize.M, numeric: true),
         DataColumn2(label: Text('Actions'), size: ColumnSize.L),
       ],
       rows: runs
-          .map((r) => DataRow2(
-                onTap: () => context.push('/payroll/${r.id}'),
-                cells: [
-                  DataCell(Text(r.payDate?.toIso8601String().substring(0, 10) ?? '—')),
-                  DataCell(_RunStatusChip(status: r.status)),
-                  DataCell(Text(r.employeeCount.toString())),
-                  DataCell(Text(Money.fmtPhp(r.totalGrossPay))),
-                  DataCell(Text(Money.fmtPhp(r.totalDeductions))),
-                  DataCell(Text(Money.fmtPhp(r.totalNetPay))),
-                  DataCell(canRun
+          .map(
+            (r) => DataRow2(
+              onTap: () => context.push('/payroll/${r.id}'),
+              cells: [
+                DataCell(
+                  Text(r.payDate?.toIso8601String().substring(0, 10) ?? '—'),
+                ),
+                DataCell(_RunStatusChip(status: r.status)),
+                DataCell(Text(r.employeeCount.toString())),
+                DataCell(Text(Money.fmtPhp(r.totalGrossPay))),
+                DataCell(Text(Money.fmtPhp(r.totalDeductions))),
+                DataCell(Text(Money.fmtPhp(r.totalNetPay))),
+                DataCell(
+                  canRun
                       ? _RunActions(run: r)
-                      : Text(r.status == 'RELEASED' ? 'Released' : '—',
-                          style: Theme.of(context).textTheme.bodySmall)),
-                ],
-              ))
+                      : Text(
+                          r.status == 'RELEASED' ? 'Released' : '—',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                ),
+              ],
+            ),
+          )
           .toList(),
     );
   }
@@ -163,8 +183,14 @@ class _RunStatusChip extends StatelessWidget {
         color: _color(c).withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(4),
       ),
-      child: Text(status,
-          style: TextStyle(fontSize: 11, color: _color(c), fontWeight: FontWeight.w600)),
+      child: Text(
+        status,
+        style: TextStyle(
+          fontSize: 11,
+          color: _color(c),
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
@@ -208,10 +234,14 @@ Future<void> _confirmAndDelete(
     }
   } catch (e) {
     if (context.mounted) {
-      messenger.showSnackBar(SnackBar(
-        content: Text('Delete failed: ${e.toString().replaceAll('Exception: ', '')}'),
-        duration: const Duration(seconds: 6),
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Delete failed: ${e.toString().replaceAll('Exception: ', '')}',
+          ),
+          duration: const Duration(seconds: 6),
+        ),
+      );
     }
   }
 }
@@ -240,10 +270,15 @@ class _RunActions extends ConsumerWidget {
       if (run.status == 'CANCELLED') {
         return TextButton.icon(
           onPressed: () => _confirmAndDelete(context, ref, run),
-          icon: Icon(Icons.delete_outline,
-              size: 16, color: Theme.of(context).colorScheme.error),
-          label: Text('Delete',
-              style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          icon: Icon(
+            Icons.delete_outline,
+            size: 16,
+            color: Theme.of(context).colorScheme.error,
+          ),
+          label: Text(
+            'Delete',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
         );
       }
       return const SizedBox.shrink();
@@ -251,8 +286,15 @@ class _RunActions extends ConsumerWidget {
 
     // REVIEW state — iterative workflow.
     return countsAsync.when(
-      loading: () => const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2)),
-      error: (e, _) => Text('Err: $e', style: const TextStyle(color: Colors.red, fontSize: 11)),
+      loading: () => const SizedBox(
+        height: 24,
+        width: 24,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+      error: (e, _) => Text(
+        'Err: $e',
+        style: const TextStyle(color: Colors.red, fontSize: 11),
+      ),
       data: (counts) {
         // RECALLED rows are dispatch-eligible too (see
         // send-payslip-approvals/index.ts — it filters IN
@@ -272,8 +314,10 @@ class _RunActions extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.only(right: 4),
-              child: Text('$approved/$total approved',
-                  style: Theme.of(context).textTheme.bodySmall),
+              child: Text(
+                '$approved/$total approved',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ),
             // Secondary actions render as icon buttons with tooltips that
             // surface the count — the "$approved/$total approved" label
@@ -298,8 +342,7 @@ class _RunActions extends ConsumerWidget {
                             r['approval_status'] == 'RECALLED')
                           r['id'] as String,
                     ];
-                    final pdfs =
-                        await buildPayslipPdfsBase64ForIds(ref, ids);
+                    final pdfs = await buildPayslipPdfsBase64ForIds(ref, ids);
                     final res = await repo.sendPayslipApprovals(
                       run.id,
                       payslipIds: ids,
@@ -309,17 +352,23 @@ class _RunActions extends ConsumerWidget {
                     final sent = (res['sent'] as num?)?.toInt() ?? 0;
                     final failed = (res['failed'] as num?)?.toInt() ?? 0;
                     if (!context.mounted) return;
-                    messenger.showSnackBar(SnackBar(
-                      content: Text(failed == 0
-                          ? 'Sent $sent Lark approval${sent == 1 ? '' : 's'}.'
-                          : 'Sent $sent, $failed failed.'),
-                    ));
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          failed == 0
+                              ? 'Sent $sent Lark approval${sent == 1 ? '' : 's'}.'
+                              : 'Sent $sent, $failed failed.',
+                        ),
+                      ),
+                    );
                   } catch (e) {
                     if (!context.mounted) return;
-                    messenger.showSnackBar(SnackBar(
-                      backgroundColor: Colors.red.shade600,
-                      content: Text('Send failed: $e'),
-                    ));
+                    messenger.showSnackBar(
+                      SnackBar(
+                        backgroundColor: Colors.red.shade600,
+                        content: Text('Send failed: $e'),
+                      ),
+                    );
                   }
                 },
               ),

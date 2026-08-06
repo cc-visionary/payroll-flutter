@@ -21,10 +21,10 @@ class DashboardPeriod {
   });
 
   factory DashboardPeriod.now(DateTime today) => DashboardPeriod(
-        mode: DashboardPeriodMode.month,
-        year: today.year,
-        month: today.month,
-      );
+    mode: DashboardPeriodMode.month,
+    year: today.year,
+    month: today.month,
+  );
 
   bool get isYear => mode == DashboardPeriodMode.year;
 
@@ -36,8 +36,9 @@ class DashboardPeriod {
   /// rest of the month as scheduled-but-absent work days.
   DateTime endOn(DateTime today) {
     // Day 0 of the following month == last day of this one.
-    final natural =
-        isYear ? DateTime(year, 12, 31) : DateTime(year, month + 1, 0);
+    final natural = isYear
+        ? DateTime(year, 12, 31)
+        : DateTime(year, month + 1, 0);
     final t = DateTime(today.year, today.month, today.day);
     return natural.isAfter(t) ? t : natural;
   }
@@ -50,12 +51,11 @@ class DashboardPeriod {
     DashboardPeriodMode? mode,
     int? year,
     int? month,
-  }) =>
-      DashboardPeriod(
-        mode: mode ?? this.mode,
-        year: year ?? this.year,
-        month: month ?? this.month,
-      );
+  }) => DashboardPeriod(
+    mode: mode ?? this.mode,
+    year: year ?? this.year,
+    month: month ?? this.month,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -70,5 +70,6 @@ class DashboardPeriod {
 }
 
 /// Drives every figure on the Dashboard. Defaults to the current month.
-final dashboardPeriodProvider =
-    StateProvider<DashboardPeriod>((ref) => DashboardPeriod.now(DateTime.now()));
+final dashboardPeriodProvider = StateProvider<DashboardPeriod>(
+  (ref) => DashboardPeriod.now(DateTime.now()),
+);

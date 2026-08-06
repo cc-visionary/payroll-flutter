@@ -6,10 +6,13 @@ import 'types.dart';
 
 Decimal _round3(Decimal v) {
   final factor = Decimal.fromInt(1000);
-  return ((v * factor).round(scale: 0) / factor).toDecimal(scaleOnInfinitePrecision: 3);
+  return ((v * factor).round(scale: 0) / factor).toDecimal(
+    scaleOnInfinitePrecision: 3,
+  );
 }
 
-Decimal _div(Decimal a, Decimal b) => (a / b).toDecimal(scaleOnInfinitePrecision: 10);
+Decimal _div(Decimal a, Decimal b) =>
+    (a / b).toDecimal(scaleOnInfinitePrecision: 10);
 
 Decimal _min(Decimal a, Decimal b) => a <= b ? a : b;
 Decimal _max(Decimal a, Decimal b) => a >= b ? a : b;
@@ -97,7 +100,10 @@ StatutoryLinePair generateSSSLines(
 // =============================================================================
 // PhilHealth
 // =============================================================================
-SssResult calculatePhilHealth(Decimal monthlySalary, PhilHealthTableInput table) {
+SssResult calculatePhilHealth(
+  Decimal monthlySalary,
+  PhilHealthTableInput table,
+) {
   final base = _min(_max(monthlySalary, table.minBase), table.maxBase);
   final totalPremium = _round3(base * table.premiumRate);
   final ee = _round3(totalPremium * table.eeShare);
@@ -197,11 +203,13 @@ Decimal calculateWithholdingTax(
   TaxTableInput table,
 ) {
   final cumulativeTaxable = ytdTaxable + currentPeriodTaxable;
-  final projectedAnnual = _div(cumulativeTaxable, Decimal.fromInt(periodNumber)) *
+  final projectedAnnual =
+      _div(cumulativeTaxable, Decimal.fromInt(periodNumber)) *
       Decimal.fromInt(totalPeriods);
   final projectedAnnualTax = calculateAnnualTax(projectedAnnual, table);
   final taxDueToDate =
-      _div(projectedAnnualTax, Decimal.fromInt(totalPeriods)) * Decimal.fromInt(periodNumber);
+      _div(projectedAnnualTax, Decimal.fromInt(totalPeriods)) *
+      Decimal.fromInt(periodNumber);
   final currentWithholding = taxDueToDate - ytdTaxWithheld;
   return _max(Decimal.zero, _round3(currentWithholding));
 }

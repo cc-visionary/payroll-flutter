@@ -96,9 +96,12 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
     // providers.dart::finalPayBreakdownProvider.
     Map<String, dynamic>? hireRow;
     try {
-      hireRow = await ctx.ref.read(latestEmploymentEventProvider(
-              (employeeId: emp.id, eventType: 'HIRE'))
-          .future);
+      hireRow = await ctx.ref.read(
+        latestEmploymentEventProvider((
+          employeeId: emp.id,
+          eventType: 'HIRE',
+        )).future,
+      );
     } catch (_) {
       hireRow = null;
     }
@@ -136,8 +139,7 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
   List<Gate> gates(AutofillContext ctx) => const [];
 
   @override
-  List<ValidationError> validate(NonRegInputs inputs) =>
-      validateNonReg(inputs);
+  List<ValidationError> validate(NonRegInputs inputs) => validateNonReg(inputs);
 
   @override
   List<Block> build(NonRegInputs i) {
@@ -145,25 +147,29 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
     final blocks = <Block>[];
 
     if (i.logoBytes != null || i.companyName.isNotEmpty) {
-      blocks.add(LetterheadBlock(
-        logoBytes: i.logoBytes,
-        companyName: i.companyName,
-        companyAddress: (i.companyAddress?.isEmpty ?? true)
-            ? null
-            : i.companyAddress,
-      ));
+      blocks.add(
+        LetterheadBlock(
+          logoBytes: i.logoBytes,
+          companyName: i.companyName,
+          companyAddress: (i.companyAddress?.isEmpty ?? true)
+              ? null
+              : i.companyAddress,
+        ),
+      );
     }
     blocks.add(const SpacerBlock(16));
 
     // 1-2. Meta + spacer.
-    blocks.add(LetterMetaBlock(
-      date: i.dateIssued,
-      to: LetterParty(name: i.employeeFullName),
-      position: i.employeePosition.isEmpty ? null : i.employeePosition,
-      from: LetterParty(name: i.hrManagerName ?? ''),
-      subject: null,
-      showDividers: false,
-    ));
+    blocks.add(
+      LetterMetaBlock(
+        date: i.dateIssued,
+        to: LetterParty(name: i.employeeFullName),
+        position: i.employeePosition.isEmpty ? null : i.employeePosition,
+        from: LetterParty(name: i.hrManagerName ?? ''),
+        subject: null,
+        showDividers: false,
+      ),
+    );
     blocks.add(const SpacerBlock(16));
 
     // 3-4. Subject heading + spacer.
@@ -177,36 +183,51 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
     // 7. Intro paragraph 1 — bold dates inline.
     final ps = i.probationaryStart;
     final pe = i.probationaryEnd;
-    blocks.add(EmphasisParagraphBlock(spans: [
-      const EmphasisSpan(
-          'This letter serves as formal notification regarding the status '
-          'of your probationary employment, which commenced on '),
-      EmphasisSpan(ps == null ? '—' : fmt.format(ps), bold: true),
-      const EmphasisSpan(' and is scheduled to end on '),
-      EmphasisSpan(pe == null ? '—' : fmt.format(pe), bold: true),
-      const EmphasisSpan('.'),
-    ]));
+    blocks.add(
+      EmphasisParagraphBlock(
+        spans: [
+          const EmphasisSpan(
+            'This letter serves as formal notification regarding the status '
+            'of your probationary employment, which commenced on ',
+          ),
+          EmphasisSpan(ps == null ? '—' : fmt.format(ps), bold: true),
+          const EmphasisSpan(' and is scheduled to end on '),
+          EmphasisSpan(pe == null ? '—' : fmt.format(pe), bold: true),
+          const EmphasisSpan('.'),
+        ],
+      ),
+    );
 
     // 8. Intro paragraph 2 — bold Section 4 + Annex B references inline.
-    blocks.add(const EmphasisParagraphBlock(spans: [
-      EmphasisSpan('As stipulated in '),
-      EmphasisSpan('Section 4 (Probationary Evaluation)', bold: true),
-      EmphasisSpan(
-          ' of your Employment Contract, the Company has evaluated your '
-          'performance against the '),
-      EmphasisSpan('Standards for Regularization', bold: true),
-      EmphasisSpan(
-          ' (Annex B). After a comprehensive review, we regret to inform '
-          'you that you have not met the reasonable standards required to '
-          'qualify for regular employment.'),
-    ]));
+    blocks.add(
+      const EmphasisParagraphBlock(
+        spans: [
+          EmphasisSpan('As stipulated in '),
+          EmphasisSpan('Section 4 (Probationary Evaluation)', bold: true),
+          EmphasisSpan(
+            ' of your Employment Contract, the Company has evaluated your '
+            'performance against the ',
+          ),
+          EmphasisSpan('Standards for Regularization', bold: true),
+          EmphasisSpan(
+            ' (Annex B). After a comprehensive review, we regret to inform '
+            'you that you have not met the reasonable standards required to '
+            'qualify for regular employment.',
+          ),
+        ],
+      ),
+    );
 
     // 9. Optional note on scope.
     if (i.noteOnScope.trim().isNotEmpty) {
-      blocks.add(EmphasisParagraphBlock(spans: [
-        const EmphasisSpan('Note on Scope of Evaluation: ', bold: true),
-        EmphasisSpan(i.noteOnScope.trim()),
-      ]));
+      blocks.add(
+        EmphasisParagraphBlock(
+          spans: [
+            const EmphasisSpan('Note on Scope of Evaluation: ', bold: true),
+            EmphasisSpan(i.noteOnScope.trim()),
+          ],
+        ),
+      );
     }
 
     // 10. Specifically lead-in.
@@ -217,17 +238,21 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
       final f = i.findings[idx];
       blocks.add(const SpacerBlock(12));
       blocks.add(SectionHeadingBlock(number: idx + 1, title: f.title));
-      blocks.add(LabelledBulletListBlock(items: [
-        LabelledBulletItem(leadBold: 'Standard', body: f.standard),
-        LabelledBulletItem(
-          leadBold: 'Finding',
-          body: f.finding,
-          children: [
-            for (final s in f.subFindings)
-              LabelledBulletItem(leadBold: s.title, body: s.body),
+      blocks.add(
+        LabelledBulletListBlock(
+          items: [
+            LabelledBulletItem(leadBold: 'Standard', body: f.standard),
+            LabelledBulletItem(
+              leadBold: 'Finding',
+              body: f.finding,
+              children: [
+                for (final s in f.subFindings)
+                  LabelledBulletItem(leadBold: s.title, body: s.body),
+              ],
+            ),
           ],
         ),
-      ]));
+      );
     }
 
     // 12-13. Decision heading + spacer.
@@ -236,14 +261,19 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
 
     // 14. Decision paragraph with bold effectiveEndDate.
     final ee = i.effectiveEndDate;
-    blocks.add(EmphasisParagraphBlock(spans: [
-      const EmphasisSpan(
-          'In view of the foregoing, your probationary employment will '
-          'not be regularized and will cease effective at the close of '
-          'business hours on '),
-      EmphasisSpan(ee == null ? '—' : fmt.format(ee), bold: true),
-      const EmphasisSpan('.'),
-    ]));
+    blocks.add(
+      EmphasisParagraphBlock(
+        spans: [
+          const EmphasisSpan(
+            'In view of the foregoing, your probationary employment will '
+            'not be regularized and will cease effective at the close of '
+            'business hours on ',
+          ),
+          EmphasisSpan(ee == null ? '—' : fmt.format(ee), bold: true),
+          const EmphasisSpan('.'),
+        ],
+      ),
+    );
 
     // 15-16. Final pay + closing.
     blocks.add(const ParagraphBlock(_finalPayText));
@@ -253,12 +283,14 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
     blocks.add(const SpacerBlock(24));
     blocks.add(const ParagraphBlock('Sincerely,'));
     blocks.add(const SpacerBlock(40));
-    blocks.add(SignatureBlock(
-      name: i.hrManagerName,
-      role: 'HR Manager\n${i.companyName}',
-      date: i.dateIssued,
-      signatureImage: decodeSignaturePngB64(i.companySignaturePngB64),
-    ));
+    blocks.add(
+      SignatureBlock(
+        name: i.hrManagerName,
+        role: 'HR Manager\n${i.companyName}',
+        date: i.dateIssued,
+        signatureImage: decodeSignaturePngB64(i.companySignaturePngB64),
+      ),
+    );
 
     // 21-30. Acknowledgment page.
     blocks.add(const PageBreakBlock());
@@ -270,11 +302,13 @@ class NonRegTemplate extends DocumentTemplate<NonRegInputs> {
     blocks.add(const SpacerBlock(24));
     blocks.add(const ParagraphBlock('Witnessed by:'));
     blocks.add(const SpacerBlock(40));
-    blocks.add(SignatureBlock(
-      name: i.witnessName.isEmpty ? null : i.witnessName,
-      role: '',
-      date: null,
-    ));
+    blocks.add(
+      SignatureBlock(
+        name: i.witnessName.isEmpty ? null : i.witnessName,
+        role: '',
+        date: null,
+      ),
+    );
 
     return blocks;
   }
@@ -284,9 +318,11 @@ String _addressOf(dynamic co) {
   final parts = [
     co.addressLine1,
     co.addressLine2,
-    [co.city, co.province, co.zipCode]
-        .where((s) => s != null && (s as String).isNotEmpty)
-        .join(', '),
+    [
+      co.city,
+      co.province,
+      co.zipCode,
+    ].where((s) => s != null && (s as String).isNotEmpty).join(', '),
   ].where((s) => s != null && (s as String).isNotEmpty).cast<String>().toList();
   return parts.join(' · ');
 }

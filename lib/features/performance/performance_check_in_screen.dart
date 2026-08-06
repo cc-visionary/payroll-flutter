@@ -28,7 +28,9 @@ class PerformanceCheckInScreen extends ConsumerWidget {
       ),
       error: (e, _) => Scaffold(
         appBar: AppBar(title: const Text('Check-in')),
-        body: Center(child: Text('Error: $e', style: const TextStyle(color: Colors.red))),
+        body: Center(
+          child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
+        ),
       ),
       data: (c) {
         if (c == null) {
@@ -41,7 +43,9 @@ class PerformanceCheckInScreen extends ConsumerWidget {
         if (!profile.isHrOrAdmin && !isSelf) {
           return Scaffold(
             appBar: AppBar(title: const Text('Check-in')),
-            body: const Center(child: Text('You do not have permission to view this check-in.')),
+            body: const Center(
+              child: Text('You do not have permission to view this check-in.'),
+            ),
           );
         }
         return _Body(c: c);
@@ -56,8 +60,14 @@ class _Body extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final employee = ref.watch(employeeByIdProvider(c.employeeId)).asData?.value;
-    final period = ref.watch(checkInPeriodByIdProvider(c.periodId)).asData?.value;
+    final employee = ref
+        .watch(employeeByIdProvider(c.employeeId))
+        .asData
+        ?.value;
+    final period = ref
+        .watch(checkInPeriodByIdProvider(c.periodId))
+        .asData
+        ?.value;
     return Scaffold(
       appBar: AppBar(
         title: Text(employee?.fullName ?? 'Check-in'),
@@ -71,14 +81,16 @@ class _Body extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              if (period != null) Chip(label: Text(period.periodType)),
-              const SizedBox(width: 8),
-              Chip(label: Text(c.status)),
-              const SizedBox(width: 12),
-              if (period != null)
-                Text(period.name, style: const TextStyle(fontSize: 16)),
-            ]),
+            Row(
+              children: [
+                if (period != null) Chip(label: Text(period.periodType)),
+                const SizedBox(width: 8),
+                Chip(label: Text(c.status)),
+                const SizedBox(width: 12),
+                if (period != null)
+                  Text(period.name, style: const TextStyle(fontSize: 16)),
+              ],
+            ),
             const SizedBox(height: 16),
             Text(
               'Created ${c.createdAt.toIso8601String().substring(0, 10)}'
@@ -123,7 +135,9 @@ class _SelfReviewSectionState extends ConsumerState<_SelfReviewSection> {
   @override
   void initState() {
     super.initState();
-    _accomplishments = TextEditingController(text: widget.c.accomplishments ?? '');
+    _accomplishments = TextEditingController(
+      text: widget.c.accomplishments ?? '',
+    );
     _challenges = TextEditingController(text: widget.c.challenges ?? '');
     _learnings = TextEditingController(text: widget.c.learnings ?? '');
     _supportNeeded = TextEditingController(text: widget.c.supportNeeded ?? '');
@@ -141,7 +155,9 @@ class _SelfReviewSectionState extends ConsumerState<_SelfReviewSection> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      await ref.read(performanceRepositoryProvider).updateCheckIn(
+      await ref
+          .read(performanceRepositoryProvider)
+          .updateCheckIn(
             checkInId: widget.c.id,
             accomplishments: _accomplishments.text,
             challenges: _challenges.text,
@@ -150,13 +166,15 @@ class _SelfReviewSectionState extends ConsumerState<_SelfReviewSection> {
           );
       ref.invalidate(performanceCheckInByIdProvider(widget.c.id));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Self-review saved.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Self-review saved.')));
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Save failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -171,8 +189,14 @@ class _SelfReviewSectionState extends ConsumerState<_SelfReviewSection> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Self-review',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.4)),
+            const Text(
+              'Self-review',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.4,
+              ),
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: _accomplishments,
@@ -239,7 +263,8 @@ class _GoalsSection extends ConsumerWidget {
     final goals = ref.watch(checkInGoalsProvider(c.id));
     final profile = ref.watch(userProfileProvider).asData!.value!;
     final canEditAll = profile.isHrOrAdmin || profile.userId == c.reviewerId;
-    final canEditSelf = profile.employeeId == c.employeeId && c.status == 'DRAFT';
+    final canEditSelf =
+        profile.employeeId == c.employeeId && c.status == 'DRAFT';
 
     return Card(
       child: Padding(
@@ -247,21 +272,30 @@ class _GoalsSection extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(children: [
-              const Text('Goals',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.4)),
-              const Spacer(),
-              if (canEditAll || canEditSelf)
-                TextButton.icon(
-                  onPressed: () => _addGoal(context, ref),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add goal'),
+            Row(
+              children: [
+                const Text(
+                  'Goals',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                  ),
                 ),
-            ]),
+                const Spacer(),
+                if (canEditAll || canEditSelf)
+                  TextButton.icon(
+                    onPressed: () => _addGoal(context, ref),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Add goal'),
+                  ),
+              ],
+            ),
             const SizedBox(height: 12),
             goals.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Text('Error: $e', style: const TextStyle(color: Colors.red)),
+              error: (e, _) =>
+                  Text('Error: $e', style: const TextStyle(color: Colors.red)),
               data: (rows) {
                 if (rows.isEmpty) {
                   return const Text('No goals set yet.');
@@ -312,11 +346,9 @@ class _GoalsSection extends ConsumerWidget {
         ),
       );
       if (title == null) return;
-      await ref.read(performanceRepositoryProvider).addGoal(
-            checkInId: c.id,
-            goalType: 'PERFORMANCE',
-            title: title,
-          );
+      await ref
+          .read(performanceRepositoryProvider)
+          .addGoal(checkInId: c.id, goalType: 'PERFORMANCE', title: title);
       ref.invalidate(checkInGoalsProvider(c.id));
     } finally {
       ctl.dispose();
@@ -328,7 +360,11 @@ class _GoalRow extends ConsumerStatefulWidget {
   final dynamic goal;
   final bool canEditAll;
   final bool canEditSelf;
-  const _GoalRow({required this.goal, required this.canEditAll, required this.canEditSelf});
+  const _GoalRow({
+    required this.goal,
+    required this.canEditAll,
+    required this.canEditSelf,
+  });
   @override
   ConsumerState<_GoalRow> createState() => _GoalRowState();
 }
@@ -345,26 +381,40 @@ class _GoalRowState extends ConsumerState<_GoalRow> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(children: [
-                Expanded(child: Text(g.title as String,
-                    style: const TextStyle(fontWeight: FontWeight.w600))),
-                Chip(label: Text(g.goalType as String)),
-                const SizedBox(width: 8),
-                Chip(label: Text(g.status as String)),
-                if (widget.canEditAll)
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    tooltip: 'Delete goal',
-                    onPressed: () => _delete(context),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      g.title as String,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                   ),
-              ]),
+                  Chip(label: Text(g.goalType as String)),
+                  const SizedBox(width: 8),
+                  Chip(label: Text(g.status as String)),
+                  if (widget.canEditAll)
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      tooltip: 'Delete goal',
+                      onPressed: () => _delete(context),
+                    ),
+                ],
+              ),
               const SizedBox(height: 8),
-              Text('Progress: ${g.progress}%',
-                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-              if (g.description != null && (g.description as String).isNotEmpty) ...[
+              Text(
+                'Progress: ${g.progress}%',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              if (g.description != null &&
+                  (g.description as String).isNotEmpty) ...[
                 const SizedBox(height: 4),
-                Text(g.description as String,
-                    style: const TextStyle(fontSize: 13)),
+                Text(
+                  g.description as String,
+                  style: const TextStyle(fontSize: 13),
+                ),
               ],
             ],
           ),
@@ -394,7 +444,9 @@ class _GoalRowState extends ConsumerState<_GoalRow> {
       ),
     );
     if (ok != true) return;
-    await ref.read(performanceRepositoryProvider).deleteGoal(widget.goal.id as String);
+    await ref
+        .read(performanceRepositoryProvider)
+        .deleteGoal(widget.goal.id as String);
     ref.invalidate(checkInGoalsProvider(widget.goal.checkInId as String));
   }
 }
@@ -416,27 +468,39 @@ class _SkillsSection extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(children: [
-              const Text('Skill Ratings',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.4)),
-              const Spacer(),
-              if (canManage)
-                TextButton.icon(
-                  onPressed: () => _addSkill(context, ref),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add skill'),
+            Row(
+              children: [
+                const Text(
+                  'Skill Ratings',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                  ),
                 ),
-            ]),
+                const Spacer(),
+                if (canManage)
+                  TextButton.icon(
+                    onPressed: () => _addSkill(context, ref),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Add skill'),
+                  ),
+              ],
+            ),
             const SizedBox(height: 4),
             Text(
               'KPI skills auto-seeded from the role scorecard at check-in creation. '
               'HR can add ad-hoc competencies (behavioral, technical, etc.).',
-              style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 12),
             skills.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Text('Error: $e', style: const TextStyle(color: Colors.red)),
+              error: (e, _) =>
+                  Text('Error: $e', style: const TextStyle(color: Colors.red)),
               data: (rows) {
                 if (rows.isEmpty) {
                   return const Text('No skills tracked yet.');
@@ -447,7 +511,10 @@ class _SkillsSection extends ConsumerWidget {
                       _SkillRow(
                         skill: s,
                         canEditSelf: isSelf && c.status == 'DRAFT',
-                        canEditManager: canManage && c.status != 'COMPLETED' && c.status != 'SKIPPED',
+                        canEditManager:
+                            canManage &&
+                            c.status != 'COMPLETED' &&
+                            c.status != 'SKIPPED',
                       ),
                   ],
                 );
@@ -472,7 +539,9 @@ class _SkillsSection extends ConsumerWidget {
             children: [
               TextField(
                 controller: categoryCtl,
-                decoration: const InputDecoration(labelText: 'Category (e.g. BEHAVIORAL, TECHNICAL)'),
+                decoration: const InputDecoration(
+                  labelText: 'Category (e.g. BEHAVIORAL, TECHNICAL)',
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -500,7 +569,9 @@ class _SkillsSection extends ConsumerWidget {
         ),
       );
       if (result == null) return;
-      await ref.read(performanceRepositoryProvider).addSkill(
+      await ref
+          .read(performanceRepositoryProvider)
+          .addSkill(
             checkInId: c.id,
             skillCategory: result.category,
             skillName: result.name,
@@ -538,38 +609,47 @@ class _SkillRowState extends ConsumerState<_SkillRow> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(children: [
-                Chip(label: Text(s.skillCategory as String)),
-                const SizedBox(width: 8),
-                Expanded(child: Text(s.skillName as String,
-                    style: const TextStyle(fontWeight: FontWeight.w600))),
-                if (widget.canEditManager && (s.skillCategory as String) != 'KPI')
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    tooltip: 'Remove skill',
-                    onPressed: () => _delete(context),
+              Row(
+                children: [
+                  Chip(label: Text(s.skillCategory as String)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      s.skillName as String,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                   ),
-              ]),
+                  if (widget.canEditManager &&
+                      (s.skillCategory as String) != 'KPI')
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      tooltip: 'Remove skill',
+                      onPressed: () => _delete(context),
+                    ),
+                ],
+              ),
               const SizedBox(height: 8),
-              Row(children: [
-                Expanded(
-                  child: _RatingPicker(
-                    label: 'Self',
-                    value: s.selfRating as int?,
-                    enabled: widget.canEditSelf,
-                    onChanged: (v) => _update(selfRating: v),
+              Row(
+                children: [
+                  Expanded(
+                    child: _RatingPicker(
+                      label: 'Self',
+                      value: s.selfRating as int?,
+                      enabled: widget.canEditSelf,
+                      onChanged: (v) => _update(selfRating: v),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _RatingPicker(
-                    label: 'Manager',
-                    value: s.managerRating as int?,
-                    enabled: widget.canEditManager,
-                    onChanged: (v) => _update(managerRating: v),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _RatingPicker(
+                      label: 'Manager',
+                      value: s.managerRating as int?,
+                      enabled: widget.canEditManager,
+                      onChanged: (v) => _update(managerRating: v),
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ],
           ),
         ),
@@ -578,7 +658,9 @@ class _SkillRowState extends ConsumerState<_SkillRow> {
   }
 
   Future<void> _update({int? selfRating, int? managerRating}) async {
-    await ref.read(performanceRepositoryProvider).updateSkill(
+    await ref
+        .read(performanceRepositoryProvider)
+        .updateSkill(
           skillId: widget.skill.id as String,
           selfRating: selfRating,
           managerRating: managerRating,
@@ -587,7 +669,9 @@ class _SkillRowState extends ConsumerState<_SkillRow> {
   }
 
   Future<void> _delete(BuildContext context) async {
-    await ref.read(performanceRepositoryProvider).deleteSkill(widget.skill.id as String);
+    await ref
+        .read(performanceRepositoryProvider)
+        .deleteSkill(widget.skill.id as String);
     ref.invalidate(skillRatingsProvider(widget.skill.checkInId as String));
   }
 }
@@ -608,20 +692,27 @@ class _RatingPicker extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(height: 4),
-        Row(children: [
-          for (var i = 1; i <= 5; i++)
-            Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: ChoiceChip(
-                label: Text('$i'),
-                selected: value == i,
-                onSelected: enabled ? (_) => onChanged(i) : null,
+        Row(
+          children: [
+            for (var i = 1; i <= 5; i++)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: ChoiceChip(
+                  label: Text('$i'),
+                  selected: value == i,
+                  onSelected: enabled ? (_) => onChanged(i) : null,
+                ),
               ),
-            ),
-        ]),
+          ],
+        ),
       ],
     );
   }
@@ -631,7 +722,8 @@ class _ManagerReviewSection extends ConsumerStatefulWidget {
   final PerformanceCheckIn c;
   const _ManagerReviewSection({required this.c});
   @override
-  ConsumerState<_ManagerReviewSection> createState() => _ManagerReviewSectionState();
+  ConsumerState<_ManagerReviewSection> createState() =>
+      _ManagerReviewSectionState();
 }
 
 class _ManagerReviewSectionState extends ConsumerState<_ManagerReviewSection> {
@@ -648,7 +740,9 @@ class _ManagerReviewSectionState extends ConsumerState<_ManagerReviewSection> {
     _feedback = TextEditingController(text: widget.c.managerFeedback ?? '');
     _strengths = TextEditingController(text: widget.c.strengths ?? '');
     _areas = TextEditingController(text: widget.c.areasForImprovement ?? '');
-    _overallComments = TextEditingController(text: widget.c.overallComments ?? '');
+    _overallComments = TextEditingController(
+      text: widget.c.overallComments ?? '',
+    );
     _overallRating = widget.c.overallRating;
   }
 
@@ -664,7 +758,9 @@ class _ManagerReviewSectionState extends ConsumerState<_ManagerReviewSection> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      await ref.read(performanceRepositoryProvider).updateCheckIn(
+      await ref
+          .read(performanceRepositoryProvider)
+          .updateCheckIn(
             checkInId: widget.c.id,
             managerFeedback: _feedback.text,
             strengths: _strengths.text,
@@ -674,13 +770,15 @@ class _ManagerReviewSectionState extends ConsumerState<_ManagerReviewSection> {
           );
       ref.invalidate(performanceCheckInByIdProvider(widget.c.id));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Manager review saved.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Manager review saved.')));
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Save failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -690,8 +788,10 @@ class _ManagerReviewSectionState extends ConsumerState<_ManagerReviewSection> {
   Widget build(BuildContext context) {
     final profile = ref.watch(userProfileProvider).asData!.value!;
     final isReviewer = profile.userId == widget.c.reviewerId;
-    final canEdit = (profile.isHrOrAdmin || isReviewer) &&
-        widget.c.status != 'COMPLETED' && widget.c.status != 'SKIPPED' &&
+    final canEdit =
+        (profile.isHrOrAdmin || isReviewer) &&
+        widget.c.status != 'COMPLETED' &&
+        widget.c.status != 'SKIPPED' &&
         widget.c.status != 'DRAFT';
     final isCompleted = widget.c.status == 'COMPLETED';
     final isSelf = profile.employeeId == widget.c.employeeId;
@@ -704,8 +804,14 @@ class _ManagerReviewSectionState extends ConsumerState<_ManagerReviewSection> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Manager Review',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.4)),
+            const Text(
+              'Manager Review',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.4,
+              ),
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: _feedback,
@@ -737,20 +843,29 @@ class _ManagerReviewSectionState extends ConsumerState<_ManagerReviewSection> {
               ),
             ),
             const SizedBox(height: 12),
-            Text('Overall rating',
-                style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            Text(
+              'Overall rating',
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
             const SizedBox(height: 4),
-            Row(children: [
-              for (var i = 1; i <= 5; i++)
-                Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: ChoiceChip(
-                    label: Text('$i'),
-                    selected: _overallRating == i,
-                    onSelected: canEdit ? (_) => setState(() => _overallRating = i) : null,
+            Row(
+              children: [
+                for (var i = 1; i <= 5; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: ChoiceChip(
+                      label: Text('$i'),
+                      selected: _overallRating == i,
+                      onSelected: canEdit
+                          ? (_) => setState(() => _overallRating = i)
+                          : null,
+                    ),
                   ),
-                ),
-            ]),
+              ],
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: _overallComments,
@@ -791,40 +906,58 @@ class _StatusActions extends ConsumerWidget {
 
     final buttons = <Widget>[];
     if (c.status == 'DRAFT' && (isSelf || profile.isHrOrAdmin)) {
-      buttons.add(FilledButton(
-        onPressed: () => _transition(context, ref, 'SUBMITTED'),
-        child: const Text('Submit for review'),
-      ));
+      buttons.add(
+        FilledButton(
+          onPressed: () => _transition(context, ref, 'SUBMITTED'),
+          child: const Text('Submit for review'),
+        ),
+      );
     }
     if (c.status == 'SUBMITTED' && canManage) {
-      buttons.add(FilledButton.tonal(
-        onPressed: () => _transition(context, ref, 'UNDER_REVIEW'),
-        child: const Text('Start review'),
-      ));
+      buttons.add(
+        FilledButton.tonal(
+          onPressed: () => _transition(context, ref, 'UNDER_REVIEW'),
+          child: const Text('Start review'),
+        ),
+      );
     }
     if (c.status == 'UNDER_REVIEW' && canManage) {
-      buttons.add(FilledButton(
-        onPressed: () => _transition(context, ref, 'COMPLETED'),
-        child: const Text('Mark complete'),
-      ));
+      buttons.add(
+        FilledButton(
+          onPressed: () => _transition(context, ref, 'COMPLETED'),
+          child: const Text('Mark complete'),
+        ),
+      );
     }
-    if (profile.isHrOrAdmin && c.status != 'COMPLETED' && c.status != 'SKIPPED') {
-      buttons.add(OutlinedButton(
-        onPressed: () => _transition(context, ref, 'SKIPPED'),
-        child: const Text('Skip cycle'),
-      ));
+    if (profile.isHrOrAdmin &&
+        c.status != 'COMPLETED' &&
+        c.status != 'SKIPPED') {
+      buttons.add(
+        OutlinedButton(
+          onPressed: () => _transition(context, ref, 'SKIPPED'),
+          child: const Text('Skip cycle'),
+        ),
+      );
     }
     if (buttons.isEmpty) return const SizedBox.shrink();
-    return Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.end, children: buttons);
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.end,
+      children: buttons,
+    );
   }
 
-  Future<void> _transition(BuildContext context, WidgetRef ref, String target) async {
+  Future<void> _transition(
+    BuildContext context,
+    WidgetRef ref,
+    String target,
+  ) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(performanceRepositoryProvider).updateCheckIn(
-            checkInId: c.id,
-            status: target,
-          );
+      await ref
+          .read(performanceRepositoryProvider)
+          .updateCheckIn(checkInId: c.id, status: target);
       ref.invalidate(performanceCheckInByIdProvider(c.id));
       ref.invalidate(performanceCheckInListProvider);
       messenger.showSnackBar(SnackBar(content: Text('Status → $target')));

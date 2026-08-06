@@ -60,22 +60,25 @@ void main() {
     );
   });
 
-  test('workDaysPerMonth + signatoryRole round-trip through toJson/fromJson', () {
-    final original = SalaryAdjustmentInputs(
-      employeeId: 'E1',
-      employeeFullName: 'Jane Cruz',
-      companyId: 'CO1',
-      companyName: 'Luxium',
-      hrManagerName: 'Alex Reyes',
-      signatoryRole: 'Chief Operating Officer',
-      workDaysPerMonth: 22,
-      effectiveDate: DateTime(2026, 8, 1),
-      issueDate: DateTime(2026, 7, 11),
-    );
-    final round = SalaryAdjustmentInputs.fromJson(original.toJson());
-    expect(round.workDaysPerMonth, 22);
-    expect(round.signatoryRole, 'Chief Operating Officer');
-  });
+  test(
+    'workDaysPerMonth + signatoryRole round-trip through toJson/fromJson',
+    () {
+      final original = SalaryAdjustmentInputs(
+        employeeId: 'E1',
+        employeeFullName: 'Jane Cruz',
+        companyId: 'CO1',
+        companyName: 'Luxium',
+        hrManagerName: 'Alex Reyes',
+        signatoryRole: 'Chief Operating Officer',
+        workDaysPerMonth: 22,
+        effectiveDate: DateTime(2026, 8, 1),
+        issueDate: DateTime(2026, 7, 11),
+      );
+      final round = SalaryAdjustmentInputs.fromJson(original.toJson());
+      expect(round.workDaysPerMonth, 22);
+      expect(round.signatoryRole, 'Chief Operating Officer');
+    },
+  );
 
   test('a saved document without the new keys defaults to 26 / HR Manager', () {
     // Simulate an OLD saved document's generation_options (keys absent).

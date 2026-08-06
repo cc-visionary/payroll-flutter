@@ -222,59 +222,65 @@ class PenaltyRecord {
 /// `AutofillContext.penaltyId`) THAT penalty is loaded regardless of status,
 /// so re-generating an older agreement renders its own schedule. Otherwise the
 /// employee's most recent ACTIVE penalty wins. Null when there is none.
-final penaltyForAgreementProvider = FutureProvider.family<
-  PenaltyRecord?,
-  ({String employeeId, String? penaltyId})
->((ref, key) async {
-  final client = Supabase.instance.client;
-  const cols =
-      'id, custom_description, total_amount, installment_count, '
-      'installment_amount, effective_date, remarks, status';
+final penaltyForAgreementProvider =
+    FutureProvider.family<
+      PenaltyRecord?,
+      ({String employeeId, String? penaltyId})
+    >((ref, key) async {
+      final client = Supabase.instance.client;
+      const cols =
+          'id, custom_description, total_amount, installment_count, '
+          'installment_amount, effective_date, remarks, status';
 
-  Map<String, dynamic>? row;
-  final pid = key.penaltyId;
-  if (pid != null && pid.isNotEmpty) {
-    row = await client.from('penalties').select(cols).eq('id', pid).maybeSingle();
-  } else {
-    if (key.employeeId.isEmpty) return null;
-    row = await client
-        .from('penalties')
-        .select(cols)
-        .eq('employee_id', key.employeeId)
-        .eq('status', 'ACTIVE')
-        .order('created_at', ascending: false)
-        .limit(1)
-        .maybeSingle();
-  }
-  if (row == null) return null;
+      Map<String, dynamic>? row;
+      final pid = key.penaltyId;
+      if (pid != null && pid.isNotEmpty) {
+        row = await client
+            .from('penalties')
+            .select(cols)
+            .eq('id', pid)
+            .maybeSingle();
+      } else {
+        if (key.employeeId.isEmpty) return null;
+        row = await client
+            .from('penalties')
+            .select(cols)
+            .eq('employee_id', key.employeeId)
+            .eq('status', 'ACTIVE')
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle();
+      }
+      if (row == null) return null;
 
-  final instRows = await client
-      .from('penalty_installments')
-      .select('installment_number, amount, is_deducted')
-      .eq('penalty_id', row['id'] as String)
-      .order('installment_number', ascending: true);
+      final instRows = await client
+          .from('penalty_installments')
+          .select('installment_number, amount, is_deducted')
+          .eq('penalty_id', row['id'] as String)
+          .order('installment_number', ascending: true);
 
-  return PenaltyRecord(
-    id: row['id'] as String,
-    description: (row['custom_description'] as String?) ?? '',
-    totalAmount: _asDecimal(row['total_amount']),
-    installmentCount: (row['installment_count'] as num?)?.toInt() ?? 0,
-    installmentAmount: _asDecimal(row['installment_amount']),
-    effectiveDate: row['effective_date'] == null
-        ? null
-        : DateTime.tryParse(row['effective_date'] as String),
-    remarks: row['remarks'] as String?,
-    status: (row['status'] as String?) ?? '',
-    installments: [
-      for (final r in (instRows as List<dynamic>).cast<Map<String, dynamic>>())
-        PenaltyInstallmentRow(
-          number: (r['installment_number'] as num?)?.toInt() ?? 0,
-          amount: _asDecimal(r['amount']),
-          isDeducted: (r['is_deducted'] as bool?) ?? false,
-        ),
-    ],
-  );
-});
+      return PenaltyRecord(
+        id: row['id'] as String,
+        description: (row['custom_description'] as String?) ?? '',
+        totalAmount: _asDecimal(row['total_amount']),
+        installmentCount: (row['installment_count'] as num?)?.toInt() ?? 0,
+        installmentAmount: _asDecimal(row['installment_amount']),
+        effectiveDate: row['effective_date'] == null
+            ? null
+            : DateTime.tryParse(row['effective_date'] as String),
+        remarks: row['remarks'] as String?,
+        status: (row['status'] as String?) ?? '',
+        installments: [
+          for (final r
+              in (instRows as List<dynamic>).cast<Map<String, dynamic>>())
+            PenaltyInstallmentRow(
+              number: (r['installment_number'] as num?)?.toInt() ?? 0,
+              amount: _asDecimal(r['amount']),
+              isDeducted: (r['is_deducted'] as bool?) ?? false,
+            ),
+        ],
+      );
+    });
 
 // --- Company-wide documents registry --------------------------------------
 
@@ -343,11 +349,8 @@ final allDocumentsProvider =
 
 /// A single `employee_documents` row by id (null if missing/deleted). Backs the
 /// document viewer, which re-renders the PDF from the row's `generation_options`.
-final documentByIdProvider =
-    FutureProvider.autoDispose.family<Map<String, dynamic>?, String>((
-      ref,
-      id,
-    ) async {
+final documentByIdProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String>((ref, id) async {
       final row = await Supabase.instance.client
           .from('employee_documents')
           .select()
@@ -397,8 +400,10 @@ final ntesByEmployeeProvider =
     });
 
 /// Decoded logo bytes for one hiring entity, or null when none is set.
-final hiringEntityLogoProvider =
-    FutureProvider.family<Uint8List?, String>((ref, entityId) async {
+final hiringEntityLogoProvider = FutureProvider.family<Uint8List?, String>((
+  ref,
+  entityId,
+) async {
   final logo = await ref
       .watch(hiringEntityRepositoryProvider)
       .logoFor(entityId);

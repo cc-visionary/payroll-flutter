@@ -27,17 +27,14 @@ Future<Uint8List> buildDocumentPdf({
       theme: theme.fontTheme,
       footer: theme.showPageNumbers
           ? (ctx) => buildStandardPageFooter(
-                theme,
-                pageNumber: ctx.pageNumber,
-                pagesCount: ctx.pagesCount,
-              )
+              theme,
+              pageNumber: ctx.pageNumber,
+              pagesCount: ctx.pagesCount,
+            )
           : null,
       build: (ctx) => [
         for (final block in blocks)
-          if (block is PageBreakBlock)
-            pw.NewPage()
-          else
-            block.toPdf(theme),
+          if (block is PageBreakBlock) pw.NewPage() else block.toPdf(theme),
       ],
     ),
   );
@@ -63,17 +60,14 @@ Future<Uint8List> buildMultiEmployeePdf({
         theme: theme.fontTheme,
         footer: theme.showPageNumbers
             ? (ctx) => buildStandardPageFooter(
-                  theme,
-                  pageNumber: ctx.pageNumber,
-                  pagesCount: ctx.pagesCount,
-                )
+                theme,
+                pageNumber: ctx.pageNumber,
+                pagesCount: ctx.pagesCount,
+              )
             : null,
         build: (ctx) => [
           for (final block in blocks)
-            if (block is PageBreakBlock)
-              pw.NewPage()
-            else
-              block.toPdf(theme),
+            if (block is PageBreakBlock) pw.NewPage() else block.toPdf(theme),
         ],
       ),
     );

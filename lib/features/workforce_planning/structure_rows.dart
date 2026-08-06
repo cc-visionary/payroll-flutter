@@ -9,7 +9,11 @@ String? reportingDropError({
   required List<({String id, String? parentId})> people,
 }) {
   if (movingId == newParentId) return "A person can't report to themselves.";
-  if (wouldCreateCycle(movingId: movingId, newParentId: newParentId, people: people)) {
+  if (wouldCreateCycle(
+    movingId: movingId,
+    newParentId: newParentId,
+    people: people,
+  )) {
     return 'That would create a reporting loop.';
   }
   return null;

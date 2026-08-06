@@ -25,11 +25,11 @@ void _go(BuildContext context, AttentionTarget target) {
 }
 
 String _categoryLabel(AttentionCategory c) => switch (c) {
-      AttentionCategory.people => 'People',
-      AttentionCategory.process => 'Process',
-      AttentionCategory.structure => 'Structure',
-      AttentionCategory.tools => 'Tools',
-    };
+  AttentionCategory.people => 'People',
+  AttentionCategory.process => 'Process',
+  AttentionCategory.structure => 'Structure',
+  AttentionCategory.tools => 'Tools',
+};
 
 /// Derived gaps in the current plan, surfaced at the top of the Balance tab —
 /// over-capacity people, unowned or uncosted work, unstaffed critical roles,
@@ -48,10 +48,14 @@ class NeedsAttentionStrip extends ConsumerWidget {
     final employees = ref.watch(wpActiveEmployeesProvider).asData?.value;
     final cards = ref.watch(roleScorecardListProvider).asData?.value;
     final kpis = ref.watch(kpiLibraryProvider).asData?.value;
-    final kpiAssignedByKpi = ref.watch(kpiAssignedEmployeesProvider).asData?.value;
+    final kpiAssignedByKpi = ref
+        .watch(kpiAssignedEmployeesProvider)
+        .asData
+        ?.value;
     // Read defensively — this signal must never block first paint on the
     // strip's other, already-required providers.
-    final assignmentsByTask = ref.watch(wpAssignmentsByTaskProvider).asData?.value ?? const {};
+    final assignmentsByTask =
+        ref.watch(wpAssignmentsByTaskProvider).asData?.value ?? const {};
 
     if (loads == null ||
         tasks == null ||
@@ -110,7 +114,9 @@ class NeedsAttentionStrip extends ConsumerWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        for (final item in items.where((i) => i.category == category))
+                        for (final item in items.where(
+                          (i) => i.category == category,
+                        ))
                           if (item.target == AttentionTarget.balance)
                             StatusChip(
                               label: item.label,

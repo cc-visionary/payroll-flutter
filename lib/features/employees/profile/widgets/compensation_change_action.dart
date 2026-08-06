@@ -50,12 +50,17 @@ Future<void> runCompensationChange({
     // Effective today (or earlier) applies now; a future date is scheduled and
     // materialized later by CompensationChangeRepository.applyDue().
     final applyImmediately = !req.effectiveDate.isAfter(today);
-    final effectiveDateStr = req.effectiveDate.toIso8601String().substring(0, 10);
+    final effectiveDateStr = req.effectiveDate.toIso8601String().substring(
+      0,
+      10,
+    );
 
     // 1) Effective-dated compensation change row (APPLIED now vs SCHEDULED).
     //    Use the captured `container` (not the widget `ref`) for all post-await
     //    reads so they don't depend on the widget's ref surviving disposal.
-    final change = await container.read(compensationChangeRepositoryProvider).insert(
+    final change = await container
+        .read(compensationChangeRepositoryProvider)
+        .insert(
           companyId: employee.companyId,
           employeeId: employee.id,
           changeType: req.changeType,

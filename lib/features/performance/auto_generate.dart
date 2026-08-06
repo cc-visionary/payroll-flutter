@@ -40,15 +40,18 @@ Future<BatchGenResult> generatePerformanceCheckInsForQuarter(
     quarter: quarter,
   );
 
-  final employees =
-      await ref.read(employeeListProvider(const EmployeeListQuery()).future);
+  final employees = await ref.read(
+    employeeListProvider(const EmployeeListQuery()).future,
+  );
 
   var created = 0;
   var existed = 0;
 
   Future<void> ensureOne(String periodId, Employee emp) async {
-    final pre =
-        await repo.findCheckInId(periodId: periodId, employeeId: emp.id);
+    final pre = await repo.findCheckInId(
+      periodId: periodId,
+      employeeId: emp.id,
+    );
     final checkInId = await repo.ensureCheckInForEmployeeInPeriod(
       periodId: periodId,
       employeeId: emp.id,

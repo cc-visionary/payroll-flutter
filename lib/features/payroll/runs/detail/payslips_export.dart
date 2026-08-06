@@ -72,10 +72,7 @@ Future<PayslipsZipExportResult?> exportPayslipsZip({
     if (result == null) {
       throw Exception('PDF build returned no result for payslip $id');
     }
-    final name = _uniqueName(
-      _payslipFileName(result),
-      usedNames,
-    );
+    final name = _uniqueName(_payslipFileName(result), usedNames);
     archive.addFile(_zipFileFromBytes(name, result.bytes));
     done += 1;
     onProgress?.call(done, payslipIds.length);
@@ -94,10 +91,9 @@ Future<PayslipsZipExportResult?> exportPayslipsZip({
     final dir = await getTemporaryDirectory();
     final path = '${dir.path}${Platform.pathSeparator}$zipName';
     await File(path).writeAsBytes(zipBytes);
-    final result = await Share.shareXFiles(
-      [XFile(path, mimeType: 'application/zip')],
-      subject: zipName,
-    );
+    final result = await Share.shareXFiles([
+      XFile(path, mimeType: 'application/zip'),
+    ], subject: zipName);
     if (result.status == ShareResultStatus.dismissed) return null;
     return PayslipsZipExportResult(path: path, pdfCount: done);
   }
@@ -109,7 +105,9 @@ Future<PayslipsZipExportResult?> exportPayslipsZip({
     allowedExtensions: const ['zip'],
   );
   if (savePath == null) return null;
-  final target = savePath.toLowerCase().endsWith('.zip') ? savePath : '$savePath.zip';
+  final target = savePath.toLowerCase().endsWith('.zip')
+      ? savePath
+      : '$savePath.zip';
   await File(target).writeAsBytes(zipBytes);
   return PayslipsZipExportResult(path: target, pdfCount: done);
 }
@@ -141,7 +139,7 @@ String _uniqueName(String desired, Set<String> used) {
   final dot = desired.lastIndexOf('.');
   final stem = dot >= 0 ? desired.substring(0, dot) : desired;
   final ext = dot >= 0 ? desired.substring(dot) : '';
-  for (var i = 2;; i++) {
+  for (var i = 2; ; i++) {
     final candidate = '$stem ($i)$ext';
     if (used.add(candidate)) return candidate;
   }

@@ -20,24 +20,27 @@ void main() {
     expect(p.targetEmployeeId, isNull);
   });
 
-  test('CheckInPeriod.fromRow parses all columns including target_employee_id', () {
-    final r = <String, dynamic>{
-      'id': 'p2',
-      'company_id': 'c1',
-      'name': 'Probation 1M — Maria Santos',
-      'period_type': 'PROBATION_1M',
-      'start_date': '2026-04-15',
-      'end_date': '2026-05-01',
-      'due_date': '2026-05-08',
-      'is_active': true,
-      'target_employee_id': 'e1',
-      'created_at': '2026-04-01T00:00:00Z',
-      'updated_at': '2026-04-01T00:00:00Z',
-    };
-    final p = CheckInPeriodFromRow.fromRow(r);
-    expect(p.id, 'p2');
-    expect(p.periodType, 'PROBATION_1M');
-    expect(p.targetEmployeeId, 'e1');
-    expect(p.startDate, DateTime.parse('2026-04-15'));
-  });
+  test(
+    'CheckInPeriod.fromRow parses all columns including target_employee_id',
+    () {
+      final r = <String, dynamic>{
+        'id': 'p2',
+        'company_id': 'c1',
+        'name': 'Probation 1M — Maria Santos',
+        'period_type': 'PROBATION_1M',
+        'start_date': '2026-04-15',
+        'end_date': '2026-05-01',
+        'due_date': '2026-05-08',
+        'is_active': true,
+        'target_employee_id': 'e1',
+        'created_at': '2026-04-01T00:00:00Z',
+        'updated_at': '2026-04-01T00:00:00Z',
+      };
+      final p = CheckInPeriodFromRow.fromRow(r);
+      expect(p.id, 'p2');
+      expect(p.periodType, 'PROBATION_1M');
+      expect(p.targetEmployeeId, 'e1');
+      expect(p.startDate, DateTime.parse('2026-04-15'));
+    },
+  );
 }

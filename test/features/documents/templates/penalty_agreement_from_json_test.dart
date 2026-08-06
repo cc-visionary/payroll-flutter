@@ -109,8 +109,9 @@ void main() {
 
     test('rebuilds blocks', () {
       expect(
-        const PenaltyAgreementTemplate()
-            .build(PenaltyAgreementInputs.fromJson(full.toJson())),
+        const PenaltyAgreementTemplate().build(
+          PenaltyAgreementInputs.fromJson(full.toJson()),
+        ),
         isNotEmpty,
       );
     });

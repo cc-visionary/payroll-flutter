@@ -63,56 +63,68 @@ class _FindingCard extends StatelessWidget {
     required this.onRemove,
   });
 
-  void _setTitle(String s) => onChanged(FindingSection(
-        title: s,
-        standard: finding.standard,
-        finding: finding.finding,
-        subFindings: finding.subFindings,
-      ));
+  void _setTitle(String s) => onChanged(
+    FindingSection(
+      title: s,
+      standard: finding.standard,
+      finding: finding.finding,
+      subFindings: finding.subFindings,
+    ),
+  );
 
-  void _setStandard(String s) => onChanged(FindingSection(
-        title: finding.title,
-        standard: s,
-        finding: finding.finding,
-        subFindings: finding.subFindings,
-      ));
+  void _setStandard(String s) => onChanged(
+    FindingSection(
+      title: finding.title,
+      standard: s,
+      finding: finding.finding,
+      subFindings: finding.subFindings,
+    ),
+  );
 
-  void _setFinding(String s) => onChanged(FindingSection(
-        title: finding.title,
-        standard: finding.standard,
-        finding: s,
-        subFindings: finding.subFindings,
-      ));
+  void _setFinding(String s) => onChanged(
+    FindingSection(
+      title: finding.title,
+      standard: finding.standard,
+      finding: s,
+      subFindings: finding.subFindings,
+    ),
+  );
 
-  void _addSub() => onChanged(FindingSection(
-        title: finding.title,
-        standard: finding.standard,
-        finding: finding.finding,
-        subFindings: [
-          ...finding.subFindings,
-          const SubFinding(title: '', body: ''),
-        ],
-      ));
+  void _addSub() => onChanged(
+    FindingSection(
+      title: finding.title,
+      standard: finding.standard,
+      finding: finding.finding,
+      subFindings: [
+        ...finding.subFindings,
+        const SubFinding(title: '', body: ''),
+      ],
+    ),
+  );
 
   void _setSub(int i, SubFinding s) {
     final next = [...finding.subFindings];
     next[i] = s;
-    onChanged(FindingSection(
-      title: finding.title,
-      standard: finding.standard,
-      finding: finding.finding,
-      subFindings: next,
-    ));
+    onChanged(
+      FindingSection(
+        title: finding.title,
+        standard: finding.standard,
+        finding: finding.finding,
+        subFindings: next,
+      ),
+    );
   }
 
   void _removeSub(int i) {
     final next = [...finding.subFindings]..removeAt(i);
-    onChanged(FindingSection(
-      title: finding.title,
-      standard: finding.standard,
-      finding: finding.finding,
-      subFindings: next,
-    ));
+    onChanged(
+      FindingSection(
+        title: finding.title,
+        standard: finding.standard,
+        finding: finding.finding,
+        subFindings: next,
+      ),
+    );
   }
 
   @override

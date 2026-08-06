@@ -9,7 +9,8 @@ class AttendanceDay {
   final DateTime? actualTimeOut;
   final String attendanceStatus;
   final String sourceType;
-  final int? workedMinutesComputed; // not stored — derived client-side if needed
+  final int?
+  workedMinutesComputed; // not stored — derived client-side if needed
   final bool earlyInApproved;
   final bool lateOutApproved;
   final bool lateInApproved;
@@ -30,10 +31,12 @@ class AttendanceDay {
   final String? employeeLastName;
 
   String get employeeLabel {
-    final name = [employeeFirstName, employeeLastName]
-        .where((s) => s != null && s!.isNotEmpty)
-        .join(' ');
-    if (employeeNumber != null && name.isNotEmpty) return '$employeeNumber · $name';
+    final name = [
+      employeeFirstName,
+      employeeLastName,
+    ].where((s) => s != null && s!.isNotEmpty).join(' ');
+    if (employeeNumber != null && name.isNotEmpty)
+      return '$employeeNumber · $name';
     if (employeeNumber != null) return employeeNumber!;
     if (name.isNotEmpty) return name;
     return employeeId;
@@ -69,40 +72,40 @@ class AttendanceDay {
   });
 
   factory AttendanceDay.fromRow(Map<String, dynamic> r) => AttendanceDay(
-        id: r['id'] as String,
-        employeeId: r['employee_id'] as String,
-        attendanceDate: DateTime.parse(r['attendance_date'] as String),
-        dayType: r['day_type'] as String,
-        actualTimeIn: r['actual_time_in'] == null
-            ? null
-            : DateTime.parse(r['actual_time_in'] as String),
-        actualTimeOut: r['actual_time_out'] == null
-            ? null
-            : DateTime.parse(r['actual_time_out'] as String),
-        attendanceStatus: r['attendance_status'] as String,
-        sourceType: r['source_type'] as String,
-        earlyInApproved: r['early_in_approved'] as bool? ?? false,
-        lateOutApproved: r['late_out_approved'] as bool? ?? false,
-        lateInApproved: r['late_in_approved'] as bool? ?? false,
-        earlyOutApproved: r['early_out_approved'] as bool? ?? false,
-        approvedOtMinutes: r['approved_ot_minutes'] as int?,
-        breakMinutesApplied: r['break_minutes_applied'] as int?,
-        dailyRateOverride: r['daily_rate_override'] == null
-            ? null
-            : Decimal.parse(r['daily_rate_override'].toString()),
-        overrideReason: r['override_reason'] as String?,
-        overrideReasonCode: r['override_reason_code'] as String?,
-        overrideById: r['override_by_id'] as String?,
-        overrideAt: r['override_at'] == null
-            ? null
-            : DateTime.parse(r['override_at'] as String),
-        isLocked: r['is_locked'] as bool? ?? false,
-        holidayName: r['holiday_name'] as String?,
-        shiftTemplateId: r['shift_template_id'] as String?,
-        employeeNumber: _emp(r)?['employee_number'] as String?,
-        employeeFirstName: _emp(r)?['first_name'] as String?,
-        employeeLastName: _emp(r)?['last_name'] as String?,
-      );
+    id: r['id'] as String,
+    employeeId: r['employee_id'] as String,
+    attendanceDate: DateTime.parse(r['attendance_date'] as String),
+    dayType: r['day_type'] as String,
+    actualTimeIn: r['actual_time_in'] == null
+        ? null
+        : DateTime.parse(r['actual_time_in'] as String),
+    actualTimeOut: r['actual_time_out'] == null
+        ? null
+        : DateTime.parse(r['actual_time_out'] as String),
+    attendanceStatus: r['attendance_status'] as String,
+    sourceType: r['source_type'] as String,
+    earlyInApproved: r['early_in_approved'] as bool? ?? false,
+    lateOutApproved: r['late_out_approved'] as bool? ?? false,
+    lateInApproved: r['late_in_approved'] as bool? ?? false,
+    earlyOutApproved: r['early_out_approved'] as bool? ?? false,
+    approvedOtMinutes: r['approved_ot_minutes'] as int?,
+    breakMinutesApplied: r['break_minutes_applied'] as int?,
+    dailyRateOverride: r['daily_rate_override'] == null
+        ? null
+        : Decimal.parse(r['daily_rate_override'].toString()),
+    overrideReason: r['override_reason'] as String?,
+    overrideReasonCode: r['override_reason_code'] as String?,
+    overrideById: r['override_by_id'] as String?,
+    overrideAt: r['override_at'] == null
+        ? null
+        : DateTime.parse(r['override_at'] as String),
+    isLocked: r['is_locked'] as bool? ?? false,
+    holidayName: r['holiday_name'] as String?,
+    shiftTemplateId: r['shift_template_id'] as String?,
+    employeeNumber: _emp(r)?['employee_number'] as String?,
+    employeeFirstName: _emp(r)?['first_name'] as String?,
+    employeeLastName: _emp(r)?['last_name'] as String?,
+  );
 
   static Map<String, dynamic>? _emp(Map<String, dynamic> r) =>
       r['employees'] as Map<String, dynamic>?;

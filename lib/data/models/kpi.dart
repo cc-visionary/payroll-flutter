@@ -34,8 +34,9 @@ class Kpi {
     'company_id': companyId,
     'name': name.trim(),
     'category': (category?.trim().isEmpty ?? true) ? null : category!.trim(),
-    'description':
-        (description?.trim().isEmpty ?? true) ? null : description!.trim(),
+    'description': (description?.trim().isEmpty ?? true)
+        ? null
+        : description!.trim(),
     'measurement_unit': (measurementUnit?.trim().isEmpty ?? true)
         ? null
         : measurementUnit!.trim(),

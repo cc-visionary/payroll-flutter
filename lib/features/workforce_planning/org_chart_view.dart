@@ -64,8 +64,9 @@ class _OrgChartViewState extends State<OrgChartView> {
   Widget _subtree(OrgNode node) {
     final emp = widget.empById[node.id];
     final box = _box(node, emp);
-    final wrapped =
-        (emp != null && widget.nodeWrapper != null) ? widget.nodeWrapper!(emp, box) : box;
+    final wrapped = (emp != null && widget.nodeWrapper != null)
+        ? widget.nodeWrapper!(emp, box)
+        : box;
 
     final kids = node.children;
     final showKids = kids.isNotEmpty && !_collapsed.contains(node.id);
@@ -98,7 +99,9 @@ class _OrgChartViewState extends State<OrgChartView> {
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: _gap / 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: _gap / 2,
+                        ),
                         child: _subtree(kids[i]),
                       ),
                     ],
@@ -111,9 +114,11 @@ class _OrgChartViewState extends State<OrgChartView> {
     );
   }
 
-  Color _lineColor(BuildContext context) => Theme.of(context).colorScheme.outlineVariant;
+  Color _lineColor(BuildContext context) =>
+      Theme.of(context).colorScheme.outlineVariant;
 
-  Widget _stub() => Container(width: 1.5, height: _drop, color: _lineColor(context));
+  Widget _stub() =>
+      Container(width: 1.5, height: _drop, color: _lineColor(context));
 
   Widget _box(OrgNode node, Employee? emp) {
     final cs = Theme.of(context).colorScheme;
@@ -163,10 +168,16 @@ class _OrgChartViewState extends State<OrgChartView> {
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: _footerButton(
-                  icon: collapsed ? Icons.add_circle_outline : Icons.remove_circle_outline,
-                  label: '${kids.length} ${kids.length == 1 ? 'report' : 'reports'}',
-                  onTap: () => setState(() =>
-                      collapsed ? _collapsed.remove(node.id) : _collapsed.add(node.id)),
+                  icon: collapsed
+                      ? Icons.add_circle_outline
+                      : Icons.remove_circle_outline,
+                  label:
+                      '${kids.length} ${kids.length == 1 ? 'report' : 'reports'}',
+                  onTap: () => setState(
+                    () => collapsed
+                        ? _collapsed.remove(node.id)
+                        : _collapsed.add(node.id),
+                  ),
                 ),
               ),
             ),
@@ -191,13 +202,15 @@ class _OrgChartViewState extends State<OrgChartView> {
           children: [
             Icon(icon, size: 14, color: cs.onSurfaceVariant),
             const SizedBox(width: 3),
-            Text(label, style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
+            Text(
+              label,
+              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+            ),
           ],
         ),
       ),
     );
   }
-
 }
 
 /// Draws one child's connector: a horizontal bar along the top edge that meets
@@ -205,7 +218,11 @@ class _OrgChartViewState extends State<OrgChartView> {
 /// the centre for the first/last child so the run spans exactly first-centre to
 /// last-centre.
 class _ElbowPainter extends CustomPainter {
-  const _ElbowPainter({required this.isFirst, required this.isLast, required this.color});
+  const _ElbowPainter({
+    required this.isFirst,
+    required this.isLast,
+    required this.color,
+  });
 
   final bool isFirst;
   final bool isLast;

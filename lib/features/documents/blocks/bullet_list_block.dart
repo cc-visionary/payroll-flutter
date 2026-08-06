@@ -8,19 +8,19 @@ class BulletListBlock extends Block {
 
   @override
   pw.Widget toPdf(PdfTheme theme) => pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          for (final item in items)
-            pw.Padding(
-              padding: const pw.EdgeInsets.only(bottom: 2),
-              child: pw.Bullet(
-                text: item,
-                style: pw.TextStyle(
-                  fontSize: theme.bodySize,
-                  color: theme.textColor,
-                ),
-              ),
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
+    children: [
+      for (final item in items)
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 2),
+          child: pw.Bullet(
+            text: item,
+            style: pw.TextStyle(
+              fontSize: theme.bodySize,
+              color: theme.textColor,
             ),
-        ],
-      );
+          ),
+        ),
+    ],
+  );
 }

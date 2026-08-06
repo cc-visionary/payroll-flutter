@@ -60,24 +60,22 @@ void main() {
   });
 
   group('overdueReviewsAsOf', () {
-    ReviewCycle cycle({
-      required String selfDue,
-      required String managerDue,
-    }) => ReviewCycle.fromRow({
-      'id': 'cycle-1',
-      'company_id': 'company-1',
-      'name': 'Q3 2026',
-      'review_type': 'QUARTERLY',
-      'period_start': '2026-07-01',
-      'period_end': '2026-09-30',
-      'self_review_due_date': selfDue,
-      'manager_review_due_date': managerDue,
-      'status': 'ACTIVE',
-      'lark_form_template_id': 'tmpl',
-      'created_by': 'user-1',
-      'created_at': '2026-07-01T00:00:00Z',
-      'updated_at': '2026-07-01T00:00:00Z',
-    });
+    ReviewCycle cycle({required String selfDue, required String managerDue}) =>
+        ReviewCycle.fromRow({
+          'id': 'cycle-1',
+          'company_id': 'company-1',
+          'name': 'Q3 2026',
+          'review_type': 'QUARTERLY',
+          'period_start': '2026-07-01',
+          'period_end': '2026-09-30',
+          'self_review_due_date': selfDue,
+          'manager_review_due_date': managerDue,
+          'status': 'ACTIVE',
+          'lark_form_template_id': 'tmpl',
+          'created_by': 'user-1',
+          'created_at': '2026-07-01T00:00:00Z',
+          'updated_at': '2026-07-01T00:00:00Z',
+        });
 
     EmployeeReview review(String id, String status) => EmployeeReview.fromRow({
       'id': id,

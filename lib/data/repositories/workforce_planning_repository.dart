@@ -16,14 +16,20 @@ Map<String, dynamic>? primaryAssignmentPayload({
 }) {
   if (ownerEmployeeId != null) {
     return {
-      'company_id': companyId, 'task_id': taskId, 'employee_id': ownerEmployeeId,
-      'assignment_role': 'PRIMARY', 'allocation_pct': 100,
+      'company_id': companyId,
+      'task_id': taskId,
+      'employee_id': ownerEmployeeId,
+      'assignment_role': 'PRIMARY',
+      'allocation_pct': 100,
     };
   }
   if (roleScorecardId != null) {
     return {
-      'company_id': companyId, 'task_id': taskId, 'role_scorecard_id': roleScorecardId,
-      'assignment_role': 'PRIMARY', 'allocation_pct': 100,
+      'company_id': companyId,
+      'task_id': taskId,
+      'role_scorecard_id': roleScorecardId,
+      'assignment_role': 'PRIMARY',
+      'allocation_pct': 100,
     };
   }
   return null;
@@ -34,12 +40,20 @@ class WorkforcePlanningRepository {
   WorkforcePlanningRepository(this._client);
 
   Future<List<WpNode>> nodes() async {
-    final rows = await _client.from('wp_value_chain_nodes').select().order('sort_order').order('code');
+    final rows = await _client
+        .from('wp_value_chain_nodes')
+        .select()
+        .order('sort_order')
+        .order('code');
     return rows.cast<Map<String, dynamic>>().map(WpNode.fromRow).toList();
   }
 
   Future<List<WpDriver>> drivers() async {
-    final rows = await _client.from('wp_drivers').select().order('sort_order').order('name');
+    final rows = await _client
+        .from('wp_drivers')
+        .select()
+        .order('sort_order')
+        .order('name');
     return rows.cast<Map<String, dynamic>>().map(WpDriver.fromRow).toList();
   }
 
@@ -58,19 +72,26 @@ class WorkforcePlanningRepository {
   /// unpaged select would eventually return a silent truncated slice — and a
   /// missing task reads as "this work does not exist" rather than as an error.
   Future<List<WpTask>> tasks() => fetchAllPages((from, to) async {
-        final rows =
-            await _client.from('wp_tasks').select().order('name').range(from, to);
-        return rows.cast<Map<String, dynamic>>().map(WpTask.fromRow).toList();
-      });
+    final rows = await _client
+        .from('wp_tasks')
+        .select()
+        .order('name')
+        .range(from, to);
+    return rows.cast<Map<String, dynamic>>().map(WpTask.fromRow).toList();
+  });
 
   /// Paged for the same reason as [tasks] — grows with every assignment.
-  Future<List<WpTaskAssignment>> taskAssignments() => fetchAllPages((from, to) async {
+  Future<List<WpTaskAssignment>> taskAssignments() =>
+      fetchAllPages((from, to) async {
         final rows = await _client
             .from('wp_task_assignments')
             .select()
             .order('task_id')
             .range(from, to);
-        return rows.cast<Map<String, dynamic>>().map(WpTaskAssignment.fromRow).toList();
+        return rows
+            .cast<Map<String, dynamic>>()
+            .map(WpTaskAssignment.fromRow)
+            .toList();
       });
 
   /// Inserts a new assignment or updates an existing one's role/percentage.
@@ -81,10 +102,13 @@ class WorkforcePlanningRepository {
     if (a.id.isEmpty) {
       await _client.from('wp_task_assignments').insert(a.toUpsert(a.companyId));
     } else {
-      await _client.from('wp_task_assignments').update({
-        'assignment_role': a.assignmentRole,
-        'allocation_pct': a.allocationPct,
-      }).eq('id', a.id);
+      await _client
+          .from('wp_task_assignments')
+          .update({
+            'assignment_role': a.assignmentRole,
+            'allocation_pct': a.allocationPct,
+          })
+          .eq('id', a.id);
     }
   }
 
@@ -95,25 +119,31 @@ class WorkforcePlanningRepository {
   /// PostgREST has no multi-row-different-values update.
   Future<void> setAllocations(Map<String, double> pctById) async {
     for (final e in pctById.entries) {
-      await _client.from('wp_task_assignments').update({
-        'allocation_pct': e.value,
-      }).eq('id', e.key);
+      await _client
+          .from('wp_task_assignments')
+          .update({'allocation_pct': e.value})
+          .eq('id', e.key);
     }
   }
 
   Future<List<WpPersonLoad>> personLoads() => fetchAllPages((from, to) async {
-        final rows = await _client
-            .from('wp_person_load')
-            .select()
-            .order('employee_id')
-            .range(from, to);
-        return rows.cast<Map<String, dynamic>>().map(WpPersonLoad.fromRow).toList();
-      });
+    final rows = await _client
+        .from('wp_person_load')
+        .select()
+        .order('employee_id')
+        .range(from, to);
+    return rows.cast<Map<String, dynamic>>().map(WpPersonLoad.fromRow).toList();
+  });
 
   Future<List<WpTaskComputed>> taskComputedForOwner(String employeeId) async {
     final rows = await _client
-        .from('wp_task_computed').select().eq('owner_employee_id', employeeId);
-    return rows.cast<Map<String, dynamic>>().map(WpTaskComputed.fromRow).toList();
+        .from('wp_task_computed')
+        .select()
+        .eq('owner_employee_id', employeeId);
+    return rows
+        .cast<Map<String, dynamic>>()
+        .map(WpTaskComputed.fromRow)
+        .toList();
   }
 
   /// Every computed task row. Needed because a person's task list now includes
@@ -123,20 +153,28 @@ class WorkforcePlanningRepository {
   /// Paged for the same reason as [tasks] — this view has one row per task, so
   /// it crosses `max_rows` at exactly the same point, and a truncated slice
   /// here silently under-reports everyone's hours.
-  Future<List<WpTaskComputed>> allTaskComputed() => fetchAllPages((from, to) async {
+  Future<List<WpTaskComputed>> allTaskComputed() =>
+      fetchAllPages((from, to) async {
         final rows = await _client
             .from('wp_task_computed')
             .select()
             .order('task_id')
             .range(from, to);
-        return rows.cast<Map<String, dynamic>>().map(WpTaskComputed.fromRow).toList();
+        return rows
+            .cast<Map<String, dynamic>>()
+            .map(WpTaskComputed.fromRow)
+            .toList();
       });
 
   Future<void> saveTask(WpTask task) async {
     final payload = task.toUpsert(task.companyId);
     String id;
     if (task.id.isEmpty) {
-      final row = await _client.from('wp_tasks').insert(payload).select('id').single();
+      final row = await _client
+          .from('wp_tasks')
+          .insert(payload)
+          .select('id')
+          .single();
       id = row['id'] as String;
     } else {
       await _client.from('wp_tasks').update(payload).eq('id', task.id);
@@ -151,9 +189,11 @@ class WorkforcePlanningRepository {
   /// leave a stale PRIMARY and the load view would disagree with the rest of the
   /// UI. Step 5 moves writes onto assignments directly and retires this sync.
   Future<void> _syncPrimaryFromTask(String taskId) async {
-    final t = await _client.from('wp_tasks')
+    final t = await _client
+        .from('wp_tasks')
         .select('company_id, owner_employee_id, role_scorecard_id')
-        .eq('id', taskId).maybeSingle();
+        .eq('id', taskId)
+        .maybeSingle();
     if (t == null) return;
     final payload = primaryAssignmentPayload(
       companyId: t['company_id'] as String,
@@ -161,17 +201,25 @@ class WorkforcePlanningRepository {
       ownerEmployeeId: t['owner_employee_id'] as String?,
       roleScorecardId: t['role_scorecard_id'] as String?,
     );
-    final rows = (await _client.from('wp_task_assignments')
-            .select('id, employee_id, role_scorecard_id, assignment_role, allocation_pct')
-            .eq('task_id', taskId))
-        .cast<Map<String, dynamic>>();
+    final rows =
+        (await _client
+                .from('wp_task_assignments')
+                .select(
+                  'id, employee_id, role_scorecard_id, assignment_role, allocation_pct',
+                )
+                .eq('task_id', taskId))
+            .cast<Map<String, dynamic>>();
 
     Map<String, dynamic>? primary;
     for (final r in rows) {
-      if (r['assignment_role'] == 'PRIMARY') { primary = r; break; }
+      if (r['assignment_role'] == 'PRIMARY') {
+        primary = r;
+        break;
+      }
     }
     // Same target -> leave the row (and its manually-set %) untouched.
-    if (primary != null && payload != null &&
+    if (primary != null &&
+        payload != null &&
         primary['employee_id'] == payload['employee_id'] &&
         primary['role_scorecard_id'] == payload['role_scorecard_id']) {
       return;
@@ -192,7 +240,10 @@ class WorkforcePlanningRepository {
       }
     }
     if (doomed.isNotEmpty) {
-      await _client.from('wp_task_assignments').delete().inFilter('id', doomed.toList());
+      await _client
+          .from('wp_task_assignments')
+          .delete()
+          .inFilter('id', doomed.toList());
     }
     if (payload == null) return;
 
@@ -205,8 +256,10 @@ class WorkforcePlanningRepository {
       survivingPct += (r['allocation_pct'] as num?)?.toDouble() ?? 0;
     }
     final pct = (100 - survivingPct).clamp(0, 100).toDouble();
-    await _client.from('wp_task_assignments')
-        .insert({...payload, 'allocation_pct': pct});
+    await _client.from('wp_task_assignments').insert({
+      ...payload,
+      'allocation_pct': pct,
+    });
   }
 
   Future<void> deleteTask(String id) async =>
@@ -221,7 +274,9 @@ class WorkforcePlanningRepository {
   /// multi-row-different-values update, and a partial failure must leave the
   /// successful rows saved rather than silently rolling the batch back.
   /// Returns the ids that failed, so the caller can keep them dirty.
-  Future<List<String>> updateTaskCosts(Map<String, Map<String, dynamic>> byId) async {
+  Future<List<String>> updateTaskCosts(
+    Map<String, Map<String, dynamic>> byId,
+  ) async {
     final failed = <String>[];
     for (final entry in byId.entries) {
       try {
@@ -239,20 +294,23 @@ class WorkforcePlanningRepository {
   /// the DB constraint forbids an expectation that carries hours, and doing it
   /// in two writes would leave a window where the row violates the rule.
   Future<void> setTaskExpectation(String taskId, bool isExpectation) async {
-    await _client.from('wp_tasks').update({
-      'is_expectation': isExpectation,
-      // Keep the invariant: an expectation is non-essential; a task made
-      // costable again returns to the essential default. Setting is_essential in
-      // the SAME statement avoids a window where the row violates the CHECK.
-      'is_essential': !isExpectation,
-      if (isExpectation) ...{
-        'times_manual': null,
-        'driver_id': null,
-        'minutes_manual': null,
-        'rate_id': null,
-        'hours_per_month': null,
-      },
-    }).eq('id', taskId);
+    await _client
+        .from('wp_tasks')
+        .update({
+          'is_expectation': isExpectation,
+          // Keep the invariant: an expectation is non-essential; a task made
+          // costable again returns to the essential default. Setting is_essential in
+          // the SAME statement avoids a window where the row violates the CHECK.
+          'is_essential': !isExpectation,
+          if (isExpectation) ...{
+            'times_manual': null,
+            'driver_id': null,
+            'minutes_manual': null,
+            'rate_id': null,
+            'hours_per_month': null,
+          },
+        })
+        .eq('id', taskId);
   }
 
   /// Archives (or restores) an accountability. ARCHIVED work leaves load and
@@ -260,13 +318,17 @@ class WorkforcePlanningRepository {
   /// can be restored — the correct tool for "no longer needed", vs a hard
   /// delete of a row that carries history.
   Future<void> setTaskArchived(String taskId, bool archived) async {
-    await _client.from('wp_tasks')
+    await _client
+        .from('wp_tasks')
         .update({'status': archived ? 'ARCHIVED' : 'ACTIVE'})
         .eq('id', taskId);
   }
 
   Future<void> reassignTaskOwner(String taskId, String? ownerEmployeeId) async {
-    await _client.from('wp_tasks').update({'owner_employee_id': ownerEmployeeId}).eq('id', taskId);
+    await _client
+        .from('wp_tasks')
+        .update({'owner_employee_id': ownerEmployeeId})
+        .eq('id', taskId);
     await _syncPrimaryFromTask(taskId);
   }
 
@@ -275,7 +337,8 @@ class WorkforcePlanningRepository {
   /// how work leaves the unassigned set pre-`wp_task_assignments`. At step 4
   /// this becomes a PRIMARY assignment insert with no caller change.
   Future<void> setTaskCard(String taskId, String? roleScorecardId) async {
-    await _client.from('wp_tasks')
+    await _client
+        .from('wp_tasks')
         .update({'role_scorecard_id': roleScorecardId})
         .eq('id', taskId);
     await _syncPrimaryFromTask(taskId);
@@ -301,20 +364,28 @@ class WorkforcePlanningRepository {
 
   Future<void> setGrowthMultiplier(String companyId, double m) async =>
       _client.from('wp_config').upsert({
-        'company_id': companyId, 'growth_multiplier': m, 'updated_at': DateTime.now().toIso8601String(),
+        'company_id': companyId,
+        'growth_multiplier': m,
+        'updated_at': DateTime.now().toIso8601String(),
       }, onConflict: 'company_id');
 
   Future<void> setCapacityOverride(String employeeId, double? hours) async {
     if (hours == null) {
-      await _client.from('wp_capacity_overrides').delete().eq('employee_id', employeeId);
+      await _client
+          .from('wp_capacity_overrides')
+          .delete()
+          .eq('employee_id', employeeId);
     } else {
       await _client.from('wp_capacity_overrides').upsert({
-        'employee_id': employeeId, 'capacity_hours': hours,
+        'employee_id': employeeId,
+        'capacity_hours': hours,
         'updated_at': DateTime.now().toIso8601String(),
       }, onConflict: 'employee_id');
     }
   }
 }
 
-final workforcePlanningRepositoryProvider = Provider<WorkforcePlanningRepository>(
-    (ref) => WorkforcePlanningRepository(Supabase.instance.client));
+final workforcePlanningRepositoryProvider =
+    Provider<WorkforcePlanningRepository>(
+      (ref) => WorkforcePlanningRepository(Supabase.instance.client),
+    );

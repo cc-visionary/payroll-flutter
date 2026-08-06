@@ -25,9 +25,7 @@ class DashboardScreen extends ConsumerWidget {
     final mobile = isMobile(context);
     return Scaffold(
       drawer: mobile ? const AppDrawer() : null,
-      appBar: mobile
-          ? AppBar(title: const Text('Dashboard'))
-          : null,
+      appBar: mobile ? AppBar(title: const Text('Dashboard')) : null,
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(dashboardYearDataProvider),
         child: async.when(
@@ -35,7 +33,10 @@ class DashboardScreen extends ConsumerWidget {
           error: (e, _) => Center(
             child: Padding(
               padding: const EdgeInsets.all(24),
-              child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
+              child: Text(
+                'Error: $e',
+                style: const TextStyle(color: Colors.red),
+              ),
             ),
           ),
           data: (v) => SingleChildScrollView(
@@ -57,25 +58,33 @@ class _DashboardBody extends ConsumerWidget {
     final period = ref.watch(dashboardPeriodProvider);
     final thisYear = DateTime.now().year;
     final yearOptions = [for (var y = thisYear; y >= thisYear - 4; y--) y];
-    final updatedLabel =
-        DateFormat('MMM d, yyyy, h:mm a').format(view.generatedAt);
+    final updatedLabel = DateFormat(
+      'MMM d, yyyy, h:mm a',
+    ).format(view.generatedAt);
     final mobile = isMobile(context);
 
     final headerTitle = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Dashboard',
-            style: TextStyle(
-                fontSize: mobile ? 22 : 28, fontWeight: FontWeight.w700)),
+        Text(
+          'Dashboard',
+          style: TextStyle(
+            fontSize: mobile ? 22 : 28,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         const SizedBox(height: 4),
-        Text('HR Analytics · ${period.label}',
-            style: const TextStyle(color: Colors.grey)),
+        Text(
+          'HR Analytics · ${period.label}',
+          style: const TextStyle(color: Colors.grey),
+        ),
       ],
     );
 
     final headerMeta = Column(
-      crossAxisAlignment:
-          mobile ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+      crossAxisAlignment: mobile
+          ? CrossAxisAlignment.start
+          : CrossAxisAlignment.end,
       children: [
         Row(
           mainAxisSize: MainAxisSize.min,
@@ -83,15 +92,19 @@ class _DashboardBody extends ConsumerWidget {
             SegmentedButton<DashboardPeriodMode>(
               segments: const [
                 ButtonSegment(
-                    value: DashboardPeriodMode.month, label: Text('Month')),
+                  value: DashboardPeriodMode.month,
+                  label: Text('Month'),
+                ),
                 ButtonSegment(
-                    value: DashboardPeriodMode.year, label: Text('Year')),
+                  value: DashboardPeriodMode.year,
+                  label: Text('Year'),
+                ),
               ],
               selected: {period.mode},
               showSelectedIcon: false,
               onSelectionChanged: (s) {
-                ref.read(dashboardPeriodProvider.notifier).state =
-                    period.copyWith(mode: s.first);
+                ref.read(dashboardPeriodProvider.notifier).state = period
+                    .copyWith(mode: s.first);
               },
             ),
             const SizedBox(width: LuxiumSpacing.md),
@@ -105,13 +118,14 @@ class _DashboardBody extends ConsumerWidget {
                     DropdownMenuItem(
                       value: m,
                       child: Text(
-                          DateFormat('MMMM').format(DateTime(2000, m, 1))),
+                        DateFormat('MMMM').format(DateTime(2000, m, 1)),
+                      ),
                     ),
                 ],
                 onChanged: (m) {
                   if (m == null) return;
-                  ref.read(dashboardPeriodProvider.notifier).state =
-                      period.copyWith(month: m);
+                  ref.read(dashboardPeriodProvider.notifier).state = period
+                      .copyWith(month: m);
                 },
               ),
               const SizedBox(width: LuxiumSpacing.sm),
@@ -128,15 +142,17 @@ class _DashboardBody extends ConsumerWidget {
               ],
               onChanged: (y) {
                 if (y == null) return;
-                ref.read(dashboardPeriodProvider.notifier).state =
-                    period.copyWith(year: y);
+                ref.read(dashboardPeriodProvider.notifier).state = period
+                    .copyWith(year: y);
               },
             ),
           ],
         ),
         const SizedBox(height: 4),
-        Text('Last updated: $updatedLabel',
-            style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(
+          'Last updated: $updatedLabel',
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
       ],
     );
     return Column(
@@ -146,11 +162,7 @@ class _DashboardBody extends ConsumerWidget {
         if (mobile)
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              headerTitle,
-              const SizedBox(height: 12),
-              headerMeta,
-            ],
+            children: [headerTitle, const SizedBox(height: 12), headerMeta],
           )
         else
           Row(
@@ -162,136 +174,140 @@ class _DashboardBody extends ConsumerWidget {
           ),
         const SizedBox(height: 24),
         // Row 1: KPIs
-        Builder(builder: (context) {
-          final p = LuxiumColors.of(context);
-          final amber = Theme.of(context).brightness == Brightness.light
-              ? const Color(0xFFF59E0B)
-              : const Color(0xFFFBBF24);
-          final tertiary = Theme.of(context).colorScheme.tertiary;
-          final m = view.metrics;
-          final asOfLabel =
-              DateFormat('MMM d, yyyy').format(view.snapshot.asOf);
-          return _ResponsiveRow(
-            minColWidth: 220,
-            children: [
-              _KpiCard(
-                icon: Icons.groups_outlined,
-                iconBg: p.ctaTint,
-                iconColor: p.cta,
-                label: 'Active Employees',
-                value: view.snapshot.activeEmployees.toString(),
-                subtitle: 'as of $asOfLabel',
-              ),
-              _KpiCard(
-                icon: Icons.access_time,
-                iconBg: p.accentGreen.withValues(alpha: 0.14),
-                iconColor: p.accentGreen,
-                label: 'Attendance Rate',
-                value: '${m.attendanceRatePct.toStringAsFixed(1)}%',
-                subtitle:
-                    '${m.presentDays} present · ${m.absentDays} absent',
-              ),
-              _KpiCard(
-                icon: Icons.timer_outlined,
-                iconBg: amber.withValues(alpha: 0.14),
-                iconColor: amber,
-                label: 'Late / UT',
-                value: formatMinutes(m.lateUndertimeMinutes),
-                subtitle:
-                    '${m.avgLateMinutesPerWorkDay.toStringAsFixed(1)} min/work day',
-              ),
-              _KpiCard(
-                icon: Icons.beach_access_outlined,
-                iconBg: const Color(0xFF8B5CF6).withValues(alpha: 0.14),
-                iconColor: const Color(0xFF8B5CF6),
-                label: 'Leave Days',
-                value: formatDays(m.leaveDays),
-                subtitle: 'approved leave taken',
-              ),
-              _KpiCard(
-                icon: Icons.trending_up,
-                iconBg: tertiary.withValues(alpha: 0.14),
-                iconColor: tertiary,
-                label: 'OT Hours',
-                value: '${m.overtimeHours.toStringAsFixed(1)} hrs',
-                subtitle: 'net of late absorption',
-              ),
-              _KpiCard(
-                icon: Icons.work_outline,
-                iconBg: p.cta.withValues(alpha: 0.14),
-                iconColor: p.cta,
-                label: 'Open Applicants',
-                value: view.openApplicants.toString(),
-                subtitle: '${m.newApplicants} new this period',
-              ),
-            ],
-          );
-        }),
+        Builder(
+          builder: (context) {
+            final p = LuxiumColors.of(context);
+            final amber = Theme.of(context).brightness == Brightness.light
+                ? const Color(0xFFF59E0B)
+                : const Color(0xFFFBBF24);
+            final tertiary = Theme.of(context).colorScheme.tertiary;
+            final m = view.metrics;
+            final asOfLabel = DateFormat(
+              'MMM d, yyyy',
+            ).format(view.snapshot.asOf);
+            return _ResponsiveRow(
+              minColWidth: 220,
+              children: [
+                _KpiCard(
+                  icon: Icons.groups_outlined,
+                  iconBg: p.ctaTint,
+                  iconColor: p.cta,
+                  label: 'Active Employees',
+                  value: view.snapshot.activeEmployees.toString(),
+                  subtitle: 'as of $asOfLabel',
+                ),
+                _KpiCard(
+                  icon: Icons.access_time,
+                  iconBg: p.accentGreen.withValues(alpha: 0.14),
+                  iconColor: p.accentGreen,
+                  label: 'Attendance Rate',
+                  value: '${m.attendanceRatePct.toStringAsFixed(1)}%',
+                  subtitle: '${m.presentDays} present · ${m.absentDays} absent',
+                ),
+                _KpiCard(
+                  icon: Icons.timer_outlined,
+                  iconBg: amber.withValues(alpha: 0.14),
+                  iconColor: amber,
+                  label: 'Late / UT',
+                  value: formatMinutes(m.lateUndertimeMinutes),
+                  subtitle:
+                      '${m.avgLateMinutesPerWorkDay.toStringAsFixed(1)} min/work day',
+                ),
+                _KpiCard(
+                  icon: Icons.beach_access_outlined,
+                  iconBg: const Color(0xFF8B5CF6).withValues(alpha: 0.14),
+                  iconColor: const Color(0xFF8B5CF6),
+                  label: 'Leave Days',
+                  value: formatDays(m.leaveDays),
+                  subtitle: 'approved leave taken',
+                ),
+                _KpiCard(
+                  icon: Icons.trending_up,
+                  iconBg: tertiary.withValues(alpha: 0.14),
+                  iconColor: tertiary,
+                  label: 'OT Hours',
+                  value: '${m.overtimeHours.toStringAsFixed(1)} hrs',
+                  subtitle: 'net of late absorption',
+                ),
+                _KpiCard(
+                  icon: Icons.work_outline,
+                  iconBg: p.cta.withValues(alpha: 0.14),
+                  iconColor: p.cta,
+                  label: 'Open Applicants',
+                  value: view.openApplicants.toString(),
+                  subtitle: '${m.newApplicants} new this period',
+                ),
+              ],
+            );
+          },
+        ),
         const SizedBox(height: 16),
-        Builder(builder: (context) {
-          final asOf =
-              'as of ${DateFormat('MMM d, yyyy').format(view.snapshot.asOf)}';
-          final s = view.snapshot;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _ResponsiveRow(
-                minColWidth: 360,
-                children: [
-                  _SectionCard(
-                    title: 'Headcount by Department',
-                    subtitle: asOf,
-                    icon: Icons.bar_chart,
-                    child: _DeptBars(counts: s.headcountByDepartment),
-                  ),
-                  _SectionCard(
-                    title: 'Employment Type Distribution',
-                    subtitle: asOf,
-                    child: _DonutWithLegend(
-                      counts: s.employmentTypeCounts,
-                      centerLabel: 'Total',
-                      palette: const [
-                        Color(0xFF3B82F6),
-                        Color(0xFF10B981),
-                        Color(0xFFF59E0B),
-                        Color(0xFFEF4444),
-                        Color(0xFF8B5CF6),
-                        Color(0xFF06B6D4),
-                      ],
+        Builder(
+          builder: (context) {
+            final asOf =
+                'as of ${DateFormat('MMM d, yyyy').format(view.snapshot.asOf)}';
+            final s = view.snapshot;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _ResponsiveRow(
+                  minColWidth: 360,
+                  children: [
+                    _SectionCard(
+                      title: 'Headcount by Department',
+                      subtitle: asOf,
+                      icon: Icons.bar_chart,
+                      child: _DeptBars(counts: s.headcountByDepartment),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _ResponsiveRow(
-                minColWidth: 360,
-                children: [
-                  _SectionCard(
-                    title: 'Employees by Hiring Entity',
-                    subtitle: asOf,
-                    child: _DonutWithLegend(
-                      counts: s.hiringEntityCounts,
-                      centerLabel: 'Total',
-                      palette: const [
-                        Color(0xFF7C3AED),
-                        Color(0xFF14B8A6),
-                        Color(0xFFEC4899),
-                        Color(0xFFF59E0B),
-                        Color(0xFF3B82F6),
-                      ],
+                    _SectionCard(
+                      title: 'Employment Type Distribution',
+                      subtitle: asOf,
+                      child: _DonutWithLegend(
+                        counts: s.employmentTypeCounts,
+                        centerLabel: 'Total',
+                        palette: const [
+                          Color(0xFF3B82F6),
+                          Color(0xFF10B981),
+                          Color(0xFFF59E0B),
+                          Color(0xFFEF4444),
+                          Color(0xFF8B5CF6),
+                          Color(0xFF06B6D4),
+                        ],
+                      ),
                     ),
-                  ),
-                  _SectionCard(
-                    title: 'Tenure Distribution',
-                    subtitle:
-                        'Avg ${s.avgTenureMonths.toStringAsFixed(1)} months · $asOf',
-                    child: _TenureBars(buckets: s.tenureBuckets),
-                  ),
-                ],
-              ),
-            ],
-          );
-        }),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _ResponsiveRow(
+                  minColWidth: 360,
+                  children: [
+                    _SectionCard(
+                      title: 'Employees by Hiring Entity',
+                      subtitle: asOf,
+                      child: _DonutWithLegend(
+                        counts: s.hiringEntityCounts,
+                        centerLabel: 'Total',
+                        palette: const [
+                          Color(0xFF7C3AED),
+                          Color(0xFF14B8A6),
+                          Color(0xFFEC4899),
+                          Color(0xFFF59E0B),
+                          Color(0xFF3B82F6),
+                        ],
+                      ),
+                    ),
+                    _SectionCard(
+                      title: 'Tenure Distribution',
+                      subtitle:
+                          'Avg ${s.avgTenureMonths.toStringAsFixed(1)} months · $asOf',
+                      child: _TenureBars(buckets: s.tenureBuckets),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
         const SizedBox(height: 16),
         _ResponsiveRow(
           minColWidth: 420,
@@ -351,52 +367,56 @@ class _ResponsiveRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (ctx, c) {
-      final cols =
-          (c.maxWidth / minColWidth).floor().clamp(1, children.length);
-
-      if (!equalSize) {
-        final colWidth = (c.maxWidth - (cols - 1) * spacing) / cols;
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: [
-            for (final w in children) SizedBox(width: colWidth, child: w),
-          ],
+    return LayoutBuilder(
+      builder: (ctx, c) {
+        final cols = (c.maxWidth / minColWidth).floor().clamp(
+          1,
+          children.length,
         );
-      }
 
-      // Split children into rows of [cols] and render each as a plain Row
-      // with Expanded for equal widths. Tallest child sets the row height;
-      // shorter cards align to top. We intentionally avoid IntrinsicHeight
-      // because children may contain LayoutBuilder-based widgets (fl_chart,
-      // nested _ResponsiveRow) that cannot answer intrinsic-size queries.
-      final rows = <Widget>[];
-      for (var i = 0; i < children.length; i += cols) {
-        final end = (i + cols).clamp(0, children.length);
-        final slice = children.sublist(i, end);
-        rows.add(
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        if (!equalSize) {
+          final colWidth = (c.maxWidth - (cols - 1) * spacing) / cols;
+          return Wrap(
+            spacing: spacing,
+            runSpacing: spacing,
             children: [
-              for (var j = 0; j < cols; j++) ...[
-                if (j > 0) SizedBox(width: spacing),
-                Expanded(
-                  child: j < slice.length ? slice[j] : const SizedBox(),
-                ),
-              ],
+              for (final w in children) SizedBox(width: colWidth, child: w),
             ],
-          ),
-        );
-        if (end < children.length) {
-          rows.add(SizedBox(height: spacing));
+          );
         }
-      }
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: rows,
-      );
-    });
+
+        // Split children into rows of [cols] and render each as a plain Row
+        // with Expanded for equal widths. Tallest child sets the row height;
+        // shorter cards align to top. We intentionally avoid IntrinsicHeight
+        // because children may contain LayoutBuilder-based widgets (fl_chart,
+        // nested _ResponsiveRow) that cannot answer intrinsic-size queries.
+        final rows = <Widget>[];
+        for (var i = 0; i < children.length; i += cols) {
+          final end = (i + cols).clamp(0, children.length);
+          final slice = children.sublist(i, end);
+          rows.add(
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var j = 0; j < cols; j++) ...[
+                  if (j > 0) SizedBox(width: spacing),
+                  Expanded(
+                    child: j < slice.length ? slice[j] : const SizedBox(),
+                  ),
+                ],
+              ],
+            ),
+          );
+          if (end < children.length) {
+            rows.add(SizedBox(height: spacing));
+          }
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: rows,
+        );
+      },
+    );
   }
 }
 
@@ -421,23 +441,25 @@ class _SectionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              if (icon != null) ...[
-                Icon(icon, size: 18, color: p.subdued),
-                const SizedBox(width: LuxiumSpacing.sm),
-              ],
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: p.foreground,
-                    letterSpacing: -0.1,
+            Row(
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 18, color: p.subdued),
+                  const SizedBox(width: LuxiumSpacing.sm),
+                ],
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: p.foreground,
+                      letterSpacing: -0.1,
+                    ),
                   ),
                 ),
-              ),
-            ]),
+              ],
+            ),
             if (subtitle != null) ...[
               const SizedBox(height: 2),
               Text(
@@ -515,10 +537,7 @@ class _KpiCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            Text(
-              subtitle,
-              style: TextStyle(fontSize: 12, color: p.subdued),
-            ),
+            Text(subtitle, style: TextStyle(fontSize: 12, color: p.subdued)),
           ],
         ),
       ),
@@ -551,7 +570,8 @@ class _DeptBarsState extends State<_DeptBars> {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
         child: Center(
-            child: Text('No data', style: TextStyle(color: Colors.grey))),
+          child: Text('No data', style: TextStyle(color: Colors.grey)),
+        ),
       );
     }
     final entries = widget.counts.entries.toList()
@@ -603,8 +623,7 @@ class _DeptBarRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final share =
-        total <= 0 ? 0.0 : (value * 100.0) / total;
+    final share = total <= 0 ? 0.0 : (value * 100.0) / total;
     final shareLabel = total <= 0
         ? '0%'
         : '${share.toStringAsFixed(share >= 10 ? 0 : 1)}%';
@@ -633,8 +652,7 @@ class _DeptBarRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12.5,
-                      fontWeight:
-                          hovered ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: hovered ? FontWeight.w700 : FontWeight.w500,
                       color: palette.foreground,
                     ),
                   ),
@@ -765,7 +783,9 @@ class _DonutWithLegendState extends State<_DonutWithLegend> {
     if (widget.counts.isEmpty || widget.counts.values.every((v) => v == 0)) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(child: Text('No data', style: TextStyle(color: Colors.grey))),
+        child: Center(
+          child: Text('No data', style: TextStyle(color: Colors.grey)),
+        ),
       );
     }
     final entries = widget.counts.entries.toList()
@@ -774,12 +794,14 @@ class _DonutWithLegendState extends State<_DonutWithLegend> {
     final sections = <PieChartSectionData>[];
     for (var i = 0; i < entries.length; i++) {
       final hovered = _hoveredIndex == i;
-      sections.add(PieChartSectionData(
-        value: entries[i].value.toDouble(),
-        color: widget.palette[i % widget.palette.length],
-        radius: hovered ? 28 : 22,
-        showTitle: false,
-      ));
+      sections.add(
+        PieChartSectionData(
+          value: entries[i].value.toDouble(),
+          color: widget.palette[i % widget.palette.length],
+          radius: hovered ? 28 : 22,
+          showTitle: false,
+        ),
+      );
     }
 
     final hovered = _hoveredIndex;
@@ -800,34 +822,40 @@ class _DonutWithLegendState extends State<_DonutWithLegend> {
             alignment: Alignment.center,
             children: [
               ExcludeSemantics(
-                child: PieChart(PieChartData(
-                  sections: sections,
-                  centerSpaceRadius: 38,
-                  sectionsSpace: 2,
-                  startDegreeOffset: -90,
-                  pieTouchData: PieTouchData(
-                    enabled: true,
-                    touchCallback: (event, response) {
-                      final idx =
-                          response?.touchedSection?.touchedSectionIndex;
-                      if (!event.isInterestedForInteractions ||
-                          idx == null ||
-                          idx < 0) {
-                        _setHover(null);
-                      } else {
-                        _setHover(idx);
-                      }
-                    },
+                child: PieChart(
+                  PieChartData(
+                    sections: sections,
+                    centerSpaceRadius: 38,
+                    sectionsSpace: 2,
+                    startDegreeOffset: -90,
+                    pieTouchData: PieTouchData(
+                      enabled: true,
+                      touchCallback: (event, response) {
+                        final idx =
+                            response?.touchedSection?.touchedSectionIndex;
+                        if (!event.isInterestedForInteractions ||
+                            idx == null ||
+                            idx < 0) {
+                          _setHover(null);
+                        } else {
+                          _setHover(idx);
+                        }
+                      },
+                    ),
                   ),
-                )),
+                ),
               ),
               IgnorePointer(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(centerTopText,
-                        style: const TextStyle(
-                            fontSize: 22, fontWeight: FontWeight.w700)),
+                    Text(
+                      centerTopText,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 120),
                       child: Text(
@@ -836,7 +864,9 @@ class _DonutWithLegendState extends State<_DonutWithLegend> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            fontSize: 11, color: Colors.grey),
+                          fontSize: 11,
+                          color: Colors.grey,
+                        ),
                       ),
                     ),
                   ],
@@ -861,19 +891,23 @@ class _DonutWithLegendState extends State<_DonutWithLegend> {
                         '${_pretty(entries[i].key)}\nCount: ${entries[i].value}\nShare: ${_percent(entries[i].value, total)}',
                     waitDuration: const Duration(milliseconds: 150),
                     preferBelow: false,
-                    textStyle:
-                        const TextStyle(fontSize: 12, color: Colors.white),
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.white,
+                    ),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 160),
                       curve: Curves.easeOut,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 4),
+                        horizontal: 6,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: _hoveredIndex == i
                             ? Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest
-                                .withValues(alpha: 0.7)
+                                  .colorScheme
+                                  .surfaceContainerHighest
+                                  .withValues(alpha: 0.7)
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(6),
                       ),
@@ -889,17 +923,21 @@ class _DonutWithLegendState extends State<_DonutWithLegend> {
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(_pretty(entries[i].key),
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: _hoveredIndex == i
-                                        ? FontWeight.w600
-                                        : FontWeight.normal)),
+                            child: Text(
+                              _pretty(entries[i].key),
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: _hoveredIndex == i
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
+                            ),
                           ),
-                          Text(entries[i].value.toString(),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600)),
+                          Text(
+                            entries[i].value.toString(),
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
                         ],
                       ),
                     ),
@@ -917,9 +955,7 @@ class _DonutWithLegendState extends State<_DonutWithLegend> {
     if (RegExp(r'^[A-Z_]+$').hasMatch(raw)) {
       return raw
           .split('_')
-          .map((p) => p.isEmpty
-              ? p
-              : '${p[0]}${p.substring(1).toLowerCase()}')
+          .map((p) => p.isEmpty ? p : '${p[0]}${p.substring(1).toLowerCase()}')
           .join(' ');
     }
     return raw;
@@ -971,8 +1007,12 @@ class _TenureBarsState extends State<_TenureBars> {
         gridData: const FlGridData(show: false),
         borderData: FlBorderData(show: false),
         titlesData: FlTitlesData(
-          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
           topTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -1006,8 +1046,7 @@ class _TenureBarsState extends State<_TenureBars> {
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     _order[i],
-                    style: const TextStyle(
-                        fontSize: 11, color: Colors.grey),
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
                   ),
                 );
               },
@@ -1024,10 +1063,11 @@ class _TenureBarsState extends State<_TenureBars> {
                   width: 28,
                   color: _hoveredIndex == i
                       ? (Color.lerp(_colors[i], Colors.white, 0.18) ??
-                          _colors[i])
+                            _colors[i])
                       : _colors[i],
                   borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(4)),
+                    top: Radius.circular(4),
+                  ),
                 ),
               ],
             ),
@@ -1037,7 +1077,9 @@ class _TenureBarsState extends State<_TenureBars> {
           touchTooltipData: BarTouchTooltipData(
             getTooltipColor: (_) => const Color(0xE6111827),
             tooltipPadding: const EdgeInsets.symmetric(
-                horizontal: 10, vertical: 6),
+              horizontal: 10,
+              vertical: 6,
+            ),
             tooltipMargin: 8,
             getTooltipItem: (group, groupIdx, rod, rodIdx) {
               final i = group.x;
@@ -1055,7 +1097,8 @@ class _TenureBarsState extends State<_TenureBars> {
                 ),
                 children: [
                   TextSpan(
-                    text: '$count ${count == 1 ? 'employee' : 'employees'} · $share',
+                    text:
+                        '$count ${count == 1 ? 'employee' : 'employees'} · $share',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 11,
@@ -1099,12 +1142,16 @@ class _AttendanceBlock extends StatelessWidget {
     final segments = <({String label, int value, Color color})>[
       (label: 'Present', value: m.presentDays, color: const Color(0xFF10B981)),
       (label: 'Absent', value: m.absentDays, color: const Color(0xFFEF4444)),
-      (label: 'Leave', value: m.leaveDays.ceil(), color: const Color(0xFF8B5CF6)),
+      (
+        label: 'Leave',
+        value: m.leaveDays.ceil(),
+        color: const Color(0xFF8B5CF6),
+      ),
       (label: 'Rest', value: m.restDays, color: const Color(0xFF94A3B8)),
       (
         label: 'Holiday',
         value: m.regularHolidays + m.specialHolidays,
-        color: const Color(0xFFF59E0B)
+        color: const Color(0xFFF59E0B),
       ),
     ].where((s) => s.value > 0).toList();
     final total = segments.fold<int>(0, (s, e) => s + e.value);
@@ -1116,8 +1163,10 @@ class _AttendanceBlock extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
             child: Center(
-              child: Text('No attendance in this period',
-                  style: TextStyle(color: Colors.grey)),
+              child: Text(
+                'No attendance in this period',
+                style: TextStyle(color: Colors.grey),
+              ),
             ),
           )
         else ...[
@@ -1152,11 +1201,15 @@ class _AttendanceBlock extends StatelessWidget {
                       width: 10,
                       height: 10,
                       decoration: BoxDecoration(
-                          color: s.color, shape: BoxShape.circle),
+                        color: s.color,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                     const SizedBox(width: 6),
-                    Text('${s.label} ${s.value}',
-                        style: const TextStyle(fontSize: 12)),
+                    Text(
+                      '${s.label} ${s.value}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   ],
                 ),
             ],
@@ -1169,17 +1222,18 @@ class _AttendanceBlock extends StatelessWidget {
           equalSize: false,
           children: [
             _MiniMetric(
-                label: 'Late / UT',
-                value: formatMinutes(m.lateUndertimeMinutes)),
+              label: 'Late / UT',
+              value: formatMinutes(m.lateUndertimeMinutes),
+            ),
             _MiniMetric(
-                label: 'Avg late / work day',
-                value:
-                    '${m.avgLateMinutesPerWorkDay.toStringAsFixed(1)} min'),
+              label: 'Avg late / work day',
+              value: '${m.avgLateMinutesPerWorkDay.toStringAsFixed(1)} min',
+            ),
             _MiniMetric(
-                label: 'Overtime',
-                value: '${m.overtimeHours.toStringAsFixed(1)} hrs'),
-            _MiniMetric(
-                label: 'Leave Days', value: formatDays(m.leaveDays)),
+              label: 'Overtime',
+              value: '${m.overtimeHours.toStringAsFixed(1)} hrs',
+            ),
+            _MiniMetric(label: 'Leave Days', value: formatDays(m.leaveDays)),
           ],
         ),
       ],
@@ -1202,12 +1256,12 @@ class _MiniMetric extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
           const SizedBox(height: 4),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w700)),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          ),
         ],
       ),
     );
@@ -1222,19 +1276,29 @@ class _PayrollBlock extends StatelessWidget {
   const _PayrollBlock({required this.metrics});
   @override
   Widget build(BuildContext context) {
-    final f = NumberFormat.currency(locale: 'en_PH', symbol: '₱', decimalDigits: 0);
+    final f = NumberFormat.currency(
+      locale: 'en_PH',
+      symbol: '₱',
+      decimalDigits: 0,
+    );
     String fmt(Decimal d) => f.format(d.toDouble());
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Total Payroll Cost',
-            style: TextStyle(fontSize: 12, color: Colors.grey)),
+        const Text(
+          'Total Payroll Cost',
+          style: TextStyle(fontSize: 12, color: Colors.grey),
+        ),
         const SizedBox(height: 4),
-        Text(fmt(metrics.payrollGross),
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700)),
+        Text(
+          fmt(metrics.payrollGross),
+          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: 6),
-        Text('Avg gross per employee: ${fmt(metrics.avgGrossPerEmployee)}',
-            style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(
+          'Avg gross per employee: ${fmt(metrics.avgGrossPerEmployee)}',
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
         const SizedBox(height: 16),
         _ResponsiveRow(
           minColWidth: 140,
@@ -1296,9 +1360,14 @@ class _StatTile extends StatelessWidget {
         children: [
           Text(label, style: TextStyle(fontSize: 11, color: fg)),
           const SizedBox(height: 2),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w700, color: fg)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: fg,
+            ),
+          ),
         ],
       ),
     );
@@ -1343,24 +1412,27 @@ class _MonthlyExplorer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final p = LuxiumColors.of(context);
     final period = view.period;
-    final currency =
-        NumberFormat.currency(locale: 'en_PH', symbol: '₱', decimalDigits: 0);
+    final currency = NumberFormat.currency(
+      locale: 'en_PH',
+      symbol: '₱',
+      decimalDigits: 0,
+    );
     final now = DateTime.now();
 
     Widget num_(String s, {bool strong = false, Color? color}) => Text(
-          s,
-          textAlign: TextAlign.right,
-          style: TextStyle(
-            fontFamily: 'GeistMono',
-            fontSize: 12.5,
-            fontWeight: strong ? FontWeight.w700 : FontWeight.w500,
-            color: color ?? p.foreground,
-          ),
-        );
+      s,
+      textAlign: TextAlign.right,
+      style: TextStyle(
+        fontFamily: 'GeistMono',
+        fontSize: 12.5,
+        fontWeight: strong ? FontWeight.w700 : FontWeight.w500,
+        color: color ?? p.foreground,
+      ),
+    );
 
     DataRow monthRow(MonthMetrics m) {
-      final isFuture = m.year > now.year ||
-          (m.year == now.year && m.month! > now.month);
+      final isFuture =
+          m.year > now.year || (m.year == now.year && m.month! > now.month);
       final selected = !period.isYear && period.month == m.month;
       final label = DateFormat('MMM').format(DateTime(m.year, m.month!, 1));
       final dim = isFuture ? p.subdued : null;
@@ -1370,35 +1442,43 @@ class _MonthlyExplorer extends ConsumerWidget {
         onSelectChanged: isFuture
             ? null
             : (_) {
-                ref.read(dashboardPeriodProvider.notifier).state =
-                    period.copyWith(
-                  mode: DashboardPeriodMode.month,
-                  month: m.month,
-                );
+                ref.read(dashboardPeriodProvider.notifier).state = period
+                    .copyWith(mode: DashboardPeriodMode.month, month: m.month);
               },
         cells: [
-          DataCell(Text(
-            label,
-            style: TextStyle(
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              color: dim ?? p.foreground,
+          DataCell(
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: dim ?? p.foreground,
+              ),
             ),
-          )),
+          ),
           DataCell(num_(isFuture ? '—' : '${m.workDays}', color: dim)),
           DataCell(num_(isFuture ? '—' : '${m.presentDays}', color: dim)),
           DataCell(num_(isFuture ? '—' : '${m.absentDays}', color: dim)),
           DataCell(num_(isFuture ? '—' : formatDays(m.leaveDays), color: dim)),
-          DataCell(num_(
+          DataCell(
+            num_(
               isFuture ? '—' : formatMinutes(m.lateUndertimeMinutes),
-              color: dim)),
-          DataCell(num_(
+              color: dim,
+            ),
+          ),
+          DataCell(
+            num_(
               isFuture ? '—' : '${m.overtimeHours.toStringAsFixed(0)}h',
-              color: dim)),
+              color: dim,
+            ),
+          ),
           DataCell(num_(isFuture ? '—' : '${m.newHires}', color: dim)),
           DataCell(num_(isFuture ? '—' : '${m.separations}', color: dim)),
-          DataCell(num_(
+          DataCell(
+            num_(
               isFuture ? '—' : currency.format(m.payrollGross.toDouble()),
-              color: dim)),
+              color: dim,
+            ),
+          ),
         ],
       );
     }
@@ -1408,25 +1488,30 @@ class _MonthlyExplorer extends ConsumerWidget {
     final yearRow = DataRow(
       selected: yearSelected,
       onSelectChanged: (_) {
-        ref.read(dashboardPeriodProvider.notifier).state =
-            period.copyWith(mode: DashboardPeriodMode.year);
+        ref.read(dashboardPeriodProvider.notifier).state = period.copyWith(
+          mode: DashboardPeriodMode.year,
+        );
       },
       cells: [
-        DataCell(Text('Year',
-            style: TextStyle(
-                fontWeight: FontWeight.w700, color: p.foreground))),
+        DataCell(
+          Text(
+            'Year',
+            style: TextStyle(fontWeight: FontWeight.w700, color: p.foreground),
+          ),
+        ),
         DataCell(num_('${year.workDays}', strong: true)),
         DataCell(num_('${year.presentDays}', strong: true)),
         DataCell(num_('${year.absentDays}', strong: true)),
         DataCell(num_(formatDays(year.leaveDays), strong: true)),
+        DataCell(num_(formatMinutes(year.lateUndertimeMinutes), strong: true)),
         DataCell(
-            num_(formatMinutes(year.lateUndertimeMinutes), strong: true)),
-        DataCell(num_('${year.overtimeHours.toStringAsFixed(0)}h',
-            strong: true)),
+          num_('${year.overtimeHours.toStringAsFixed(0)}h', strong: true),
+        ),
         DataCell(num_('${year.newHires}', strong: true)),
         DataCell(num_('${year.separations}', strong: true)),
-        DataCell(num_(currency.format(year.payrollGross.toDouble()),
-            strong: true)),
+        DataCell(
+          num_(currency.format(year.payrollGross.toDouble()), strong: true),
+        ),
       ],
     );
 
@@ -1450,10 +1535,7 @@ class _MonthlyExplorer extends ConsumerWidget {
           DataColumn(label: Text('Sep'), numeric: true),
           DataColumn(label: Text('Payroll'), numeric: true),
         ],
-        rows: [
-          for (final m in view.months) monthRow(m),
-          yearRow,
-        ],
+        rows: [for (final m in view.months) monthRow(m), yearRow],
       ),
     );
   }

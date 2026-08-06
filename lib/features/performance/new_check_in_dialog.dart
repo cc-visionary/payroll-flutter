@@ -16,7 +16,9 @@ typedef NewCheckInResult = ({String id, bool existed});
 /// matching company-wide period is ensured (any quarter, including past ones),
 /// then a DRAFT check-in is created — or the existing one is opened if it was
 /// already generated. Returns null if cancelled.
-Future<NewCheckInResult?> showNewCheckInDialog({required BuildContext context}) {
+Future<NewCheckInResult?> showNewCheckInDialog({
+  required BuildContext context,
+}) {
   return showDialog<NewCheckInResult>(
     context: context,
     builder: (_) => const _NewCheckInDialog(),
@@ -69,8 +71,10 @@ class _NewCheckInDialogState extends ConsumerState<_NewCheckInDialog> {
         quarter: _quarter.quarter,
       );
 
-      final existingId =
-          await repo.findCheckInId(periodId: periodId, employeeId: emp.id);
+      final existingId = await repo.findCheckInId(
+        periodId: periodId,
+        employeeId: emp.id,
+      );
       final NewCheckInResult result;
       if (existingId != null) {
         result = (id: existingId, existed: true);
@@ -103,8 +107,9 @@ class _NewCheckInDialogState extends ConsumerState<_NewCheckInDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final employeesAsync =
-        ref.watch(employeeListProvider(const EmployeeListQuery()));
+    final employeesAsync = ref.watch(
+      employeeListProvider(const EmployeeListQuery()),
+    );
 
     return AlertDialog(
       title: const Text('New check-in'),
@@ -115,13 +120,17 @@ class _NewCheckInDialogState extends ConsumerState<_NewCheckInDialog> {
             padding: EdgeInsets.symmetric(vertical: 32),
             child: Center(child: CircularProgressIndicator()),
           ),
-          error: (e, _) => Text('Failed to load employees: $e',
-              style: const TextStyle(color: Colors.red)),
+          error: (e, _) => Text(
+            'Failed to load employees: $e',
+            style: const TextStyle(color: Colors.red),
+          ),
           data: (employees) {
             final sorted = [...employees]
-              ..sort((a, b) => a.fullName
-                  .toLowerCase()
-                  .compareTo(b.fullName.toLowerCase()));
+              ..sort(
+                (a, b) => a.fullName.toLowerCase().compareTo(
+                  b.fullName.toLowerCase(),
+                ),
+              );
             return Form(
               key: _formKey,
               child: Column(
@@ -139,7 +148,10 @@ class _NewCheckInDialogState extends ConsumerState<_NewCheckInDialog> {
                       for (final e in sorted)
                         DropdownMenuItem(
                           value: e.id,
-                          child: Text(e.fullName, overflow: TextOverflow.ellipsis),
+                          child: Text(
+                            e.fullName,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                     ],
                     validator: (v) => v == null ? 'Pick an employee' : null,
@@ -159,9 +171,11 @@ class _NewCheckInDialogState extends ConsumerState<_NewCheckInDialog> {
                       for (final q in _quarters)
                         DropdownMenuItem(
                           value: q,
-                          child: Text(q == _currentQuarter
-                              ? '${q.periodName} (current)'
-                              : q.periodName),
+                          child: Text(
+                            q == _currentQuarter
+                                ? '${q.periodName} (current)'
+                                : q.periodName,
+                          ),
                         ),
                     ],
                     onChanged: _saving

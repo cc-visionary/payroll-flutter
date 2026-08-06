@@ -34,10 +34,7 @@ class HiringEntityRepository {
         .eq('company_id', companyId)
         .isFilter('deleted_at', null)
         .order('name');
-    return rows
-        .cast<Map<String, dynamic>>()
-        .map(HiringEntity.fromRow)
-        .toList();
+    return rows.cast<Map<String, dynamic>>().map(HiringEntity.fromRow).toList();
   }
 
   /// Fetch ONLY the logo columns for one entity. Kept separate from [list] so the
@@ -145,22 +142,26 @@ class HiringEntityRepository {
   Future<void> setActive(String id, bool isActive) async {
     await _client
         .from('hiring_entities')
-        .update({'is_active': isActive}).eq('id', id);
+        .update({'is_active': isActive})
+        .eq('id', id);
   }
 }
 
 final hiringEntityRepositoryProvider = Provider<HiringEntityRepository>(
-    (ref) => HiringEntityRepository(Supabase.instance.client));
+  (ref) => HiringEntityRepository(Supabase.instance.client),
+);
 
-final hiringEntityListProvider =
-    FutureProvider<List<HiringEntity>>((ref) async {
+final hiringEntityListProvider = FutureProvider<List<HiringEntity>>((
+  ref,
+) async {
   final profile = ref.watch(userProfileProvider).asData?.value;
   if (profile == null) return const [];
   return ref.watch(hiringEntityRepositoryProvider).list(profile.companyId);
 });
 
-final hiringEntityEmployeeCountsProvider =
-    FutureProvider<Map<String, int>>((ref) async {
+final hiringEntityEmployeeCountsProvider = FutureProvider<Map<String, int>>((
+  ref,
+) async {
   final profile = ref.watch(userProfileProvider).asData?.value;
   if (profile == null) return const {};
   return ref

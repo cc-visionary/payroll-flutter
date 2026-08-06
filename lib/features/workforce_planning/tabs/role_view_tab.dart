@@ -14,10 +14,12 @@ import 'tab_intro.dart';
 
 /// A single person's computed owned tasks (times/minutes/hours resolved).
 /// Public (not `_`-prefixed) so widget tests can override it directly.
-final ownerComputedProvider = FutureProvider.family<List<WpTaskComputed>, String>(
-    (ref, employeeId) => ref
-        .watch(workforcePlanningRepositoryProvider)
-        .taskComputedForOwner(employeeId));
+final ownerComputedProvider =
+    FutureProvider.family<List<WpTaskComputed>, String>(
+      (ref, employeeId) => ref
+          .watch(workforcePlanningRepositoryProvider)
+          .taskComputedForOwner(employeeId),
+    );
 
 /// The Roles tab: cost and load per ROLE CARD.
 ///
@@ -30,7 +32,8 @@ class RoleViewTab extends StatelessWidget {
   const RoleViewTab({super.key});
 
   @override
-  Widget build(BuildContext context) => const _RoleLens(header: SizedBox.shrink());
+  Widget build(BuildContext context) =>
+      const _RoleLens(header: SizedBox.shrink());
 }
 
 /// The per-ROLE lens: one row per active role card with its responsibility
@@ -61,13 +64,16 @@ class _RoleLens extends ConsumerWidget {
         loadsAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    final err = cardsAsync.error ??
+    final err =
+        cardsAsync.error ??
         empsAsync.error ??
         tasksAsync.error ??
         computedAsync.error ??
         loadsAsync.error;
     if (err != null) {
-      return Center(child: Text('Error: $err', style: const TextStyle(color: Colors.red)));
+      return Center(
+        child: Text('Error: $err', style: const TextStyle(color: Colors.red)),
+      );
     }
 
     // Capacity comes from wp_person_load, which already resolves the per-person
@@ -95,24 +101,28 @@ class _RoleLens extends ConsumerWidget {
         children: [
           header,
           const TabIntro(
-            purpose: 'Is each role viable, whoever holds it? '
+            purpose:
+                'Is each role viable, whoever holds it? '
                 'Effort and cost per role card, not per person.',
             details: [
               (
                 term: 'Why this differs from Balance.',
-                meaning: 'Balance asks whether a PERSON is overloaded. This asks '
+                meaning:
+                    'Balance asks whether a PERSON is overloaded. This asks '
                     'whether the ROLE is — the question that survives someone '
                     'leaving or a second holder joining.',
               ),
               (
                 term: 'Cost/mo',
-                meaning: 'The role card\'s base salary × 26 working days × how '
+                meaning:
+                    'The role card\'s base salary × 26 working days × how '
                     'many people hold it — the same working-day figure payroll '
                     'uses. A card with no salary reads "—", never ₱0.',
               ),
               (
                 term: 'Why so many dashes.',
-                meaning: 'A role with nothing costed shows "—" rather than 0%, '
+                meaning:
+                    'A role with nothing costed shows "—" rather than 0%, '
                     'because unknown and idle are not the same finding.',
               ),
               WpGlossary.weighted,
@@ -157,7 +167,11 @@ class _RoleLens extends ConsumerWidget {
     );
   }
 
-  Widget _table(BuildContext context, List<RoleRollupRow> rows, RoleRollupTotals t) {
+  Widget _table(
+    BuildContext context,
+    List<RoleRollupRow> rows,
+    RoleRollupTotals t,
+  ) {
     final money = NumberFormat.currency(symbol: '₱', decimalDigits: 0);
     final mono = AppTheme.mono(context);
     Widget num(String s) => Text(s, style: mono);
@@ -177,32 +191,66 @@ class _RoleLens extends ConsumerWidget {
         ],
         rows: [
           for (final r in rows)
-            DataRow(cells: [
-              DataCell(ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 320),
-                child: Text(r.jobTitle, maxLines: 2, overflow: TextOverflow.ellipsis),
-              )),
-              DataCell(num('${r.holders}')),
-              DataCell(num(r.fullyCosted
-                  ? '${r.responsibilities}'
-                  : '${r.costedResponsibilities}/${r.responsibilities}')),
-              DataCell(num(r.costedResponsibilities == 0
-                  ? '—'
-                  : r.hoursPerMonth.toStringAsFixed(1))),
-              DataCell(_loadCell(context, r, mono)),
-              DataCell(num(r.monthlyCost == null
-                  ? '—'
-                  : money.format(r.monthlyCost!.toDouble()))),
-              DataCell(num(r.costPerHour == null
-                  ? '—'
-                  : money.format(r.costPerHour!.toDouble()))),
-            ]),
+            DataRow(
+              cells: [
+                DataCell(
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 320),
+                    child: Text(
+                      r.jobTitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                DataCell(num('${r.holders}')),
+                DataCell(
+                  num(
+                    r.fullyCosted
+                        ? '${r.responsibilities}'
+                        : '${r.costedResponsibilities}/${r.responsibilities}',
+                  ),
+                ),
+                DataCell(
+                  num(
+                    r.costedResponsibilities == 0
+                        ? '—'
+                        : r.hoursPerMonth.toStringAsFixed(1),
+                  ),
+                ),
+                DataCell(_loadCell(context, r, mono)),
+                DataCell(
+                  num(
+                    r.monthlyCost == null
+                        ? '—'
+                        : money.format(r.monthlyCost!.toDouble()),
+                  ),
+                ),
+                DataCell(
+                  num(
+                    r.costPerHour == null
+                        ? '—'
+                        : money.format(r.costPerHour!.toDouble()),
+                  ),
+                ),
+              ],
+            ),
           DataRow(
             cells: [
-              const DataCell(Text('Total', style: TextStyle(fontWeight: FontWeight.w600))),
+              const DataCell(
+                Text('Total', style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
               DataCell(num('${t.holders}')),
-              DataCell(num('${t.costedResponsibilities}/${t.responsibilities}')),
-              DataCell(num(t.hoursPerMonth == 0 ? '—' : t.hoursPerMonth.toStringAsFixed(1))),
+              DataCell(
+                num('${t.costedResponsibilities}/${t.responsibilities}'),
+              ),
+              DataCell(
+                num(
+                  t.hoursPerMonth == 0
+                      ? '—'
+                      : t.hoursPerMonth.toStringAsFixed(1),
+                ),
+              ),
               // No total load%: averaging load across roles is meaningless, and
               // a number here would be read as "the company is N% busy" while
               // most responsibilities are uncosted.

@@ -82,29 +82,38 @@ TaskGroups groupTasks(List<WpTask> tasks, List<RoleScorecard> cards) {
   for (final c in cards) {
     final forCard = byCardId.remove(c.id);
     if (forCard == null || forCard.isEmpty) continue;
-    cardGroups.add(TaskCardGroup(
-      cardId: c.id,
-      jobTitle: c.jobTitle,
-      areas: _groupByArea(forCard),
-    ));
+    cardGroups.add(
+      TaskCardGroup(
+        cardId: c.id,
+        jobTitle: c.jobTitle,
+        areas: _groupByArea(forCard),
+      ),
+    );
   }
   // Remaining ids reference cards outside the active-only fetch.
   final unknownIds = byCardId.keys.toList()..sort();
   for (final id in unknownIds) {
-    cardGroups.add(TaskCardGroup(
-      cardId: id,
-      jobTitle: unknownRoleCardLabel,
-      areas: _groupByArea(byCardId[id]!),
-    ));
+    cardGroups.add(
+      TaskCardGroup(
+        cardId: id,
+        jobTitle: unknownRoleCardLabel,
+        areas: _groupByArea(byCardId[id]!),
+      ),
+    );
   }
 
-  return TaskGroups(cardGroups: cardGroups, legacy: legacy, unattributed: unattributed);
+  return TaskGroups(
+    cardGroups: cardGroups,
+    legacy: legacy,
+    unattributed: unattributed,
+  );
 }
 
 /// Splits tasks into ACTIVE (shown, grouped, costed) and ARCHIVED (retained,
 /// shown only in the collapsible Archived section, restorable).
 ({List<WpTask> active, List<WpTask> archived}) partitionByStatus(
-    List<WpTask> tasks) {
+  List<WpTask> tasks,
+) {
   final active = <WpTask>[], archived = <WpTask>[];
   for (final t in tasks) {
     (t.status == 'ARCHIVED' ? archived : active).add(t);
@@ -131,10 +140,11 @@ List<TaskAreaGroup> _groupByArea(List<WpTask> tasks) {
     for (final a in areas)
       TaskAreaGroup(
         area: a,
-        tasks: (byArea[a]!..sort((x, y) {
-          final c = x.taskSort.compareTo(y.taskSort);
-          return c != 0 ? c : x.id.compareTo(y.id);
-        })),
+        tasks: (byArea[a]!
+          ..sort((x, y) {
+            final c = x.taskSort.compareTo(y.taskSort);
+            return c != 0 ? c : x.id.compareTo(y.id);
+          })),
       ),
   ];
 }
@@ -149,10 +159,12 @@ List<TaskAreaGroup> _groupByArea(List<WpTask> tasks) {
 /// than "0.0 h".
 bool isTaskNotCosted(WpTask task) {
   if ((task.hoursPerMonth ?? 0) > 0) return false;
-  final hasTimes =
-      task.timesSource == 'driver' ? task.driverId != null : task.timesManual != null;
-  final hasMinutes =
-      task.minutesSource == 'rate' ? task.rateId != null : task.minutesManual != null;
+  final hasTimes = task.timesSource == 'driver'
+      ? task.driverId != null
+      : task.timesManual != null;
+  final hasMinutes = task.minutesSource == 'rate'
+      ? task.rateId != null
+      : task.minutesManual != null;
   return !hasTimes && !hasMinutes;
 }
 
@@ -215,19 +227,27 @@ EffectiveOwner resolveEffectiveOwner({
 }) {
   final ownerId = task.ownerEmployeeId;
   if (ownerId != null) {
-    return EffectiveOwner(label: employeeNameById[ownerId] ?? 'Unassigned', derived: false);
+    return EffectiveOwner(
+      label: employeeNameById[ownerId] ?? 'Unassigned',
+      derived: false,
+    );
   }
   final cardId = task.roleScorecardId;
   if (cardId != null) {
     final holders = employees
-        .where((e) => e.roleScorecardId == cardId && e.employmentStatus == 'ACTIVE')
+        .where(
+          (e) => e.roleScorecardId == cardId && e.employmentStatus == 'ACTIVE',
+        )
         .toList();
     if (holders.isEmpty) {
       return const EffectiveOwner(label: 'Unassigned', derived: false);
     }
     if (holders.length == 1) {
       final h = holders.first;
-      return EffectiveOwner(label: '${h.firstName} ${h.lastName}', derived: true);
+      return EffectiveOwner(
+        label: '${h.firstName} ${h.lastName}',
+        derived: true,
+      );
     }
     return EffectiveOwner(label: '${holders.length} holders', derived: true);
   }

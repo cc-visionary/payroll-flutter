@@ -21,18 +21,14 @@ class PayrollStatusTimeline extends StatelessWidget {
     if (status == 'CANCELLED') return const SizedBox.shrink();
 
     final steps = <_StepSpec>[
-      _StepSpec(
-        label: 'Created',
-        state: _StepState.completed,
-        date: createdAt,
-      ),
+      _StepSpec(label: 'Created', state: _StepState.completed, date: createdAt),
       _StepSpec(
         label: 'Computed',
         state: status == 'DRAFT'
             ? _StepState.pending
             : status == 'COMPUTING'
-                ? _StepState.current
-                : _StepState.completed,
+            ? _StepState.current
+            : _StepState.completed,
         date: status != 'DRAFT' ? createdAt : null,
       ),
       _StepSpec(
@@ -40,8 +36,8 @@ class PayrollStatusTimeline extends StatelessWidget {
         state: status == 'RELEASED'
             ? _StepState.completed
             : status == 'REVIEW'
-                ? _StepState.current
-                : _StepState.pending,
+            ? _StepState.current
+            : _StepState.pending,
         date: releasedAt,
       ),
     ];
@@ -124,17 +120,11 @@ class _Node extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           step.label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
         ),
         Text(
           step.date == null ? 'Pending' : _short(step.date!),
-          style: const TextStyle(
-            fontSize: 11,
-            color: Color(0xFF9CA3AF),
-          ),
+          style: const TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
         ),
       ],
     );
@@ -142,8 +132,18 @@ class _Node extends StatelessWidget {
 
   static String _short(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}';
   }

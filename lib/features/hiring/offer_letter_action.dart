@@ -78,16 +78,12 @@ Future<void> showOfferLetterPreview(
     MaterialPageRoute(
       fullscreenDialog: true,
       builder: (_) => Scaffold(
-        appBar: AppBar(
-          title: const Text('Offer Letter Preview'),
-        ),
+        appBar: AppBar(title: const Text('Offer Letter Preview')),
         body: PdfPreviewScaffold(
           filename: filename,
           enabled: true,
-          buildPdf: (PdfPageFormat _) => renderOfferLetter(
-            applicant: applicant,
-            ref: capturedRef,
-          ),
+          buildPdf: (PdfPageFormat _) =>
+              renderOfferLetter(applicant: applicant, ref: capturedRef),
         ),
       ),
     ),

@@ -12,7 +12,8 @@ class ContractPerson {
   final String fullName;
   final String? gender;
   final String? homeAddress;
-  final Decimal? salaryHint; // expected_salary_max for applicants; null for employees (engine handles)
+  final Decimal?
+  salaryHint; // expected_salary_max for applicants; null for employees (engine handles)
   final String? roleScorecardId;
   final String? hiringEntityId;
   final bool isApplicant;
@@ -27,25 +28,26 @@ class ContractPerson {
   });
 
   factory ContractPerson.fromApplicant(Applicant a) => ContractPerson(
-        fullName: a.fullName,
-        gender: null, // applicants schema has no gender column today
-        homeAddress: null, // and no home address — captured at conversion time
-        salaryHint: a.expectedSalaryMax,
-        roleScorecardId: a.roleScorecardId,
-        hiringEntityId: a.hiringEntityId,
-        isApplicant: true,
-      );
+    fullName: a.fullName,
+    gender: null, // applicants schema has no gender column today
+    homeAddress: null, // and no home address — captured at conversion time
+    salaryHint: a.expectedSalaryMax,
+    roleScorecardId: a.roleScorecardId,
+    hiringEntityId: a.hiringEntityId,
+    isApplicant: true,
+  );
 
   factory ContractPerson.fromEmployee(Employee e) => ContractPerson(
-        fullName: [e.firstName, e.middleName, e.lastName]
-            .where((s) => s != null && s.isNotEmpty)
-            .cast<String>()
-            .join(' '),
-        gender: e.gender,
-        homeAddress: null,
-        salaryHint: null,
-        roleScorecardId: e.roleScorecardId,
-        hiringEntityId: e.hiringEntityId,
-        isApplicant: false,
-      );
+    fullName: [
+      e.firstName,
+      e.middleName,
+      e.lastName,
+    ].where((s) => s != null && s.isNotEmpty).cast<String>().join(' '),
+    gender: e.gender,
+    homeAddress: null,
+    salaryHint: null,
+    roleScorecardId: e.roleScorecardId,
+    hiringEntityId: e.hiringEntityId,
+    isApplicant: false,
+  );
 }

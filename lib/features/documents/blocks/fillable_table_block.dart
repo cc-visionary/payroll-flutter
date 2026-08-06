@@ -22,7 +22,10 @@ class FillableTableBlock extends Block {
       border: pw.TableBorder.all(color: PdfColors.grey600, width: 0.5),
       columnWidths: widths == null
           ? null
-          : {for (var i = 0; i < widths.length; i++) i: pw.FixedColumnWidth(widths[i])},
+          : {
+              for (var i = 0; i < widths.length; i++)
+                i: pw.FixedColumnWidth(widths[i]),
+            },
       children: [
         pw.TableRow(
           decoration: const pw.BoxDecoration(color: PdfColors.grey200),
@@ -44,8 +47,7 @@ class FillableTableBlock extends Block {
         for (var i = 0; i < blankRows; i++)
           pw.TableRow(
             children: [
-              for (var j = 0; j < headers.length; j++)
-                pw.SizedBox(height: 22),
+              for (var j = 0; j < headers.length; j++) pw.SizedBox(height: 22),
             ],
           ),
       ],

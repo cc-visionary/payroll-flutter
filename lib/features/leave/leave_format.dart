@@ -6,7 +6,9 @@ String formatLeaveDurationUnit({
   required Object? larkDuration,
   required Object? leaveDays,
 }) {
-  final unit = larkUnit is num ? larkUnit.toInt() : int.tryParse('${larkUnit ?? ''}');
+  final unit = larkUnit is num
+      ? larkUnit.toInt()
+      : int.tryParse('${larkUnit ?? ''}');
   final duration = larkDuration is num
       ? larkDuration.toDouble()
       : double.tryParse('${larkDuration ?? ''}');
@@ -23,9 +25,12 @@ String formatLeaveDurationUnit({
 
 String? _unitLabel(int unit, double duration) {
   switch (unit) {
-    case 1: return duration == 1 ? 'day' : 'days';
-    case 2: return duration == 1 ? 'half-day' : 'half-days';
-    case 0: return duration == 1 ? 'hr' : 'hrs';
+    case 1:
+      return duration == 1 ? 'day' : 'days';
+    case 2:
+      return duration == 1 ? 'half-day' : 'half-days';
+    case 0:
+      return duration == 1 ? 'hr' : 'hrs';
   }
   return null;
 }

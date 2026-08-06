@@ -12,17 +12,16 @@ void main() {
     required StatutoryAgency agency,
     required String ee,
     String er = '0',
-  }) =>
-      StatutoryPayableBreakdownRow(
-        hiringEntityId: 'brand-1',
-        periodYear: 2026,
-        periodMonth: 7,
-        agency: agency,
-        employeeId: empId,
-        eeShare: _d(ee),
-        erShare: _d(er),
-        totalAmount: _d(ee) + _d(er),
-      );
+  }) => StatutoryPayableBreakdownRow(
+    hiringEntityId: 'brand-1',
+    periodYear: 2026,
+    periodMonth: 7,
+    agency: agency,
+    employeeId: empId,
+    eeShare: _d(ee),
+    erShare: _d(er),
+    totalAmount: _d(ee) + _d(er),
+  );
 
   // ignore: no_leading_underscores_for_local_identifiers
   MonthlyContributionEmployee _emp(String id, String last, String first) =>
@@ -145,10 +144,30 @@ void main() {
     test('groups agencies into one row per employee, sorted by name', () {
       final rows = buildMonthlyContributionRows(
         breakdown: [
-          _b(empId: 'e2', agency: StatutoryAgency.sssContribution, ee: '450', er: '900'),
-          _b(empId: 'e1', agency: StatutoryAgency.sssContribution, ee: '500', er: '1000'),
-          _b(empId: 'e1', agency: StatutoryAgency.philhealthContribution, ee: '250', er: '250'),
-          _b(empId: 'e1', agency: StatutoryAgency.pagibigContribution, ee: '100', er: '100'),
+          _b(
+            empId: 'e2',
+            agency: StatutoryAgency.sssContribution,
+            ee: '450',
+            er: '900',
+          ),
+          _b(
+            empId: 'e1',
+            agency: StatutoryAgency.sssContribution,
+            ee: '500',
+            er: '1000',
+          ),
+          _b(
+            empId: 'e1',
+            agency: StatutoryAgency.philhealthContribution,
+            ee: '250',
+            er: '250',
+          ),
+          _b(
+            empId: 'e1',
+            agency: StatutoryAgency.pagibigContribution,
+            ee: '100',
+            er: '100',
+          ),
           _b(empId: 'e1', agency: StatutoryAgency.birWithholding, ee: '75'),
         ],
         employeesById: {
@@ -172,7 +191,12 @@ void main() {
     test('excludes employee loans', () {
       final rows = buildMonthlyContributionRows(
         breakdown: [
-          _b(empId: 'e1', agency: StatutoryAgency.sssContribution, ee: '500', er: '1000'),
+          _b(
+            empId: 'e1',
+            agency: StatutoryAgency.sssContribution,
+            ee: '500',
+            er: '1000',
+          ),
           _b(empId: 'e1', agency: StatutoryAgency.employeeLoan, ee: '2000'),
         ],
         employeesById: {'e1': _emp('e1', 'Alonzo', 'Ana')},
@@ -185,7 +209,12 @@ void main() {
     test('unknown employee id keeps the money with placeholder meta', () {
       final rows = buildMonthlyContributionRows(
         breakdown: [
-          _b(empId: 'ghost', agency: StatutoryAgency.sssContribution, ee: '500', er: '1000'),
+          _b(
+            empId: 'ghost',
+            agency: StatutoryAgency.sssContribution,
+            ee: '500',
+            er: '1000',
+          ),
         ],
         employeesById: const {},
       );
@@ -200,8 +229,18 @@ void main() {
     test('four agencies in order with due sums and paid matching', () {
       final rows = buildMonthlyContributionRows(
         breakdown: [
-          _b(empId: 'e1', agency: StatutoryAgency.sssContribution, ee: '500', er: '1000'),
-          _b(empId: 'e1', agency: StatutoryAgency.philhealthContribution, ee: '250', er: '250'),
+          _b(
+            empId: 'e1',
+            agency: StatutoryAgency.sssContribution,
+            ee: '500',
+            er: '1000',
+          ),
+          _b(
+            empId: 'e1',
+            agency: StatutoryAgency.philhealthContribution,
+            ee: '250',
+            er: '250',
+          ),
         ],
         employeesById: {'e1': _emp('e1', 'Alonzo', 'Ana')},
       );

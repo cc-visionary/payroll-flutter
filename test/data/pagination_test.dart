@@ -71,14 +71,19 @@ void main() {
       ]);
     });
 
-    test('maxPages guard prevents an infinite loop on a misbehaving source',
-        () async {
-      // A source that always returns a full page would loop forever.
-      Future<List<int>> alwaysFull(int from, int to) async =>
-          List.generate(to - from + 1, (i) => from + i);
-      final out =
-          await fetchAllPages<int>(alwaysFull, pageSize: 10, maxPages: 3);
-      expect(out.length, 30);
-    });
+    test(
+      'maxPages guard prevents an infinite loop on a misbehaving source',
+      () async {
+        // A source that always returns a full page would loop forever.
+        Future<List<int>> alwaysFull(int from, int to) async =>
+            List.generate(to - from + 1, (i) => from + i);
+        final out = await fetchAllPages<int>(
+          alwaysFull,
+          pageSize: 10,
+          maxPages: 3,
+        );
+        expect(out.length, 30);
+      },
+    );
   });
 }

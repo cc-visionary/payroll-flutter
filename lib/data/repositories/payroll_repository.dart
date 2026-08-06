@@ -43,16 +43,20 @@ class PayrollRepository {
     // that point `pay_date` is not yet a real column and `.order('pay_date')`
     // would 400. `created_at` has always existed, so use it as the
     // baseline server-side sort.
-    final rows = await _client
-        .from('payroll_runs')
-        .select(
-          '*, '
-          'created_by:user_emails!created_by_id(email), '
-          'approved_by:user_emails!approved_by_id(email)',
-        )
-        .order('created_at', ascending: false) as List<dynamic>;
-    final runs =
-        rows.cast<Map<String, dynamic>>().map(PayrollRun.fromRow).toList();
+    final rows =
+        await _client
+                .from('payroll_runs')
+                .select(
+                  '*, '
+                  'created_by:user_emails!created_by_id(email), '
+                  'approved_by:user_emails!approved_by_id(email)',
+                )
+                .order('created_at', ascending: false)
+            as List<dynamic>;
+    final runs = rows
+        .cast<Map<String, dynamic>>()
+        .map(PayrollRun.fromRow)
+        .toList();
     runs.sort((a, b) {
       final cmp = b.payDate.compareTo(a.payDate);
       return cmp != 0 ? cmp : b.createdAt.compareTo(a.createdAt);
@@ -79,10 +83,12 @@ class PayrollRepository {
 
   /// Counts per payslip approval_status for the run (used for the gate to release).
   Future<Map<String, int>> payslipApprovalCounts(String runId) async {
-    final rows = await _client
-        .from('payslips')
-        .select('approval_status')
-        .eq('payroll_run_id', runId) as List<dynamic>;
+    final rows =
+        await _client
+                .from('payslips')
+                .select('approval_status')
+                .eq('payroll_run_id', runId)
+            as List<dynamic>;
     final counts = <String, int>{};
     for (final r in rows.cast<Map<String, dynamic>>()) {
       final s = r['approval_status'] as String;
@@ -146,14 +152,23 @@ class PayrollRepository {
   }
 
   Future<Payslip?> payslipById(String id) async {
-    final row = await _client.from('payslips').select().eq('id', id).maybeSingle();
-    if (row == null) return null;
-    final lineRows = await _client
-        .from('payslip_lines')
+    final row = await _client
+        .from('payslips')
         .select()
-        .eq('payslip_id', id)
-        .order('sort_order') as List<dynamic>;
-    final lines = lineRows.cast<Map<String, dynamic>>().map(PayslipLine.fromRow).toList();
+        .eq('id', id)
+        .maybeSingle();
+    if (row == null) return null;
+    final lineRows =
+        await _client
+                .from('payslip_lines')
+                .select()
+                .eq('payslip_id', id)
+                .order('sort_order')
+            as List<dynamic>;
+    final lines = lineRows
+        .cast<Map<String, dynamic>>()
+        .map(PayslipLine.fromRow)
+        .toList();
     return Payslip.fromRow(row, lines: lines);
   }
 
@@ -252,12 +267,17 @@ class PayrollRepository {
   }
 
   Future<List<Payslip>> payslipsByRun(String runId) async {
-    final rows = await _client
-        .from('payslips')
-        .select()
-        .eq('payroll_run_id', runId)
-        .order('created_at') as List<dynamic>;
-    return rows.cast<Map<String, dynamic>>().map((r) => Payslip.fromRow(r)).toList();
+    final rows =
+        await _client
+                .from('payslips')
+                .select()
+                .eq('payroll_run_id', runId)
+                .order('created_at')
+            as List<dynamic>;
+    return rows
+        .cast<Map<String, dynamic>>()
+        .map((r) => Payslip.fromRow(r))
+        .toList();
   }
 
   /// Raw payslip rows with joined employee + role + department info for the
@@ -278,10 +298,12 @@ class PayrollRepository {
         .eq('payroll_run_id', runId);
     final out = (rows as List<dynamic>).cast<Map<String, dynamic>>();
     out.sort((a, b) {
-      final an = (a['employees'] as Map<String, dynamic>?)?['employee_number']
+      final an =
+          (a['employees'] as Map<String, dynamic>?)?['employee_number']
               as String? ??
           '';
-      final bn = (b['employees'] as Map<String, dynamic>?)?['employee_number']
+      final bn =
+          (b['employees'] as Map<String, dynamic>?)?['employee_number']
               as String? ??
           '';
       if (an.isEmpty && bn.isEmpty) return 0;
@@ -294,10 +316,12 @@ class PayrollRepository {
 
   /// Aggregated Lark approval counts for a run (for the Approvals tab header).
   Future<Map<String, int>> larkApprovalCounts(String runId) async {
-    final rows = await _client
-        .from('payslips')
-        .select('lark_approval_status')
-        .eq('payroll_run_id', runId) as List<dynamic>;
+    final rows =
+        await _client
+                .from('payslips')
+                .select('lark_approval_status')
+                .eq('payroll_run_id', runId)
+            as List<dynamic>;
     final counts = <String, int>{};
     for (final r in rows.cast<Map<String, dynamic>>()) {
       final s = (r['lark_approval_status'] as String?) ?? 'NOT_SENT';
@@ -320,10 +344,7 @@ class PayrollRepository {
     final payload = <String, dynamic>{};
     payload['payment_source_account'] = sourceAccount;
     payload['pay_source_account_id'] = paySourceAccountId;
-    await _client
-        .from('payslips')
-        .update(payload)
-        .eq('id', payslipId);
+    await _client.from('payslips').update(payload).eq('id', payslipId);
   }
 
   /// Defer a specific penalty installment out of the given payroll run. The
@@ -467,7 +488,8 @@ class PayrollRepository {
       final ca = r['cash_advance_id'] as String?;
       final rb = r['reimbursement_id'] as String?;
       final pi = r['penalty_installment_id'] as String?;
-      final emp = (r['payslips'] as Map<String, dynamic>)['employee_id'] as String?;
+      final emp =
+          (r['payslips'] as Map<String, dynamic>)['employee_id'] as String?;
       if (ca != null) cashAdvanceIds.add(ca);
       if (rb != null) reimbursementIds.add(rb);
       if (pi != null) penaltyInstallmentIds.add(pi);
@@ -480,10 +502,7 @@ class PayrollRepository {
     if (employeeIds.isNotEmpty) {
       await _client
           .from('attendance_day_records')
-          .update({
-            'is_locked': true,
-            'locked_by_payroll_run_id': runId,
-          })
+          .update({'is_locked': true, 'locked_by_payroll_run_id': runId})
           .inFilter('employee_id', employeeIds.toList())
           .gte('attendance_date', startIso)
           .lte('attendance_date', endIso);
@@ -505,11 +524,7 @@ class PayrollRepository {
     if (reimbursementIds.isNotEmpty) {
       await _client
           .from('reimbursements')
-          .update({
-            'is_paid': true,
-            'paid_at': nowIso,
-            'payroll_run_id': runId,
-          })
+          .update({'is_paid': true, 'paid_at': nowIso, 'payroll_run_id': runId})
           .inFilter('id', reimbursementIds.toList());
     }
 
@@ -517,10 +532,7 @@ class PayrollRepository {
     if (penaltyInstallmentIds.isNotEmpty) {
       await _client
           .from('penalty_installments')
-          .update({
-            'is_deducted': true,
-            'deducted_at': nowIso,
-          })
+          .update({'is_deducted': true, 'deducted_at': nowIso})
           .inFilter('id', penaltyInstallmentIds.toList());
     }
 
@@ -532,17 +544,20 @@ class PayrollRepository {
     // zeroed on distribution by `distributeThirteenthMonth`).
 
     // 5. Flip the run to RELEASED
-    await _client.from('payroll_runs').update({
-      'status': 'RELEASED',
-      'released_at': nowIso,
-    }).eq('id', runId);
+    await _client
+        .from('payroll_runs')
+        .update({'status': 'RELEASED', 'released_at': nowIso})
+        .eq('id', runId);
   }
 
   Future<void> cancelRun(String runId, {String? reason}) async {
-    await _client.from('payroll_runs').update({
-      'status': 'CANCELLED',
-      if (reason != null && reason.isNotEmpty) 'remarks': reason,
-    }).eq('id', runId);
+    await _client
+        .from('payroll_runs')
+        .update({
+          'status': 'CANCELLED',
+          if (reason != null && reason.isNotEmpty) 'remarks': reason,
+        })
+        .eq('id', runId);
   }
 
   /// Live-computed 13th-month payout per employee for a given run.
@@ -575,14 +590,16 @@ class PayrollRepository {
         ? null
         : DateTime.parse(currentEndStr);
 
-    final rows = await _client
-        .from('payslips')
-        .select(
-          'employee_id, '
-          'payroll_runs!inner(id, status, period_end), '
-          'payslip_lines(category, amount)',
-        )
-        .inFilter('employee_id', employeeIds) as List<dynamic>;
+    final rows =
+        await _client
+                .from('payslips')
+                .select(
+                  'employee_id, '
+                  'payroll_runs!inner(id, status, period_end), '
+                  'payslip_lines(category, amount)',
+                )
+                .inFilter('employee_id', employeeIds)
+            as List<dynamic>;
 
     final empAgg = <String, _EmpLive13th>{};
     for (final raw in rows.cast<Map<String, dynamic>>()) {
@@ -597,13 +614,14 @@ class PayrollRepository {
       Decimal basic = Decimal.zero;
       Decimal late = Decimal.zero;
       bool hasThirteenth = false;
-      final lines = (raw['payslip_lines'] as List<dynamic>?)
+      final lines =
+          (raw['payslip_lines'] as List<dynamic>?)
               ?.cast<Map<String, dynamic>>() ??
           const [];
       for (final l in lines) {
         final cat = l['category'] as String?;
-        final amt = Decimal.tryParse((l['amount'] ?? '0').toString()) ??
-            Decimal.zero;
+        final amt =
+            Decimal.tryParse((l['amount'] ?? '0').toString()) ?? Decimal.zero;
         if (cat == 'BASIC_PAY' || cat == 'PAID_LEAVE') {
           // PAID_LEAVE contributes to 13th-month basic the same as BASIC_PAY:
           // for MONTHLY it's a zero-amount info line (already inside basic
@@ -625,13 +643,15 @@ class PayrollRepository {
           agg.lastDistEnd = end;
         }
       }
-      agg.records.add(_EmpLive13thRecord(
-        status: status,
-        isCurrentRun: thisRunId == runId,
-        periodEnd: end,
-        basic: basic,
-        late: late,
-      ));
+      agg.records.add(
+        _EmpLive13thRecord(
+          status: status,
+          isCurrentRun: thisRunId == runId,
+          periodEnd: end,
+          basic: basic,
+          late: late,
+        ),
+      );
     }
 
     final out = <String, LiveThirteenthMonth>{};
@@ -659,8 +679,8 @@ class PayrollRepository {
       final payout = netClamped <= Decimal.zero
           ? Decimal.zero
           : (netClamped / Decimal.fromInt(12))
-              .toDecimal(scaleOnInfinitePrecision: 10)
-              .round(scale: 2);
+                .toDecimal(scaleOnInfinitePrecision: 10)
+                .round(scale: 2);
       out[empId] = LiveThirteenthMonth(
         totalBasic: sumBasic,
         totalLate: sumLate,
@@ -719,8 +739,7 @@ class PayrollRepository {
     }
 
     // Live-compute payouts for everyone in one batch.
-    final liveByEmp =
-        await thirteenthMonthPayoutsForRun(runId, employeeIds);
+    final liveByEmp = await thirteenthMonthPayoutsForRun(runId, employeeIds);
 
     // Fetch each employee's payslip on this run + current totals for the
     // running-total update.
@@ -737,8 +756,9 @@ class PayrollRepository {
 
     // Detect payslips that already carry a distribution line so re-click
     // doesn't double-post.
-    final payslipIds =
-        payslipByEmp.values.map((p) => p['id'] as String).toList();
+    final payslipIds = payslipByEmp.values
+        .map((p) => p['id'] as String)
+        .toList();
     final alreadyDistributedPayslipIds = <String>{};
     if (payslipIds.isNotEmpty) {
       final existingLineRows = await _client
@@ -746,8 +766,8 @@ class PayrollRepository {
           .select('payslip_id')
           .inFilter('payslip_id', payslipIds)
           .eq('category', 'THIRTEENTH_MONTH_PAY');
-      for (final r in (existingLineRows as List<dynamic>)
-          .cast<Map<String, dynamic>>()) {
+      for (final r
+          in (existingLineRows as List<dynamic>).cast<Map<String, dynamic>>()) {
         alreadyDistributedPayslipIds.add(r['payslip_id'] as String);
       }
     }
@@ -791,16 +811,19 @@ class PayrollRepository {
             .eq('id', empId);
 
         // 3. Update payslip totals.
-        final currentGross = Decimal.tryParse(
-                (payslip['gross_pay'] ?? '0').toString()) ??
+        final currentGross =
+            Decimal.tryParse((payslip['gross_pay'] ?? '0').toString()) ??
             Decimal.zero;
-        final currentNet = Decimal.tryParse(
-                (payslip['net_pay'] ?? '0').toString()) ??
+        final currentNet =
+            Decimal.tryParse((payslip['net_pay'] ?? '0').toString()) ??
             Decimal.zero;
-        await _client.from('payslips').update({
-          'gross_pay': (currentGross + payout).toString(),
-          'net_pay': (currentNet + payout).toString(),
-        }).eq('id', payslip['id']);
+        await _client
+            .from('payslips')
+            .update({
+              'gross_pay': (currentGross + payout).toString(),
+              'net_pay': (currentNet + payout).toString(),
+            })
+            .eq('id', payslip['id']);
 
         distributed++;
         totalPayout += payout;
@@ -1025,11 +1048,10 @@ class PayrollRepository {
         .eq('employment_status', 'ACTIVE')
         .isFilter('deleted_at', null)
         .inFilter('id', counts.keys.toList());
-    final out = (empRows as List<dynamic>).cast<Map<String, dynamic>>().map((e) {
-      return {
-        ...e,
-        'attendance_days': counts[e['id']] ?? 0,
-      };
+    final out = (empRows as List<dynamic>).cast<Map<String, dynamic>>().map((
+      e,
+    ) {
+      return {...e, 'attendance_days': counts[e['id']] ?? 0};
     }).toList();
     out.sort((a, b) {
       final an = (a['employee_number'] as String? ?? '');
@@ -1051,13 +1073,15 @@ class PayrollRepository {
   }) async {
     // Filter client-side on the new period_* columns so the call still works
     // pre-migration (the columns may not exist yet).
-    final rows = await _client
-        .from('payslips')
-        .select(
-          '*, payroll_runs!inner(period_start, period_end, pay_date)',
-        )
-        .eq('employee_id', employeeId)
-        .order('created_at', ascending: false) as List<dynamic>;
+    final rows =
+        await _client
+                .from('payslips')
+                .select(
+                  '*, payroll_runs!inner(period_start, period_end, pay_date)',
+                )
+                .eq('employee_id', employeeId)
+                .order('created_at', ascending: false)
+            as List<dynamic>;
     final out = <PayslipWithPeriod>[];
     for (final raw in rows.cast<Map<String, dynamic>>()) {
       try {
@@ -1073,14 +1097,16 @@ class PayrollRepository {
         // so they stay visible until the migration lands.
         if (pEnd != null && pEnd.isBefore(from)) continue;
         if (pStart != null && pStart.isAfter(to)) continue;
-        out.add(PayslipWithPeriod(
-          payslip: Payslip.fromRow(raw),
-          periodStart: pStart,
-          periodEnd: pEnd,
-          payDate: run?['pay_date'] == null
-              ? null
-              : DateTime.parse(run!['pay_date'] as String),
-        ));
+        out.add(
+          PayslipWithPeriod(
+            payslip: Payslip.fromRow(raw),
+            periodStart: pStart,
+            periodEnd: pEnd,
+            payDate: run?['pay_date'] == null
+                ? null
+                : DateTime.parse(run!['pay_date'] as String),
+          ),
+        );
       } catch (e) {
         // ignore a malformed row rather than break the whole tab
         // ignore: avoid_print
@@ -1099,15 +1125,17 @@ class PayrollRepository {
     required DateTime from,
     required DateTime to,
   }) async {
-    final rows = await _client
-        .from('payslips')
-        .select(
-          'id, created_at, '
-          'payroll_runs!inner(id, status, period_start, period_end, pay_date, released_at), '
-          'payslip_lines(category, amount, quantity, rate)',
-        )
-        .eq('employee_id', employeeId)
-        .eq('payroll_runs.status', 'RELEASED') as List<dynamic>;
+    final rows =
+        await _client
+                .from('payslips')
+                .select(
+                  'id, created_at, '
+                  'payroll_runs!inner(id, status, period_start, period_end, pay_date, released_at), '
+                  'payslip_lines(category, amount, quantity, rate)',
+                )
+                .eq('employee_id', employeeId)
+                .eq('payroll_runs.status', 'RELEASED')
+            as List<dynamic>;
 
     final records = <_PayslipRecord>[];
     for (final raw in rows.cast<Map<String, dynamic>>()) {
@@ -1122,26 +1150,31 @@ class PayrollRepository {
       Decimal basic = Decimal.zero;
       Decimal late = Decimal.zero;
       final basicItems = <BasicPayItem>[];
-      final lines = (raw['payslip_lines'] as List<dynamic>?)
+      final lines =
+          (raw['payslip_lines'] as List<dynamic>?)
               ?.cast<Map<String, dynamic>>() ??
           const [];
       for (final l in lines) {
         final cat = l['category'] as String?;
-        final amt = Decimal.tryParse((l['amount'] ?? '0').toString()) ??
-            Decimal.zero;
+        final amt =
+            Decimal.tryParse((l['amount'] ?? '0').toString()) ?? Decimal.zero;
         if (cat == 'BASIC_PAY') {
           basic += amt;
           // Each BASIC_PAY line is one (days, rate, amount) bucket. Hourly/
           // daily wage types produce one line per distinct daily rate;
           // monthly-wage employees produce a single line with qty/rate both
           // zero — we still keep the bucket so the UI can show the total.
-          basicItems.add(BasicPayItem(
-            days: Decimal.tryParse((l['quantity'] ?? '0').toString()) ??
-                Decimal.zero,
-            rate: Decimal.tryParse((l['rate'] ?? '0').toString()) ??
-                Decimal.zero,
-            amount: amt,
-          ));
+          basicItems.add(
+            BasicPayItem(
+              days:
+                  Decimal.tryParse((l['quantity'] ?? '0').toString()) ??
+                  Decimal.zero,
+              rate:
+                  Decimal.tryParse((l['rate'] ?? '0').toString()) ??
+                  Decimal.zero,
+              amount: amt,
+            ),
+          );
         } else if (cat == 'PAID_LEAVE') {
           // PAID_LEAVE contributes to 13th-month basic the same as BASIC_PAY:
           // for MONTHLY it's a zero-amount info line (already inside basic
@@ -1149,31 +1182,37 @@ class PayrollRepository {
           // its own bucket (mirroring the BASIC_PAY one above) so the
           // breakdown UI total stays consistent with `basic`.
           basic += amt;
-          basicItems.add(BasicPayItem(
-            days: Decimal.tryParse((l['quantity'] ?? '0').toString()) ??
-                Decimal.zero,
-            rate: Decimal.tryParse((l['rate'] ?? '0').toString()) ??
-                Decimal.zero,
-            amount: amt,
-          ));
+          basicItems.add(
+            BasicPayItem(
+              days:
+                  Decimal.tryParse((l['quantity'] ?? '0').toString()) ??
+                  Decimal.zero,
+              rate:
+                  Decimal.tryParse((l['rate'] ?? '0').toString()) ??
+                  Decimal.zero,
+              amount: amt,
+            ),
+          );
         } else if (cat == 'LATE_UT_DEDUCTION') {
           late += amt;
         }
       }
 
-      records.add(_PayslipRecord(
-        sortKey: sortKey,
-        periodStart: periodStart == null ? null : DateTime.parse(periodStart),
-        periodEnd: run['period_end'] == null
-            ? null
-            : DateTime.parse(run['period_end'] as String),
-        payDate: run['pay_date'] == null
-            ? null
-            : DateTime.parse(run['pay_date'] as String),
-        basicPay: basic,
-        basicItems: basicItems,
-        lateDeduction: late,
-      ));
+      records.add(
+        _PayslipRecord(
+          sortKey: sortKey,
+          periodStart: periodStart == null ? null : DateTime.parse(periodStart),
+          periodEnd: run['period_end'] == null
+              ? null
+              : DateTime.parse(run['period_end'] as String),
+          payDate: run['pay_date'] == null
+              ? null
+              : DateTime.parse(run['pay_date'] as String),
+          basicPay: basic,
+          basicItems: basicItems,
+          lateDeduction: late,
+        ),
+      );
     }
 
     records.sort((a, b) => a.sortKey.compareTo(b.sortKey));
@@ -1199,15 +1238,17 @@ class PayrollRepository {
       final net = r.basicPay - r.lateDeduction;
       totalBasic += r.basicPay;
       totalLate += r.lateDeduction;
-      entries.add(ThirteenthMonthContribution(
-        periodStart: r.periodStart,
-        periodEnd: r.periodEnd,
-        payDate: r.payDate,
-        basicPay: r.basicPay,
-        basicItems: r.basicItems,
-        lateDeduction: r.lateDeduction,
-        netBasic: net < Decimal.zero ? Decimal.zero : net,
-      ));
+      entries.add(
+        ThirteenthMonthContribution(
+          periodStart: r.periodStart,
+          periodEnd: r.periodEnd,
+          payDate: r.payDate,
+          basicPay: r.basicPay,
+          basicItems: r.basicItems,
+          lateDeduction: r.lateDeduction,
+          netBasic: net < Decimal.zero ? Decimal.zero : net,
+        ),
+      );
     }
 
     final totalNet = totalBasic - totalLate;
@@ -1248,11 +1289,13 @@ class PayrollRepository {
   }
 }
 
-final payrollRepositoryProvider =
-    Provider<PayrollRepository>((ref) => PayrollRepository(Supabase.instance.client));
+final payrollRepositoryProvider = Provider<PayrollRepository>(
+  (ref) => PayrollRepository(Supabase.instance.client),
+);
 
-final payrollRunsProvider =
-    FutureProvider<List<PayrollRun>>((ref) => ref.watch(payrollRepositoryProvider).listRuns());
+final payrollRunsProvider = FutureProvider<List<PayrollRun>>(
+  (ref) => ref.watch(payrollRepositoryProvider).listRuns(),
+);
 
 /// Sidebar notification badge — count of `payroll_runs` currently in REVIEW
 /// (i.e. waiting for HR/Admin to release). Self-refreshes every 60s so a
@@ -1260,10 +1303,12 @@ final payrollRunsProvider =
 class PayrollRunsAwaitingReleaseCountNotifier extends AsyncNotifier<int> {
   @override
   Future<int> build() async {
-    final rows = await Supabase.instance.client
-        .from('payroll_runs')
-        .select('id')
-        .eq('status', 'REVIEW') as List<dynamic>;
+    final rows =
+        await Supabase.instance.client
+                .from('payroll_runs')
+                .select('id')
+                .eq('status', 'REVIEW')
+            as List<dynamic>;
     final count = rows.length;
     Future.delayed(const Duration(seconds: 60), () {
       ref.invalidateSelf();
@@ -1274,12 +1319,13 @@ class PayrollRunsAwaitingReleaseCountNotifier extends AsyncNotifier<int> {
 
 final payrollRunsAwaitingReleaseCountProvider =
     AsyncNotifierProvider<PayrollRunsAwaitingReleaseCountNotifier, int>(
-        PayrollRunsAwaitingReleaseCountNotifier.new);
+      PayrollRunsAwaitingReleaseCountNotifier.new,
+    );
 
 final payslipApprovalCountsProvider =
     FutureProvider.family<Map<String, int>, String>((ref, runId) {
-  return ref.watch(payrollRepositoryProvider).payslipApprovalCounts(runId);
-});
+      return ref.watch(payrollRepositoryProvider).payslipApprovalCounts(runId);
+    });
 
 /// Payslip with its pay-period dates attached — used by the employee profile
 /// Payslips tab to render "from/to" ranges without a second round-trip.
@@ -1319,14 +1365,14 @@ class PayslipsByEmployeeQuery {
 }
 
 final payslipsByEmployeeProvider =
-    FutureProvider.family<List<PayslipWithPeriod>, PayslipsByEmployeeQuery>(
-        (ref, q) {
-  return ref.watch(payrollRepositoryProvider).payslipsByEmployee(
-        q.employeeId,
-        from: q.from,
-        to: q.to,
-      );
-});
+    FutureProvider.family<List<PayslipWithPeriod>, PayslipsByEmployeeQuery>((
+      ref,
+      q,
+    ) {
+      return ref
+          .watch(payrollRepositoryProvider)
+          .payslipsByEmployee(q.employeeId, from: q.from, to: q.to);
+    });
 
 /// Live-computed 13th-month figures for one employee at the moment of a
 /// specific payroll-run distribution. Source of truth is `payslip_lines`,
@@ -1345,11 +1391,11 @@ class LiveThirteenthMonth {
     this.sinceLastDistribution,
   });
   LiveThirteenthMonth.zero()
-      : totalBasic = Decimal.zero,
-        totalLate = Decimal.zero,
-        netBasic = Decimal.zero,
-        payout = Decimal.zero,
-        sinceLastDistribution = null;
+    : totalBasic = Decimal.zero,
+      totalLate = Decimal.zero,
+      netBasic = Decimal.zero,
+      payout = Decimal.zero,
+      sinceLastDistribution = null;
 }
 
 class _EmpLive13th {
@@ -1473,16 +1519,19 @@ class ThirteenthMonthBreakdownQuery {
   int get hashCode => Object.hash(employeeId, from, to);
 }
 
-final thirteenthMonthBreakdownProvider = FutureProvider.family<
-    ThirteenthMonthBreakdown, ThirteenthMonthBreakdownQuery>((ref, q) {
-  return ref
-      .watch(payrollRepositoryProvider)
-      .thirteenthMonthBreakdownForEmployee(
-        q.employeeId,
-        from: q.from,
-        to: q.to,
-      );
-});
+final thirteenthMonthBreakdownProvider =
+    FutureProvider.family<
+      ThirteenthMonthBreakdown,
+      ThirteenthMonthBreakdownQuery
+    >((ref, q) {
+      return ref
+          .watch(payrollRepositoryProvider)
+          .thirteenthMonthBreakdownForEmployee(
+            q.employeeId,
+            from: q.from,
+            to: q.to,
+          );
+    });
 
 /// Keyed query for the distribute-13th dialog to fetch batch payouts.
 class ThirteenthMonthPayoutsForRunQuery {
@@ -1509,10 +1558,12 @@ class ThirteenthMonthPayoutsForRunQuery {
   int get hashCode => Object.hash(runId, Object.hashAll(employeeIds));
 }
 
-final thirteenthMonthPayoutsForRunProvider = FutureProvider.family<
-    Map<String, LiveThirteenthMonth>,
-    ThirteenthMonthPayoutsForRunQuery>((ref, q) {
-  return ref
-      .watch(payrollRepositoryProvider)
-      .thirteenthMonthPayoutsForRun(q.runId, q.employeeIds);
-});
+final thirteenthMonthPayoutsForRunProvider =
+    FutureProvider.family<
+      Map<String, LiveThirteenthMonth>,
+      ThirteenthMonthPayoutsForRunQuery
+    >((ref, q) {
+      return ref
+          .watch(payrollRepositoryProvider)
+          .thirteenthMonthPayoutsForRun(q.runId, q.employeeIds);
+    });

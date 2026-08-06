@@ -6,23 +6,30 @@ import 'package:payroll_flutter/features/workforce_planning/tabs/needs_attention
 import 'package:payroll_flutter/features/workforce_planning/wp_providers.dart';
 import 'package:payroll_flutter/data/repositories/role_scorecard_repository.dart';
 
-const _over = WpPersonLoad(employeeId: 'a', companyId: 'c', hoursFixed: 200, capacityHours: 160);
+const _over = WpPersonLoad(
+  employeeId: 'a',
+  companyId: 'c',
+  hoursFixed: 200,
+  capacityHours: 160,
+);
 
 Widget _host({required bool withSignal}) => ProviderScope(
-      overrides: [
-        wpPersonLoadsProvider.overrideWith((ref) async => withSignal ? const [_over] : const []),
-        wpTasksProvider.overrideWith((ref) async => const []),
-        wpActiveEmployeesProvider.overrideWith((ref) async => const []),
-        roleScorecardListProvider.overrideWith((ref) async => const []),
-        kpiLibraryProvider.overrideWith((ref) async => const []),
-        kpiAssignedEmployeesProvider.overrideWith((ref) async => const {}),
-      ],
-      child: const MaterialApp(
-        home: Scaffold(
-          body: DefaultTabController(length: 5, child: NeedsAttentionStrip()),
-        ),
-      ),
-    );
+  overrides: [
+    wpPersonLoadsProvider.overrideWith(
+      (ref) async => withSignal ? const [_over] : const [],
+    ),
+    wpTasksProvider.overrideWith((ref) async => const []),
+    wpActiveEmployeesProvider.overrideWith((ref) async => const []),
+    roleScorecardListProvider.overrideWith((ref) async => const []),
+    kpiLibraryProvider.overrideWith((ref) async => const []),
+    kpiAssignedEmployeesProvider.overrideWith((ref) async => const {}),
+  ],
+  child: const MaterialApp(
+    home: Scaffold(
+      body: DefaultTabController(length: 5, child: NeedsAttentionStrip()),
+    ),
+  ),
+);
 
 void main() {
   testWidgets('renders nothing when there are no gaps', (tester) async {
@@ -41,32 +48,43 @@ void main() {
 
   testWidgets('tapping a chip deep-links to the right hub tab', (tester) async {
     late TabController controller;
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        wpPersonLoadsProvider.overrideWith((ref) async => const []),
-        wpTasksProvider.overrideWith((ref) async =>
-            const [WpTask(id: 't', companyId: 'c', name: 'Orphan')]),
-        wpActiveEmployeesProvider.overrideWith((ref) async => const []),
-        roleScorecardListProvider.overrideWith((ref) async => const []),
-        kpiLibraryProvider.overrideWith((ref) async => const []),
-        kpiAssignedEmployeesProvider.overrideWith((ref) async => const {}),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: DefaultTabController(
-            length: 5,
-            child: Builder(builder: (ctx) {
-              controller = DefaultTabController.of(ctx);
-              return const NeedsAttentionStrip();
-            }),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          wpPersonLoadsProvider.overrideWith((ref) async => const []),
+          wpTasksProvider.overrideWith(
+            (ref) async => const [
+              WpTask(id: 't', companyId: 'c', name: 'Orphan'),
+            ],
+          ),
+          wpActiveEmployeesProvider.overrideWith((ref) async => const []),
+          roleScorecardListProvider.overrideWith((ref) async => const []),
+          kpiLibraryProvider.overrideWith((ref) async => const []),
+          kpiAssignedEmployeesProvider.overrideWith((ref) async => const {}),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: DefaultTabController(
+              length: 5,
+              child: Builder(
+                builder: (ctx) {
+                  controller = DefaultTabController.of(ctx);
+                  return const NeedsAttentionStrip();
+                },
+              ),
+            ),
           ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(controller.index, 0);
     await tester.tap(find.text('1 responsibility unassigned'));
     await tester.pumpAndSettle();
-    expect(controller.index, 4, reason: 'unassigned chip must switch to the Unassigned tab');
+    expect(
+      controller.index,
+      4,
+      reason: 'unassigned chip must switch to the Unassigned tab',
+    );
   });
 }

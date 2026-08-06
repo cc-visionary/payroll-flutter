@@ -31,8 +31,10 @@ class PayablesTable extends ConsumerWidget {
       error: (e, _) => Center(
         child: Padding(
           padding: const EdgeInsets.all(LuxiumSpacing.lg),
-          child: Text('Error loading payables: $e',
-              style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          child: Text(
+            'Error loading payables: $e',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
         ),
       ),
       data: (rows) {
@@ -42,7 +44,8 @@ class PayablesTable extends ConsumerWidget {
         final brandsById = <String, HiringEntity>{
           for (final b in brandsAsync.asData?.value ?? const []) b.id: b,
         };
-        final sorted = [...rows]..sort((a, b) {
+        final sorted = [...rows]
+          ..sort((a, b) {
             final ay = a.payable.periodYear * 100 + a.payable.periodMonth;
             final by = b.payable.periodYear * 100 + b.payable.periodMonth;
             if (ay != by) return by.compareTo(ay); // newest period first
@@ -86,8 +89,7 @@ class PayablesTable extends ConsumerWidget {
             DataColumn2(label: Text(''), size: ColumnSize.M),
           ],
           rows: [
-            for (final row in sorted)
-              _buildRow(context, ref, row, brandsById),
+            for (final row in sorted) _buildRow(context, ref, row, brandsById),
           ],
         );
       },
@@ -114,9 +116,13 @@ class PayablesTable extends ConsumerWidget {
         DataCell(Text('${row.payable.employeeCount}')),
         DataCell(_money(context, row.payable.amountDue)),
         DataCell(_StatusChip(status: status)),
-        DataCell(Text(row.paid?.lastPaidOn == null
-            ? '—'
-            : DateFormat('MMM d, y').format(row.paid!.lastPaidOn!))),
+        DataCell(
+          Text(
+            row.paid?.lastPaidOn == null
+                ? '—'
+                : DateFormat('MMM d, y').format(row.paid!.lastPaidOn!),
+          ),
+        ),
         DataCell(_money(context, paid)),
         DataCell(_varianceCell(context, variance)),
         DataCell(_RowActions(row: row, brand: brand)),
@@ -126,15 +132,27 @@ class PayablesTable extends ConsumerWidget {
 
   String _periodLabel(StatutoryPayable payable) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[payable.periodMonth - 1]} ${payable.periodYear}';
   }
 
   Widget _money(BuildContext context, Decimal v) {
-    final s = NumberFormat.currency(symbol: '₱', decimalDigits: 2)
-        .format(v.toDouble());
+    final s = NumberFormat.currency(
+      symbol: '₱',
+      decimalDigits: 2,
+    ).format(v.toDouble());
     return Text(s, style: AppTheme.mono(context));
   }
 
@@ -142,17 +160,16 @@ class PayablesTable extends ConsumerWidget {
     final isZero = v.abs() < Decimal.parse('0.01');
     final text = isZero
         ? '—'
-        : NumberFormat.currency(symbol: '₱', decimalDigits: 2)
-            .format(v.toDouble());
+        : NumberFormat.currency(
+            symbol: '₱',
+            decimalDigits: 2,
+          ).format(v.toDouble());
     final color = isZero
         ? Theme.of(context).colorScheme.onSurfaceVariant
         : (v < Decimal.zero
-            ? StatusPalette.of(context, StatusTone.warning).foreground
-            : StatusPalette.of(context, StatusTone.info).foreground);
-    return Text(
-      text,
-      style: AppTheme.mono(context, color: color),
-    );
+              ? StatusPalette.of(context, StatusTone.warning).foreground
+              : StatusPalette.of(context, StatusTone.info).foreground);
+    return Text(text, style: AppTheme.mono(context, color: color));
   }
 
   void _openBreakdown(
@@ -163,10 +180,8 @@ class PayablesTable extends ConsumerWidget {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => PayableBreakdownDrawer(
-        payable: row.payable,
-        brand: brand,
-      ),
+      builder: (_) =>
+          PayableBreakdownDrawer(payable: row.payable, brand: brand),
     );
   }
 }
@@ -206,10 +221,8 @@ class _RowActions extends ConsumerWidget {
             label: const Text('View'),
             onPressed: () => showDialog<void>(
               context: context,
-              builder: (_) => ViewPaymentsDialog(
-                payable: row.payable,
-                brand: brand,
-              ),
+              builder: (_) =>
+                  ViewPaymentsDialog(payable: row.payable, brand: brand),
             ),
           ),
         ],

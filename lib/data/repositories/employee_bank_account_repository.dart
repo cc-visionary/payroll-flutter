@@ -87,11 +87,12 @@ class EmployeeBankAccountRepository {
 
 final employeeBankAccountRepositoryProvider =
     Provider<EmployeeBankAccountRepository>(
-        (ref) => EmployeeBankAccountRepository(Supabase.instance.client));
+      (ref) => EmployeeBankAccountRepository(Supabase.instance.client),
+    );
 
 final employeeBankAccountsProvider =
     FutureProvider.family<List<EmployeeBankAccount>, String>((ref, employeeId) {
-  return ref
-      .watch(employeeBankAccountRepositoryProvider)
-      .listByEmployee(employeeId);
-});
+      return ref
+          .watch(employeeBankAccountRepositoryProvider)
+          .listByEmployee(employeeId);
+    });

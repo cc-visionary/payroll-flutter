@@ -46,8 +46,9 @@ class ComingSoonScreen extends StatelessWidget {
                           height: 44,
                           decoration: BoxDecoration(
                             color: p.ctaTint,
-                            borderRadius:
-                                BorderRadius.circular(LuxiumRadius.lg),
+                            borderRadius: BorderRadius.circular(
+                              LuxiumRadius.lg,
+                            ),
                           ),
                           child: Icon(icon, color: p.cta, size: 22),
                         ),
@@ -86,7 +87,8 @@ class ComingSoonScreen extends StatelessWidget {
                       for (final f in plannedFeatures)
                         Padding(
                           padding: const EdgeInsets.only(
-                              bottom: LuxiumSpacing.sm),
+                            bottom: LuxiumSpacing.sm,
+                          ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [

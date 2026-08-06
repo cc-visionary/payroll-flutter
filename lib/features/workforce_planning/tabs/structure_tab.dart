@@ -35,7 +35,11 @@ class StructureTab extends ConsumerWidget {
     if (emps == null) {
       if (empsAsync.hasError) {
         return Center(
-            child: Text('Error: ${empsAsync.error}', style: const TextStyle(color: Colors.red)));
+          child: Text(
+            'Error: ${empsAsync.error}',
+            style: const TextStyle(color: Colors.red),
+          ),
+        );
       }
       return const Center(child: CircularProgressIndicator());
     }
@@ -55,17 +59,20 @@ class StructureTab extends ConsumerWidget {
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: TabIntro(
-            purpose: 'Who reports to whom. Drag a person onto another to '
+            purpose:
+                'Who reports to whom. Drag a person onto another to '
                 'change their reporting line.',
             details: [
               (
                 term: 'Changes here save immediately.',
-                meaning: 'Unlike Balance, a re-parent is written as soon as you '
+                meaning:
+                    'Unlike Balance, a re-parent is written as soon as you '
                     'drop it. Self-parenting and cycles are refused.',
               ),
               (
                 term: 'Multiple roots are normal.',
-                meaning: 'Anyone with no manager set appears as a top-level box. '
+                meaning:
+                    'Anyone with no manager set appears as a top-level box. '
                     'Several roots simply means several people report to nobody.',
               ),
               WpGlossary.load,
@@ -74,39 +81,44 @@ class StructureTab extends ConsumerWidget {
         ),
         Expanded(
           child: OrgChartView(
-      people: people,
-      empById: empById,
-      trailing: (emp) {
-        final l = loadById[emp.id];
-        return l == null
-            ? const SizedBox.shrink()
-            : LoadStatusChip(status: loadStatus(personLoad(l, multiplier: mult)));
-      },
-      nodeWrapper: (emp, row) => DragTarget<_PersonPayload>(
-        onAcceptWithDetails: (d) => _onDrop(ref, context, d.data, emp.id, people),
-        builder: (ctx, cand, rej) => Draggable<_PersonPayload>(
-          data: _PersonPayload(emp.id),
-          feedback: Material(
-            color: Colors.transparent,
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Text('${emp.firstName} ${emp.lastName}'),
+            people: people,
+            empById: empById,
+            trailing: (emp) {
+              final l = loadById[emp.id];
+              return l == null
+                  ? const SizedBox.shrink()
+                  : LoadStatusChip(
+                      status: loadStatus(personLoad(l, multiplier: mult)),
+                    );
+            },
+            nodeWrapper: (emp, row) => DragTarget<_PersonPayload>(
+              onAcceptWithDetails: (d) =>
+                  _onDrop(ref, context, d.data, emp.id, people),
+              builder: (ctx, cand, rej) => Draggable<_PersonPayload>(
+                data: _PersonPayload(emp.id),
+                feedback: Material(
+                  color: Colors.transparent,
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Text('${emp.firstName} ${emp.lastName}'),
+                    ),
+                  ),
+                ),
+                childWhenDragging: Opacity(opacity: 0.4, child: row),
+                child: Container(
+                  decoration: cand.isNotEmpty
+                      ? BoxDecoration(
+                          border: Border.all(
+                            color: Theme.of(ctx).colorScheme.primary,
+                          ),
+                          borderRadius: BorderRadius.circular(6),
+                        )
+                      : null,
+                  child: row,
+                ),
               ),
             ),
-          ),
-          childWhenDragging: Opacity(opacity: 0.4, child: row),
-          child: Container(
-            decoration: cand.isNotEmpty
-                ? BoxDecoration(
-                    border: Border.all(color: Theme.of(ctx).colorScheme.primary),
-                    borderRadius: BorderRadius.circular(6),
-                  )
-                : null,
-            child: row,
-          ),
-        ),
-      ),
           ),
         ),
       ],
@@ -119,20 +131,32 @@ class _PersonPayload {
   const _PersonPayload(this.employeeId);
 }
 
-Future<void> _onDrop(WidgetRef ref, BuildContext context, _PersonPayload data, String targetId,
-    List<({String id, String? parentId})> people) async {
+Future<void> _onDrop(
+  WidgetRef ref,
+  BuildContext context,
+  _PersonPayload data,
+  String targetId,
+  List<({String id, String? parentId})> people,
+) async {
   void snack(String m) {
-    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+    if (context.mounted)
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
 
   if (data.employeeId == targetId) return;
-  final err = reportingDropError(movingId: data.employeeId, newParentId: targetId, people: people);
+  final err = reportingDropError(
+    movingId: data.employeeId,
+    newParentId: targetId,
+    people: people,
+  );
   if (err != null) {
     snack(err);
     return;
   }
   try {
-    await ref.read(employeeRepositoryProvider).updateReportsTo(data.employeeId, targetId);
+    await ref
+        .read(employeeRepositoryProvider)
+        .updateReportsTo(data.employeeId, targetId);
     ref.invalidate(employeeListProvider(const EmployeeListQuery()));
   } catch (e) {
     snack('Could not apply the change: $e');

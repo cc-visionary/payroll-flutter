@@ -8,9 +8,9 @@ class SubFinding {
   const SubFinding({required this.title, required this.body});
 
   factory SubFinding.fromJson(Map<String, dynamic> json) => SubFinding(
-        title: json['title'] as String? ?? '',
-        body: json['body'] as String? ?? '',
-      );
+    title: json['title'] as String? ?? '',
+    body: json['body'] as String? ?? '',
+  );
 
   Map<String, dynamic> toJson() => {'title': title, 'body': body};
 }
@@ -28,20 +28,20 @@ class FindingSection {
   });
 
   factory FindingSection.fromJson(Map<String, dynamic> json) => FindingSection(
-        title: json['title'] as String? ?? '',
-        standard: json['standard'] as String? ?? '',
-        finding: json['finding'] as String? ?? '',
-        subFindings: ((json['subFindings'] as List?) ?? const [])
-            .map((e) => SubFinding.fromJson((e as Map).cast<String, dynamic>()))
-            .toList(),
-      );
+    title: json['title'] as String? ?? '',
+    standard: json['standard'] as String? ?? '',
+    finding: json['finding'] as String? ?? '',
+    subFindings: ((json['subFindings'] as List?) ?? const [])
+        .map((e) => SubFinding.fromJson((e as Map).cast<String, dynamic>()))
+        .toList(),
+  );
 
   Map<String, dynamic> toJson() => {
-        'title': title,
-        'standard': standard,
-        'finding': finding,
-        'subFindings': subFindings.map((s) => s.toJson()).toList(),
-      };
+    'title': title,
+    'standard': standard,
+    'finding': finding,
+    'subFindings': subFindings.map((s) => s.toJson()).toList(),
+  };
 }
 
 class NonRegInputs extends TemplateInputs {
@@ -117,7 +117,9 @@ class NonRegInputs extends TemplateInputs {
       salutationName: json['salutationName'] as String? ?? '',
       noteOnScope: json['noteOnScope'] as String? ?? '',
       findings: ((json['findings'] as List?) ?? const [])
-          .map((e) => FindingSection.fromJson((e as Map).cast<String, dynamic>()))
+          .map(
+            (e) => FindingSection.fromJson((e as Map).cast<String, dynamic>()),
+          )
           .toList(),
       witnessName: json['witnessName'] as String? ?? '',
       companySignaturePngB64: json['companySignaturePngB64'] as String?,
@@ -143,59 +145,60 @@ class NonRegInputs extends TemplateInputs {
     String? witnessName,
     Uint8List? logoBytes,
     String? companySignaturePngB64,
-  }) =>
-      NonRegInputs(
-        employeeId: employeeId ?? this.employeeId,
-        employeeFullName: employeeFullName ?? this.employeeFullName,
-        employeeLastName: employeeLastName ?? this.employeeLastName,
-        employeePosition: employeePosition ?? this.employeePosition,
-        companyId: companyId ?? this.companyId,
-        companyName: companyName ?? this.companyName,
-        companyAddress: companyAddress ?? this.companyAddress,
-        hrManagerName: hrManagerName ?? this.hrManagerName,
-        dateIssued: dateIssued ?? this.dateIssued,
-        probationaryStart: probationaryStart ?? this.probationaryStart,
-        probationaryEnd: probationaryEnd ?? this.probationaryEnd,
-        effectiveEndDate: effectiveEndDate ?? this.effectiveEndDate,
-        salutationName: salutationName ?? this.salutationName,
-        noteOnScope: noteOnScope ?? this.noteOnScope,
-        findings: findings ?? this.findings,
-        witnessName: witnessName ?? this.witnessName,
-        logoBytes: logoBytes ?? this.logoBytes,
-        companySignaturePngB64:
-            companySignaturePngB64 ?? this.companySignaturePngB64,
-      );
+  }) => NonRegInputs(
+    employeeId: employeeId ?? this.employeeId,
+    employeeFullName: employeeFullName ?? this.employeeFullName,
+    employeeLastName: employeeLastName ?? this.employeeLastName,
+    employeePosition: employeePosition ?? this.employeePosition,
+    companyId: companyId ?? this.companyId,
+    companyName: companyName ?? this.companyName,
+    companyAddress: companyAddress ?? this.companyAddress,
+    hrManagerName: hrManagerName ?? this.hrManagerName,
+    dateIssued: dateIssued ?? this.dateIssued,
+    probationaryStart: probationaryStart ?? this.probationaryStart,
+    probationaryEnd: probationaryEnd ?? this.probationaryEnd,
+    effectiveEndDate: effectiveEndDate ?? this.effectiveEndDate,
+    salutationName: salutationName ?? this.salutationName,
+    noteOnScope: noteOnScope ?? this.noteOnScope,
+    findings: findings ?? this.findings,
+    witnessName: witnessName ?? this.witnessName,
+    logoBytes: logoBytes ?? this.logoBytes,
+    companySignaturePngB64:
+        companySignaturePngB64 ?? this.companySignaturePngB64,
+  );
 
   @override
   Map<String, dynamic> toDebugMap() => {
-        'employeeId': employeeId,
-        'companyId': companyId,
-        'findingCount': findings.length,
-        'subFindingCount':
-            findings.fold<int>(0, (n, f) => n + f.subFindings.length),
-        'companySignaturePngB64': companySignaturePngB64 == null
-            ? null
-            : '<png b64, ${companySignaturePngB64!.length} chars>',
-      };
+    'employeeId': employeeId,
+    'companyId': companyId,
+    'findingCount': findings.length,
+    'subFindingCount': findings.fold<int>(
+      0,
+      (n, f) => n + f.subFindings.length,
+    ),
+    'companySignaturePngB64': companySignaturePngB64 == null
+        ? null
+        : '<png b64, ${companySignaturePngB64!.length} chars>',
+  };
 
   @override
   Map<String, dynamic> toJson() => {
-        'employeeId': employeeId,
-        'employeeFullName': employeeFullName,
-        'employeeLastName': employeeLastName,
-        'employeePosition': employeePosition,
-        'companyId': companyId,
-        'companyName': companyName,
-        'companyAddress': companyAddress,
-        'hrManagerName': hrManagerName,
-        'dateIssued': dateIssued.toIso8601String(),
-        'probationaryStart': probationaryStart?.toIso8601String(),
-        'probationaryEnd': probationaryEnd?.toIso8601String(),
-        'effectiveEndDate': effectiveEndDate?.toIso8601String(),
-        'salutationName': salutationName,
-        'noteOnScope': noteOnScope,
-        'findings': findings.map((f) => f.toJson()).toList(),
-        'witnessName': witnessName,
-        'companySignaturePngB64': companySignaturePngB64,
-      };
+    'employeeId': employeeId,
+    'employeeFullName': employeeFullName,
+    'employeeLastName': employeeLastName,
+    'employeePosition': employeePosition,
+    'companyId': companyId,
+    'companyName': companyName,
+    'companyAddress': companyAddress,
+    'hrManagerName': hrManagerName,
+    'dateIssued': dateIssued.toIso8601String(),
+    'probationaryStart': probationaryStart?.toIso8601String(),
+    'probationaryEnd': probationaryEnd?.toIso8601String(),
+    'effectiveEndDate': effectiveEndDate?.toIso8601String(),
+    'salutationName': salutationName,
+    'noteOnScope': noteOnScope,
+    'findings': findings.map((f) => f.toJson()).toList(),
+    'witnessName': witnessName,
+    'companySignaturePngB64': companySignaturePngB64,
+  };
 }

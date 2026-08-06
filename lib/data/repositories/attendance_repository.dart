@@ -118,14 +118,19 @@ class AttendanceRepository {
   }
 }
 
-final attendanceRepositoryProvider =
-    Provider<AttendanceRepository>((ref) => AttendanceRepository(Supabase.instance.client));
+final attendanceRepositoryProvider = Provider<AttendanceRepository>(
+  (ref) => AttendanceRepository(Supabase.instance.client),
+);
 
 class AttendanceQuery {
   final DateTime start;
   final DateTime end;
   final String? employeeId;
-  const AttendanceQuery({required this.start, required this.end, this.employeeId});
+  const AttendanceQuery({
+    required this.start,
+    required this.end,
+    this.employeeId,
+  });
 
   @override
   bool operator ==(Object other) =>
@@ -141,9 +146,7 @@ class AttendanceQuery {
 
 final attendanceListProvider =
     FutureProvider.family<List<AttendanceDay>, AttendanceQuery>((ref, q) {
-  return ref.watch(attendanceRepositoryProvider).listByRange(
-        start: q.start,
-        end: q.end,
-        employeeId: q.employeeId,
-      );
-});
+      return ref
+          .watch(attendanceRepositoryProvider)
+          .listByRange(start: q.start, end: q.end, employeeId: q.employeeId);
+    });

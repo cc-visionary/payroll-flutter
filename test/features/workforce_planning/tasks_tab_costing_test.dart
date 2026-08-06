@@ -15,7 +15,9 @@ class _FakeRepo implements WorkforcePlanningRepository {
   List<String> failWith = const [];
 
   @override
-  Future<List<String>> updateTaskCosts(Map<String, Map<String, dynamic>> byId) async {
+  Future<List<String>> updateTaskCosts(
+    Map<String, Map<String, dynamic>> byId,
+  ) async {
     calls.add(byId);
     return failWith;
   }
@@ -39,31 +41,44 @@ final _card = RoleScorecard(
 );
 
 const _driver = WpDriver(
-    id: 'd1', companyId: 'c', name: 'Shopee orders', value: 120, grows: true);
-const _rate =
-    WpRate(id: 'r1', companyId: 'c', name: 'Pick/pack', minutesEach: 8);
+  id: 'd1',
+  companyId: 'c',
+  name: 'Shopee orders',
+  value: 120,
+  grows: true,
+);
+const _rate = WpRate(
+  id: 'r1',
+  companyId: 'c',
+  name: 'Pick/pack',
+  minutesEach: 8,
+);
 const _node = WpNode(id: 'n1', companyId: 'c', code: '6', name: '6. Fulfill');
 
 // A real promoted responsibility, not a short label — the length is what used
 // to blow out the table's natural width.
 const _task = WpTask(
-    id: 't1', companyId: 'c',
-    name: 'Lead the flashing, installation, configuration, testing, and final '
-        'preparation of Linux, Android, and supported gaming devices.',
-    roleScorecardId: 'rs1', responsibilityArea: 'Fulfilment');
+  id: 't1',
+  companyId: 'c',
+  name:
+      'Lead the flashing, installation, configuration, testing, and final '
+      'preparation of Linux, Android, and supported gaming devices.',
+  roleScorecardId: 'rs1',
+  responsibilityArea: 'Fulfilment',
+);
 
 Widget _host(_FakeRepo repo) => ProviderScope(
-      overrides: [
-        wpTasksProvider.overrideWith((ref) async => const [_task]),
-        wpNodesProvider.overrideWith((ref) async => const [_node]),
-        wpDriversProvider.overrideWith((ref) async => const [_driver]),
-        wpRatesProvider.overrideWith((ref) async => const [_rate]),
-        wpActiveEmployeesProvider.overrideWith((ref) async => const []),
-        roleScorecardListProvider.overrideWith((ref) async => [_card]),
-        workforcePlanningRepositoryProvider.overrideWithValue(repo),
-      ],
-      child: const MaterialApp(home: Scaffold(body: TasksTab())),
-    );
+  overrides: [
+    wpTasksProvider.overrideWith((ref) async => const [_task]),
+    wpNodesProvider.overrideWith((ref) async => const [_node]),
+    wpDriversProvider.overrideWith((ref) async => const [_driver]),
+    wpRatesProvider.overrideWith((ref) async => const [_rate]),
+    wpActiveEmployeesProvider.overrideWith((ref) async => const []),
+    roleScorecardListProvider.overrideWith((ref) async => [_card]),
+    workforcePlanningRepositoryProvider.overrideWithValue(repo),
+  ],
+  child: const MaterialApp(home: Scaffold(body: TasksTab())),
+);
 
 Future<void> _enterCostMode(WidgetTester tester) async {
   await tester.pumpAndSettle();
@@ -75,7 +90,9 @@ void main() {
   // The header now reports costing PROGRESS rather than a raw uncosted count:
   // expectations count as resolved, so the number can actually reach zero
   // instead of being a permanent banner.
-  testWidgets('costing progress is surfaced before entering cost mode', (tester) async {
+  testWidgets('costing progress is surfaced before entering cost mode', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(_FakeRepo()));
     await tester.pumpAndSettle();
     expect(find.textContaining('0 of 1 resolved'), findsOneWidget);
@@ -85,71 +102,99 @@ void main() {
   // An ARCHIVED task must not haunt the active costing backlog: the header
   // scopes to activeTasks now, so an archived, never-costed row must not keep
   // the "still to cost" banner alive once every ACTIVE task is costed.
-  testWidgets('an archived uncosted task does not count toward the costing backlog',
-      (tester) async {
-    tester.view.physicalSize = const Size(1750, 1400);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+  testWidgets(
+    'an archived uncosted task does not count toward the costing backlog',
+    (tester) async {
+      tester.view.physicalSize = const Size(1750, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
 
-    const costedActive = WpTask(
-        id: 't-active', companyId: 'c', name: 'Costed active task',
-        roleScorecardId: 'rs1', responsibilityArea: 'Fulfilment',
-        hoursPerMonth: 10);
-    const archivedUncosted = WpTask(
-        id: 't-archived', companyId: 'c', name: 'Retired task',
-        roleScorecardId: 'rs1', responsibilityArea: 'Fulfilment',
-        status: 'ARCHIVED');
+      const costedActive = WpTask(
+        id: 't-active',
+        companyId: 'c',
+        name: 'Costed active task',
+        roleScorecardId: 'rs1',
+        responsibilityArea: 'Fulfilment',
+        hoursPerMonth: 10,
+      );
+      const archivedUncosted = WpTask(
+        id: 't-archived',
+        companyId: 'c',
+        name: 'Retired task',
+        roleScorecardId: 'rs1',
+        responsibilityArea: 'Fulfilment',
+        status: 'ARCHIVED',
+      );
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        wpTasksProvider.overrideWith((ref) async => const [costedActive, archivedUncosted]),
-        wpNodesProvider.overrideWith((ref) async => const [_node]),
-        wpDriversProvider.overrideWith((ref) async => const [_driver]),
-        wpRatesProvider.overrideWith((ref) async => const [_rate]),
-        wpActiveEmployeesProvider.overrideWith((ref) async => const []),
-        roleScorecardListProvider.overrideWith((ref) async => [_card]),
-        workforcePlanningRepositoryProvider.overrideWithValue(_FakeRepo()),
-      ],
-      child: const MaterialApp(home: Scaffold(body: TasksTab())),
-    ));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            wpTasksProvider.overrideWith(
+              (ref) async => const [costedActive, archivedUncosted],
+            ),
+            wpNodesProvider.overrideWith((ref) async => const [_node]),
+            wpDriversProvider.overrideWith((ref) async => const [_driver]),
+            wpRatesProvider.overrideWith((ref) async => const [_rate]),
+            wpActiveEmployeesProvider.overrideWith((ref) async => const []),
+            roleScorecardListProvider.overrideWith((ref) async => [_card]),
+            workforcePlanningRepositoryProvider.overrideWithValue(_FakeRepo()),
+          ],
+          child: const MaterialApp(home: Scaffold(body: TasksTab())),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.textContaining('still to cost'), findsNothing,
-        reason: 'the archived uncosted task must not appear in the costing backlog');
-    expect(find.textContaining('All 1 tasks resolved'), findsOneWidget);
-  });
+      expect(
+        find.textContaining('still to cost'),
+        findsNothing,
+        reason:
+            'the archived uncosted task must not appear in the costing backlog',
+      );
+      expect(find.textContaining('All 1 tasks resolved'), findsOneWidget);
+    },
+  );
 
-  testWidgets('typing manual times + minutes computes hours live and saves the patch',
-      (tester) async {
-    final repo = _FakeRepo();
-    await tester.pumpWidget(_host(repo));
-    await _enterCostMode(tester);
+  testWidgets(
+    'typing manual times + minutes computes hours live and saves the patch',
+    (tester) async {
+      final repo = _FakeRepo();
+      await tester.pumpWidget(_host(repo));
+      await _enterCostMode(tester);
 
-    // Save is disabled until something is actually edited.
-    expect(find.text('Not costed'), findsOneWidget);
+      // Save is disabled until something is actually edited.
+      expect(find.text('Not costed'), findsOneWidget);
 
-    await tester.enterText(find.byKey(const ValueKey('times-t1-manual')), '20');
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const ValueKey('mins-t1-manual')), '45');
-    await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('times-t1-manual')),
+        '20',
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('mins-t1-manual')),
+        '45',
+      );
+      await tester.pumpAndSettle();
 
-    // 20 * 45 / 60 = 15.0
-    expect(find.text('15.0'), findsOneWidget);
-    expect(find.text('Save 1'), findsOneWidget);
+      // 20 * 45 / 60 = 15.0
+      expect(find.text('15.0'), findsOneWidget);
+      expect(find.text('Save 1'), findsOneWidget);
 
-    await tester.tap(find.text('Save 1'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Save 1'));
+      await tester.pumpAndSettle();
 
-    expect(repo.calls, hasLength(1));
-    final patch = repo.calls.single['t1']!;
-    expect(patch['times_source'], 'manual');
-    expect(patch['times_manual'], 20);
-    expect(patch['minutes_manual'], 45);
-    expect(patch['driver_id'], isNull);
-    expect(patch['rate_id'], isNull);
-  });
+      expect(repo.calls, hasLength(1));
+      final patch = repo.calls.single['t1']!;
+      expect(patch['times_source'], 'manual');
+      expect(patch['times_manual'], 20);
+      expect(patch['minutes_manual'], 45);
+      expect(patch['driver_id'], isNull);
+      expect(patch['rate_id'], isNull);
+    },
+  );
 
-  testWidgets('picking a growing driver marks the row as scaling', (tester) async {
+  testWidgets('picking a growing driver marks the row as scaling', (
+    tester,
+  ) async {
     final repo = _FakeRepo();
     await tester.pumpWidget(_host(repo));
     await _enterCostMode(tester);
@@ -173,11 +218,16 @@ void main() {
     final patch = repo.calls.single['t1']!;
     expect(patch['times_source'], 'driver');
     expect(patch['driver_id'], 'd1');
-    expect(patch['times_manual'], isNull,
-        reason: 'a driver-sourced row must not keep a stale manual count');
+    expect(
+      patch['times_manual'],
+      isNull,
+      reason: 'a driver-sourced row must not keep a stale manual count',
+    );
   });
 
-  testWidgets('editing back to the original value drops the change', (tester) async {
+  testWidgets('editing back to the original value drops the change', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(_FakeRepo()));
     await _enterCostMode(tester);
 
@@ -187,11 +237,16 @@ void main() {
 
     await tester.enterText(find.byKey(const ValueKey('times-t1-manual')), '');
     await tester.pumpAndSettle();
-    expect(find.text('Save 1'), findsNothing,
-        reason: 'back to the starting value is not a change');
+    expect(
+      find.text('Save 1'),
+      findsNothing,
+      reason: 'back to the starting value is not a change',
+    );
     expect(find.textContaining('Costing — edit the cells'), findsOneWidget);
     expect(
-      tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Save')).onPressed,
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Save'))
+          .onPressed,
       isNull,
       reason: 'save must be disabled when there is nothing to save',
     );
@@ -208,15 +263,20 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('1 failed'), findsOneWidget);
-    expect(find.text('Save 1'), findsOneWidget,
-        reason: 'the failed row must remain unsaved and retryable');
+    expect(
+      find.text('Save 1'),
+      findsOneWidget,
+      reason: 'the failed row must remain unsaved and retryable',
+    );
   });
 
   // Regression: the tables used to inherit ResponsiveTable's 1100px cap, so on
   // a wide window they stopped a third of the way across and the Owner column
   // was clipped mid-word. Long responsibility sentences also set the table's
   // natural width, pushing the right-hand columns out of reach.
-  testWidgets('tables fill a wide window instead of capping at 1100', (tester) async {
+  testWidgets('tables fill a wide window instead of capping at 1100', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1750, 1100);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -225,31 +285,41 @@ void main() {
     await tester.pumpAndSettle();
 
     final table = tester.getRect(find.byType(DataTable).first);
-    expect(table.width, greaterThan(1400),
-        reason: 'table must span the pane, not stop at the old 1100 cap');
+    expect(
+      table.width,
+      greaterThan(1400),
+      reason: 'table must span the pane, not stop at the old 1100 cap',
+    );
 
     // Every column header is inside the viewport — nothing clipped off-screen.
     for (final h in ['Task', 'Node', 'Hours/mo', 'Owner', 'Cadence']) {
-      expect(tester.getRect(find.text(h)).right, lessThan(1750),
-          reason: '$h header must be visible without scrolling');
+      expect(
+        tester.getRect(find.text(h)).right,
+        lessThan(1750),
+        reason: '$h header must be visible without scrolling',
+      );
     }
   });
 
-  testWidgets('a long responsibility name is clamped, not allowed to set table width',
-      (tester) async {
-    tester.view.physicalSize = const Size(1750, 1100);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.reset);
+  testWidgets(
+    'a long responsibility name is clamped, not allowed to set table width',
+    (tester) async {
+      tester.view.physicalSize = const Size(1750, 1100);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(_host(_FakeRepo()));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(_host(_FakeRepo()));
+      await tester.pumpAndSettle();
 
-    final nameCell = tester.widget<Text>(find.text(_task.name));
-    expect(nameCell.maxLines, 2);
-    expect(nameCell.overflow, TextOverflow.ellipsis);
-  });
+      final nameCell = tester.widget<Text>(find.text(_task.name));
+      expect(nameCell.maxLines, 2);
+      expect(nameCell.overflow, TextOverflow.ellipsis);
+    },
+  );
 
-  testWidgets('cancelling with pending edits asks before discarding', (tester) async {
+  testWidgets('cancelling with pending edits asks before discarding', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(_FakeRepo()));
     await _enterCostMode(tester);
 
@@ -264,7 +334,9 @@ void main() {
     expect(find.text('Save 1'), findsOneWidget);
   });
 
-  testWidgets('typing a direct Hours figure computes and saves it', (tester) async {
+  testWidgets('typing a direct Hours figure computes and saves it', (
+    tester,
+  ) async {
     final repo = _FakeRepo();
     await tester.pumpWidget(_host(repo));
     await _enterCostMode(tester);

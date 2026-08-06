@@ -27,7 +27,8 @@ void _installMouseTrackerDiagnostics() {
   var suppressed = 0;
 
   String signatureOf(String s) {
-    if (s.contains('Cannot hit test a render box with no size')) return 'no-size';
+    if (s.contains('Cannot hit test a render box with no size'))
+      return 'no-size';
     if (s.contains('_debugDuringDeviceUpdate') || s.contains('mouse_tracker')) {
       return 'mouse-tracker';
     }
@@ -38,16 +39,22 @@ void _installMouseTrackerDiagnostics() {
     final sig = signatureOf(details.exceptionAsString());
     if (sig.isNotEmpty) {
       if (presented.add(sig)) {
-        debugPrint('\n━━━━━━ [mouse-tracker diagnostic] FIRST "$sig" — '
-            'full details below (this names the culprit widget) ━━━━━━');
+        debugPrint(
+          '\n━━━━━━ [mouse-tracker diagnostic] FIRST "$sig" — '
+          'full details below (this names the culprit widget) ━━━━━━',
+        );
         FlutterError.presentError(details);
-        debugPrint('━━━━━━ [mouse-tracker diagnostic] further "$sig" errors '
-            'will be SUPPRESSED to keep the app responsive ━━━━━━\n');
+        debugPrint(
+          '━━━━━━ [mouse-tracker diagnostic] further "$sig" errors '
+          'will be SUPPRESSED to keep the app responsive ━━━━━━\n',
+        );
       } else {
         suppressed++;
         if (suppressed % 2000 == 0) {
-          debugPrint('[mouse-tracker diagnostic] suppressed $suppressed '
-              'repeat framework mouse errors so far');
+          debugPrint(
+            '[mouse-tracker diagnostic] suppressed $suppressed '
+            'repeat framework mouse errors so far',
+          );
         }
       }
       return; // these are caught, non-fatal framework errors
@@ -72,8 +79,9 @@ void main() {
     // mounts — a persisted session may already be active by the time
     // the first widget builds, and we want the subscription live for
     // any auth event fired during/after restoration.
-    AuthAuditService(AuditRepository(Supabase.instance.client))
-        .start(Supabase.instance.client);
+    AuthAuditService(
+      AuditRepository(Supabase.instance.client),
+    ).start(Supabase.instance.client);
     runApp(const ProviderScope(child: PayrollApp()));
   }, _onUncaughtZoneError);
 }
@@ -90,8 +98,10 @@ void main() {
 /// keep its previous "report it" behaviour.
 void _onUncaughtZoneError(Object error, StackTrace stack) {
   if (_isStaleRefreshTokenError(error)) {
-    debugPrint('[auth] ignoring stale persisted session on startup '
-        '(${error is AuthException ? error.code ?? error.message : error})');
+    debugPrint(
+      '[auth] ignoring stale persisted session on startup '
+      '(${error is AuthException ? error.code ?? error.message : error})',
+    );
     return;
   }
   FlutterError.reportError(
@@ -120,9 +130,7 @@ class PayrollApp extends ConsumerWidget {
       themeMode: themeMode,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
-      localizationsDelegates: const [
-        FlutterQuillLocalizations.delegate,
-      ],
+      localizationsDelegates: const [FlutterQuillLocalizations.delegate],
     );
   }
 }

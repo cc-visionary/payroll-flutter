@@ -43,10 +43,12 @@ class RoleTab extends ConsumerWidget {
     return cardsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(
-          child: Text('Error: $e', style: const TextStyle(color: Colors.red))),
+        child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
+      ),
       data: (cards) {
-        final card =
-            cards.where((c) => c.id == employee.roleScorecardId).firstOrNull;
+        final card = cards
+            .where((c) => c.id == employee.roleScorecardId)
+            .firstOrNull;
         if (card == null) {
           return const Padding(
             padding: EdgeInsets.all(24),
@@ -102,8 +104,11 @@ class _RoleDetail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pending =
-        ref.watch(pendingCompensationChangesProvider(employee.id)).asData?.value ??
-            const <CompensationChange>[];
+        ref
+            .watch(pendingCompensationChangesProvider(employee.id))
+            .asData
+            ?.value ??
+        const <CompensationChange>[];
 
     // Pay is per-EMPLOYEE, not per-scorecard: two employees can share this role
     // and be paid differently. Resolve the same way payroll does — the
@@ -111,8 +116,11 @@ class _RoleDetail extends ConsumerWidget {
     // default for someone who has never had one. While the records load, fall
     // back to the scorecard so the tile never flashes an empty value.
     final changes =
-        ref.watch(compensationChangesByEmployeeProvider(employee.id)).asData?.value ??
-            const <CompensationChange>[];
+        ref
+            .watch(compensationChangesByEmployeeProvider(employee.id))
+            .asData
+            ?.value ??
+        const <CompensationChange>[];
     final now = DateTime.now();
     final pay = displayPayFor(
       changes: changes,
@@ -140,53 +148,55 @@ class _RoleDetail extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              LayoutBuilder(builder: (ctx, c) {
-                final cardWidth = c.maxWidth >= 920
-                    ? (c.maxWidth - 2 * 12) / 3
-                    : c.maxWidth >= 600
-                        ? (c.maxWidth - 12) / 2
-                        : c.maxWidth;
-                return Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    SizedBox(
-                      width: cardWidth,
-                      child: _TintedCard(
-                        label: 'POSITION',
-                        value: card.jobTitle,
-                        subtitle: departmentName,
-                        bg: const Color(0xFFEFF6FF),
-                        fg: const Color(0xFF1D4ED8),
+              LayoutBuilder(
+                builder: (ctx, c) {
+                  final cardWidth = c.maxWidth >= 920
+                      ? (c.maxWidth - 2 * 12) / 3
+                      : c.maxWidth >= 600
+                      ? (c.maxWidth - 12) / 2
+                      : c.maxWidth;
+                  return Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      SizedBox(
+                        width: cardWidth,
+                        child: _TintedCard(
+                          label: 'POSITION',
+                          value: card.jobTitle,
+                          subtitle: departmentName,
+                          bg: const Color(0xFFEFF6FF),
+                          fg: const Color(0xFF1D4ED8),
+                        ),
                       ),
-                    ),
-                    SizedBox(
-                      width: cardWidth,
-                      child: _TintedCard(
-                        label: 'BASE SALARY',
-                        value: pay.baseSalary == null
-                            ? '—'
-                            : Money.fmtPhp(pay.baseSalary!),
-                        subtitle: pay.fromCompensationRecord
-                            ? '${pay.wageType.toLowerCase()} · compensation record'
-                            : '${pay.wageType.toLowerCase()} · role default',
-                        bg: const Color(0xFFECFDF5),
-                        fg: const Color(0xFF047857),
+                      SizedBox(
+                        width: cardWidth,
+                        child: _TintedCard(
+                          label: 'BASE SALARY',
+                          value: pay.baseSalary == null
+                              ? '—'
+                              : Money.fmtPhp(pay.baseSalary!),
+                          subtitle: pay.fromCompensationRecord
+                              ? '${pay.wageType.toLowerCase()} · compensation record'
+                              : '${pay.wageType.toLowerCase()} · role default',
+                          bg: const Color(0xFFECFDF5),
+                          fg: const Color(0xFF047857),
+                        ),
                       ),
-                    ),
-                    SizedBox(
-                      width: cardWidth,
-                      child: _TintedCard(
-                        label: 'WORK SCHEDULE',
-                        value: '${card.workHoursPerDay}h / day',
-                        subtitle: card.workDaysPerWeek,
-                        bg: const Color(0xFFF5F3FF),
-                        fg: const Color(0xFF6D28D9),
+                      SizedBox(
+                        width: cardWidth,
+                        child: _TintedCard(
+                          label: 'WORK SCHEDULE',
+                          value: '${card.workHoursPerDay}h / day',
+                          subtitle: card.workDaysPerWeek,
+                          bg: const Color(0xFFF5F3FF),
+                          fg: const Color(0xFF6D28D9),
+                        ),
                       ),
-                    ),
-                  ],
-                );
-              }),
+                    ],
+                  );
+                },
+              ),
               if (card.salaryRangeMin != null ||
                   card.salaryRangeMax != null) ...[
                 const SizedBox(height: 20),
@@ -198,10 +208,7 @@ class _RoleDetail extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  _rangeText(card),
-                  style: const TextStyle(fontSize: 14),
-                ),
+                Text(_rangeText(card), style: const TextStyle(fontSize: 14)),
               ],
               if (card.missionStatement.isNotEmpty) ...[
                 const SizedBox(height: 20),
@@ -216,7 +223,9 @@ class _RoleDetail extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -381,7 +390,9 @@ class _TintedCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg ?? Theme.of(context).colorScheme.surface,
         border: Border.all(
-          color: bg == null ? Theme.of(context).dividerColor : Colors.transparent,
+          color: bg == null
+              ? Theme.of(context).dividerColor
+              : Colors.transparent,
         ),
         borderRadius: BorderRadius.circular(8),
       ),
@@ -412,7 +423,8 @@ class _TintedCard extends StatelessWidget {
               subtitle!,
               style: TextStyle(
                 fontSize: 11,
-                color: fg?.withValues(alpha: 0.8) ??
+                color:
+                    fg?.withValues(alpha: 0.8) ??
                     Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
@@ -511,8 +523,9 @@ class _Section extends StatelessWidget {
                             subtitle!,
                             style: TextStyle(
                               fontSize: 13,
-                              color:
-                                  Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -524,10 +537,7 @@ class _Section extends StatelessWidget {
             ),
           ),
           Divider(height: 1, color: Theme.of(context).dividerColor),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: child,
-          ),
+          Padding(padding: const EdgeInsets.all(16), child: child),
         ],
       ),
     );
@@ -595,7 +605,9 @@ class _EmployeeKpiAssignmentSectionState
   @override
   Widget build(BuildContext context) {
     final roleKpis = ref.watch(roleKpisProvider(widget.roleScorecardId));
-    final assigned = ref.watch(employeeAssignedKpiIdsProvider(widget.employeeId));
+    final assigned = ref.watch(
+      employeeAssignedKpiIdsProvider(widget.employeeId),
+    );
     return roleKpis.when(
       loading: () => const Padding(
         padding: EdgeInsets.all(16),
@@ -616,30 +628,35 @@ class _EmployeeKpiAssignmentSectionState
         ),
         data: (assignedIds) {
           _roleKpis = kpis;
-          _checked ??= initialCheckedKpiIds(
-            assignedIds,
-            [for (final k in kpis) k.kpiId],
-          );
+          _checked ??= initialCheckedKpiIds(assignedIds, [
+            for (final k in kpis) k.kpiId,
+          ]);
           final checked = _checked!;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                child: Text('KPIs this employee is tracked on',
-                    style: Theme.of(context).textTheme.titleMedium),
+                child: Text(
+                  'KPIs this employee is tracked on',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
               ),
               if (assignedIds.isEmpty)
                 const Padding(
                   padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: Text('Tracking all role KPIs (default). Untick any that '
-                      "can't be realistically measured for this person."),
+                  child: Text(
+                    'Tracking all role KPIs (default). Untick any that '
+                    "can't be realistically measured for this person.",
+                  ),
                 ),
               for (final k in kpis)
                 CheckboxListTile(
                   value: checked.contains(k.kpiId),
                   title: Text(k.name),
-                  subtitle: k.target == null ? null : Text('Target: ${k.target}'),
+                  subtitle: k.target == null
+                      ? null
+                      : Text('Target: ${k.target}'),
                   onChanged: widget.canManage && !_saving
                       ? (v) => setState(() {
                           if (v == true) {
@@ -668,19 +685,22 @@ class _EmployeeKpiAssignmentSectionState
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      await ref.read(roleScorecardRepositoryProvider).saveEmployeeKpis(
+      await ref
+          .read(roleScorecardRepositoryProvider)
+          .saveEmployeeKpis(
             widget.employeeId,
             kpiIdsToPersist(_checked!, [for (final k in _roleKpis) k.kpiId]),
           );
       ref.invalidate(employeeAssignedKpiIdsProvider(widget.employeeId));
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('KPI selection saved.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('KPI selection saved.')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not save: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not save: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }

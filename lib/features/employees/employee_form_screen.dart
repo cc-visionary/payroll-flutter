@@ -25,8 +25,7 @@ String? resolveBrandAllocation({
   required bool deriveFromScorecard,
   required String? scorecardHiringEntityId,
   required String? manualHiringEntityId,
-}) =>
-    deriveFromScorecard ? scorecardHiringEntityId : manualHiringEntityId;
+}) => deriveFromScorecard ? scorecardHiringEntityId : manualHiringEntityId;
 
 /// A subset of Applicant fields the EmployeeFormScreen can prefill from on
 /// conversion. Keeping this as a separate value object (rather than coupling
@@ -122,7 +121,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
 
   // Brand allocation (Company / hiring entity). HR/Admin editable.
   BrandMode _brandMode = BrandMode.derive;
-  String? _hiringEntityId;       // manual selection
+  String? _hiringEntityId; // manual selection
   String? _origHiringEntityId;
 
   // Statutory employer-of-record override (HR/Admin editable). null = inherit
@@ -191,7 +190,9 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
   Future<void> _loadExisting() async {
     setState(() => _loading = true);
     try {
-      final e = await ref.read(employeeRepositoryProvider).byId(widget.employeeId!);
+      final e = await ref
+          .read(employeeRepositoryProvider)
+          .byId(widget.employeeId!);
       if (e == null) {
         setState(() => _error = 'Employee not found');
         return;
@@ -227,7 +228,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       // Derive probation months from the stored regularization date so the
       // input reflects the saved policy. Empty when no regularization date.
       if (e.regularizationDate != null) {
-        final m = (e.regularizationDate!.year - e.hireDate.year) * 12 +
+        final m =
+            (e.regularizationDate!.year - e.hireDate.year) * 12 +
             (e.regularizationDate!.month - e.hireDate.month);
         _probationMonths.text = m > 0 ? m.toString() : '';
       } else {
@@ -241,7 +243,9 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       _origHiringEntityId = e.hiringEntityId;
       // Existing employees with a stored brand open in manual mode showing it
       // (lossless); legacy null-brand rows default to derive.
-      _brandMode = e.hiringEntityId == null ? BrandMode.derive : BrandMode.manual;
+      _brandMode = e.hiringEntityId == null
+          ? BrandMode.derive
+          : BrandMode.manual;
       _statutoryEntityId = e.statutoryEntityId;
       _origStatutoryEntityId = e.statutoryEntityId;
       _taxOnFullEarnings = e.taxOnFullEarnings;
@@ -274,11 +278,12 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
     final canEditStatutoryEntity = profile.isHrOrAdmin;
     final canEditWage = profile.appRole == AppRole.SUPER_ADMIN;
     final taxDirty = canEditTax && _taxOnFullEarnings != _origTaxOnFull;
-    final statutoryEntityDirty = canEditStatutoryEntity &&
-        _statutoryEntityId != _origStatutoryEntityId;
+    final statutoryEntityDirty =
+        canEditStatutoryEntity && _statutoryEntityId != _origStatutoryEntityId;
     final wageText = _declaredWage.text.trim();
     final wageCurrent = wageText.isEmpty ? null : wageText;
-    final wageDirty = canEditWage &&
+    final wageDirty =
+        canEditWage &&
         (wageCurrent != _origDeclaredWage ||
             _declaredWageType != (_origDeclaredWageType ?? 'MONTHLY') ||
             _declaredWageEffectiveAt != _origDeclaredWageEffectiveAt ||
@@ -286,15 +291,19 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
     // Per-benefit eligibility-override dirty flags. Admin-tier only — gated by
     // the same `isHrOrAdmin` check used for the rest of this section.
     final canEditBenefitOverrides = profile.isHrOrAdmin;
-    final sssOverrideDirty = canEditBenefitOverrides &&
+    final sssOverrideDirty =
+        canEditBenefitOverrides &&
         _sssEligibilityOverride != _origSssEligibilityOverride;
-    final philhealthOverrideDirty = canEditBenefitOverrides &&
+    final philhealthOverrideDirty =
+        canEditBenefitOverrides &&
         _philhealthEligibilityOverride != _origPhilhealthEligibilityOverride;
-    final pagibigOverrideDirty = canEditBenefitOverrides &&
+    final pagibigOverrideDirty =
+        canEditBenefitOverrides &&
         _pagibigEligibilityOverride != _origPagibigEligibilityOverride;
 
     if (wageDirty) {
-      final confirmed = await showDialog<bool>(
+      final confirmed =
+          await showDialog<bool>(
             context: context,
             builder: (ctx) => AlertDialog(
               title: const Text('Confirm declared wage override'),
@@ -303,8 +312,14 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                 'This action is audited. Continue?',
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirm')),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Confirm'),
+                ),
               ],
             ),
           ) ??
@@ -319,10 +334,14 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
     try {
       // Job title + department are derived from the selected role scorecard
       // so they stay in sync with the role. Empty string when no role linked.
-      final cards = ref.read(roleScorecardListProvider).asData?.value ?? const [];
+      final cards =
+          ref.read(roleScorecardListProvider).asData?.value ?? const [];
       final selectedCard = _roleScorecardId == null
           ? null
-          : cards.where((c) => c.id == _roleScorecardId).cast<dynamic>().firstOrNull;
+          : cards
+                .where((c) => c.id == _roleScorecardId)
+                .cast<dynamic>()
+                .firstOrNull;
       final derivedJobTitle = selectedCard?.jobTitle as String?;
       final derivedDepartmentId = selectedCard?.departmentId as String?;
 
@@ -335,9 +354,11 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           manualHiringEntityId: _hiringEntityId,
         );
         if (effectiveHiringEntityId == null) {
-          setState(() => _error =
-              'Company (brand) is required. Pick a brand, or choose a role '
-              'scorecard that has a company set.');
+          setState(
+            () => _error =
+                'Company (brand) is required. Pick a brand, or choose a role '
+                'scorecard that has a company set.',
+          );
           return;
         }
       } else {
@@ -346,31 +367,46 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
         effectiveHiringEntityId = _origHiringEntityId;
       }
 
-      final saved = await ref.read(employeeRepositoryProvider).upsert(
+      final saved = await ref
+          .read(employeeRepositoryProvider)
+          .upsert(
             id: _existing?.id,
             companyId: _existing?.companyId ?? profile.companyId,
             employeeNumber: _empNo.text.trim(),
             firstName: _firstName.text.trim(),
-            middleName: _middleName.text.trim().isEmpty ? null : _middleName.text.trim(),
+            middleName: _middleName.text.trim().isEmpty
+                ? null
+                : _middleName.text.trim(),
             lastName: _lastName.text.trim(),
             jobTitle: derivedJobTitle,
             departmentId: derivedDepartmentId,
             roleScorecardId: _roleScorecardId,
             hiringEntityId: effectiveHiringEntityId,
-            workEmail: _workEmail.text.trim().isEmpty ? null : _workEmail.text.trim(),
-            mobileNumber: _mobile.text.trim().isEmpty ? null : _mobile.text.trim(),
+            workEmail: _workEmail.text.trim().isEmpty
+                ? null
+                : _workEmail.text.trim(),
+            mobileNumber: _mobile.text.trim().isEmpty
+                ? null
+                : _mobile.text.trim(),
             birthDate: _birthDate,
-            addressLine1: _addressLine1.text.trim().isEmpty ? null : _addressLine1.text.trim(),
-            addressLine2: _addressLine2.text.trim().isEmpty ? null : _addressLine2.text.trim(),
+            addressLine1: _addressLine1.text.trim().isEmpty
+                ? null
+                : _addressLine1.text.trim(),
+            addressLine2: _addressLine2.text.trim().isEmpty
+                ? null
+                : _addressLine2.text.trim(),
             city: _city.text.trim().isEmpty ? null : _city.text.trim(),
-            province: _province.text.trim().isEmpty ? null : _province.text.trim(),
+            province: _province.text.trim().isEmpty
+                ? null
+                : _province.text.trim(),
             zipCode: _zipCode.text.trim().isEmpty ? null : _zipCode.text.trim(),
             employmentType: _employmentType,
             employmentStatus: _employmentStatus,
             hireDate: _hireDate,
             regularizationDate: _computedRegularizationDate(),
-            separationDate:
-                _employmentStatus == 'ACTIVE' ? null : _separationDate,
+            separationDate: _employmentStatus == 'ACTIVE'
+                ? null
+                : _separationDate,
             isRankAndFile: _isRankAndFile,
             isOtEligible: _isOtEligible,
             isNdEligible: _isNdEligible,
@@ -380,25 +416,32 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
             writeDeclaredWage: wageDirty,
             declaredWageOverride: wageCurrent,
             declaredWageType: wageCurrent == null ? null : _declaredWageType,
-            declaredWageEffectiveAt: wageCurrent == null ? null : _declaredWageEffectiveAt,
+            declaredWageEffectiveAt: wageCurrent == null
+                ? null
+                : _declaredWageEffectiveAt,
             declaredWageReason: wageCurrent == null
                 ? null
-                : (_declaredWageReason.text.trim().isEmpty ? null : _declaredWageReason.text.trim()),
+                : (_declaredWageReason.text.trim().isEmpty
+                      ? null
+                      : _declaredWageReason.text.trim()),
             declaredWageSetById: wageDirty ? profile.userId : null,
             writePaymentRouting:
                 _paymentSourceAccount != _origPaymentSourceAccount,
             paymentSourceAccount: _paymentSourceAccount,
-            paymentMethod:
-                _paymentSourceAccount == null ? null : 'BANK_TRANSFER',
+            paymentMethod: _paymentSourceAccount == null
+                ? null
+                : 'BANK_TRANSFER',
             writeStatutoryEntity: statutoryEntityDirty,
             statutoryEntityId: _statutoryEntityId,
-            sssEligibilityOverride:
-                sssOverrideDirty ? _sssEligibilityOverride : null,
+            sssEligibilityOverride: sssOverrideDirty
+                ? _sssEligibilityOverride
+                : null,
             philhealthEligibilityOverride: philhealthOverrideDirty
                 ? _philhealthEligibilityOverride
                 : null,
-            pagibigEligibilityOverride:
-                pagibigOverrideDirty ? _pagibigEligibilityOverride : null,
+            pagibigEligibilityOverride: pagibigOverrideDirty
+                ? _pagibigEligibilityOverride
+                : null,
           );
       // Notify the hiring flow on a successful CREATE (not update) so it can
       // mark the applicant as converted. Only fires when an ApplicantSeed was
@@ -416,10 +459,13 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           _employmentStatus != 'ACTIVE' && _separationDate != null;
       final statusChangedToSeparated =
           _origEmploymentStatus == 'ACTIVE' && _employmentStatus != 'ACTIVE';
-      final separationDateChanged = _origEmploymentStatus != 'ACTIVE' &&
+      final separationDateChanged =
+          _origEmploymentStatus != 'ACTIVE' &&
           _separationDate != _origSeparationDate;
       if (isSeparating && (statusChangedToSeparated || separationDateChanged)) {
-        await ref.read(employeeRepositoryProvider).recordSeparationEvent(
+        await ref
+            .read(employeeRepositoryProvider)
+            .recordSeparationEvent(
               employeeId: saved.id,
               separationDate: _separationDate!,
               reason: _employmentStatus,
@@ -433,10 +479,10 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
         saved.id,
         {
           'SSS': _sss.text.trim().isEmpty ? null : _sss.text.trim(),
-          'PHILHEALTH':
-              _philhealth.text.trim().isEmpty ? null : _philhealth.text.trim(),
-          'PAGIBIG':
-              _pagibig.text.trim().isEmpty ? null : _pagibig.text.trim(),
+          'PHILHEALTH': _philhealth.text.trim().isEmpty
+              ? null
+              : _philhealth.text.trim(),
+          'PAGIBIG': _pagibig.text.trim().isEmpty ? null : _pagibig.text.trim(),
         },
       );
       if (!mounted) return;
@@ -474,7 +520,6 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
     if (picked != null) setState(() => set(picked));
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -510,8 +555,9 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                               label: 'Birthday',
                               value: _birthDate,
                               onTap: () => _pickDate(
-                                  _birthDate ?? DateTime(2000, 1, 1),
-                                  (d) => _birthDate = d),
+                                _birthDate ?? DateTime(2000, 1, 1),
+                                (d) => _birthDate = d,
+                              ),
                               onClear: () => setState(() => _birthDate = null),
                             ),
                             _field(_addressLine1, 'Address line 1'),
@@ -558,20 +604,53 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                           _responsiveRow([
                             DropdownButtonFormField<String>(
                               initialValue: _employmentType,
-                              decoration: const InputDecoration(labelText: 'Type', border: OutlineInputBorder()),
-                              items: const [
-                                'REGULAR', 'PROBATIONARY', 'CONTRACTUAL', 'CONSULTANT',
-                                'INTERN', 'SEASONAL', 'CASUAL'
-                              ].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                              onChanged: (v) => setState(() => _employmentType = v!),
+                              decoration: const InputDecoration(
+                                labelText: 'Type',
+                                border: OutlineInputBorder(),
+                              ),
+                              items:
+                                  const [
+                                        'REGULAR',
+                                        'PROBATIONARY',
+                                        'CONTRACTUAL',
+                                        'CONSULTANT',
+                                        'INTERN',
+                                        'SEASONAL',
+                                        'CASUAL',
+                                      ]
+                                      .map(
+                                        (s) => DropdownMenuItem(
+                                          value: s,
+                                          child: Text(s),
+                                        ),
+                                      )
+                                      .toList(),
+                              onChanged: (v) =>
+                                  setState(() => _employmentType = v!),
                             ),
                             DropdownButtonFormField<String>(
                               initialValue: _employmentStatus,
-                              decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
-                              items: const [
-                                'ACTIVE', 'RESIGNED', 'TERMINATED', 'AWOL',
-                                'DECEASED', 'END_OF_CONTRACT', 'RETIRED'
-                              ].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                              decoration: const InputDecoration(
+                                labelText: 'Status',
+                                border: OutlineInputBorder(),
+                              ),
+                              items:
+                                  const [
+                                        'ACTIVE',
+                                        'RESIGNED',
+                                        'TERMINATED',
+                                        'AWOL',
+                                        'DECEASED',
+                                        'END_OF_CONTRACT',
+                                        'RETIRED',
+                                      ]
+                                      .map(
+                                        (s) => DropdownMenuItem(
+                                          value: s,
+                                          child: Text(s),
+                                        ),
+                                      )
+                                      .toList(),
                               onChanged: (v) => setState(() {
                                 _employmentStatus = v!;
                                 if (_employmentStatus != 'ACTIVE' &&
@@ -586,7 +665,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                             _DatePickerField(
                               label: 'Hire date',
                               value: _hireDate,
-                              onTap: () => _pickDate(_hireDate, (d) => _hireDate = d),
+                              onTap: () =>
+                                  _pickDate(_hireDate, (d) => _hireDate = d),
                             ),
                             TextFormField(
                               controller: _probationMonths,
@@ -595,10 +675,11 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                                 labelText: 'Probation period (months)',
                                 border: const OutlineInputBorder(),
                                 hintText: '6',
-                                helperText: _computedRegularizationDate() == null
+                                helperText:
+                                    _computedRegularizationDate() == null
                                     ? 'Leave blank to skip regularization'
                                     : 'Regularizes on '
-                                        '${_computedRegularizationDate()!.toIso8601String().substring(0, 10)}',
+                                          '${_computedRegularizationDate()!.toIso8601String().substring(0, 10)}',
                               ),
                               onChanged: (_) => setState(() {}),
                             ),
@@ -627,15 +708,18 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                                       label: 'Separation date',
                                       value: _separationDate,
                                       onTap: () => _pickDate(
-                                          _separationDate ?? DateTime.now(),
-                                          (d) => _separationDate = d),
+                                        _separationDate ?? DateTime.now(),
+                                        (d) => _separationDate = d,
+                                      ),
                                       onClear: () => setState(
-                                          () => _separationDate = null),
+                                        () => _separationDate = null,
+                                      ),
                                     ),
                                     TextFormField(
                                       controller: _separationReason,
                                       decoration: const InputDecoration(
-                                        labelText: 'Reason / remarks (optional)',
+                                        labelText:
+                                            'Reason / remarks (optional)',
                                         border: OutlineInputBorder(),
                                       ),
                                     ),
@@ -646,9 +730,9 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                                     'Used by COE generation as the end-of-employment date.',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ],
@@ -670,7 +754,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                           SwitchListTile(
                             title: const Text('Rank and file'),
                             value: _isRankAndFile,
-                            onChanged: (v) => setState(() => _isRankAndFile = v),
+                            onChanged: (v) =>
+                                setState(() => _isRankAndFile = v),
                           ),
                           SwitchListTile(
                             title: const Text('Overtime eligible'),
@@ -685,7 +770,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                           SwitchListTile(
                             title: const Text('Holiday pay eligible'),
                             value: _isHolidayEligible,
-                            onChanged: (v) => setState(() => _isHolidayEligible = v),
+                            onChanged: (v) =>
+                                setState(() => _isHolidayEligible = v),
                           ),
                         ],
                       ),
@@ -705,8 +791,9 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
-                          onPressed: () => context.pop(),
-                          child: const Text('Cancel')),
+                        onPressed: () => context.pop(),
+                        child: const Text('Cancel'),
+                      ),
                       const SizedBox(width: 8),
                       FilledButton(
                         onPressed: _loading ? null : _save,
@@ -714,7 +801,10 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                             ? const SizedBox(
                                 height: 18,
                                 width: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2))
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
                             : const Text('Save'),
                       ),
                     ],
@@ -748,8 +838,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
         final activeIds = cards.map((c) => c.id).toSet();
         final currentValue =
             _roleScorecardId != null && activeIds.contains(_roleScorecardId)
-                ? _roleScorecardId
-                : null;
+            ? _roleScorecardId
+            : null;
         return DropdownButtonFormField<String?>(
           initialValue: currentValue,
           decoration: const InputDecoration(
@@ -780,26 +870,32 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
     final canEdit = profile?.isHrOrAdmin ?? false;
     final entities =
         ref.watch(hiringEntityListProvider).asData?.value ?? const [];
-    final cards = ref.watch(roleScorecardListProvider).asData?.value ?? const [];
+    final cards =
+        ref.watch(roleScorecardListProvider).asData?.value ?? const [];
     final selectedCard = _roleScorecardId == null
         ? null
         : cards.where((c) => c.id == _roleScorecardId).firstOrNull;
     final derivedId = selectedCard?.hiringEntityId;
     String nameOf(String? id) => id == null
         ? '—'
-        : (entities.where((e) => e.id == id).firstOrNull?.name ?? '(unavailable)');
+        : (entities.where((e) => e.id == id).firstOrNull?.name ??
+              '(unavailable)');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SegmentedButton<BrandMode>(
           segments: const [
-            ButtonSegment(value: BrandMode.derive, label: Text('From role scorecard')),
+            ButtonSegment(
+              value: BrandMode.derive,
+              label: Text('From role scorecard'),
+            ),
             ButtonSegment(value: BrandMode.manual, label: Text('Set manually')),
           ],
           selected: {_brandMode},
-          onSelectionChanged:
-              canEdit ? (s) => setState(() => _brandMode = s.first) : null,
+          onSelectionChanged: canEdit
+              ? (s) => setState(() => _brandMode = s.first)
+              : null,
         ),
         const SizedBox(height: 8),
         if (_brandMode == BrandMode.derive)
@@ -808,7 +904,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
               labelText: 'Company (brand)',
               helperText: derivedId == null
                   ? 'This role scorecard has no company set — choose "Set '
-                      'manually", or set it on the scorecard.'
+                        'manually", or set it on the scorecard.'
                   : 'Derived from the role scorecard.',
               border: const OutlineInputBorder(),
               isDense: true,
@@ -817,8 +913,9 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           )
         else
           DropdownButtonFormField<String?>(
-            initialValue:
-                entities.any((e) => e.id == _hiringEntityId) ? _hiringEntityId : null,
+            initialValue: entities.any((e) => e.id == _hiringEntityId)
+                ? _hiringEntityId
+                : null,
             decoration: const InputDecoration(
               labelText: 'Company (brand)',
               helperText: 'Required.',
@@ -826,12 +923,16 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
               isDense: true,
             ),
             items: [
-              const DropdownMenuItem<String?>(value: null, child: Text('— Select —')),
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('— Select —'),
+              ),
               for (final e in entities)
                 DropdownMenuItem<String?>(value: e.id, child: Text(e.name)),
             ],
-            onChanged:
-                canEdit ? (v) => setState(() => _hiringEntityId = v) : null,
+            onChanged: canEdit
+                ? (v) => setState(() => _hiringEntityId = v)
+                : null,
           ),
       ],
     );
@@ -864,8 +965,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
         // entity, surface it as "(unavailable)" so the dropdown still opens.
         final currentValue =
             _statutoryEntityId != null && activeIds.contains(_statutoryEntityId)
-                ? _statutoryEntityId
-                : null;
+            ? _statutoryEntityId
+            : null;
         return DropdownButtonFormField<String?>(
           initialValue: currentValue,
           decoration: const InputDecoration(
@@ -880,10 +981,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
               child: Text('— Inherit from brand allocation —'),
             ),
             ...entities.map(
-              (e) => DropdownMenuItem<String?>(
-                value: e.id,
-                child: Text(e.name),
-              ),
+              (e) =>
+                  DropdownMenuItem<String?>(value: e.id, child: Text(e.name)),
             ),
           ],
           onChanged: canEdit
@@ -895,8 +994,9 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
   }
 
   Widget _buildPaymentAccountsCard() {
-    final accountsAsync =
-        ref.watch(employeeBankAccountsProvider(widget.employeeId!));
+    final accountsAsync = ref.watch(
+      employeeBankAccountsProvider(widget.employeeId!),
+    );
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -920,25 +1020,27 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Center(child: CircularProgressIndicator()),
               ),
-              error: (e, _) => Text('Error: $e',
-                  style: const TextStyle(color: Colors.red)),
+              error: (e, _) =>
+                  Text('Error: $e', style: const TextStyle(color: Colors.red)),
               data: (accounts) {
                 if (accounts.isEmpty) {
                   return const Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Text('No accounts yet. Click "Add account".',
-                        style: TextStyle(color: Colors.grey)),
+                    child: Text(
+                      'No accounts yet. Click "Add account".',
+                      style: TextStyle(color: Colors.grey),
+                    ),
                   );
                 }
                 return Column(
-                  children: [
-                    for (final a in accounts) _accountRow(a),
-                  ],
+                  children: [for (final a in accounts) _accountRow(a)],
                 );
               },
             ),
             const SizedBox(height: 16),
-            _buildDefaultPaySourceField(accountsAsync.asData?.value ?? const []),
+            _buildDefaultPaySourceField(
+              accountsAsync.asData?.value ?? const [],
+            ),
           ],
         ),
       ),
@@ -972,10 +1074,14 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${a.bankName} · ${a.accountNumber}',
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-                Text(a.accountName,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(
+                  '${a.bankName} · ${a.accountNumber}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  a.accountName,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
               ],
             ),
           ),
@@ -1016,17 +1122,21 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
     // (hiringEntityCode == null) always pass.
     final entityCode = _resolveHiringEntityCode();
     final eligible = paymentSourceAccounts
-        .where((p) =>
-            (p.hiringEntityCode == null || p.hiringEntityCode == entityCode) &&
-            (p.bankCode == null || employeeBankCodes.contains(p.bankCode)))
+        .where(
+          (p) =>
+              (p.hiringEntityCode == null ||
+                  p.hiringEntityCode == entityCode) &&
+              (p.bankCode == null || employeeBankCodes.contains(p.bankCode)),
+        )
         .toList();
     final ensureCurrentIncluded =
         _paymentSourceAccount != null &&
-            !eligible.any((p) => p.value == _paymentSourceAccount);
+        !eligible.any((p) => p.value == _paymentSourceAccount);
     final items = [
       const DropdownMenuItem<String?>(value: null, child: Text('— None —')),
-      ...eligible
-          .map((p) => DropdownMenuItem<String?>(value: p.value, child: Text(p.label))),
+      ...eligible.map(
+        (p) => DropdownMenuItem<String?>(value: p.value, child: Text(p.label)),
+      ),
       if (ensureCurrentIncluded)
         DropdownMenuItem<String?>(
           value: _paymentSourceAccount,
@@ -1067,12 +1177,14 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Delete payment account?'),
         content: Text(
-            'Remove ${a.bankName} · ${a.accountNumber}? If this is the default, '
-            "you'll need to pick a new default pay source."),
+          'Remove ${a.bankName} · ${a.accountNumber}? If this is the default, '
+          "you'll need to pick a new default pay source.",
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
@@ -1096,11 +1208,13 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       const SizedBox(height: 16),
       Card(
         child: ExpansionTile(
-          title: Row(children: const [
-            Icon(Icons.shield_outlined, size: 18),
-            SizedBox(width: 8),
-            Text('Payroll Overrides (Admin)'),
-          ]),
+          title: Row(
+            children: const [
+              Icon(Icons.shield_outlined, size: 18),
+              SizedBox(width: 8),
+              Text('Payroll Overrides (Admin)'),
+            ],
+          ),
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           children: [
             Padding(
@@ -1147,18 +1261,22 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
               ),
             ),
             const Divider(),
-            Row(children: [
-              const Icon(Icons.payments_outlined, size: 18),
-              const SizedBox(width: 8),
-              const Text('Declared wage override',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(width: 8),
-              if (!canEditWage)
-                const Tooltip(
-                  message: 'Only Super Admin can edit declared wage override',
-                  child: Icon(Icons.lock_outline, size: 16),
+            Row(
+              children: [
+                const Icon(Icons.payments_outlined, size: 18),
+                const SizedBox(width: 8),
+                const Text(
+                  'Declared wage override',
+                  style: TextStyle(fontWeight: FontWeight.w600),
                 ),
-            ]),
+                const SizedBox(width: 8),
+                if (!canEditWage)
+                  const Tooltip(
+                    message: 'Only Super Admin can edit declared wage override',
+                    child: Icon(Icons.lock_outline, size: 16),
+                  ),
+              ],
+            ),
             const SizedBox(height: 4),
             const Text(
               'Overrides wage used for statutory/tax calc only. Does not change actual earnings.',
@@ -1169,7 +1287,9 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
               TextFormField(
                 controller: _declaredWage,
                 enabled: canEditWage,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(
                   labelText: 'Override amount (PHP)',
                   border: OutlineInputBorder(),
@@ -1197,9 +1317,9 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
               value: _declaredWageEffectiveAt,
               onTap: canEditWage
                   ? () => _pickDate(
-                        _declaredWageEffectiveAt ?? DateTime.now(),
-                        (d) => _declaredWageEffectiveAt = d,
-                      )
+                      _declaredWageEffectiveAt ?? DateTime.now(),
+                      (d) => _declaredWageEffectiveAt = d,
+                    )
                   : () {},
               onClear: canEditWage
                   ? () => setState(() => _declaredWageEffectiveAt = null)
@@ -1218,12 +1338,16 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
               ),
             ),
             const Divider(height: 32),
-            Row(children: const [
-              Icon(Icons.health_and_safety_outlined, size: 18),
-              SizedBox(width: 8),
-              Text('Benefit eligibility overrides',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-            ]),
+            Row(
+              children: const [
+                Icon(Icons.health_and_safety_outlined, size: 18),
+                SizedBox(width: 8),
+                Text(
+                  'Benefit eligibility overrides',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
             const SizedBox(height: 4),
             const Text(
               'Force-enrol this employee in a specific statutory benefit even '
@@ -1261,8 +1385,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
               dense: true,
               title: const Text('Force-enrol Pag-IBIG'),
               value: _pagibigEligibilityOverride,
-              onChanged: (v) =>
-                  setState(() => _pagibigEligibilityOverride = v),
+              onChanged: (v) => setState(() => _pagibigEligibilityOverride = v),
             ),
           ],
         ),
@@ -1282,15 +1405,21 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
         ],
       );
     }
-    return Row(children: [
-      for (int i = 0; i < children.length; i++) ...[
-        if (i > 0) SizedBox(width: gap),
-        Expanded(child: children[i]),
+    return Row(
+      children: [
+        for (int i = 0; i < children.length; i++) ...[
+          if (i > 0) SizedBox(width: gap),
+          Expanded(child: children[i]),
+        ],
       ],
-    ]);
+    );
   }
 
-  Widget _field(TextEditingController c, String label, {bool required = false}) {
+  Widget _field(
+    TextEditingController c,
+    String label, {
+    bool required = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: TextFormField(
@@ -1313,10 +1442,14 @@ class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.text);
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(text,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-      );
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(
+      text,
+      style: Theme.of(
+        context,
+      ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+    ),
+  );
 }
 
 class _DatePickerField extends StatelessWidget {
@@ -1335,15 +1468,23 @@ class _DatePickerField extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: InputDecorator(
-        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder(), isDense: true),
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+          isDense: true,
+        ),
         child: Row(
           children: [
             Expanded(
               child: InkWell(
                 onTap: onTap,
                 child: Text(
-                  value == null ? 'Select...' : value!.toIso8601String().substring(0, 10),
-                  style: TextStyle(color: value == null ? Theme.of(context).hintColor : null),
+                  value == null
+                      ? 'Select...'
+                      : value!.toIso8601String().substring(0, 10),
+                  style: TextStyle(
+                    color: value == null ? Theme.of(context).hintColor : null,
+                  ),
                 ),
               ),
             ),
@@ -1395,9 +1536,9 @@ class _BankAccountDialogState extends ConsumerState<_BankAccountDialog> {
         .where((p) => p.bankCode != null)
         .map((p) => (code: p.bankCode!, label: _bankLabelFor(p.bankCode!)))
         .fold<List<({String code, String label})>>([], (list, b) {
-      if (!list.any((x) => x.code == b.code)) list.add(b);
-      return list;
-    });
+          if (!list.any((x) => x.code == b.code)) list.add(b);
+          return list;
+        });
   }
 
   String _bankLabelFor(String code) {
@@ -1473,7 +1614,11 @@ class _BankAccountDialogState extends ConsumerState<_BankAccountDialog> {
         ? MediaQuery.sizeOf(context).width - 48
         : 400.0;
     return AlertDialog(
-      title: Text(widget.existing == null ? 'Add payment account' : 'Edit payment account'),
+      title: Text(
+        widget.existing == null
+            ? 'Add payment account'
+            : 'Edit payment account',
+      ),
       content: SizedBox(
         width: dialogWidth,
         child: Form(
@@ -1489,10 +1634,10 @@ class _BankAccountDialogState extends ConsumerState<_BankAccountDialog> {
                   border: OutlineInputBorder(),
                 ),
                 items: _bankChoices
-                    .map((b) => DropdownMenuItem(
-                          value: b.code,
-                          child: Text(b.label),
-                        ))
+                    .map(
+                      (b) =>
+                          DropdownMenuItem(value: b.code, child: Text(b.label)),
+                    )
                     .toList(),
                 validator: (v) => v == null ? 'Required' : null,
                 onChanged: (v) => setState(() => _bankCode = v),
@@ -1544,7 +1689,8 @@ class _BankAccountDialogState extends ConsumerState<_BankAccountDialog> {
               ? const SizedBox(
                   height: 16,
                   width: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2))
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text('Save'),
         ),
       ],

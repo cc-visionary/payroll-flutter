@@ -24,17 +24,21 @@ class AdjunctsScreen extends ConsumerWidget {
         drawer: isMobile(context) ? const AppDrawer() : null,
         appBar: AppBar(
           title: const Text('Payroll Adjuncts'),
-          bottom: const TabBar(tabs: [
-            Tab(text: 'Penalties'),
-            Tab(text: 'Cash Advances'),
-            Tab(text: 'Reimbursements'),
-          ]),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Penalties'),
+              Tab(text: 'Cash Advances'),
+              Tab(text: 'Reimbursements'),
+            ],
+          ),
         ),
-        body: const TabBarView(children: [
-          _AdjunctList(kind: _AdjunctKind.penalty),
-          _AdjunctList(kind: _AdjunctKind.cashAdvance),
-          _AdjunctList(kind: _AdjunctKind.reimbursement),
-        ]),
+        body: const TabBarView(
+          children: [
+            _AdjunctList(kind: _AdjunctKind.penalty),
+            _AdjunctList(kind: _AdjunctKind.cashAdvance),
+            _AdjunctList(kind: _AdjunctKind.reimbursement),
+          ],
+        ),
       ),
     );
   }
@@ -44,25 +48,25 @@ enum _AdjunctKind { penalty, cashAdvance, reimbursement }
 
 extension on _AdjunctKind {
   String get table => switch (this) {
-        _AdjunctKind.penalty => 'penalties',
-        _AdjunctKind.cashAdvance => 'cash_advances',
-        _AdjunctKind.reimbursement => 'reimbursements',
-      };
+    _AdjunctKind.penalty => 'penalties',
+    _AdjunctKind.cashAdvance => 'cash_advances',
+    _AdjunctKind.reimbursement => 'reimbursements',
+  };
   String get amountKey => switch (this) {
-        _AdjunctKind.penalty => 'total_amount',
-        _AdjunctKind.cashAdvance => 'amount',
-        _AdjunctKind.reimbursement => 'amount',
-      };
+    _AdjunctKind.penalty => 'total_amount',
+    _AdjunctKind.cashAdvance => 'amount',
+    _AdjunctKind.reimbursement => 'amount',
+  };
   String get emptyLabel => switch (this) {
-        _AdjunctKind.penalty => 'No penalties yet.',
-        _AdjunctKind.cashAdvance => 'No cash advances yet.',
-        _AdjunctKind.reimbursement => 'No reimbursements yet.',
-      };
+    _AdjunctKind.penalty => 'No penalties yet.',
+    _AdjunctKind.cashAdvance => 'No cash advances yet.',
+    _AdjunctKind.reimbursement => 'No reimbursements yet.',
+  };
   String get noun => switch (this) {
-        _AdjunctKind.penalty => 'penalty',
-        _AdjunctKind.cashAdvance => 'cash advance',
-        _AdjunctKind.reimbursement => 'reimbursement',
-      };
+    _AdjunctKind.penalty => 'penalty',
+    _AdjunctKind.cashAdvance => 'cash advance',
+    _AdjunctKind.reimbursement => 'reimbursement',
+  };
 }
 
 /// A record is deletable only while it has never touched payroll — not deducted
@@ -72,7 +76,8 @@ extension on _AdjunctKind {
 bool _isDeletable(_AdjunctKind kind, Map<String, dynamic> row) {
   switch (kind) {
     case _AdjunctKind.penalty:
-      final insts = (row['penalty_installments'] as List<dynamic>?)
+      final insts =
+          (row['penalty_installments'] as List<dynamic>?)
               ?.cast<Map<String, dynamic>>() ??
           const <Map<String, dynamic>>[];
       return !insts.any(
@@ -85,22 +90,28 @@ bool _isDeletable(_AdjunctKind kind, Map<String, dynamic> row) {
   }
 }
 
-final _listProvider = FutureProvider.family<List<Map<String, dynamic>>,
-    _AdjunctKind>((ref, kind) async {
-  final profile = ref.watch(userProfileProvider).asData?.value;
-  final employeeId =
-      (profile?.isHrOrAdmin ?? false) ? null : profile?.employeeId;
+final _listProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, _AdjunctKind>((
+      ref,
+      kind,
+    ) async {
+      final profile = ref.watch(userProfileProvider).asData?.value;
+      final employeeId = (profile?.isHrOrAdmin ?? false)
+          ? null
+          : profile?.employeeId;
 
-  final baseSelect = 'employees(id, employee_number, first_name, last_name)';
-  final select = kind == _AdjunctKind.penalty
-      ? '*, $baseSelect, penalty_installments(id, installment_number, amount, is_deducted, payroll_run_id, deducted_at)'
-      : '*, $baseSelect';
-  var q = Supabase.instance.client.from(kind.table).select(select);
-  if (employeeId != null) q = q.eq('employee_id', employeeId);
-  final rows = await q.order('created_at', ascending: false).limit(200)
-      as List<dynamic>;
-  return rows.cast<Map<String, dynamic>>();
-});
+      final baseSelect =
+          'employees(id, employee_number, first_name, last_name)';
+      final select = kind == _AdjunctKind.penalty
+          ? '*, $baseSelect, penalty_installments(id, installment_number, amount, is_deducted, payroll_run_id, deducted_at)'
+          : '*, $baseSelect';
+      var q = Supabase.instance.client.from(kind.table).select(select);
+      if (employeeId != null) q = q.eq('employee_id', employeeId);
+      final rows =
+          await q.order('created_at', ascending: false).limit(200)
+              as List<dynamic>;
+      return rows.cast<Map<String, dynamic>>();
+    });
 
 class _AdjunctList extends ConsumerWidget {
   final _AdjunctKind kind;
@@ -197,9 +208,7 @@ class _StatsRow extends StatelessWidget {
         return Wrap(
           spacing: gap,
           runSpacing: gap,
-          children: [
-            for (final t in tiles) SizedBox(width: itemW, child: t),
-          ],
+          children: [for (final t in tiles) SizedBox(width: itemW, child: t)],
         );
       },
     );
@@ -249,10 +258,7 @@ class _StatTile extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
-              color: scheme.onSurfaceVariant,
-            ),
+            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
           ),
         ],
       ),
@@ -310,8 +316,8 @@ _Stats _computeStats(_AdjunctKind kind, List<Map<String, dynamic>> rows) {
         final amt = dec(r['amount']);
         final isDeducted = r['is_deducted'] == true;
         final status = (r['status'] as String? ?? '').toUpperCase();
-        final larkStatus =
-            (r['lark_approval_status'] as String? ?? '').toUpperCase();
+        final larkStatus = (r['lark_approval_status'] as String? ?? '')
+            .toUpperCase();
         if (isDeducted) {
           settled += amt;
         } else if (status != 'CANCELLED' && status != 'REJECTED') {
@@ -335,8 +341,8 @@ _Stats _computeStats(_AdjunctKind kind, List<Map<String, dynamic>> rows) {
         final amt = dec(r['amount']);
         final isPaid = r['is_paid'] == true;
         final status = (r['status'] as String? ?? '').toUpperCase();
-        final larkStatus =
-            (r['lark_approval_status'] as String? ?? '').toUpperCase();
+        final larkStatus = (r['lark_approval_status'] as String? ?? '')
+            .toUpperCase();
         if (isPaid) {
           settled += amt;
         } else if (status != 'CANCELLED' && status != 'REJECTED') {
@@ -399,7 +405,9 @@ class _AdjunctCard extends ConsumerWidget {
                   child: Text(
                     title,
                     style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w600),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 Column(
@@ -414,18 +422,18 @@ class _AdjunctCard extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    _StatusChip(
-                      label: settled.label,
-                      tone: settled.tone,
-                    ),
+                    _StatusChip(label: settled.label, tone: settled.tone),
                   ],
                 ),
                 if (canDelete)
                   PopupMenuButton<String>(
                     tooltip: 'Actions',
                     padding: EdgeInsets.zero,
-                    icon: Icon(Icons.more_vert,
-                        size: 18, color: scheme.onSurfaceVariant),
+                    icon: Icon(
+                      Icons.more_vert,
+                      size: 18,
+                      color: scheme.onSurfaceVariant,
+                    ),
                     onSelected: (v) {
                       if (v == 'delete') _confirmAndDelete(context, ref);
                     },
@@ -435,8 +443,11 @@ class _AdjunctCard extends ConsumerWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.delete_outline,
-                                size: 18, color: scheme.error),
+                            Icon(
+                              Icons.delete_outline,
+                              size: 18,
+                              color: scheme.error,
+                            ),
                             const SizedBox(width: 8),
                             const Text('Delete'),
                           ],
@@ -449,10 +460,7 @@ class _AdjunctCard extends ConsumerWidget {
             const SizedBox(height: 10),
             // Meta: employee + creator + date
             DefaultTextStyle.merge(
-              style: TextStyle(
-                fontSize: 12,
-                color: scheme.onSurfaceVariant,
-              ),
+              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
               child: Wrap(
                 spacing: 12,
                 runSpacing: 4,
@@ -463,10 +471,7 @@ class _AdjunctCard extends ConsumerWidget {
                       text: empNo == null ? empName : '$empName · $empNo',
                     ),
                   if (whenText != null)
-                    _Meta(
-                      icon: Icons.event,
-                      text: '$whenLabel $whenText',
-                    ),
+                    _Meta(icon: Icons.event, text: '$whenLabel $whenText'),
                 ],
               ),
             ),
@@ -518,19 +523,21 @@ class _AdjunctCard extends ConsumerWidget {
       }
       ref.invalidate(_listProvider(kind));
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Deleted ${kind.noun}.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Deleted ${kind.noun}.')));
       }
     } on AdjunctDeleteException catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
       }
     }
   }
@@ -576,10 +583,8 @@ class _AdjunctCard extends ConsumerWidget {
       case _AdjunctKind.penalty:
         final status = (row['status'] as String? ?? '').toUpperCase();
         return switch (status) {
-          'COMPLETED' =>
-            const _SettledLabel('Completed', _Tone.ok),
-          'CANCELLED' =>
-            const _SettledLabel('Cancelled', _Tone.neutral),
+          'COMPLETED' => const _SettledLabel('Completed', _Tone.ok),
+          'CANCELLED' => const _SettledLabel('Cancelled', _Tone.neutral),
           _ => const _SettledLabel('Active', _Tone.warn),
         };
       case _AdjunctKind.cashAdvance:
@@ -588,8 +593,8 @@ class _AdjunctCard extends ConsumerWidget {
         }
         final status = (row['status'] as String? ?? '').toUpperCase();
         return switch (status) {
-          'CANCELLED' || 'REJECTED' =>
-            _SettledLabel(status.toLowerCase(), _Tone.neutral),
+          'CANCELLED' ||
+          'REJECTED' => _SettledLabel(status.toLowerCase(), _Tone.neutral),
           'APPROVED' => const _SettledLabel('Approved', _Tone.warn),
           _ => const _SettledLabel('Pending', _Tone.warn),
         };
@@ -599,8 +604,8 @@ class _AdjunctCard extends ConsumerWidget {
         }
         final status = (row['status'] as String? ?? '').toUpperCase();
         return switch (status) {
-          'CANCELLED' || 'REJECTED' =>
-            _SettledLabel(status.toLowerCase(), _Tone.neutral),
+          'CANCELLED' ||
+          'REJECTED' => _SettledLabel(status.toLowerCase(), _Tone.neutral),
           'APPROVED' => const _SettledLabel('Approved', _Tone.warn),
           _ => const _SettledLabel('Pending', _Tone.warn),
         };
@@ -682,13 +687,13 @@ class _PenaltyProgress extends StatelessWidget {
 
     final installmentRows =
         (row['penalty_installments'] as List<dynamic>?)
-                ?.cast<Map<String, dynamic>>() ??
-            const <Map<String, dynamic>>[];
-    final deductedCount =
-        installmentRows.where((i) => i['is_deducted'] == true).length;
+            ?.cast<Map<String, dynamic>>() ??
+        const <Map<String, dynamic>>[];
+    final deductedCount = installmentRows
+        .where((i) => i['is_deducted'] == true)
+        .length;
     final queuedCount = installmentRows
-        .where((i) =>
-            i['is_deducted'] != true && i['payroll_run_id'] != null)
+        .where((i) => i['is_deducted'] != true && i['payroll_run_id'] != null)
         .length;
     final status = (row['status'] as String? ?? '').toUpperCase();
 
@@ -698,13 +703,16 @@ class _PenaltyProgress extends StatelessWidget {
     String? hint;
     if (status == 'ACTIVE' && installmentRows.isNotEmpty) {
       if (deductedCount == 0 && queuedCount == 0) {
-        hint = 'No installment is on a payroll run yet — it will be picked '
+        hint =
+            'No installment is on a payroll run yet — it will be picked '
             'up on the next payroll compute.';
       } else if (deductedCount == 0 && queuedCount > 0) {
-        hint = '$queuedCount installment${queuedCount == 1 ? '' : 's'} '
+        hint =
+            '$queuedCount installment${queuedCount == 1 ? '' : 's'} '
             'queued on an unreleased payroll run.';
       } else if (queuedCount > 0) {
-        hint = '$queuedCount more installment${queuedCount == 1 ? '' : 's'} '
+        hint =
+            '$queuedCount more installment${queuedCount == 1 ? '' : 's'} '
             'queued on an unreleased run.';
       }
     }
@@ -728,10 +736,7 @@ class _PenaltyProgress extends StatelessWidget {
             '${Money.fmtPhp(deducted)} of ${Money.fmtPhp(total)} deducted'
             '${remaining > Decimal.zero ? ' · ${Money.fmtPhp(remaining)} remaining' : ''}'
             '${installments == null ? '' : ' · $installments installment${installments == 1 ? '' : 's'}'}',
-            style: TextStyle(
-              fontSize: 11,
-              color: scheme.onSurfaceVariant,
-            ),
+            style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
           ),
           if (hint != null) ...[
             const SizedBox(height: 4),
@@ -769,10 +774,7 @@ class _SettledOnLine extends StatelessWidget {
       padding: const EdgeInsets.only(top: 8),
       child: Text(
         text,
-        style: TextStyle(
-          fontSize: 11,
-          color: scheme.onSurfaceVariant,
-        ),
+        style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
       ),
     );
   }
@@ -819,8 +821,18 @@ String? _fmtDayOnly(String? iso) {
   final d = int.tryParse(parts[2]);
   if (y == null || m == null || d == null) return null;
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${months[m - 1]} $d, $y';
 }
@@ -830,8 +842,18 @@ String? _fmtDate(String? iso) {
   final dt = DateTime.tryParse(iso)?.toLocal();
   if (dt == null) return null;
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   final h = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
   final m = dt.minute.toString().padLeft(2, '0');

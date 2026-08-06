@@ -40,8 +40,8 @@ class _PayrollPayslipsTabState extends ConsumerState<PayrollPayslipsTab> {
             : rows.where((r) {
                 final emp = r['employees'] as Map<String, dynamic>?;
                 final name = _fullName(emp).toLowerCase();
-                final num = (emp?['employee_number'] as String?)?.toLowerCase() ??
-                    '';
+                final num =
+                    (emp?['employee_number'] as String?)?.toLowerCase() ?? '';
                 final q = _search.toLowerCase();
                 return name.contains(q) || num.contains(q);
               }).toList();
@@ -79,8 +79,9 @@ class _PayrollPayslipsTabState extends ConsumerState<PayrollPayslipsTab> {
                               ? 'No payslips computed yet'
                               : 'No employees found',
                           style: TextStyle(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -92,9 +93,7 @@ class _PayrollPayslipsTabState extends ConsumerState<PayrollPayslipsTab> {
                         row: r,
                         showLark: widget.runStatus == 'RELEASED',
                       ),
-                      Divider(
-                          height: 1,
-                          color: Theme.of(context).dividerColor),
+                      Divider(height: 1, color: Theme.of(context).dividerColor),
                     ],
                 ],
               ),
@@ -107,9 +106,11 @@ class _PayrollPayslipsTabState extends ConsumerState<PayrollPayslipsTab> {
 
   static String _fullName(Map<String, dynamic>? emp) {
     if (emp == null) return '';
-    return [emp['first_name'], emp['middle_name'], emp['last_name']]
-        .where((s) => s != null && (s as String).isNotEmpty)
-        .join(' ');
+    return [
+      emp['first_name'],
+      emp['middle_name'],
+      emp['last_name'],
+    ].where((s) => s != null && (s as String).isNotEmpty).join(' ');
   }
 }
 
@@ -135,27 +136,39 @@ class _Header extends StatelessWidget {
           Expanded(flex: 2, child: Text('DEPARTMENT', style: style)),
           Expanded(
             flex: 2,
-            child:
-                Align(alignment: Alignment.centerRight, child: Text('GROSS PAY', style: style)),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text('GROSS PAY', style: style),
+            ),
           ),
           Expanded(
             flex: 2,
-            child:
-                Align(alignment: Alignment.centerRight, child: Text('DEDUCTIONS', style: style)),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text('DEDUCTIONS', style: style),
+            ),
           ),
           Expanded(
             flex: 2,
-            child: Align(alignment: Alignment.centerRight, child: Text('NET PAY', style: style)),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text('NET PAY', style: style),
+            ),
           ),
           if (showLark)
             Expanded(
               flex: 2,
-              child:
-                  Align(alignment: Alignment.center, child: Text('LARK STATUS', style: style)),
+              child: Align(
+                alignment: Alignment.center,
+                child: Text('LARK STATUS', style: style),
+              ),
             ),
           Expanded(
             flex: 1,
-            child: Align(alignment: Alignment.centerRight, child: Text('ACTIONS', style: style)),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text('ACTIONS', style: style),
+            ),
           ),
         ],
       ),
@@ -178,8 +191,10 @@ class _PayslipRow extends StatelessWidget {
     final emp = row['employees'] as Map<String, dynamic>?;
     final directDept =
         (emp?['departments'] as Map<String, dynamic>?)?['name'] as String?;
-    final scorecardDept = ((emp?['role_scorecards'] as Map<String, dynamic>?)
-            ?['departments'] as Map<String, dynamic>?)?['name'] as String?;
+    final scorecardDept =
+        ((emp?['role_scorecards'] as Map<String, dynamic>?)?['departments']
+                as Map<String, dynamic>?)?['name']
+            as String?;
     final dept = (directDept != null && directDept.isNotEmpty)
         ? directDept
         : scorecardDept;
@@ -222,10 +237,7 @@ class _PayslipRow extends StatelessWidget {
             ),
             Expanded(
               flex: 2,
-              child: Text(
-                dept ?? '—',
-                style: const TextStyle(fontSize: 13),
-              ),
+              child: Text(dept ?? '—', style: const TextStyle(fontSize: 13)),
             ),
             Expanded(
               flex: 2,
@@ -268,7 +280,8 @@ class _PayslipRow extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () => context.push(
-                      '/payroll/$runId/payslip/${row['id'] as String}'),
+                    '/payroll/$runId/payslip/${row['id'] as String}',
+                  ),
                   style: TextButton.styleFrom(
                     foregroundColor: const Color(0xFF2563EB),
                     padding: EdgeInsets.zero,
@@ -312,11 +325,31 @@ class _LarkStatusPill extends StatelessWidget {
       );
     }
     final (label, bg, fg) = switch (status) {
-      'APPROVED' => ('Acknowledged', const Color(0xFFDCFCE7), const Color(0xFF166534)),
-      'PENDING' => ('Pending', const Color(0xFFFEF3C7), const Color(0xFF92400E)),
-      'REJECTED' => ('Rejected', const Color(0xFFFEE2E2), const Color(0xFF991B1B)),
-      'CANCELED' => ('Recalled', const Color(0xFFF3F4F6), const Color(0xFF4B5563)),
-      'DELETED' => ('Deleted', const Color(0xFFF3F4F6), const Color(0xFF4B5563)),
+      'APPROVED' => (
+        'Acknowledged',
+        const Color(0xFFDCFCE7),
+        const Color(0xFF166534),
+      ),
+      'PENDING' => (
+        'Pending',
+        const Color(0xFFFEF3C7),
+        const Color(0xFF92400E),
+      ),
+      'REJECTED' => (
+        'Rejected',
+        const Color(0xFFFEE2E2),
+        const Color(0xFF991B1B),
+      ),
+      'CANCELED' => (
+        'Recalled',
+        const Color(0xFFF3F4F6),
+        const Color(0xFF4B5563),
+      ),
+      'DELETED' => (
+        'Deleted',
+        const Color(0xFFF3F4F6),
+        const Color(0xFF4B5563),
+      ),
       _ => (status!, const Color(0xFFF3F4F6), const Color(0xFF4B5563)),
     };
     return Container(
@@ -327,11 +360,7 @@ class _LarkStatusPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: fg,
-        ),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fg),
       ),
     );
   }

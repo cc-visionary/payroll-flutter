@@ -7,25 +7,25 @@ import 'package:payroll_flutter/features/documents/templates/salary_adjustment_i
 import 'package:payroll_flutter/features/documents/templates/salary_adjustment_template.dart';
 
 SalaryAdjustmentInputs _i(SalaryAdjustmentType type) => SalaryAdjustmentInputs(
-      type: type,
-      employeeId: 'E1',
-      employeeFullName: 'Jane Cruz',
-      employeeGender: 'FEMALE',
-      employeePosition: 'Brand Handler',
-      companyId: 'CO1',
-      companyName: 'Luxium',
-      hrManagerName: 'Brixter',
-      oldPosition: 'Brand Handler',
-      newPosition: 'Senior Brand Handler',
-      oldSalary: Decimal.parse('30000'),
-      newSalary: type == SalaryAdjustmentType.lateral
-          ? Decimal.parse('30000')
-          : Decimal.parse('35000'),
-      salaryPeriod: 'MONTHLY',
-      reason: 'Merit review.',
-      effectiveDate: DateTime.parse('2026-08-01'),
-      issueDate: DateTime.parse('2026-07-08'),
-    );
+  type: type,
+  employeeId: 'E1',
+  employeeFullName: 'Jane Cruz',
+  employeeGender: 'FEMALE',
+  employeePosition: 'Brand Handler',
+  companyId: 'CO1',
+  companyName: 'Luxium',
+  hrManagerName: 'Brixter',
+  oldPosition: 'Brand Handler',
+  newPosition: 'Senior Brand Handler',
+  oldSalary: Decimal.parse('30000'),
+  newSalary: type == SalaryAdjustmentType.lateral
+      ? Decimal.parse('30000')
+      : Decimal.parse('35000'),
+  salaryPeriod: 'MONTHLY',
+  reason: 'Merit review.',
+  effectiveDate: DateTime.parse('2026-08-01'),
+  issueDate: DateTime.parse('2026-07-08'),
+);
 
 String _subject(List blocks) =>
     blocks.whereType<LetterMetaBlock>().first.subject ?? '';
@@ -58,28 +58,35 @@ void main() {
   });
 
   test('DAILY salary adjustment states the monthly-estimate clause', () {
-    final blocks = t.build(_i(SalaryAdjustmentType.salaryAdjustment)
-        .copyWith(salaryPeriod: 'DAILY'));
+    final blocks = t.build(
+      _i(SalaryAdjustmentType.salaryAdjustment).copyWith(salaryPeriod: 'DAILY'),
+    );
     expect(_body(blocks), contains('estimated at 26 working days per month'));
   });
 
   test('MONTHLY salary adjustment has NO estimate clause', () {
-    final blocks = t.build(_i(SalaryAdjustmentType.salaryAdjustment)
-        .copyWith(salaryPeriod: 'MONTHLY'));
+    final blocks = t.build(
+      _i(
+        SalaryAdjustmentType.salaryAdjustment,
+      ).copyWith(salaryPeriod: 'MONTHLY'),
+    );
     expect(_body(blocks), isNot(contains('working days per month')));
   });
 
   test('the clause also appears for a DAILY lateral transfer', () {
-    final blocks =
-        t.build(_i(SalaryAdjustmentType.lateral).copyWith(salaryPeriod: 'DAILY'));
+    final blocks = t.build(
+      _i(SalaryAdjustmentType.lateral).copyWith(salaryPeriod: 'DAILY'),
+    );
     expect(_body(blocks), contains('estimated at 26 working days per month'));
   });
 
   test('signatory role + name flow into the From line and the signature', () {
-    final blocks = t.build(_i(SalaryAdjustmentType.salaryAdjustment).copyWith(
-      hrManagerName: 'Jane Cruz',
-      signatoryRole: 'Chief Operating Officer',
-    ));
+    final blocks = t.build(
+      _i(SalaryAdjustmentType.salaryAdjustment).copyWith(
+        hrManagerName: 'Jane Cruz',
+        signatoryRole: 'Chief Operating Officer',
+      ),
+    );
 
     final meta = blocks.whereType<LetterMetaBlock>().first;
     expect(meta.from.name, 'Jane Cruz');

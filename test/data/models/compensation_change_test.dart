@@ -34,11 +34,16 @@ void main() {
 
     test('isRoleChange is false when scorecard unchanged', () {
       final c = CompensationChange.fromRow({
-        'id': 'C2', 'company_id': 'CO1', 'employee_id': 'E1',
-        'change_type': 'SALARY_INCREASE', 'status': 'SCHEDULED',
+        'id': 'C2',
+        'company_id': 'CO1',
+        'employee_id': 'E1',
+        'change_type': 'SALARY_INCREASE',
+        'status': 'SCHEDULED',
         'effective_date': '2026-08-01',
-        'prev_scorecard_id': 'S1', 'new_scorecard_id': 'S1',
-        'initiated_by_id': 'U1', 'created_at': '2026-07-08T00:00:00Z',
+        'prev_scorecard_id': 'S1',
+        'new_scorecard_id': 'S1',
+        'initiated_by_id': 'U1',
+        'created_at': '2026-07-08T00:00:00Z',
       });
       expect(c.isRoleChange, isFalse);
     });

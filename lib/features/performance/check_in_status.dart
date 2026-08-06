@@ -1,10 +1,10 @@
 /// Allowed status transitions for performance check-ins.
 const Map<String, Set<String>> kCheckInTransitions = {
-  'DRAFT':        {'SUBMITTED', 'SKIPPED'},
-  'SUBMITTED':    {'UNDER_REVIEW', 'SKIPPED'},
+  'DRAFT': {'SUBMITTED', 'SKIPPED'},
+  'SUBMITTED': {'UNDER_REVIEW', 'SKIPPED'},
   'UNDER_REVIEW': {'COMPLETED', 'SKIPPED'},
-  'COMPLETED':    <String>{},
-  'SKIPPED':      <String>{},
+  'COMPLETED': <String>{},
+  'SKIPPED': <String>{},
 };
 
 bool canCheckInTransition({required String from, required String to}) =>

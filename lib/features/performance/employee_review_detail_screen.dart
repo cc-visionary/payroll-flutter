@@ -33,9 +33,8 @@ class EmployeeReviewDetailScreen extends ConsumerWidget {
         // The review routes are flat siblings, so arriving here via context.go
         // (from evaluate/complete/check-in) leaves nothing to pop.
         leading: BackButton(
-          onPressed: () => context.canPop()
-              ? context.pop()
-              : context.go('/performance'),
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/performance'),
         ),
         title: const Text('Performance review'),
         actions: [

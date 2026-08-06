@@ -19,23 +19,27 @@ class PayslipPdfInput {
   final DateTime periodStart;
   final DateTime periodEnd;
   final DateTime payDate;
+
   /// Optional company logo bytes (PNG or JPG). When supplied, the header
   /// renders the logo to the left of the company name — otherwise the name
   /// stands alone. Caller is responsible for decoding from wherever the
   /// company row stores it (e.g. a `companies.logo_url` Supabase Storage
   /// path, base64 blob, local asset, etc.).
   final Uint8List? companyLogoBytes;
+
   /// Height (in PDF points) to render the logo at. Per-brand because
   /// different source PNGs bake in different amounts of transparent
   /// padding — the Luxium asset has significant whitespace, so its
   /// rendered visual would look ~40% smaller than GameCove's at the
   /// same container height. Defaults to 48.
   final double companyLogoHeight;
+
   /// Daily attendance rows for the pay period. When non-empty, the PDF grows
   /// a landscape page 2 with one row per calendar day. When null/empty, the
   /// PDF stays single-page — keeps the test fixture and legacy callers
   /// working without forcing them to assemble attendance data.
   final List<AttendanceRowVm>? attendanceRows;
+
   /// Resolved HR signatory (from employees.is_hr_signatory, falling back to
   /// the hiring entity's hr_manager_name). Null → blank sign line.
   final String? hrSignatoryName;
@@ -196,24 +200,40 @@ pw.Widget _header(PayslipPdfInput i, PdfColor primary) {
               ),
               if (i.companyTradeName != null &&
                   i.companyTradeName != i.companyName)
-                pw.Text(i.companyName,
-                    style: const pw.TextStyle(
-                        fontSize: 9, color: PdfColors.grey700)),
+                pw.Text(
+                  i.companyName,
+                  style: const pw.TextStyle(
+                    fontSize: 9,
+                    color: PdfColors.grey700,
+                  ),
+                ),
               if (i.companyAddress != null)
-                pw.Text(i.companyAddress!,
-                    style: const pw.TextStyle(
-                        fontSize: 9, color: PdfColors.grey700)),
+                pw.Text(
+                  i.companyAddress!,
+                  style: const pw.TextStyle(
+                    fontSize: 9,
+                    color: PdfColors.grey700,
+                  ),
+                ),
             ],
           ),
         ),
       pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.end,
         children: [
-          pw.Text('PAYSLIP', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-          pw.Text(i.payslip.payslipNumber ?? i.payslip.id.substring(0, 8).toUpperCase(),
-              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
-          pw.Text('Pay Date: ${_date(i.payDate)}',
-              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+          pw.Text(
+            'PAYSLIP',
+            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.Text(
+            i.payslip.payslipNumber ??
+                i.payslip.id.substring(0, 8).toUpperCase(),
+            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+          ),
+          pw.Text(
+            'Pay Date: ${_date(i.payDate)}',
+            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+          ),
         ],
       ),
     ],
@@ -244,8 +264,14 @@ pw.Widget _employeeBlock(PayslipPdfInput i) {
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              _labelValue('Period', '${_date(i.periodStart)} - ${_date(i.periodEnd)}'),
-              _labelValue('Employment', '${e.employmentType} · ${e.employmentStatus}'),
+              _labelValue(
+                'Period',
+                '${_date(i.periodStart)} - ${_date(i.periodEnd)}',
+              ),
+              _labelValue(
+                'Employment',
+                '${e.employmentType} · ${e.employmentStatus}',
+              ),
               _labelValue('Hire Date', _date(e.hireDate)),
             ],
           ),
@@ -258,30 +284,58 @@ pw.Widget _employeeBlock(PayslipPdfInput i) {
 pw.Widget _labelValue(String label, String value) {
   return pw.Padding(
     padding: const pw.EdgeInsets.symmetric(vertical: 2),
-    child: pw.Row(children: [
-      pw.SizedBox(
-        width: 70,
-        child: pw.Text(label, style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
-      ),
-      pw.Expanded(
-        child: pw.Text(value, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-      ),
-    ]),
+    child: pw.Row(
+      children: [
+        pw.SizedBox(
+          width: 70,
+          child: pw.Text(
+            label,
+            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+          ),
+        ),
+        pw.Expanded(
+          child: pw.Text(
+            value,
+            style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+          ),
+        ),
+      ],
+    ),
   );
 }
 
 const _earningCats = {
-  'BASIC_PAY', 'PAID_LEAVE', 'OVERTIME_REGULAR', 'OVERTIME_REST_DAY', 'OVERTIME_HOLIDAY',
-  'NIGHT_DIFFERENTIAL', 'HOLIDAY_PAY', 'REST_DAY_PAY', 'ALLOWANCE',
-  'REIMBURSEMENT', 'INCENTIVE', 'BONUS', 'ADJUSTMENT_ADD', 'THIRTEENTH_MONTH_PAY',
+  'BASIC_PAY',
+  'PAID_LEAVE',
+  'OVERTIME_REGULAR',
+  'OVERTIME_REST_DAY',
+  'OVERTIME_HOLIDAY',
+  'NIGHT_DIFFERENTIAL',
+  'HOLIDAY_PAY',
+  'REST_DAY_PAY',
+  'ALLOWANCE',
+  'REIMBURSEMENT',
+  'INCENTIVE',
+  'BONUS',
+  'ADJUSTMENT_ADD',
+  'THIRTEENTH_MONTH_PAY',
   'TAX_REFUND',
 };
 
 const _deductionCats = {
-  'LATE_DEDUCTION', 'UNDERTIME_DEDUCTION', 'LATE_UT_DEDUCTION', 'ABSENT_DEDUCTION',
-  'SSS_EE', 'PHILHEALTH_EE', 'PAGIBIG_EE', 'TAX_WITHHOLDING',
-  'CASH_ADVANCE_DEDUCTION', 'LOAN_DEDUCTION', 'ADJUSTMENT_DEDUCT',
-  'OTHER_DEDUCTION', 'PENALTY_DEDUCTION',
+  'LATE_DEDUCTION',
+  'UNDERTIME_DEDUCTION',
+  'LATE_UT_DEDUCTION',
+  'ABSENT_DEDUCTION',
+  'SSS_EE',
+  'PHILHEALTH_EE',
+  'PAGIBIG_EE',
+  'TAX_WITHHOLDING',
+  'CASH_ADVANCE_DEDUCTION',
+  'LOAN_DEDUCTION',
+  'ADJUSTMENT_DEDUCT',
+  'OTHER_DEDUCTION',
+  'PENALTY_DEDUCTION',
 };
 
 pw.Widget _earningsTable(Payslip p) {
@@ -289,18 +343,15 @@ pw.Widget _earningsTable(Payslip p) {
   // Night Diff 300 → Holiday Pay 400-500 → Allowances / Commissions /
   // Reimbursements / Adjustments 500-900) so the payslip reads the way
   // payroll is actually computed. Ties fall back to the DB insertion order.
-  final rows = p.lines
-      .where((l) => _earningCats.contains(l.category))
-      .toList()
+  final rows = p.lines.where((l) => _earningCats.contains(l.category)).toList()
     ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
   return _sectionTable('EARNINGS', rows, p.totalEarnings);
 }
 
 pw.Widget _deductionsTable(Payslip p) {
-  final rows = p.lines
-      .where((l) => _deductionCats.contains(l.category))
-      .toList()
-    ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+  final rows =
+      p.lines.where((l) => _deductionCats.contains(l.category)).toList()
+        ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
   return _sectionTable('DEDUCTIONS', rows, p.totalDeductions);
 }
 
@@ -310,8 +361,7 @@ pw.Widget _deductionsTable(Payslip p) {
 /// reimbursement has no rate or multiplier). Hyphen, not em-dash — the
 /// bundled Helvetica has no glyph for U+2014 and renders it as tofu.
 pw.Widget _sectionTable(String title, List<PayslipLine> rows, Decimal total) {
-  final headerStyle =
-      pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold);
+  final headerStyle = pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold);
   const cellStyle = pw.TextStyle(fontSize: 9);
   const qtyFlex = 12;
   const rateFlex = 16;
@@ -354,25 +404,30 @@ pw.Widget _sectionTable(String title, List<PayslipLine> rows, Decimal total) {
   // pagibig...") now cleanly own their row with no ambiguity about
   // which values belong to which line.
   pw.Widget cell(pw.Widget child, {pw.Alignment? align}) => pw.Container(
-        alignment: align,
-        padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-        child: child,
-      );
-  pw.Widget headerText(String label,
-          {pw.TextAlign align = pw.TextAlign.right}) =>
-      pw.Text(label, style: headerStyle, textAlign: align);
-  pw.Widget bodyText(String text,
-          {pw.TextAlign align = pw.TextAlign.right,
-          bool bold = false,
-          PdfColor? color}) =>
-      pw.Text(
-        text,
-        style: bold
-            ? pw.TextStyle(
-                fontSize: 9, fontWeight: pw.FontWeight.bold, color: color)
-            : cellStyle.copyWith(color: color),
-        textAlign: align,
-      );
+    alignment: align,
+    padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+    child: child,
+  );
+  pw.Widget headerText(
+    String label, {
+    pw.TextAlign align = pw.TextAlign.right,
+  }) => pw.Text(label, style: headerStyle, textAlign: align);
+  pw.Widget bodyText(
+    String text, {
+    pw.TextAlign align = pw.TextAlign.right,
+    bool bold = false,
+    PdfColor? color,
+  }) => pw.Text(
+    text,
+    style: bold
+        ? pw.TextStyle(
+            fontSize: 9,
+            fontWeight: pw.FontWeight.bold,
+            color: color,
+          )
+        : cellStyle.copyWith(color: color),
+    textAlign: align,
+  );
 
   final columnWidths = <int, pw.TableColumnWidth>{
     0: pw.FlexColumnWidth(descFlex.toDouble()),
@@ -390,9 +445,10 @@ pw.Widget _sectionTable(String title, List<PayslipLine> rows, Decimal total) {
       pw.Container(
         padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         color: PdfColors.grey200,
-        child: pw.Text(title,
-            style: pw.TextStyle(
-                fontSize: 10, fontWeight: pw.FontWeight.bold)),
+        child: pw.Text(
+          title,
+          style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+        ),
       ),
       pw.Table(
         columnWidths: columnWidths,
@@ -405,17 +461,16 @@ pw.Widget _sectionTable(String title, List<PayslipLine> rows, Decimal total) {
           bottom: pw.BorderSide.none,
           left: pw.BorderSide.none,
           right: pw.BorderSide.none,
-          horizontalInside: pw.BorderSide(
-            color: PdfColors.grey300,
-            width: 0.5,
-          ),
+          horizontalInside: pw.BorderSide(color: PdfColors.grey300, width: 0.5),
         ),
         children: [
           // Column headers
           pw.TableRow(
             children: [
-              cell(headerText('Description', align: pw.TextAlign.left),
-                  align: pw.Alignment.centerLeft),
+              cell(
+                headerText('Description', align: pw.TextAlign.left),
+                align: pw.Alignment.centerLeft,
+              ),
               cell(headerText('Qty'), align: pw.Alignment.centerRight),
               cell(headerText('Rate'), align: pw.Alignment.centerRight),
               cell(headerText('Mult'), align: pw.Alignment.centerRight),
@@ -429,16 +484,23 @@ pw.Widget _sectionTable(String title, List<PayslipLine> rows, Decimal total) {
           for (final l in rows)
             pw.TableRow(
               children: [
-                cell(bodyText(l.description, align: pw.TextAlign.left),
-                    align: pw.Alignment.centerLeft),
-                cell(bodyText(fmtQty(l.quantity)),
-                    align: pw.Alignment.centerRight),
-                cell(bodyText(fmtRate(l)),
-                    align: pw.Alignment.centerRight),
-                cell(bodyText(fmtMult(l.multiplier)),
-                    align: pw.Alignment.centerRight),
-                cell(bodyText(Money.fmtPhpAscii(l.amount)),
-                    align: pw.Alignment.centerRight),
+                cell(
+                  bodyText(l.description, align: pw.TextAlign.left),
+                  align: pw.Alignment.centerLeft,
+                ),
+                cell(
+                  bodyText(fmtQty(l.quantity)),
+                  align: pw.Alignment.centerRight,
+                ),
+                cell(bodyText(fmtRate(l)), align: pw.Alignment.centerRight),
+                cell(
+                  bodyText(fmtMult(l.multiplier)),
+                  align: pw.Alignment.centerRight,
+                ),
+                cell(
+                  bodyText(Money.fmtPhpAscii(l.amount)),
+                  align: pw.Alignment.centerRight,
+                ),
               ],
             ),
           // Total row
@@ -446,15 +508,20 @@ pw.Widget _sectionTable(String title, List<PayslipLine> rows, Decimal total) {
             decoration: const pw.BoxDecoration(color: PdfColors.grey100),
             children: [
               cell(
-                bodyText('Total ${title.toLowerCase()}',
-                    align: pw.TextAlign.left, bold: true),
+                bodyText(
+                  'Total ${title.toLowerCase()}',
+                  align: pw.TextAlign.left,
+                  bold: true,
+                ),
                 align: pw.Alignment.centerLeft,
               ),
               cell(pw.SizedBox(), align: pw.Alignment.centerRight),
               cell(pw.SizedBox(), align: pw.Alignment.centerRight),
               cell(pw.SizedBox(), align: pw.Alignment.centerRight),
-              cell(bodyText(Money.fmtPhpAscii(total), bold: true),
-                  align: pw.Alignment.centerRight),
+              cell(
+                bodyText(Money.fmtPhpAscii(total), bold: true),
+                align: pw.Alignment.centerRight,
+              ),
             ],
           ),
         ],
@@ -470,14 +537,28 @@ pw.Widget _totalsBlock(Payslip p, PdfColor primary) {
       color: primary,
       borderRadius: pw.BorderRadius.circular(4),
     ),
-    child: pw.Row(children: [
-      pw.Expanded(
-        child: pw.Text('NET PAY',
-            style: pw.TextStyle(fontSize: 12, color: PdfColors.white, fontWeight: pw.FontWeight.bold)),
-      ),
-      pw.Text(Money.fmtPhpAscii(p.netPay),
-          style: pw.TextStyle(fontSize: 14, color: PdfColors.white, fontWeight: pw.FontWeight.bold)),
-    ]),
+    child: pw.Row(
+      children: [
+        pw.Expanded(
+          child: pw.Text(
+            'NET PAY',
+            style: pw.TextStyle(
+              fontSize: 12,
+              color: PdfColors.white,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+        ),
+        pw.Text(
+          Money.fmtPhpAscii(p.netPay),
+          style: pw.TextStyle(
+            fontSize: 14,
+            color: PdfColors.white,
+            fontWeight: pw.FontWeight.bold,
+          ),
+        ),
+      ],
+    ),
   );
 }
 
@@ -499,8 +580,11 @@ pw.Widget _signatureBlock(PayslipPdfInput i) {
               pw.Container(
                 height: 40,
                 alignment: pw.Alignment.bottomCenter,
-                child: pw.Image(pw.MemoryImage(i.hrSignaturePng!),
-                    height: 38, fit: pw.BoxFit.contain),
+                child: pw.Image(
+                  pw.MemoryImage(i.hrSignaturePng!),
+                  height: 38,
+                  fit: pw.BoxFit.contain,
+                ),
               ),
             pw.Container(
               height: 1,
@@ -547,11 +631,17 @@ pw.Widget _attendanceHeader(PayslipPdfInput i) {
             children: [
               pw.Text(
                 'Daily Attendance',
-                style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+                style: pw.TextStyle(
+                  fontSize: 13,
+                  fontWeight: pw.FontWeight.bold,
+                ),
               ),
               pw.Text(
                 '${i.employee.fullName} · ${i.employee.employeeNumber}',
-                style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+                style: const pw.TextStyle(
+                  fontSize: 9,
+                  color: PdfColors.grey700,
+                ),
               ),
             ],
           ),
@@ -575,9 +665,7 @@ pw.Widget _attendanceSummary(AttendanceStats s) {
     return mins.toStringAsFixed(3);
   }
 
-  final pct = s.workDays == 0
-      ? 0.0
-      : (s.present / s.workDays).clamp(0.0, 1.0);
+  final pct = s.workDays == 0 ? 0.0 : (s.present / s.workDays).clamp(0.0, 1.0);
   final pctLabel = s.workDays == 0 ? '' : '${(pct * 100).round()}%';
 
   // `crossAxisAlignment: stretch` would propagate the MultiPage's unbounded
@@ -639,8 +727,12 @@ pw.Widget _attendanceSummary(AttendanceStats s) {
 // taller than the other four; we pin them all to this value so they line up.
 const double _kSummaryTileHeight = 58;
 
-pw.Widget _summaryTile(String label, String value, String? unit,
-    {PdfColor? color}) {
+pw.Widget _summaryTile(
+  String label,
+  String value,
+  String? unit, {
+  PdfColor? color,
+}) {
   return pw.Container(
     height: _kSummaryTileHeight,
     padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -788,8 +880,15 @@ pw.Widget _summaryWorkDays({
 
 pw.Widget _attendanceTable(List<AttendanceRowVm> rows) {
   const headers = <String>[
-    'DATE', 'DAY', 'SHIFT', 'CLOCK IN', 'CLOCK OUT',
-    'MINS', 'STATUS', 'DEDUCTION', 'OVERTIME',
+    'DATE',
+    'DAY',
+    'SHIFT',
+    'CLOCK IN',
+    'CLOCK OUT',
+    'MINS',
+    'STATUS',
+    'DEDUCTION',
+    'OVERTIME',
   ];
   // Small-caps, letter-spaced header — reads as a proper table header
   // instead of just another body row. Right-aligned columns match the
@@ -896,8 +995,7 @@ pw.TableRow _attendanceRow(
   // Weekend rows get a faint warm tint so rest days pop even without
   // reading the Status column. Zebra striping applies underneath.
   final weekday = row.date.weekday;
-  final isWeekend =
-      weekday == DateTime.saturday || weekday == DateTime.sunday;
+  final isWeekend = weekday == DateTime.saturday || weekday == DateTime.sunday;
   final PdfColor? bg = isWeekend
       ? PdfColor.fromHex('#F9FAFB')
       : (striped ? PdfColor.fromHex('#FAFBFC') : null);
@@ -912,12 +1010,18 @@ pw.TableRow _attendanceRow(
         color: isWeekend ? PdfColors.grey600 : null,
       ),
       _cell(shiftText, cellStyle, color: PdfColors.grey700),
-      _cell(clockInText, cellStyle,
-          color: clockInColor,
-          bold: clockInColor != null),
-      _cell(clockOutText, cellStyle,
-          color: clockOutColor,
-          bold: clockOutColor != null),
+      _cell(
+        clockInText,
+        cellStyle,
+        color: clockInColor,
+        bold: clockInColor != null,
+      ),
+      _cell(
+        clockOutText,
+        cellStyle,
+        color: clockOutColor,
+        bold: clockOutColor != null,
+      ),
       _cell(minsText, cellStyle, align: pw.TextAlign.right),
       _statusCell(
         _effectivePdfStatus(
@@ -970,8 +1074,7 @@ pw.Widget _cell(
 /// its own bg/fg tint so "Absent", "Present", "Rest Day", etc. pop at a
 /// glance without the reader having to parse the word on every row.
 /// Holiday rows stack the holiday name underneath in 7pt grey.
-pw.Widget _statusCell(
-    String status, String? holidayName, pw.TextStyle style) {
+pw.Widget _statusCell(String status, String? holidayName, pw.TextStyle style) {
   final (label, bg, fg) = _statusPillPalette(status);
   return pw.Padding(
     padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -1090,17 +1193,9 @@ String _effectivePdfStatus({
         PdfColor.fromHex('#92400E'),
       );
     case 'NO_DATA':
-      return (
-        '-',
-        PdfColor.fromHex('#F3F4F6'),
-        PdfColor.fromHex('#9CA3AF'),
-      );
+      return ('-', PdfColor.fromHex('#F3F4F6'), PdfColor.fromHex('#9CA3AF'));
     default:
-      return (
-        status,
-        PdfColor.fromHex('#F3F4F6'),
-        PdfColor.fromHex('#4B5563'),
-      );
+      return (status, PdfColor.fromHex('#F3F4F6'), PdfColor.fromHex('#4B5563'));
   }
 }
 
@@ -1111,8 +1206,18 @@ String _weekdayShort(int weekday) {
 
 String _fmtShortDate(DateTime d) {
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${months[d.month - 1]} ${d.day}';
 }

@@ -2,15 +2,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/data/models/employee.dart';
 
 Map<String, dynamic> _baseRow() => {
-      'id': 'E1',
-      'company_id': 'C1',
-      'employee_number': 'EMP-001',
-      'first_name': 'Brixter',
-      'last_name': 'Del Mundo',
-      'employment_type': 'REGULAR',
-      'employment_status': 'ACTIVE',
-      'hire_date': '2024-01-01',
-    };
+  'id': 'E1',
+  'company_id': 'C1',
+  'employee_number': 'EMP-001',
+  'first_name': 'Brixter',
+  'last_name': 'Del Mundo',
+  'employment_type': 'REGULAR',
+  'employment_status': 'ACTIVE',
+  'hire_date': '2024-01-01',
+};
 
 void main() {
   test('fromRow parses signatory fields', () {

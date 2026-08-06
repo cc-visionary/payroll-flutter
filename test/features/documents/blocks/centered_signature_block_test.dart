@@ -11,8 +11,9 @@ void main() {
   test('renders without throwing', () {
     final theme = PdfTheme.testStub();
     expect(
-      () => const CenteredSignatureBlock('Name and signature of Employee')
-          .toPdf(theme),
+      () => const CenteredSignatureBlock(
+        'Name and signature of Employee',
+      ).toPdf(theme),
       returnsNormally,
     );
   });

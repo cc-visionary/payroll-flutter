@@ -49,7 +49,8 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
         cardsAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    final err = tasksAsync.error ??
+    final err =
+        tasksAsync.error ??
         employeesAsync.error ??
         computedAsync.error ??
         cardsAsync.error;
@@ -83,7 +84,8 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const TabIntro(
-            purpose: 'Work that reaches nobody — archive it, assign it, or '
+            purpose:
+                'Work that reaches nobody — archive it, assign it, or '
                 'draft a role for it.',
             details: [
               WpGlossary.unassigned,
@@ -129,12 +131,15 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
-                  child: Text(cluster.label,
-                      style: Theme.of(context).textTheme.titleMedium),
+                  child: Text(
+                    cluster.label,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                 ),
                 const SizedBox(width: 8),
                 StatusChip(
-                  label: '${cluster.count} ${cluster.count == 1 ? 'item' : 'items'} · '
+                  label:
+                      '${cluster.count} ${cluster.count == 1 ? 'item' : 'items'} · '
                       '${cluster.totalHours.toStringAsFixed(1)}h',
                   tone: StatusTone.neutral,
                 ),
@@ -179,12 +184,19 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(t.name),
-                if (tone != null) StatusChip(label: criticalityLabel(t.criticality)!, tone: tone),
+                if (tone != null)
+                  StatusChip(
+                    label: criticalityLabel(t.criticality)!,
+                    tone: tone,
+                  ),
               ],
             ),
           ),
           const SizedBox(width: 12),
-          Text('${item.hours.toStringAsFixed(1)}h', style: AppTheme.mono(context)),
+          Text(
+            '${item.hours.toStringAsFixed(1)}h',
+            style: AppTheme.mono(context),
+          ),
           const SizedBox(width: 12),
           PopupMenuButton<String>(
             tooltip: 'Assign to a role card',
@@ -198,7 +210,10 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
               padding: EdgeInsets.symmetric(horizontal: 4, vertical: 6),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-                children: [Text('Assign'), Icon(Icons.arrow_drop_down, size: 18)],
+                children: [
+                  Text('Assign'),
+                  Icon(Icons.arrow_drop_down, size: 18),
+                ],
               ),
             ),
           ),
@@ -220,22 +235,31 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
   ) async {
     final card = activeCards.firstWhere((c) => c.id == cardId);
     try {
-      await ref.read(workforcePlanningRepositoryProvider).setTaskCard(task.id, cardId);
+      await ref
+          .read(workforcePlanningRepositoryProvider)
+          .setTaskCard(task.id, cardId);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not assign: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not assign: $e')));
       return;
     }
     if (!mounted) return;
     _invalidate([cardId]);
-    final hasActiveHolder = employees.any((e) =>
-        e.employmentStatus == 'ACTIVE' && e.deletedAt == null && e.roleScorecardId == cardId);
+    final hasActiveHolder = employees.any(
+      (e) =>
+          e.employmentStatus == 'ACTIVE' &&
+          e.deletedAt == null &&
+          e.roleScorecardId == cardId,
+    );
     final message = hasActiveHolder
         ? 'Assigned to ${card.jobTitle}.'
         : 'Assigned to ${card.jobTitle} — no active holder yet, so it still '
-            'shows here until the role is staffed.';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+              'shows here until the role is staffed.';
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _confirmArchive(WpTask task) async {
@@ -248,27 +272,40 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
           'load but is kept and can be restored.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Archive')),
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Archive'),
+          ),
         ],
       ),
     );
     if (ok != true || !mounted) return;
     try {
-      await ref.read(workforcePlanningRepositoryProvider).setTaskArchived(task.id, true);
+      await ref
+          .read(workforcePlanningRepositoryProvider)
+          .setTaskArchived(task.id, true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not archive task: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not archive task: $e')));
       return;
     }
     if (!mounted) return;
     _invalidate([task.roleScorecardId]);
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text('Archived "${task.name}".')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Archived "${task.name}".')));
   }
 
-  Future<void> _proposeRole(UnassignedCluster cluster, String? companyId) async {
+  Future<void> _proposeRole(
+    UnassignedCluster cluster,
+    String? companyId,
+  ) async {
     // Local var + onChanged (not a TextEditingController) mirrors TasksTab's
     // `_fillArea` dialog — no controller to dispose once the dialog pops.
     var jobTitle = cluster.label;
@@ -283,7 +320,10 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
           onChanged: (v) => jobTitle = v,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, jobTitle),
             child: const Text('Draft role'),
@@ -296,23 +336,30 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
     final taskIds = [for (final i in cluster.items) i.task.id];
     String newId;
     try {
-      newId = await ref.read(roleScorecardRepositoryProvider).createDraftRoleFromTasks(
+      newId = await ref
+          .read(roleScorecardRepositoryProvider)
+          .createDraftRoleFromTasks(
             companyId: companyId ?? '',
             jobTitle: title.trim(),
             taskIds: taskIds,
           );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not draft role: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not draft role: $e')));
       return;
     }
     if (!mounted) return;
     _invalidate([newId]);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text("Drafted '${title.trim()}' with ${taskIds.length} "
-          'responsibilities — finish and staff it to assign this work.'),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          "Drafted '${title.trim()}' with ${taskIds.length} "
+          'responsibilities — finish and staff it to assign this work.',
+        ),
+      ),
+    );
     // Land HR on the draft to complete it; the /edit route loads an inactive
     // card by id. This is the working downstream the propose action needs, and
     // navigating away also stops the see-no-change-and-re-click duplicate loop.

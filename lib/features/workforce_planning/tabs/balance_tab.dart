@@ -52,7 +52,7 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
     // owner/card, same as before assignments existed.
     final assignmentsByTask =
         ref.watch(wpAssignmentsByTaskProvider).asData?.value ??
-            const <String, List<WpTaskAssignment>>{};
+        const <String, List<WpTaskAssignment>>{};
 
     if (empsAsync.isLoading ||
         tasksAsync.isLoading ||
@@ -60,12 +60,15 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
         loadsAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    final err = empsAsync.error ??
+    final err =
+        empsAsync.error ??
         tasksAsync.error ??
         computedAsync.error ??
         loadsAsync.error;
     if (err != null) {
-      return Center(child: Text('Error: $err', style: const TextStyle(color: Colors.red)));
+      return Center(
+        child: Text('Error: $err', style: const TextStyle(color: Colors.red)),
+      );
     }
 
     final employees = empsAsync.asData!.value;
@@ -76,7 +79,8 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
     final capacity = {
       for (final l in loadsAsync.asData!.value) l.employeeId: l.capacityHours,
     };
-    final defaultCapacity = configAsync.asData?.value?.defaultCapacityHours ?? 160;
+    final defaultCapacity =
+        configAsync.asData?.value?.defaultCapacityHours ?? 160;
 
     final moves = prunedMoves(_moves, tasks);
     // What the rail RENDERS includes the hovered move, so the bars move under
@@ -84,27 +88,39 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
     // committed by hovering.
     final preview = {...moves, ...?_hover?.asMove};
     final projections = buildProjections(
-      employees: employees, tasks: tasks, computedByTaskId: computed,
-      capacityByEmployee: capacity, multiplier: multiplier,
-      defaultCapacity: defaultCapacity, moves: preview,
+      employees: employees,
+      tasks: tasks,
+      computedByTaskId: computed,
+      capacityByEmployee: capacity,
+      multiplier: multiplier,
+      defaultCapacity: defaultCapacity,
+      moves: preview,
       assignmentsByTask: assignmentsByTask,
     );
     if (projections.isEmpty) {
       return const Center(child: Text('No active people to show.'));
     }
     final orphans = orphanHours(
-        tasks: tasks, computedByTaskId: computed, employees: employees,
-        multiplier: multiplier, moves: preview,
-        assignmentsByTask: assignmentsByTask);
+      tasks: tasks,
+      computedByTaskId: computed,
+      employees: employees,
+      multiplier: multiplier,
+      moves: preview,
+      assignmentsByTask: assignmentsByTask,
+    );
     final pool = unassignedTasks(
-        employees: employees, tasks: tasks, computedByTaskId: computed,
-        multiplier: multiplier, moves: preview);
+      employees: employees,
+      tasks: tasks,
+      computedByTaskId: computed,
+      multiplier: multiplier,
+      moves: preview,
+    );
 
     final selectedId = (_selectedId == kUnassignedId && pool.isNotEmpty)
         ? kUnassignedId
         : (projections.any((p) => p.employeeId == _selectedId)
-            ? _selectedId!
-            : projections.first.employeeId);
+              ? _selectedId!
+              : projections.first.employeeId);
     final selected = selectedId == kUnassignedId
         ? projections.first
         : projections.firstWhere((p) => p.employeeId == selectedId);
@@ -121,16 +137,33 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
             children: [
               SizedBox(
                 width: 340,
-                child: _peopleList(context, projections, selectedId, tasks,
-                    computed, employees, preview, pool,
-                    ref.watch(wpKpiCountByEmployeeProvider).asData?.value ?? const {}),
+                child: _peopleList(
+                  context,
+                  projections,
+                  selectedId,
+                  tasks,
+                  computed,
+                  employees,
+                  preview,
+                  pool,
+                  ref.watch(wpKpiCountByEmployeeProvider).asData?.value ??
+                      const {},
+                ),
               ),
               const VerticalDivider(width: 1),
               Expanded(
                 child: selectedId == kUnassignedId
                     ? _poolPanel(context, pool, orphans)
-                    : _taskPanel(context, selected, employees, tasks, computed,
-                        multiplier, preview, assignmentsByTask),
+                    : _taskPanel(
+                        context,
+                        selected,
+                        employees,
+                        tasks,
+                        computed,
+                        multiplier,
+                        preview,
+                        assignmentsByTask,
+                      ),
               ),
             ],
           ),
@@ -141,22 +174,30 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
 
   // ---- header ----------------------------------------------------------
 
-  Widget _planBar(BuildContext context, MoveDrafts moves,
-      List<LoadProjection> projections, OrphanHours orphans) {
+  Widget _planBar(
+    BuildContext context,
+    MoveDrafts moves,
+    List<LoadProjection> projections,
+    OrphanHours orphans,
+  ) {
     final cs = Theme.of(context).colorScheme;
-    final over = projections.where((p) => p.plannedStatus == LoadStatus.over).length;
+    final over = projections
+        .where((p) => p.plannedStatus == LoadStatus.over)
+        .length;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const TabIntro(
-            purpose: 'Move work until nobody is over capacity. '
+            purpose:
+                'Move work until nobody is over capacity. '
                 'Drag a task from one person onto another.',
             details: [
               (
                 term: 'Nothing saves until Apply.',
-                meaning: 'Drag freely to try a rebalance — each person shows '
+                meaning:
+                    'Drag freely to try a rebalance — each person shows '
                     'their planned load with the current one struck through '
                     'beside it. Reset throws the draft away.',
               ),
@@ -169,77 +210,97 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
           ),
           const SizedBox(height: 8),
           Row(
-        children: [
-          Expanded(
-            child: Wrap(
-              spacing: 16,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text(
-                  moves.isEmpty
-                      ? 'Drag a task onto a person to plan a move.'
-                      : '${moves.length} unsaved ${moves.length == 1 ? 'move' : 'moves'}',
-                  style: TextStyle(
-                    color: moves.isEmpty ? cs.onSurfaceVariant : cs.primary,
-                    fontWeight: moves.isEmpty ? null : FontWeight.w600,
+            children: [
+              Expanded(
+                child: Wrap(
+                  spacing: 16,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      moves.isEmpty
+                          ? 'Drag a task onto a person to plan a move.'
+                          : '${moves.length} unsaved ${moves.length == 1 ? 'move' : 'moves'}',
+                      style: TextStyle(
+                        color: moves.isEmpty ? cs.onSurfaceVariant : cs.primary,
+                        fontWeight: moves.isEmpty ? null : FontWeight.w600,
+                      ),
+                    ),
+                    if (over > 0)
+                      Text(
+                        '$over over capacity',
+                        style: TextStyle(
+                          color: StatusPalette.of(
+                            context,
+                            StatusTone.danger,
+                          ).foreground,
+                        ),
+                      ),
+                    // Only GENUINE orphans are reported. The legacy capacity-model
+                    // rows are also technically unattributed, but their costing
+                    // already lives on the responsibilities they describe, so
+                    // counting them announced ~800h of debt that does not exist.
+                    if (orphans.genuine > 0)
+                      Tooltip(
+                        message:
+                            'Costed work with no owner and no staffed role card. '
+                            'It reaches nobody, so it is missing from every load figure. '
+                            'Open Unassigned in the rail to hand it out.',
+                        child: Text(
+                          '${orphans.genuine.toStringAsFixed(1)}h unassigned '
+                          '(${(orphans.genuine / 160).toStringAsFixed(1)} FTE)',
+                          style: TextStyle(
+                            color: StatusPalette.of(
+                              context,
+                              StatusTone.warning,
+                            ).foreground,
+                          ),
+                        ),
+                      ),
+                    if (orphans.legacyReference > 0)
+                      Tooltip(
+                        message:
+                            'The original capacity-model rows. Their hours were '
+                            'transferred onto the role-card responsibilities, so they are '
+                            'a reference copy and are NOT counted anywhere. Delete them '
+                            'from the Tasks tab once these numbers are trusted.',
+                        child: Text(
+                          '${orphans.legacyReference.toStringAsFixed(0)}h reference (not counted)',
+                          style: TextStyle(
+                            color: cs.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (moves.isNotEmpty) ...[
+                TextButton(
+                  onPressed: _applying
+                      ? null
+                      : () => setState(() {
+                          _moves.clear();
+                          _hover = null;
+                        }),
+                  child: const Text('Reset'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: _applying ? null : () => _apply(moves),
+                  icon: _applying
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check),
+                  label: Text(
+                    _applying ? 'Applying…' : 'Apply ${moves.length}',
                   ),
                 ),
-                if (over > 0)
-                  Text('$over over capacity',
-                      style: TextStyle(
-                          color: StatusPalette.of(context, StatusTone.danger).foreground)),
-                // Only GENUINE orphans are reported. The legacy capacity-model
-                // rows are also technically unattributed, but their costing
-                // already lives on the responsibilities they describe, so
-                // counting them announced ~800h of debt that does not exist.
-                if (orphans.genuine > 0)
-                  Tooltip(
-                    message: 'Costed work with no owner and no staffed role card. '
-                        'It reaches nobody, so it is missing from every load figure. '
-                        'Open Unassigned in the rail to hand it out.',
-                    child: Text(
-                        '${orphans.genuine.toStringAsFixed(1)}h unassigned '
-                        '(${(orphans.genuine / 160).toStringAsFixed(1)} FTE)',
-                        style: TextStyle(
-                            color:
-                                StatusPalette.of(context, StatusTone.warning).foreground)),
-                  ),
-                if (orphans.legacyReference > 0)
-                  Tooltip(
-                    message: 'The original capacity-model rows. Their hours were '
-                        'transferred onto the role-card responsibilities, so they are '
-                        'a reference copy and are NOT counted anywhere. Delete them '
-                        'from the Tasks tab once these numbers are trusted.',
-                    child: Text(
-                        '${orphans.legacyReference.toStringAsFixed(0)}h reference (not counted)',
-                        style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
-                  ),
               ],
-            ),
-          ),
-          if (moves.isNotEmpty) ...[
-            TextButton(
-              onPressed: _applying
-                  ? null
-                  : () => setState(() {
-                        _moves.clear();
-                        _hover = null;
-                      }),
-              child: const Text('Reset'),
-            ),
-            const SizedBox(width: 8),
-            FilledButton.icon(
-              onPressed: _applying ? null : () => _apply(moves),
-              icon: _applying
-                  ? const SizedBox(
-                      width: 14, height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.check),
-              label: Text(_applying ? 'Applying…' : 'Apply ${moves.length}'),
-            ),
-          ],
-        ],
+            ],
           ),
         ],
       ),
@@ -276,8 +337,11 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
             final t = tasks.where((x) => x.id == d.data);
             if (t.isEmpty) return false;
             return moveError(
-                  task: t.first, toEmployeeId: p.employeeId,
-                  employees: employees, computedByTaskId: computed, moves: moves,
+                  task: t.first,
+                  toEmployeeId: p.employeeId,
+                  employees: employees,
+                  computedByTaskId: computed,
+                  moves: moves,
                 ) ==
                 null;
           },
@@ -295,8 +359,13 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
           },
           onAcceptWithDetails: (d) =>
               _drop(d.data, p.employeeId, tasks, employees, computed),
-          builder: (ctx, cand, _) => _personRow(ctx, p,
-              p.employeeId == selectedId, cand.isNotEmpty, kpiCounts[p.employeeId] ?? 0),
+          builder: (ctx, cand, _) => _personRow(
+            ctx,
+            p,
+            p.employeeId == selectedId,
+            cand.isNotEmpty,
+            kpiCounts[p.employeeId] ?? 0,
+          ),
         );
       },
     );
@@ -313,10 +382,14 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? warn.background : warn.background.withValues(alpha: 0.45),
+          color: selected
+              ? warn.background
+              : warn.background.withValues(alpha: 0.45),
           border: Border(
             left: BorderSide(
-                width: 3, color: selected ? warn.foreground : Colors.transparent),
+              width: 3,
+              color: selected ? warn.foreground : Colors.transparent,
+            ),
             bottom: BorderSide(color: cs.outlineVariant),
           ),
         ),
@@ -328,11 +401,18 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
                 Icon(Icons.inbox_outlined, size: 16, color: warn.foreground),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Text('Unassigned',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w600, color: warn.foreground)),
+                  child: Text(
+                    'Unassigned',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: warn.foreground,
+                    ),
+                  ),
                 ),
-                Text('${hours.toStringAsFixed(1)}h', style: AppTheme.mono(context)),
+                Text(
+                  '${hours.toStringAsFixed(1)}h',
+                  style: AppTheme.mono(context),
+                ),
               ],
             ),
             const SizedBox(height: 2),
@@ -349,7 +429,10 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
 
   /// The pool's contents, draggable onto anyone in the rail.
   Widget _poolPanel(
-      BuildContext context, List<PlannedTask> pool, OrphanHours orphans) {
+    BuildContext context,
+    List<PlannedTask> pool,
+    OrphanHours orphans,
+  ) {
     final cs = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -359,7 +442,10 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Unassigned', style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                'Unassigned',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               Text(
                 '${pool.length} ${pool.length == 1 ? 'task' : 'tasks'} · '
                 '${orphans.genuine.toStringAsFixed(1)}h reaching nobody. '
@@ -380,8 +466,13 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
     );
   }
 
-  Widget _personRow(BuildContext context, LoadProjection p, bool selected,
-      bool hovering, int kpiCount) {
+  Widget _personRow(
+    BuildContext context,
+    LoadProjection p,
+    bool selected,
+    bool hovering,
+    int kpiCount,
+  ) {
     final cs = Theme.of(context).colorScheme;
     return InkWell(
       onTap: () => setState(() => _selectedId = p.employeeId),
@@ -393,7 +484,9 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
               : (selected ? cs.primaryContainer.withValues(alpha: 0.2) : null),
           border: Border(
             left: BorderSide(
-                width: 3, color: selected ? cs.primary : Colors.transparent),
+              width: 3,
+              color: selected ? cs.primary : Colors.transparent,
+            ),
           ),
         ),
         child: Column(
@@ -402,17 +495,21 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
             Row(
               children: [
                 Expanded(
-                  child: Text(p.name,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                      overflow: TextOverflow.ellipsis),
+                  child: Text(
+                    p.name,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 LoadStatusChip(status: p.plannedStatus),
               ],
             ),
             if (p.roleTitle != null)
-              Text(p.roleTitle!,
-                  style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
-                  overflow: TextOverflow.ellipsis),
+              Text(
+                p.roleTitle!,
+                style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                overflow: TextOverflow.ellipsis,
+              ),
             const SizedBox(height: 6),
             _loadBar(context, p),
             const SizedBox(height: 4),
@@ -421,17 +518,25 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
                 padding: const EdgeInsets.only(bottom: 2),
                 child: Row(
                   children: [
-                    Icon(Icons.warning_amber_rounded,
-                        size: 12,
-                        color: StatusPalette.of(context, StatusTone.warning).foreground),
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      size: 12,
+                      color: StatusPalette.of(
+                        context,
+                        StatusTone.warning,
+                      ).foreground,
+                    ),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         '${p.uncostedCount} of ${p.taskCount} uncosted — understated',
                         style: TextStyle(
-                            fontSize: 11,
-                            color:
-                                StatusPalette.of(context, StatusTone.warning).foreground),
+                          fontSize: 11,
+                          color: StatusPalette.of(
+                            context,
+                            StatusTone.warning,
+                          ).foreground,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -440,14 +545,20 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
               ),
             Row(
               children: [
-                Text('${(p.plannedLoad * 100).round()}%', style: AppTheme.mono(context)),
+                Text(
+                  '${(p.plannedLoad * 100).round()}%',
+                  style: AppTheme.mono(context),
+                ),
                 if (p.changed) ...[
                   const SizedBox(width: 6),
-                  Text('was ${(p.currentLoad * 100).round()}%',
-                      style: TextStyle(
-                          fontSize: 11,
-                          color: cs.onSurfaceVariant,
-                          decoration: TextDecoration.lineThrough)),
+                  Text(
+                    'was ${(p.currentLoad * 100).round()}%',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: cs.onSurfaceVariant,
+                      decoration: TextDecoration.lineThrough,
+                    ),
+                  ),
                 ],
                 const Spacer(),
                 // Flexible + ellipsis: with a struck-through previous load AND
@@ -498,22 +609,26 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
               Container(
                 width: planned,
                 decoration: BoxDecoration(
-                    color: color, borderRadius: BorderRadius.circular(4)),
+                  color: color,
+                  borderRadius: BorderRadius.circular(4),
+                ),
               ),
               Positioned(
                 left: w / scale - 1,
                 child: Container(
-                    width: 1.5,
-                    height: 8,
-                    color: Theme.of(context).colorScheme.outline),
+                  width: 1.5,
+                  height: 8,
+                  color: Theme.of(context).colorScheme.outline,
+                ),
               ),
               if (p.changed)
                 Positioned(
                   left: (current - 1).clamp(0.0, w - 2),
                   child: Container(
-                      width: 2,
-                      height: 8,
-                      color: Theme.of(context).colorScheme.onSurface),
+                    width: 2,
+                    height: 8,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                 ),
             ],
           ),
@@ -536,8 +651,12 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
   ) {
     final cs = Theme.of(context).colorScheme;
     final rows = plannedTasksFor(
-      employeeId: p.employeeId, employees: employees, tasks: tasks,
-      computedByTaskId: computed, multiplier: multiplier, moves: moves,
+      employeeId: p.employeeId,
+      employees: employees,
+      tasks: tasks,
+      computedByTaskId: computed,
+      multiplier: multiplier,
+      moves: moves,
       assignmentsByTask: assignmentsByTask,
     );
     // An expectation and an un-estimated task both show no hours, but they are
@@ -548,8 +667,14 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
     // required skills are role-scorecard concerns: they apply across the whole
     // role rather than being units of work, so they carry no hours and have no
     // place in a workload view. plannedTasksFor already excludes them.
-    final movable = [for (final r in rows) if (r.hours > 0) r];
-    final toCost = [for (final r in rows) if (r.hours <= 0) r];
+    final movable = [
+      for (final r in rows)
+        if (r.hours > 0) r,
+    ];
+    final toCost = [
+      for (final r in rows)
+        if (r.hours <= 0) r,
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -562,7 +687,10 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(p.name, style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      p.name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     Text(
                       '${rows.length} weighted '
                       '${rows.length == 1 ? 'responsibility' : 'responsibilities'} · '
@@ -581,8 +709,11 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
         Expanded(
           child: rows.isEmpty
               ? Center(
-                  child: Text('No work assigned.',
-                      style: TextStyle(color: cs.onSurfaceVariant)))
+                  child: Text(
+                    'No work assigned.',
+                    style: TextStyle(color: cs.onSurfaceVariant),
+                  ),
+                )
               : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   children: [
@@ -607,7 +738,11 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
   /// Divider between weighted work that can be moved and weighted work that is
   /// blocked on an estimate.
   Widget _sectionHeader(
-      BuildContext context, String label, String help, StatusTone tone) {
+    BuildContext context,
+    String label,
+    String help,
+    StatusTone tone,
+  ) {
     final cs = Theme.of(context).colorScheme;
     final pal = StatusPalette.of(context, tone);
     return Padding(
@@ -620,15 +755,22 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
               color: pal.background,
               borderRadius: BorderRadius.circular(4),
             ),
-            child: Text(label,
-                style: TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w600, color: pal.foreground)),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: pal.foreground,
+              ),
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(help,
-                style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
-                overflow: TextOverflow.ellipsis),
+            child: Text(
+              help,
+              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
@@ -650,38 +792,45 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
             ? cs.primaryContainer.withValues(alpha: 0.3)
             : (quiet ? Colors.transparent : cs.surface),
         border: Border.all(
-            color: t.moved
-                ? cs.primary
-                : (quiet ? Colors.transparent : cs.outlineVariant)),
+          color: t.moved
+              ? cs.primary
+              : (quiet ? Colors.transparent : cs.outlineVariant),
+        ),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         children: [
           Icon(
-              movable
-                  ? Icons.drag_indicator
-                  : (t.task.isExpectation
+            movable
+                ? Icons.drag_indicator
+                : (t.task.isExpectation
                       ? Icons.check_circle_outline
                       : Icons.schedule),
-              size: 15,
-              color: cs.onSurfaceVariant),
+            size: 15,
+            color: cs.onSurfaceVariant,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(t.task.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: quiet
-                        ? TextStyle(fontSize: 13, color: cs.onSurfaceVariant)
-                        : null),
+                Text(
+                  t.task.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: quiet
+                      ? TextStyle(fontSize: 13, color: cs.onSurfaceVariant)
+                      : null,
+                ),
                 if (t.shared)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
                       'Shared by ${t.holderCount} — moving it gives the whole task to one person',
-                      style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: cs.onSurfaceVariant,
+                      ),
                     ),
                   ),
               ],
@@ -689,20 +838,27 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
           ),
           const SizedBox(width: 8),
           if (movable)
-            Text('${t.hours.toStringAsFixed(1)}h', style: AppTheme.mono(context))
+            Text(
+              '${t.hours.toStringAsFixed(1)}h',
+              style: AppTheme.mono(context),
+            )
           else
-            Text('needs costing',
-                style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
+            Text(
+              'needs costing',
+              style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+            ),
         ],
       ),
     );
     if (!movable) return card;
     return Draggable<String>(
       data: t.task.id,
-      onDragStarted: () => setState(() => _hover = HoverPreview(
-            taskId: t.task.id,
-            fromEmployeeId: _selectedId ?? kUnassignedId,
-          )),
+      onDragStarted: () => setState(
+        () => _hover = HoverPreview(
+          taskId: t.task.id,
+          fromEmployeeId: _selectedId ?? kUnassignedId,
+        ),
+      ),
       // Cleared on BOTH completion and cancellation — a preview left behind
       // would render a move that was never made.
       onDragEnd: (_) => setState(() => _hover = null),
@@ -713,8 +869,11 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
         child: Container(
           width: 320,
           padding: const EdgeInsets.all(10),
-          child: Text('${t.task.name}  ·  ${t.hours.toStringAsFixed(1)}h',
-              maxLines: 2, overflow: TextOverflow.ellipsis),
+          child: Text(
+            '${t.task.name}  ·  ${t.hours.toStringAsFixed(1)}h',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ),
       childWhenDragging: Opacity(opacity: 0.3, child: card),
@@ -724,13 +883,21 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
 
   // ---- actions ----------------------------------------------------------
 
-  void _drop(String taskId, String toEmployeeId, List<WpTask> tasks,
-      List<Employee> employees, Map<String, WpTaskComputed> computed) {
+  void _drop(
+    String taskId,
+    String toEmployeeId,
+    List<WpTask> tasks,
+    List<Employee> employees,
+    Map<String, WpTaskComputed> computed,
+  ) {
     final match = tasks.where((t) => t.id == taskId);
     if (match.isEmpty) return;
     final err = moveError(
-      task: match.first, toEmployeeId: toEmployeeId,
-      employees: employees, computedByTaskId: computed, moves: _moves,
+      task: match.first,
+      toEmployeeId: toEmployeeId,
+      employees: employees,
+      computedByTaskId: computed,
+      moves: _moves,
     );
     if (err != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
@@ -775,10 +942,14 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
     ref.invalidate(ownerComputedProvider);
     ref.invalidate(roleScorecardListProvider);
     final ok = moves.length - failed.length;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(failed.isEmpty
-          ? 'Applied $ok ${ok == 1 ? 'move' : 'moves'}.'
-          : 'Applied $ok, ${failed.length} failed — those are still pending.'),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          failed.isEmpty
+              ? 'Applied $ok ${ok == 1 ? 'move' : 'moves'}.'
+              : 'Applied $ok, ${failed.length} failed — those are still pending.',
+        ),
+      ),
+    );
   }
 }

@@ -9,7 +9,11 @@ import 'tasks_rows.dart';
 /// Scope narrows *before* paging, so "Operations Manager" is 38 rows on one
 /// page rather than page 2-of-6 of everything.
 class TaskScope {
-  const TaskScope({required this.key, required this.label, required this.count});
+  const TaskScope({
+    required this.key,
+    required this.label,
+    required this.count,
+  });
 
   /// `all`, `legacy`, `unattributed`, or a role-card id.
   final String key;
@@ -36,14 +40,16 @@ List<TaskScope> buildScopes(List<WpTask> tasks, List<RoleScorecard> cards) {
       ),
     if (groups.legacy.isNotEmpty)
       TaskScope(
-          key: TaskScope.legacyKey,
-          label: 'From capacity model',
-          count: groups.legacy.length),
+        key: TaskScope.legacyKey,
+        label: 'From capacity model',
+        count: groups.legacy.length,
+      ),
     if (groups.unattributed.isNotEmpty)
       TaskScope(
-          key: TaskScope.unattributedKey,
-          label: 'Unattributed',
-          count: groups.unattributed.length),
+        key: TaskScope.unattributedKey,
+        label: 'Unattributed',
+        count: groups.unattributed.length,
+      ),
   ];
 }
 
@@ -69,7 +75,10 @@ List<WpTask> tasksInScope(
     case TaskScope.unattributedKey:
       return groups.unattributed;
     default:
-      return [for (final t in ordered) if (t.roleScorecardId == scopeKey) t];
+      return [
+        for (final t in ordered)
+          if (t.roleScorecardId == scopeKey) t,
+      ];
   }
 }
 
@@ -105,12 +114,12 @@ TaskAssignment taskAssignment(WpTask t, Set<String> cardsWithHolders) {
 /// `wp_person_load` filters on — using either alone would misreport whether a
 /// card's work actually reaches anyone.
 Set<String> cardsWithActiveHolders(List<Employee> employees) => {
-      for (final e in employees)
-        if (e.employmentStatus == 'ACTIVE' &&
-            e.deletedAt == null &&
-            e.roleScorecardId != null)
-          e.roleScorecardId!,
-    };
+  for (final e in employees)
+    if (e.employmentStatus == 'ACTIVE' &&
+        e.deletedAt == null &&
+        e.roleScorecardId != null)
+      e.roleScorecardId!,
+};
 
 /// Count per assignment state, for the header.
 class AssignmentTally {
@@ -125,7 +134,10 @@ class AssignmentTally {
   final int unassigned;
 }
 
-AssignmentTally tallyAssignments(List<WpTask> tasks, Set<String> cardsWithHolders) {
+AssignmentTally tallyAssignments(
+  List<WpTask> tasks,
+  Set<String> cardsWithHolders,
+) {
   var e = 0, d = 0, u = 0;
   for (final t in tasks) {
     switch (taskAssignment(t, cardsWithHolders)) {
@@ -145,12 +157,13 @@ AssignmentTally tallyAssignments(List<WpTask> tasks, Set<String> cardsWithHolder
 /// 282 sentence-long responsibilities across six pages cannot be found by
 /// scrolling; without search the inventory is effectively write-only.
 class TaskFilter {
-  const TaskFilter(
-      {this.query = '',
-      this.state,
-      this.nodeId,
-      this.ownerId,
-      this.assignment});
+  const TaskFilter({
+    this.query = '',
+    this.state,
+    this.nodeId,
+    this.ownerId,
+    this.assignment,
+  });
 
   /// Matched case-insensitively against the task name and its area.
   final String query;
@@ -189,7 +202,8 @@ List<WpTask> applyTaskFilter(
       if ((q.isEmpty ||
               t.name.toLowerCase().contains(q) ||
               (t.responsibilityArea ?? '').toLowerCase().contains(q)) &&
-          (f.state == null || taskCostState(t, driverById, rateById) == f.state) &&
+          (f.state == null ||
+              taskCostState(t, driverById, rateById) == f.state) &&
           (f.nodeId == null || t.nodeId == f.nodeId) &&
           (f.ownerId == null ||
               (f.ownerId == TaskFilter.unownedKey
@@ -237,7 +251,11 @@ CostingProgress costingProgress(
         expectation++;
     }
   }
-  return CostingProgress(costed: costed, toCost: toCost, expectation: expectation);
+  return CostingProgress(
+    costed: costed,
+    toCost: toCost,
+    expectation: expectation,
+  );
 }
 
 /// One page of rows plus the numbers the pager needs to describe itself.

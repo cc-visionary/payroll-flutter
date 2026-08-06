@@ -40,19 +40,31 @@ void main() {
       missionStatement:
           'Support HR and administrative operations across the company.',
       responsibilities: const [
-        ContractResponsibility(area: 'Primary Responsibilities', tasks: [
-          'Assist in end-to-end recruitment activities.',
-          'Support the onboarding process for new hires.',
-          'Maintain and organize employee records.',
-        ]),
-        ContractResponsibility(area: 'Administrative Tasks', tasks: [
-          'Update and manage the HR calendar.',
-          'Monitor office supplies inventory.',
-        ]),
+        ContractResponsibility(
+          area: 'Primary Responsibilities',
+          tasks: [
+            'Assist in end-to-end recruitment activities.',
+            'Support the onboarding process for new hires.',
+            'Maintain and organize employee records.',
+          ],
+        ),
+        ContractResponsibility(
+          area: 'Administrative Tasks',
+          tasks: [
+            'Update and manage the HR calendar.',
+            'Monitor office supplies inventory.',
+          ],
+        ),
       ],
       kpis: const [
-        ContractKpi(metric: 'Timeliness of calendar updates', frequency: 'Weekly'),
-        ContractKpi(metric: 'Recruitment coordination efficiency', frequency: 'Monthly'),
+        ContractKpi(
+          metric: 'Timeliness of calendar updates',
+          frequency: 'Weekly',
+        ),
+        ContractKpi(
+          metric: 'Recruitment coordination efficiency',
+          frequency: 'Monthly',
+        ),
       ],
     );
     const t = EmploymentContractTemplate();

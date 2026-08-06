@@ -10,6 +10,7 @@ class SignatureBlock extends Block {
   final String? name;
   final String? role;
   final DateTime? date;
+
   /// Transparent-PNG signature rendered above the printed name, sitting on
   /// the sign line. Company-side signatories only.
   final Uint8List? signatureImage;
@@ -39,8 +40,11 @@ class SignatureBlock extends Block {
                 pw.Container(
                   height: 40,
                   alignment: pw.Alignment.bottomLeft,
-                  child: pw.Image(pw.MemoryImage(signatureImage!),
-                      height: 38, fit: pw.BoxFit.contain),
+                  child: pw.Image(
+                    pw.MemoryImage(signatureImage!),
+                    height: 38,
+                    fit: pw.BoxFit.contain,
+                  ),
                 ),
               pw.Text(
                 name ?? '',
@@ -65,10 +69,7 @@ class SignatureBlock extends Block {
           ),
         pw.Text(
           dateLine,
-          style: pw.TextStyle(
-            fontSize: theme.bodySize,
-            color: theme.textColor,
-          ),
+          style: pw.TextStyle(fontSize: theme.bodySize, color: theme.textColor),
         ),
       ],
     );

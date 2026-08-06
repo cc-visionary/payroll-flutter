@@ -25,15 +25,25 @@ class _State extends ConsumerState<HolidaysSettingsScreen> {
     final profile = ref.read(userProfileProvider).asData?.value;
     if (profile == null) return;
     final year = ref.read(selectedHolidayYearProvider);
-    setState(() { _syncing = true; _msg = null; });
+    setState(() {
+      _syncing = true;
+      _msg = null;
+    });
     try {
-      await ref.read(holidayRepositoryProvider).ensureForYear(profile.companyId, year);
+      await ref
+          .read(holidayRepositoryProvider)
+          .ensureForYear(profile.companyId, year);
       final res = await runWithSyncingDialog(
         context,
         'Holidays',
-        () => ref.read(larkRepositoryProvider).syncCalendar(profile.companyId, year),
+        () => ref
+            .read(larkRepositoryProvider)
+            .syncCalendar(profile.companyId, year),
       );
-      setState(() => _msg = 'Synced: ${res.created} created, ${res.updated} updated, ${res.skipped} skipped');
+      setState(
+        () => _msg =
+            'Synced: ${res.created} created, ${res.updated} updated, ${res.skipped} skipped',
+      );
       ref.invalidate(holidayCalendarProvider);
       ref.invalidate(holidayEventsProvider);
       ref.invalidate(syncHistoryProvider);
@@ -64,12 +74,19 @@ class _State extends ConsumerState<HolidaysSettingsScreen> {
       context: context,
       builder: (c) => AlertDialog(
         title: const Text('Delete holiday?'),
-        content: Text('Remove ${ev.name} on ${ev.date.toIso8601String().substring(0, 10)}?'),
+        content: Text(
+          'Remove ${ev.name} on ${ev.date.toIso8601String().substring(0, 10)}?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(c, true),
-            style: FilledButton.styleFrom(backgroundColor: Theme.of(c).colorScheme.error),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(c).colorScheme.error,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -89,98 +106,187 @@ class _State extends ConsumerState<HolidaysSettingsScreen> {
     final mobile = isMobile(context);
     return Padding(
       padding: EdgeInsets.all(mobile ? 16 : 24),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Text('Holiday Calendar', style: Theme.of(context).textTheme.headlineSmall),
-        ]),
-        const SizedBox(height: 4),
-        const Text('Manage holidays for payroll day-type resolution. Sync from Lark to import holidays from the HR Calendar, or add them manually.',
-            style: TextStyle(color: Colors.grey)),
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            Row(mainAxisSize: MainAxisSize.min, children: [
-              IconButton(onPressed: () => ref.read(selectedHolidayYearProvider.notifier).state = year - 1, icon: const Icon(Icons.chevron_left)),
-              Text('$year', style: Theme.of(context).textTheme.titleLarge),
-              IconButton(onPressed: () => ref.read(selectedHolidayYearProvider.notifier).state = year + 1, icon: const Icon(Icons.chevron_right)),
-            ]),
-            if (cal?.lastSyncedAt != null && !mobile)
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
               Text(
-                  'Last synced: ${DateFormat('MMM d, h:mm a').format(cal!.lastSyncedAt!.toLocal())}',
-                  style: const TextStyle(color: Colors.grey, fontSize: 12)),
-            OutlinedButton.icon(
-              onPressed: _syncing ? null : _sync,
-              icon: _syncing
-                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.sync),
-              label: const Text('Sync from Lark'),
-            ),
-            FilledButton.icon(
-              onPressed: () => _addOrEdit(),
-              icon: const Icon(Icons.add),
-              label: const Text('Add Holiday'),
-            ),
-          ],
-        ),
-        if (mobile && cal?.lastSyncedAt != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-                'Last synced: ${DateFormat('MMM d, h:mm a').format(cal!.lastSyncedAt!.toLocal())}',
-                style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                'Holiday Calendar',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+            ],
           ),
-        if (_msg != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_msg!)),
-        const SizedBox(height: 16),
-        Expanded(child: eventsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.red))),
-          data: (events) => events.isEmpty
-              ? const Center(child: Text('No holidays for this year. Click "Sync from Lark" or "Add Holiday".'))
-              : SingleChildScrollView(
-                  child: ResponsiveTable(
-                    fullWidth: true,
-                    child: DataTable(
-                      columnSpacing: 24,
-                      columns: const [
-                        DataColumn(label: Text('Date')),
-                        DataColumn(label: Text('Day')),
-                        DataColumn(label: Text('Name')),
-                        DataColumn(label: Text('Type')),
-                        DataColumn(label: Text('Source')),
-                        DataColumn(label: Text('Actions')),
-                      ],
-                      rows: events.map((ev) => DataRow(cells: [
-                        DataCell(Text(ev.date.toIso8601String().substring(0, 10))),
-                        DataCell(Text(DateFormat('E').format(ev.date))),
-                        DataCell(Text(ev.name)),
-                        DataCell(_typeChip(ev.dayType)),
-                        DataCell(Text(ev.source, style: const TextStyle(fontSize: 12))),
-                        DataCell(ev.source == 'MANUAL'
-                            ? Row(children: [
-                                TextButton(onPressed: () => _addOrEdit(existing: ev), child: const Text('Edit')),
-                                TextButton(onPressed: () => _delete(ev), style: TextButton.styleFrom(foregroundColor: Colors.red), child: const Text('Delete')),
-                              ])
-                            : const Text('—', style: TextStyle(color: Colors.grey))),
-                      ])).toList(),
-                    ),
+          const SizedBox(height: 4),
+          const Text(
+            'Manage holidays for payroll day-type resolution. Sync from Lark to import holidays from the HR Calendar, or add them manually.',
+            style: TextStyle(color: Colors.grey),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: () =>
+                        ref.read(selectedHolidayYearProvider.notifier).state =
+                            year - 1,
+                    icon: const Icon(Icons.chevron_left),
                   ),
+                  Text('$year', style: Theme.of(context).textTheme.titleLarge),
+                  IconButton(
+                    onPressed: () =>
+                        ref.read(selectedHolidayYearProvider.notifier).state =
+                            year + 1,
+                    icon: const Icon(Icons.chevron_right),
+                  ),
+                ],
+              ),
+              if (cal?.lastSyncedAt != null && !mobile)
+                Text(
+                  'Last synced: ${DateFormat('MMM d, h:mm a').format(cal!.lastSyncedAt!.toLocal())}',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
-        )),
-      ]),
+              OutlinedButton.icon(
+                onPressed: _syncing ? null : _sync,
+                icon: _syncing
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.sync),
+                label: const Text('Sync from Lark'),
+              ),
+              FilledButton.icon(
+                onPressed: () => _addOrEdit(),
+                icon: const Icon(Icons.add),
+                label: const Text('Add Holiday'),
+              ),
+            ],
+          ),
+          if (mobile && cal?.lastSyncedAt != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Last synced: ${DateFormat('MMM d, h:mm a').format(cal!.lastSyncedAt!.toLocal())}',
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ),
+          if (_msg != null)
+            Padding(padding: const EdgeInsets.only(top: 8), child: Text(_msg!)),
+          const SizedBox(height: 16),
+          Expanded(
+            child: eventsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(
+                child: Text(
+                  'Error: $e',
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
+              data: (events) => events.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No holidays for this year. Click "Sync from Lark" or "Add Holiday".',
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      child: ResponsiveTable(
+                        fullWidth: true,
+                        child: DataTable(
+                          columnSpacing: 24,
+                          columns: const [
+                            DataColumn(label: Text('Date')),
+                            DataColumn(label: Text('Day')),
+                            DataColumn(label: Text('Name')),
+                            DataColumn(label: Text('Type')),
+                            DataColumn(label: Text('Source')),
+                            DataColumn(label: Text('Actions')),
+                          ],
+                          rows: events
+                              .map(
+                                (ev) => DataRow(
+                                  cells: [
+                                    DataCell(
+                                      Text(
+                                        ev.date.toIso8601String().substring(
+                                          0,
+                                          10,
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Text(DateFormat('E').format(ev.date)),
+                                    ),
+                                    DataCell(Text(ev.name)),
+                                    DataCell(_typeChip(ev.dayType)),
+                                    DataCell(
+                                      Text(
+                                        ev.source,
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      ev.source == 'MANUAL'
+                                          ? Row(
+                                              children: [
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      _addOrEdit(existing: ev),
+                                                  child: const Text('Edit'),
+                                                ),
+                                                TextButton(
+                                                  onPressed: () => _delete(ev),
+                                                  style: TextButton.styleFrom(
+                                                    foregroundColor: Colors.red,
+                                                  ),
+                                                  child: const Text('Delete'),
+                                                ),
+                                              ],
+                                            )
+                                          : const Text(
+                                              '—',
+                                              style: TextStyle(
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _typeChip(String dt) {
     switch (dt) {
       case 'REGULAR_HOLIDAY':
-        return const StatusChip(label: 'Regular', tone: StatusTone.holidayRegular);
+        return const StatusChip(
+          label: 'Regular',
+          tone: StatusTone.holidayRegular,
+        );
       case 'SPECIAL_HOLIDAY':
-        return const StatusChip(label: 'Special', tone: StatusTone.holidaySpecial);
+        return const StatusChip(
+          label: 'Special',
+          tone: StatusTone.holidaySpecial,
+        );
       case 'SPECIAL_WORKING':
-        return const StatusChip(label: 'Extra', tone: StatusTone.holidayWorking);
+        return const StatusChip(
+          label: 'Extra',
+          tone: StatusTone.holidayWorking,
+        );
       default:
         return Chip(label: Text(dt), visualDensity: VisualDensity.compact);
     }
@@ -191,7 +297,11 @@ class _HolidayForm extends ConsumerStatefulWidget {
   final String calendarId;
   final CalendarEvent? existing;
   final VoidCallback onSaved;
-  const _HolidayForm({required this.calendarId, this.existing, required this.onSaved});
+  const _HolidayForm({
+    required this.calendarId,
+    this.existing,
+    required this.onSaved,
+  });
   @override
   ConsumerState<_HolidayForm> createState() => _FormState();
 }
@@ -212,7 +322,9 @@ class _FormState extends ConsumerState<_HolidayForm> {
     if (_name.text.trim().isEmpty) return;
     setState(() => _loading = true);
     try {
-      await ref.read(holidayRepositoryProvider).upsertManual(
+      await ref
+          .read(holidayRepositoryProvider)
+          .upsertManual(
             id: widget.existing?.id,
             calendarId: widget.calendarId,
             date: _date,
@@ -232,45 +344,75 @@ class _FormState extends ConsumerState<_HolidayForm> {
       title: Text(widget.existing == null ? 'Add Holiday' : 'Edit Holiday'),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(
-            controller: _name,
-            decoration: const InputDecoration(labelText: 'Name', border: OutlineInputBorder()),
-          ),
-          const SizedBox(height: 12),
-          InkWell(
-            onTap: () async {
-              final p = await showDatePicker(
-                context: context,
-                initialDate: _date,
-                firstDate: DateTime(2000),
-                lastDate: DateTime(2100),
-              );
-              if (p != null) setState(() => _date = p);
-            },
-            child: InputDecorator(
-              decoration: const InputDecoration(labelText: 'Date', border: OutlineInputBorder()),
-              child: Text(_date.toIso8601String().substring(0, 10)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _name,
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                border: OutlineInputBorder(),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: _type,
-            decoration: const InputDecoration(labelText: 'Type', border: OutlineInputBorder()),
-            items: const [
-              DropdownMenuItem(value: 'REGULAR_HOLIDAY', child: Text('Regular Holiday')),
-              DropdownMenuItem(value: 'SPECIAL_HOLIDAY', child: Text('Special Holiday')),
-              DropdownMenuItem(value: 'SPECIAL_WORKING', child: Text('Extra / Working')),
-            ],
-            onChanged: (v) => setState(() => _type = v!),
-          ),
-        ]),
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: () async {
+                final p = await showDatePicker(
+                  context: context,
+                  initialDate: _date,
+                  firstDate: DateTime(2000),
+                  lastDate: DateTime(2100),
+                );
+                if (p != null) setState(() => _date = p);
+              },
+              child: InputDecorator(
+                decoration: const InputDecoration(
+                  labelText: 'Date',
+                  border: OutlineInputBorder(),
+                ),
+                child: Text(_date.toIso8601String().substring(0, 10)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _type,
+              decoration: const InputDecoration(
+                labelText: 'Type',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'REGULAR_HOLIDAY',
+                  child: Text('Regular Holiday'),
+                ),
+                DropdownMenuItem(
+                  value: 'SPECIAL_HOLIDAY',
+                  child: Text('Special Holiday'),
+                ),
+                DropdownMenuItem(
+                  value: 'SPECIAL_WORKING',
+                  child: Text('Extra / Working'),
+                ),
+              ],
+              onChanged: (v) => setState(() => _type = v!),
+            ),
+          ],
+        ),
       ),
       actions: [
-        TextButton(onPressed: _loading ? null : () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: _loading ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           onPressed: _loading ? null : _save,
-          child: _loading ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Save'),
+          child: _loading
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Save'),
         ),
       ],
     );

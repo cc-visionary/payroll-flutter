@@ -63,10 +63,7 @@ class _NdaFormState extends ConsumerState<NdaForm> {
     if (msg == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 4),
-      child: Text(
-        msg,
-        style: const TextStyle(color: Colors.red, fontSize: 12),
-      ),
+      child: Text(msg, style: const TextStyle(color: Colors.red, fontSize: 12)),
     );
   }
 
@@ -144,8 +141,7 @@ class _NdaFormState extends ConsumerState<NdaForm> {
           const SizedBox(height: 4),
           EmployeeNameField(
             value: _i.authorizedSignatoryName,
-            onChanged: (v) =>
-                _set(_i.copyWith(authorizedSignatoryName: v)),
+            onChanged: (v) => _set(_i.copyWith(authorizedSignatoryName: v)),
           ),
           _error('authorizedSignatoryName'),
           const SizedBox(height: 16),
@@ -153,8 +149,7 @@ class _NdaFormState extends ConsumerState<NdaForm> {
           const SizedBox(height: 4),
           RoleTitleField(
             value: _i.authorizedSignatoryRole,
-            onChanged: (v) =>
-                _set(_i.copyWith(authorizedSignatoryRole: v)),
+            onChanged: (v) => _set(_i.copyWith(authorizedSignatoryRole: v)),
           ),
         ],
       ),

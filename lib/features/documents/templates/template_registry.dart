@@ -55,20 +55,14 @@ const List<DocumentCategory> kDocumentCategories = [
     label: 'Compensation & Movement',
     blurb: 'Salary adjustments, promotions, and role changes.',
     icon: Icons.trending_up,
-    templates: [
-      SalaryAdjustmentTemplate(),
-    ],
+    templates: [SalaryAdjustmentTemplate()],
   ),
   DocumentCategory(
     id: 'disciplinary',
     label: 'Disciplinary',
     blurb: 'Due-process notices and decisions under the Labor Code.',
     icon: Icons.gavel_outlined,
-    templates: [
-      NteTemplate(),
-      NodTemplate(),
-      PenaltyAgreementTemplate(),
-    ],
+    templates: [NteTemplate(), NodTemplate(), PenaltyAgreementTemplate()],
   ),
   DocumentCategory(
     id: 'separation',
@@ -87,9 +81,7 @@ const List<DocumentCategory> kDocumentCategories = [
     label: 'Waivers & Other',
     blurb: 'Event waivers and miscellaneous releases.',
     icon: Icons.shield_outlined,
-    templates: [
-      LiabilityWaiverTemplate(),
-    ],
+    templates: [LiabilityWaiverTemplate()],
   ),
 ];
 

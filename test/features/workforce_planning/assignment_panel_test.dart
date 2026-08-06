@@ -118,7 +118,9 @@ void main() {
     expect(find.text('= 100%'), findsOneWidget);
   });
 
-  testWidgets('Split equally calls setAllocations with both ids at 50', (tester) async {
+  testWidgets('Split equally calls setAllocations with both ids at 50', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1200, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -145,11 +147,11 @@ void main() {
     expect(find.text('⚠ 60%'), findsOneWidget);
   });
 
-  testWidgets(
-      'editing a % field back to its first-rendered value still writes '
+  testWidgets('editing a % field back to its first-rendered value still writes '
       '(C1 regression: the focus-loss listener must resolve the CURRENT row, '
-      'not the one captured when the FocusNode was first created)',
-      (tester) async {
+      'not the one captured when the FocusNode was first created)', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(1200, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -171,32 +173,34 @@ void main() {
             allocationPct: repo.upserted.last.allocationPct,
           );
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        // Override the SOURCE provider, not the derived wpAssignmentsByTaskProvider
-        // — _invalidate() invalidates wpTaskAssignmentsProvider, and
-        // wpAssignmentsByTaskProvider only recomputes because it `ref.watch`es
-        // that provider's `.future`. Overriding the derived provider directly
-        // would sever that dependency and the invalidation would never arrive.
-        wpTaskAssignmentsProvider.overrideWith((ref) async => [currentA1()]),
-        workforcePlanningRepositoryProvider.overrideWithValue(repo),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            width: 900,
-            height: 600,
-            child: AssignmentPanel(
-              taskId: 't1',
-              companyId: 'c',
-              taskHours: 100,
-              cards: [_card],
-              employees: [_employee],
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          // Override the SOURCE provider, not the derived wpAssignmentsByTaskProvider
+          // — _invalidate() invalidates wpTaskAssignmentsProvider, and
+          // wpAssignmentsByTaskProvider only recomputes because it `ref.watch`es
+          // that provider's `.future`. Overriding the derived provider directly
+          // would sever that dependency and the invalidation would never arrive.
+          wpTaskAssignmentsProvider.overrideWith((ref) async => [currentA1()]),
+          workforcePlanningRepositoryProvider.overrideWithValue(repo),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 900,
+              height: 600,
+              child: AssignmentPanel(
+                taskId: 't1',
+                companyId: 'c',
+                taskHours: 100,
+                cards: [_card],
+                employees: [_employee],
+              ),
             ),
           ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     final field = find.byKey(const ValueKey('pct-a1'));

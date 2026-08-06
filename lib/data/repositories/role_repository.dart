@@ -12,10 +12,7 @@ const Map<String, List<String>> kPermissionCatalog = {
     'employee:edit',
     'employee:view_sensitive',
   ],
-  'Pay Profile': [
-    'pay_profile:view',
-    'pay_profile:edit',
-  ],
+  'Pay Profile': ['pay_profile:view', 'pay_profile:edit'],
   'Attendance': [
     'attendance:view',
     'attendance:import',
@@ -29,10 +26,7 @@ const Map<String, List<String>> kPermissionCatalog = {
     'leave_type:view',
     'leave_type:manage',
   ],
-  'Department': [
-    'department:view',
-    'department:manage',
-  ],
+  'Department': ['department:view', 'department:manage'],
   'Payroll': [
     'payroll:view',
     'payroll:run',
@@ -40,20 +34,14 @@ const Map<String, List<String>> kPermissionCatalog = {
     'payroll:approve',
     'payroll:release',
   ],
-  'Payslips': [
-    'payslip:view_all',
-    'payslip:generate',
-  ],
+  'Payslips': ['payslip:view_all', 'payslip:generate'],
   'Benefits': [
     'cash_advance:view',
     'cash_advance:approve',
     'reimbursement:view',
     'reimbursement:approve',
   ],
-  'Documents': [
-    'document:generate',
-    'document:view',
-  ],
+  'Documents': ['document:generate', 'document:view'],
   'Exports & Reports': [
     'export:bank_file',
     'export:statutory',
@@ -67,7 +55,11 @@ class RoleRepository {
   RoleRepository(this._client);
 
   Future<List<Role>> list() async {
-    final rows = await _client.from('roles').select().order('is_system', ascending: false).order('name');
+    final rows = await _client
+        .from('roles')
+        .select()
+        .order('is_system', ascending: false)
+        .order('name');
     return rows.cast<Map<String, dynamic>>().map(Role.fromRow).toList();
   }
 
@@ -105,14 +97,16 @@ class RoleRepository {
           email = (emp['work_email'] as String?) ?? '';
         }
       } catch (_) {}
-      out.add(UserRoleAssignment(
-        userId: userId,
-        email: email,
-        employeeName: (name == null || name.isEmpty) ? null : name,
-        assignedAt: r['created_at'] == null
-            ? null
-            : DateTime.parse(r['created_at'] as String),
-      ));
+      out.add(
+        UserRoleAssignment(
+          userId: userId,
+          email: email,
+          employeeName: (name == null || name.isEmpty) ? null : name,
+          assignedAt: r['created_at'] == null
+              ? null
+              : DateTime.parse(r['created_at'] as String),
+        ),
+      );
     }
     return out;
   }
@@ -148,9 +142,10 @@ class RoleRepository {
   }
 
   Future<void> assignUser(String userId, String roleId) async {
-    await _client
-        .from('user_roles')
-        .upsert({'user_id': userId, 'role_id': roleId});
+    await _client.from('user_roles').upsert({
+      'user_id': userId,
+      'role_id': roleId,
+    });
   }
 
   Future<void> removeUser(String userId, String roleId) async {
@@ -162,8 +157,9 @@ class RoleRepository {
   }
 }
 
-final roleRepositoryProvider =
-    Provider<RoleRepository>((ref) => RoleRepository(Supabase.instance.client));
+final roleRepositoryProvider = Provider<RoleRepository>(
+  (ref) => RoleRepository(Supabase.instance.client),
+);
 
 final roleListProvider = FutureProvider<List<Role>>((ref) async {
   return ref.watch(roleRepositoryProvider).list();
@@ -175,5 +171,5 @@ final roleUserCountsProvider = FutureProvider<Map<String, int>>((ref) async {
 
 final roleAssignmentsProvider =
     FutureProvider.family<List<UserRoleAssignment>, String>((ref, roleId) {
-  return ref.watch(roleRepositoryProvider).listAssignments(roleId);
-});
+      return ref.watch(roleRepositoryProvider).listAssignments(roleId);
+    });

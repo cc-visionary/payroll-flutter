@@ -3,46 +3,78 @@ import 'package:payroll_flutter/data/models/workforce_planning.dart';
 import 'package:payroll_flutter/features/workforce_planning/task_costing.dart';
 
 const _shopee = WpDriver(
-    id: 'd1', companyId: 'c', name: 'Shopee orders', value: 120, grows: true);
+  id: 'd1',
+  companyId: 'c',
+  name: 'Shopee orders',
+  value: 120,
+  grows: true,
+);
 const _units = WpDriver(
-    id: 'd2', companyId: 'c', name: 'Units sold', value: 500, grows: false);
-const _pack =
-    WpRate(id: 'r1', companyId: 'c', name: 'Pick/pack', minutesEach: 8);
+  id: 'd2',
+  companyId: 'c',
+  name: 'Units sold',
+  value: 500,
+  grows: false,
+);
+const _pack = WpRate(
+  id: 'r1',
+  companyId: 'c',
+  name: 'Pick/pack',
+  minutesEach: 8,
+);
 
 final _drivers = {'d1': _shopee, 'd2': _units};
 final _rates = {'r1': _pack};
 
 WpTask _task() => const WpTask(
-      id: 't1', companyId: 'c', name: 'A responsibility',
-      ownerEmployeeId: 'e1', roleScorecardId: 'rs1',
-      responsibilityArea: 'Area', externalRef: 'T9', notes: 'keep',
-      areaSort: 3, taskSort: 7,
-      criticality: 'HIGH', isEssential: false, status: 'ARCHIVED',
-      isExpectation: true,
-    );
+  id: 't1',
+  companyId: 'c',
+  name: 'A responsibility',
+  ownerEmployeeId: 'e1',
+  roleScorecardId: 'rs1',
+  responsibilityArea: 'Area',
+  externalRef: 'T9',
+  notes: 'keep',
+  areaSort: 3,
+  taskSort: 7,
+  criticality: 'HIGH',
+  isEssential: false,
+  status: 'ARCHIVED',
+  isExpectation: true,
+);
 
 void main() {
   group('hours match the wp_task_computed formula', () {
     test('manual x manual', () {
       const d = CostDraft(
-          timesSource: 'manual', timesManual: 20,
-          minutesSource: 'manual', minutesManual: 45);
+        timesSource: 'manual',
+        timesManual: 20,
+        minutesSource: 'manual',
+        minutesManual: 45,
+      );
       // 20 * 45 / 60
       expect(draftHoursPerMonth(d, _drivers, _rates), 15.0);
     });
 
     test('driver x rate applies driver_factor', () {
       const d = CostDraft(
-          timesSource: 'driver', driverId: 'd1', driverFactor: 0.5,
-          minutesSource: 'rate', rateId: 'r1');
+        timesSource: 'driver',
+        driverId: 'd1',
+        driverFactor: 0.5,
+        minutesSource: 'rate',
+        rateId: 'r1',
+      );
       // (120 * 0.5) * 8 / 60
       expect(draftHoursPerMonth(d, _drivers, _rates), 8.0);
     });
 
     test('a missing driver or rate contributes zero, not a crash', () {
       const d = CostDraft(
-          timesSource: 'driver', driverId: 'gone',
-          minutesSource: 'rate', rateId: 'gone');
+        timesSource: 'driver',
+        driverId: 'gone',
+        minutesSource: 'rate',
+        rateId: 'gone',
+      );
       expect(draftHoursPerMonth(d, _drivers, _rates), 0.0);
     });
 
@@ -55,12 +87,21 @@ void main() {
   group('costed / growing', () {
     test('both halves required to count as costed', () {
       const timesOnly = CostDraft(
-          timesSource: 'manual', timesManual: 20, minutesSource: 'manual');
+        timesSource: 'manual',
+        timesManual: 20,
+        minutesSource: 'manual',
+      );
       const minsOnly = CostDraft(
-          timesSource: 'manual', minutesSource: 'manual', minutesManual: 45);
+        timesSource: 'manual',
+        minutesSource: 'manual',
+        minutesManual: 45,
+      );
       const both = CostDraft(
-          timesSource: 'manual', timesManual: 20,
-          minutesSource: 'manual', minutesManual: 45);
+        timesSource: 'manual',
+        timesManual: 20,
+        minutesSource: 'manual',
+        minutesManual: 45,
+      );
       expect(draftIsCosted(timesOnly, _drivers, _rates), isFalse);
       expect(draftIsCosted(minsOnly, _drivers, _rates), isFalse);
       expect(draftIsCosted(both, _drivers, _rates), isTrue);
@@ -68,13 +109,25 @@ void main() {
 
     test('only a growing driver makes the task respond to the multiplier', () {
       const manual = CostDraft(
-          timesSource: 'manual', timesManual: 100, minutesSource: 'manual');
-      const flatDriver =
-          CostDraft(timesSource: 'driver', driverId: 'd2', minutesSource: 'manual');
-      const growDriver =
-          CostDraft(timesSource: 'driver', driverId: 'd1', minutesSource: 'manual');
-      expect(draftIsGrowing(manual, _drivers), isFalse,
-          reason: 'a big manual number is still flat forever');
+        timesSource: 'manual',
+        timesManual: 100,
+        minutesSource: 'manual',
+      );
+      const flatDriver = CostDraft(
+        timesSource: 'driver',
+        driverId: 'd2',
+        minutesSource: 'manual',
+      );
+      const growDriver = CostDraft(
+        timesSource: 'driver',
+        driverId: 'd1',
+        minutesSource: 'manual',
+      );
+      expect(
+        draftIsGrowing(manual, _drivers),
+        isFalse,
+        reason: 'a big manual number is still flat forever',
+      );
       expect(draftIsGrowing(flatDriver, _drivers), isFalse);
       expect(draftIsGrowing(growDriver, _drivers), isTrue);
     });
@@ -83,8 +136,12 @@ void main() {
   group('draftPatch nulls the losing source', () {
     test('driver-sourced times clears times_manual', () {
       const d = CostDraft(
-          timesSource: 'driver', driverId: 'd1', timesManual: 999,
-          minutesSource: 'manual', minutesManual: 45);
+        timesSource: 'driver',
+        driverId: 'd1',
+        timesManual: 999,
+        minutesSource: 'manual',
+        minutesManual: 45,
+      );
       final p = draftPatch(d);
       expect(p['times_manual'], isNull);
       expect(p['driver_id'], 'd1');
@@ -92,8 +149,11 @@ void main() {
 
     test('manual-sourced times clears driver_id', () {
       const d = CostDraft(
-          timesSource: 'manual', timesManual: 20, driverId: 'd1',
-          minutesSource: 'manual');
+        timesSource: 'manual',
+        timesManual: 20,
+        driverId: 'd1',
+        minutesSource: 'manual',
+      );
       final p = draftPatch(d);
       expect(p['driver_id'], isNull);
       expect(p['times_manual'], 20);
@@ -101,14 +161,20 @@ void main() {
 
     test('rate-sourced minutes clears minutes_manual and vice versa', () {
       const viaRate = CostDraft(
-          timesSource: 'manual', minutesSource: 'rate', rateId: 'r1',
-          minutesManual: 999);
+        timesSource: 'manual',
+        minutesSource: 'rate',
+        rateId: 'r1',
+        minutesManual: 999,
+      );
       expect(draftPatch(viaRate)['minutes_manual'], isNull);
       expect(draftPatch(viaRate)['rate_id'], 'r1');
 
       const viaManual = CostDraft(
-          timesSource: 'manual', minutesSource: 'manual', minutesManual: 45,
-          rateId: 'r1');
+        timesSource: 'manual',
+        minutesSource: 'manual',
+        minutesManual: 45,
+        rateId: 'r1',
+      );
       expect(draftPatch(viaManual)['rate_id'], isNull);
       expect(draftPatch(viaManual)['minutes_manual'], 45);
     });
@@ -117,8 +183,14 @@ void main() {
       const d = CostDraft(timesSource: 'manual', minutesSource: 'manual');
       // hours_per_month is now part of the costing-column patch (direct hours).
       expect(draftPatch(d).keys.toSet(), {
-        'node_id', 'hours_per_month', 'times_source', 'times_manual',
-        'driver_id', 'driver_factor', 'minutes_source', 'minutes_manual',
+        'node_id',
+        'hours_per_month',
+        'times_source',
+        'times_manual',
+        'driver_id',
+        'driver_factor',
+        'minutes_source',
+        'minutes_manual',
         'rate_id',
       });
     });
@@ -162,66 +234,109 @@ void main() {
 
   group('fillGroupDrafts', () {
     List<WpTask> rows() => const [
-          WpTask(id: 'a', companyId: 'c', name: 'A'),
-          WpTask(id: 'b', companyId: 'c', name: 'B'),
-          WpTask(
-              id: 'c', companyId: 'c', name: 'C',
-              timesSource: 'manual', timesManual: 5,
-              minutesSource: 'manual', minutesManual: 60),
-        ];
+      WpTask(id: 'a', companyId: 'c', name: 'A'),
+      WpTask(id: 'b', companyId: 'c', name: 'B'),
+      WpTask(
+        id: 'c',
+        companyId: 'c',
+        name: 'C',
+        timesSource: 'manual',
+        timesManual: 5,
+        minutesSource: 'manual',
+        minutesManual: 60,
+      ),
+    ];
 
     test('fills only the uncosted rows by default', () {
       final out = fillGroupDrafts(
-        tasks: rows(), current: const {}, driverById: _drivers, rateById: _rates,
-        timesManual: 20, minutesManual: 30,
+        tasks: rows(),
+        current: const {},
+        driverById: _drivers,
+        rateById: _rates,
+        timesManual: 20,
+        minutesManual: 30,
       );
-      expect(out.keys.toSet(), {'a', 'b'},
-          reason: 'row C is already costed and must not be overwritten');
+      expect(
+        out.keys.toSet(),
+        {'a', 'b'},
+        reason: 'row C is already costed and must not be overwritten',
+      );
       expect(draftHoursPerMonth(out['a']!, _drivers, _rates), 10.0);
     });
 
     test('onlyUncosted:false restates the whole group', () {
       final out = fillGroupDrafts(
-        tasks: rows(), current: const {}, driverById: _drivers, rateById: _rates,
-        timesManual: 20, minutesManual: 30, onlyUncosted: false,
+        tasks: rows(),
+        current: const {},
+        driverById: _drivers,
+        rateById: _rates,
+        timesManual: 20,
+        minutesManual: 30,
+        onlyUncosted: false,
       );
       expect(out.keys.toSet(), {'a', 'b', 'c'});
     });
 
-    test('filling switches the row back to manual and drops driver/rate ids', () {
-      final current = {
-        'a': const CostDraft(
-            timesSource: 'driver', driverId: 'd1',
-            minutesSource: 'rate', rateId: 'r1'),
-      };
-      final out = fillGroupDrafts(
-        tasks: rows(), current: current, driverById: _drivers, rateById: _rates,
-        timesManual: 20, minutesManual: 30,
-      );
-      // 'a' was costed via driver+rate, so with onlyUncosted it is skipped.
-      expect(out.containsKey('a'), isFalse);
+    test(
+      'filling switches the row back to manual and drops driver/rate ids',
+      () {
+        final current = {
+          'a': const CostDraft(
+            timesSource: 'driver',
+            driverId: 'd1',
+            minutesSource: 'rate',
+            rateId: 'r1',
+          ),
+        };
+        final out = fillGroupDrafts(
+          tasks: rows(),
+          current: current,
+          driverById: _drivers,
+          rateById: _rates,
+          timesManual: 20,
+          minutesManual: 30,
+        );
+        // 'a' was costed via driver+rate, so with onlyUncosted it is skipped.
+        expect(out.containsKey('a'), isFalse);
 
-      final forced = fillGroupDrafts(
-        tasks: rows(), current: current, driverById: _drivers, rateById: _rates,
-        timesManual: 20, minutesManual: 30, onlyUncosted: false,
-      );
-      expect(forced['a']!.timesSource, 'manual');
-      expect(forced['a']!.driverId, isNull);
-      expect(forced['a']!.rateId, isNull);
-    });
+        final forced = fillGroupDrafts(
+          tasks: rows(),
+          current: current,
+          driverById: _drivers,
+          rateById: _rates,
+          timesManual: 20,
+          minutesManual: 30,
+          onlyUncosted: false,
+        );
+        expect(forced['a']!.timesSource, 'manual');
+        expect(forced['a']!.driverId, isNull);
+        expect(forced['a']!.rateId, isNull);
+      },
+    );
 
     test('filling with the values a row already has produces no edit', () {
       final out = fillGroupDrafts(
-        tasks: rows(), current: const {}, driverById: _drivers, rateById: _rates,
-        timesManual: 5, minutesManual: 60, onlyUncosted: false,
+        tasks: rows(),
+        current: const {},
+        driverById: _drivers,
+        rateById: _rates,
+        timesManual: 5,
+        minutesManual: 60,
+        onlyUncosted: false,
       );
-      expect(out.containsKey('c'), isFalse,
-          reason: 'no-op fills must not show up as unsaved changes');
+      expect(
+        out.containsKey('c'),
+        isFalse,
+        reason: 'no-op fills must not show up as unsaved changes',
+      );
     });
 
     test('a blank field leaves that half of the estimate alone', () {
       final out = fillGroupDrafts(
-        tasks: rows(), current: const {}, driverById: _drivers, rateById: _rates,
+        tasks: rows(),
+        current: const {},
+        driverById: _drivers,
+        rateById: _rates,
         timesManual: 20,
       );
       expect(out['a']!.timesManual, 20);
@@ -232,24 +347,39 @@ void main() {
   group('direct hours wins over the driver calc', () {
     test('draftHoursPerMonth returns the direct figure when set', () {
       const d = CostDraft(
-          timesSource: 'driver', driverId: 'd1',
-          minutesSource: 'rate', rateId: 'r1', hoursPerMonth: 65.8);
+        timesSource: 'driver',
+        driverId: 'd1',
+        minutesSource: 'rate',
+        rateId: 'r1',
+        hoursPerMonth: 65.8,
+      );
       expect(draftHoursPerMonth(d, _drivers, _rates), 65.8);
     });
 
     test('a direct figure counts as costed and is never growing', () {
       const d = CostDraft(
-          timesSource: 'driver', driverId: 'd1', // a growing driver...
-          minutesSource: 'manual', hoursPerMonth: 12);
+        timesSource: 'driver',
+        driverId: 'd1', // a growing driver...
+        minutesSource: 'manual',
+        hoursPerMonth: 12,
+      );
       expect(draftIsCosted(d, _drivers, _rates), isTrue);
-      expect(draftIsGrowing(d, _drivers), isFalse,
-          reason: 'a manual hours figure is flat at any multiplier');
+      expect(
+        draftIsGrowing(d, _drivers),
+        isFalse,
+        reason: 'a manual hours figure is flat at any multiplier',
+      );
     });
 
     test('draftPatch writes hours_per_month and clears the driver path', () {
       const d = CostDraft(
-          timesSource: 'driver', driverId: 'd1', driverFactor: 2,
-          minutesSource: 'rate', rateId: 'r1', hoursPerMonth: 40);
+        timesSource: 'driver',
+        driverId: 'd1',
+        driverFactor: 2,
+        minutesSource: 'rate',
+        rateId: 'r1',
+        hoursPerMonth: 40,
+      );
       final p = draftPatch(d);
       expect(p['hours_per_month'], 40);
       expect(p['times_manual'], isNull);
@@ -261,16 +391,23 @@ void main() {
 
     test('with no direct figure the driver calc still applies', () {
       const d = CostDraft(
-          timesSource: 'manual', timesManual: 20,
-          minutesSource: 'manual', minutesManual: 45);
+        timesSource: 'manual',
+        timesManual: 20,
+        minutesSource: 'manual',
+        minutesManual: 45,
+      );
       expect(draftHoursPerMonth(d, _drivers, _rates), 15.0); // 20*45/60
       expect(draftPatch(d)['hours_per_month'], isNull);
     });
 
     test('clearHoursPerMonth returns to the driver calc', () {
       const d = CostDraft(
-          timesSource: 'manual', timesManual: 20,
-          minutesSource: 'manual', minutesManual: 45, hoursPerMonth: 99);
+        timesSource: 'manual',
+        timesManual: 20,
+        minutesSource: 'manual',
+        minutesManual: 45,
+        hoursPerMonth: 99,
+      );
       final back = d.copyWith(clearHoursPerMonth: true);
       expect(back.hoursPerMonth, isNull);
       expect(draftHoursPerMonth(back, _drivers, _rates), 15.0);

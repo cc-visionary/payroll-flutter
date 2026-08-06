@@ -60,9 +60,12 @@ class LockableField<T> extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: theme.textTheme.labelLarge
-                  ?.copyWith(fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 4),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -79,16 +82,20 @@ class LockableField<T> extends StatelessWidget {
                     children: [
                       Text(display(v.value)),
                       const SizedBox(height: 2),
-                      Text(v.source,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          )),
+                      Text(
+                        v.source,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 TextButton(
-                    onPressed: onOverride, child: const Text('Override')),
+                  onPressed: onOverride,
+                  child: const Text('Override'),
+                ),
               ],
             ),
           ),
@@ -98,28 +105,29 @@ class LockableField<T> extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: theme.textTheme.labelLarge
-                ?.copyWith(fontWeight: FontWeight.w600)),
+        Text(
+          label,
+          style: theme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 4),
         editor,
         if (v is ManualValue<T>) ...[
           const SizedBox(height: 4),
-          Text('Manual override — autofill no longer applied.',
-              style: TextStyle(
-                fontSize: 11,
-                color: theme.colorScheme.tertiary,
-              )),
+          Text(
+            'Manual override — autofill no longer applied.',
+            style: TextStyle(fontSize: 11, color: theme.colorScheme.tertiary),
+          ),
         ],
         if (v is BlankValue<T> &&
             warningWhenBlank != null &&
             warningWhenBlank!.isNotEmpty) ...[
           const SizedBox(height: 4),
-          Text(warningWhenBlank!,
-              style: TextStyle(
-                fontSize: 11,
-                color: theme.colorScheme.error,
-              )),
+          Text(
+            warningWhenBlank!,
+            style: TextStyle(fontSize: 11, color: theme.colorScheme.error),
+          ),
         ],
       ],
     );

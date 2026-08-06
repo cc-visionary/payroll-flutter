@@ -10,11 +10,11 @@ class RefusalClauseBlock extends Block {
 
   @override
   pw.Widget toPdf(PdfTheme theme) => pw.Text(
-        text,
-        style: pw.TextStyle(
-          fontSize: theme.bodySize - 1,
-          fontStyle: pw.FontStyle.italic,
-          color: theme.textColor,
-        ),
-      );
+    text,
+    style: pw.TextStyle(
+      fontSize: theme.bodySize - 1,
+      fontStyle: pw.FontStyle.italic,
+      color: theme.textColor,
+    ),
+  );
 }

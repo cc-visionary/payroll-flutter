@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 /// Returns the entered reason on Confirm; null on Cancel.
-Future<String?> showRejectDialog(BuildContext context, String applicantName) async {
+Future<String?> showRejectDialog(
+  BuildContext context,
+  String applicantName,
+) async {
   final ctl = TextEditingController();
   try {
     return await showDialog<String>(
@@ -12,7 +15,9 @@ Future<String?> showRejectDialog(BuildContext context, String applicantName) asy
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Provide a reason. This is stored on the applicant and surfaces in the detail view.'),
+            const Text(
+              'Provide a reason. This is stored on the applicant and surfaces in the detail view.',
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: ctl,

@@ -29,8 +29,8 @@ class AboutSettingsScreen extends ConsumerWidget {
             Text(
               'Version and appearance preferences',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: LuxiumSpacing.xl),
             _VersionCard(infoAsync: infoAsync),
@@ -71,7 +71,8 @@ class _VersionCardState extends ConsumerState<_VersionCard> {
       case UpdateUpToDate(:final currentVersion):
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('You are on the latest version (v$currentVersion).')),
+            content: Text('You are on the latest version (v$currentVersion).'),
+          ),
         );
       case UpdateError(:final message):
         setState(() => _status = message);
@@ -88,8 +89,8 @@ class _VersionCardState extends ConsumerState<_VersionCard> {
     final canLaunch = channel == UpdateChannel.windowsInstaller
         ? (asset != null && asset.url.isNotEmpty)
         : channel.isStore
-            ? (storeLink != null && storeLink.isNotEmpty)
-            : (asset != null && asset.url.isNotEmpty);
+        ? (storeLink != null && storeLink.isNotEmpty)
+        : (asset != null && asset.url.isNotEmpty);
 
     await showDialog<void>(
       context: context,
@@ -101,22 +102,32 @@ class _VersionCardState extends ConsumerState<_VersionCard> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Current: v${update.currentVersion}',
-                  style: theme.textTheme.bodySmall),
+              Text(
+                'Current: v${update.currentVersion}',
+                style: theme.textTheme.bodySmall,
+              ),
               const SizedBox(height: LuxiumSpacing.sm),
               if (update.manifest.releaseNotes != null &&
                   update.manifest.releaseNotes!.trim().isNotEmpty) ...[
-                Text('Release notes',
-                    style: theme.textTheme.labelMedium
-                        ?.copyWith(fontWeight: FontWeight.w600)),
+                Text(
+                  'Release notes',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: LuxiumSpacing.xs),
-                Text(update.manifest.releaseNotes!,
-                    style: theme.textTheme.bodySmall),
+                Text(
+                  update.manifest.releaseNotes!,
+                  style: theme.textTheme.bodySmall,
+                ),
                 const SizedBox(height: LuxiumSpacing.md),
               ],
-              Text('Channel: ${channel.label}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant)),
+              Text(
+                'Channel: ${channel.label}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
             ],
           ),
         ),
@@ -136,16 +147,16 @@ class _VersionCardState extends ConsumerState<_VersionCard> {
               channel.isStore
                   ? Icons.open_in_new
                   : channel == UpdateChannel.windowsInstaller
-                      ? Icons.download
-                      : Icons.open_in_browser,
+                  ? Icons.download
+                  : Icons.open_in_browser,
               size: 16,
             ),
             label: Text(
               channel.isStore
                   ? 'Open Store'
                   : channel == UpdateChannel.windowsInstaller
-                      ? 'Download & Install'
-                      : 'Download',
+                  ? 'Download & Install'
+                  : 'Download',
             ),
           ),
         ],
@@ -159,13 +170,15 @@ class _VersionCardState extends ConsumerState<_VersionCard> {
       _progress = 0;
       _status = null;
     });
-    final ok = await ref.read(updateServiceProvider).launchUpdate(
-      update,
-      onProgress: (p) {
-        if (!mounted) return;
-        setState(() => _progress = p.clamp(0.0, 1.0));
-      },
-    );
+    final ok = await ref
+        .read(updateServiceProvider)
+        .launchUpdate(
+          update,
+          onProgress: (p) {
+            if (!mounted) return;
+            setState(() => _progress = p.clamp(0.0, 1.0));
+          },
+        );
     if (!mounted) return;
     setState(() => _launching = false);
     if (!ok) {
@@ -180,7 +193,8 @@ class _VersionCardState extends ConsumerState<_VersionCard> {
         builder: (ctx) => AlertDialog(
           title: const Text('Installer started'),
           content: const Text(
-              'The installer is now running. Close Payroll Flutter when prompted so the update can complete.'),
+            'The installer is now running. Close Payroll Flutter when prompted so the update can complete.',
+          ),
           actions: [
             FilledButton(
               onPressed: () => Navigator.pop(ctx),
@@ -204,29 +218,52 @@ class _VersionCardState extends ConsumerState<_VersionCard> {
           children: [
             Row(
               children: [
-                const SizedBox(width: 32, height: 32, child: _LuxiumMarkAsset()),
+                const SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: _LuxiumMarkAsset(),
+                ),
                 const SizedBox(width: LuxiumSpacing.md),
-                Text('Luxium Payroll',
-                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                Text(
+                  'Luxium Payroll',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: LuxiumSpacing.lg),
             _label(context, 'Current Version'),
             const SizedBox(height: LuxiumSpacing.xs),
             widget.infoAsync.when(
-              loading: () => Text('…',
-                  style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
-              error: (e, _) => Text('v—',
-                  style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700)),
+              loading: () => Text(
+                '…',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              error: (e, _) => Text(
+                'v—',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               data: (info) => Text(
                 'v${info.version}${info.buildNumber.isNotEmpty && info.buildNumber != '1' ? '+${info.buildNumber}' : ''}',
-                style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
             const SizedBox(height: LuxiumSpacing.lg),
             _PlatformRow(channel: channelAsync.asData?.value),
             const Divider(height: LuxiumSpacing.xxl),
-            Text('Updates', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              'Updates',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: LuxiumSpacing.md),
             FilledButton.icon(
               onPressed: (_checking || _launching) ? null : _check,
@@ -234,14 +271,14 @@ class _VersionCardState extends ConsumerState<_VersionCard> {
                   ? const SizedBox(
                       width: 14,
                       height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2))
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.refresh, size: 16),
               label: Text(_checking ? 'Checking…' : 'Check for Updates'),
             ),
             if (_launching) ...[
               const SizedBox(height: LuxiumSpacing.md),
-              LinearProgressIndicator(
-                  value: _progress == 0 ? null : _progress),
+              LinearProgressIndicator(value: _progress == 0 ? null : _progress),
               const SizedBox(height: LuxiumSpacing.xs),
               Text(
                 _progress == 0
@@ -253,14 +290,17 @@ class _VersionCardState extends ConsumerState<_VersionCard> {
             const SizedBox(height: LuxiumSpacing.sm),
             Text(
               _updateSubtitle(channelAsync.asData?.value),
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             if (_status != null) ...[
               const SizedBox(height: LuxiumSpacing.sm),
               Text(
                 _status!,
                 style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.error),
+                  color: theme.colorScheme.error,
+                ),
               ),
             ],
           ],
@@ -305,12 +345,18 @@ class _AppearanceCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Appearance',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              'Appearance',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: LuxiumSpacing.xs),
             Text(
               'Choose how Luxium Payroll looks. Matches your OS preference by default.',
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: LuxiumSpacing.lg),
             SegmentedButton<ThemeMode>(
@@ -332,7 +378,8 @@ class _AppearanceCard extends ConsumerWidget {
                 ),
               ],
               selected: {mode},
-              onSelectionChanged: (s) => ref.read(themeModeProvider.notifier).set(s.first),
+              onSelectionChanged: (s) =>
+                  ref.read(themeModeProvider.notifier).set(s.first),
               showSelectedIcon: false,
             ),
           ],
@@ -355,12 +402,16 @@ class _FooterCard extends StatelessWidget {
         children: [
           Text(
             'Luxium Payroll — Philippine Payroll System',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: LuxiumSpacing.xs),
           Text(
             'Built with Flutter and Supabase. Integrated with Lark for HR sync.',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -377,7 +428,10 @@ class _PlatformRow extends StatelessWidget {
     final theme = Theme.of(context);
     final (label, icon) = _iconFor(channel);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: LuxiumSpacing.md, vertical: LuxiumSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: LuxiumSpacing.md,
+        vertical: LuxiumSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(LuxiumRadius.lg),

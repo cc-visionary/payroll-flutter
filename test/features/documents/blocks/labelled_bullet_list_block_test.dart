@@ -5,10 +5,12 @@ import 'package:payroll_flutter/features/documents/blocks/labelled_bullet_list_b
 
 void main() {
   test('LabelledBulletListBlock stores items', () {
-    const block = LabelledBulletListBlock(items: [
-      LabelledBulletItem(leadBold: 'Standard', body: 'The standard body.'),
-      LabelledBulletItem(leadBold: 'Finding', body: 'The finding body.'),
-    ]);
+    const block = LabelledBulletListBlock(
+      items: [
+        LabelledBulletItem(leadBold: 'Standard', body: 'The standard body.'),
+        LabelledBulletItem(leadBold: 'Finding', body: 'The finding body.'),
+      ],
+    );
     expect(block.items.length, 2);
     expect(block.items.first.leadBold, 'Standard');
     expect(block.items.first.body, 'The standard body.');
@@ -31,21 +33,25 @@ void main() {
   test('flat list renders without throwing', () {
     final theme = PdfTheme.testStub();
     expect(
-      () => const LabelledBulletListBlock(items: [
-        LabelledBulletItem(leadBold: 'Standard', body: 'Body 1'),
-        LabelledBulletItem(leadBold: 'Finding', body: 'Body 2'),
-      ]).toPdf(theme),
+      () => const LabelledBulletListBlock(
+        items: [
+          LabelledBulletItem(leadBold: 'Standard', body: 'Body 1'),
+          LabelledBulletItem(leadBold: 'Finding', body: 'Body 2'),
+        ],
+      ).toPdf(theme),
       returnsNormally,
     );
   });
 
   test('flat list produces a Column with one row per top-level item', () {
     final theme = PdfTheme.testStub();
-    final widget = const LabelledBulletListBlock(items: [
-      LabelledBulletItem(leadBold: 'A', body: 'a'),
-      LabelledBulletItem(leadBold: 'B', body: 'b'),
-      LabelledBulletItem(leadBold: 'C', body: 'c'),
-    ]).toPdf(theme);
+    final widget = const LabelledBulletListBlock(
+      items: [
+        LabelledBulletItem(leadBold: 'A', body: 'a'),
+        LabelledBulletItem(leadBold: 'B', body: 'b'),
+        LabelledBulletItem(leadBold: 'C', body: 'c'),
+      ],
+    ).toPdf(theme);
     expect(widget, isA<pw.Column>());
     final col = widget as pw.Column;
     expect(col.children.length, 3);
@@ -53,16 +59,18 @@ void main() {
 
   test('nested children flatten into the column under the parent', () {
     final theme = PdfTheme.testStub();
-    final widget = const LabelledBulletListBlock(items: [
-      LabelledBulletItem(
-        leadBold: 'Finding',
-        body: 'Parent body.',
-        children: [
-          LabelledBulletItem(leadBold: 'Sub A', body: 'a'),
-          LabelledBulletItem(leadBold: 'Sub B', body: 'b'),
-        ],
-      ),
-    ]).toPdf(theme);
+    final widget = const LabelledBulletListBlock(
+      items: [
+        LabelledBulletItem(
+          leadBold: 'Finding',
+          body: 'Parent body.',
+          children: [
+            LabelledBulletItem(leadBold: 'Sub A', body: 'a'),
+            LabelledBulletItem(leadBold: 'Sub B', body: 'b'),
+          ],
+        ),
+      ],
+    ).toPdf(theme);
     final col = widget as pw.Column;
     // 1 parent row + 2 child rows = 3 entries.
     expect(col.children.length, 3);
@@ -70,22 +78,22 @@ void main() {
 
   test('depth-2 grandchildren are ignored (one-level nesting limit)', () {
     final theme = PdfTheme.testStub();
-    final widget = const LabelledBulletListBlock(items: [
-      LabelledBulletItem(
-        leadBold: 'Finding',
-        body: 'Parent.',
-        children: [
-          LabelledBulletItem(
-            leadBold: 'Sub A',
-            body: 'a',
-            // These deeper-level children must NOT appear in output.
-            children: [
-              LabelledBulletItem(leadBold: 'Deeper', body: 'd'),
-            ],
-          ),
-        ],
-      ),
-    ]).toPdf(theme);
+    final widget = const LabelledBulletListBlock(
+      items: [
+        LabelledBulletItem(
+          leadBold: 'Finding',
+          body: 'Parent.',
+          children: [
+            LabelledBulletItem(
+              leadBold: 'Sub A',
+              body: 'a',
+              // These deeper-level children must NOT appear in output.
+              children: [LabelledBulletItem(leadBold: 'Deeper', body: 'd')],
+            ),
+          ],
+        ),
+      ],
+    ).toPdf(theme);
     final col = widget as pw.Column;
     // 1 parent + 1 child = 2 entries; grandchild dropped.
     expect(col.children.length, 2);

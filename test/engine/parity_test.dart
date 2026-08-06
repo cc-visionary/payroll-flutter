@@ -18,10 +18,12 @@ import 'package:payroll_flutter/features/payroll/engine/statutory_tables.dart';
 import 'package:payroll_flutter/features/payroll/engine/types.dart';
 
 Decimal _d(Object? v) => v == null ? Decimal.zero : Decimal.parse(v.toString());
-DateTime _date(String s) => DateTime.parse(s.length == 10 ? '${s}T00:00:00Z' : s);
+DateTime _date(String s) =>
+    DateTime.parse(s.length == 10 ? '${s}T00:00:00Z' : s);
 
 WageType _wage(String s) => WageType.values.firstWhere((e) => e.name == s);
-PayFrequency _freq(String s) => PayFrequency.values.firstWhere((e) => e.name == s);
+PayFrequency _freq(String s) =>
+    PayFrequency.values.firstWhere((e) => e.name == s);
 DayType _dayType(String s) => DayType.values.firstWhere((e) => e.name == s);
 EmploymentType _empType(String s) {
   return EmploymentType.values.firstWhere(
@@ -33,16 +35,28 @@ EmploymentType _empType(String s) {
 void main() {
   final dir = Directory('test/engine/fixtures');
   if (!dir.existsSync()) {
-    test('parity fixtures: none — skipping (run export-parity-fixtures.ts in payrollos)', () {
-      expect(true, isTrue);
-    }, skip: 'No fixtures directory');
+    test(
+      'parity fixtures: none — skipping (run export-parity-fixtures.ts in payrollos)',
+      () {
+        expect(true, isTrue);
+      },
+      skip: 'No fixtures directory',
+    );
     return;
   }
-  final files = dir.listSync().whereType<File>().where((f) => f.path.endsWith('.json')).toList();
+  final files = dir
+      .listSync()
+      .whereType<File>()
+      .where((f) => f.path.endsWith('.json'))
+      .toList();
   if (files.isEmpty) {
-    test('parity fixtures: none — skipping (run export-parity-fixtures.ts in payrollos)', () {
-      expect(true, isTrue);
-    }, skip: 'No fixture JSON files');
+    test(
+      'parity fixtures: none — skipping (run export-parity-fixtures.ts in payrollos)',
+      () {
+        expect(true, isTrue);
+      },
+      skip: 'No fixture JSON files',
+    );
     return;
   }
 
@@ -98,31 +112,38 @@ void main() {
       final regularization = EmployeeRegularizationInput(
         employeeId: reg['employeeId'],
         employmentType: _empType(reg['employmentType']),
-        regularizationDate: reg['regularizationDate'] == null ? null : _date(reg['regularizationDate']),
+        regularizationDate: reg['regularizationDate'] == null
+            ? null
+            : _date(reg['regularizationDate']),
         hireDate: _date(reg['hireDate']),
       );
 
-      final attendance = (emp['attendance'] as List).cast<Map<String, dynamic>>().map((a) {
-        return AttendanceDayInput(
-          id: a['id'],
-          attendanceDate: _date(a['attendanceDate']),
-          dayType: _dayType(a['dayType']),
-          workedMinutes: a['workedMinutes'] ?? 0,
-          deductionMinutes: a['deductionMinutes'] ?? 0,
-          absentMinutes: a['absentMinutes'] ?? 0,
-          otMinutes: a['otMinutes'] ?? 0,
-          otEarlyInMinutes: a['otEarlyInMinutes'] ?? 0,
-          otLateOutMinutes: a['otLateOutMinutes'] ?? 0,
-          overtimeRestDayMinutes: a['overtimeRestDayMinutes'] ?? 0,
-          overtimeHolidayMinutes: a['overtimeHolidayMinutes'] ?? 0,
-          earlyInApproved: a['earlyInApproved'] ?? false,
-          lateOutApproved: a['lateOutApproved'] ?? false,
-          nightDiffMinutes: a['nightDiffMinutes'] ?? 0,
-          isOnLeave: a['isOnLeave'] ?? false,
-          leaveIsPaid: a['leaveIsPaid'] ?? false,
-          dailyRateOverride: a['dailyRateOverride'] == null ? null : _d(a['dailyRateOverride']),
-        );
-      }).toList();
+      final attendance = (emp['attendance'] as List)
+          .cast<Map<String, dynamic>>()
+          .map((a) {
+            return AttendanceDayInput(
+              id: a['id'],
+              attendanceDate: _date(a['attendanceDate']),
+              dayType: _dayType(a['dayType']),
+              workedMinutes: a['workedMinutes'] ?? 0,
+              deductionMinutes: a['deductionMinutes'] ?? 0,
+              absentMinutes: a['absentMinutes'] ?? 0,
+              otMinutes: a['otMinutes'] ?? 0,
+              otEarlyInMinutes: a['otEarlyInMinutes'] ?? 0,
+              otLateOutMinutes: a['otLateOutMinutes'] ?? 0,
+              overtimeRestDayMinutes: a['overtimeRestDayMinutes'] ?? 0,
+              overtimeHolidayMinutes: a['overtimeHolidayMinutes'] ?? 0,
+              earlyInApproved: a['earlyInApproved'] ?? false,
+              lateOutApproved: a['lateOutApproved'] ?? false,
+              nightDiffMinutes: a['nightDiffMinutes'] ?? 0,
+              isOnLeave: a['isOnLeave'] ?? false,
+              leaveIsPaid: a['leaveIsPaid'] ?? false,
+              dailyRateOverride: a['dailyRateOverride'] == null
+                  ? null
+                  : _d(a['dailyRateOverride']),
+            );
+          })
+          .toList();
 
       final prevYtd = emp['previousYtd'] as Map<String, dynamic>;
       final previousYtd = PreviousYtd(
@@ -152,22 +173,46 @@ void main() {
 
       // Money totals — exact match.
       _expectDec('grossPay', got.grossPay, _d(expected['grossPay']));
-      _expectDec('totalEarnings', got.totalEarnings, _d(expected['totalEarnings']));
-      _expectDec('totalDeductions', got.totalDeductions, _d(expected['totalDeductions']));
+      _expectDec(
+        'totalEarnings',
+        got.totalEarnings,
+        _d(expected['totalEarnings']),
+      );
+      _expectDec(
+        'totalDeductions',
+        got.totalDeductions,
+        _d(expected['totalDeductions']),
+      );
       _expectDec('netPay', got.netPay, _d(expected['netPay']));
       _expectDec('sssEe', got.sssEe, _d(expected['sssEe']));
-      _expectDec('philhealthEe', got.philhealthEe, _d(expected['philhealthEe']));
+      _expectDec(
+        'philhealthEe',
+        got.philhealthEe,
+        _d(expected['philhealthEe']),
+      );
       _expectDec('pagibigEe', got.pagibigEe, _d(expected['pagibigEe']));
-      _expectDec('withholdingTax', got.withholdingTax, _d(expected['withholdingTax']));
+      _expectDec(
+        'withholdingTax',
+        got.withholdingTax,
+        _d(expected['withholdingTax']),
+      );
 
       // Line-level match — order-sensitive by (category, sortOrder).
-      final expectedLines = (expected['lines'] as List).cast<Map<String, dynamic>>();
-      expect(got.lines.length, expectedLines.length,
-          reason: 'line count differs for $name');
+      final expectedLines = (expected['lines'] as List)
+          .cast<Map<String, dynamic>>();
+      expect(
+        got.lines.length,
+        expectedLines.length,
+        reason: 'line count differs for $name',
+      );
       for (var i = 0; i < expectedLines.length; i++) {
         final e = expectedLines[i];
         final g = got.lines[i];
-        expect(g.category.name, e['category'], reason: 'line $i category $name');
+        expect(
+          g.category.name,
+          e['category'],
+          reason: 'line $i category $name',
+        );
         _expectDec('line $i amount', g.amount, _d(e['amount']));
       }
     });

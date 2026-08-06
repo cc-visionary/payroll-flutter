@@ -49,7 +49,10 @@ List<RunWarning> detectWarnings({
 
   for (final r in records) {
     final recDay = DateTime(
-        r.attendanceDate.year, r.attendanceDate.month, r.attendanceDate.day);
+      r.attendanceDate.year,
+      r.attendanceDate.month,
+      r.attendanceDate.day,
+    );
     // Skip today + future: an employee still mid-shift hasn't clocked out yet.
     if (!recDay.isBefore(todayDay)) continue;
 
@@ -62,14 +65,17 @@ List<RunWarning> detectWarnings({
         approved: approved,
       );
       if (!res.covered) {
-        out.add(RunWarning(
-          employeeId: r.employeeId,
-          employeeLabel: r.employeeLabel,
-          date: recDay,
-          type: WarningType.leaveWithoutApprovedRequest,
-          message: 'On leave with no matching approved leave request — '
-              'pay treatment cannot be determined.',
-        ));
+        out.add(
+          RunWarning(
+            employeeId: r.employeeId,
+            employeeLabel: r.employeeLabel,
+            date: recDay,
+            type: WarningType.leaveWithoutApprovedRequest,
+            message:
+                'On leave with no matching approved leave request — '
+                'pay treatment cannot be determined.',
+          ),
+        );
       } else if (res.isPaid &&
           r.actualTimeIn != null &&
           r.actualTimeOut != null &&
@@ -78,14 +84,17 @@ List<RunWarning> detectWarnings({
         // clocked in. The engine skips the paid-leave earning line for
         // these (compute_engine.dart step 3b); surface it here instead of
         // silently dropping the pay.
-        out.add(RunWarning(
-          employeeId: r.employeeId,
-          employeeLabel: r.employeeLabel,
-          date: recDay,
-          type: WarningType.paidLeaveOnWorkedDay,
-          message: 'On paid leave but also has worked time — paid-leave '
-              'amount not auto-applied; review manually.',
-        ));
+        out.add(
+          RunWarning(
+            employeeId: r.employeeId,
+            employeeLabel: r.employeeLabel,
+            date: recDay,
+            type: WarningType.paidLeaveOnWorkedDay,
+            message:
+                'On paid leave but also has worked time — paid-leave '
+                'amount not auto-applied; review manually.',
+          ),
+        );
       }
     }
 
@@ -94,23 +103,27 @@ List<RunWarning> detectWarnings({
 
     // 1 / 2: exactly one side of the clock present.
     if (tIn != null && tOut == null) {
-      out.add(RunWarning(
-        employeeId: r.employeeId,
-        employeeLabel: r.employeeLabel,
-        date: recDay,
-        type: WarningType.missingClockOut,
-        message: 'Clocked in at ${_fmtTime(tIn)} but never clocked out.',
-      ));
+      out.add(
+        RunWarning(
+          employeeId: r.employeeId,
+          employeeLabel: r.employeeLabel,
+          date: recDay,
+          type: WarningType.missingClockOut,
+          message: 'Clocked in at ${_fmtTime(tIn)} but never clocked out.',
+        ),
+      );
       continue;
     }
     if (tOut != null && tIn == null) {
-      out.add(RunWarning(
-        employeeId: r.employeeId,
-        employeeLabel: r.employeeLabel,
-        date: recDay,
-        type: WarningType.missingClockIn,
-        message: 'Clocked out at ${_fmtTime(tOut)} but never clocked in.',
-      ));
+      out.add(
+        RunWarning(
+          employeeId: r.employeeId,
+          employeeLabel: r.employeeLabel,
+          date: recDay,
+          type: WarningType.missingClockIn,
+          message: 'Clocked out at ${_fmtTime(tOut)} but never clocked in.',
+        ),
+      );
       continue;
     }
     // Both null = normal absence — not flagged.
@@ -121,19 +134,22 @@ List<RunWarning> detectWarnings({
 
     // 3: out not after in (zero/negative span) — a data error.
     if (!localOut.isAfter(localIn)) {
-      out.add(RunWarning(
-        employeeId: r.employeeId,
-        employeeLabel: r.employeeLabel,
-        date: recDay,
-        type: WarningType.invalidWorkedTime,
-        message: 'Clock-out is not after clock-in — check the times.',
-      ));
+      out.add(
+        RunWarning(
+          employeeId: r.employeeId,
+          employeeLabel: r.employeeLabel,
+          date: recDay,
+          type: WarningType.invalidWorkedTime,
+          message: 'Clock-out is not after clock-in — check the times.',
+        ),
+      );
       continue;
     }
 
     // 4: unapproved overtime — needs a resolvable, non-overnight shift.
-    final shift =
-        r.shiftTemplateId == null ? null : shiftsById[r.shiftTemplateId];
+    final shift = r.shiftTemplateId == null
+        ? null
+        : shiftsById[r.shiftTemplateId];
     if (shift == null || shift.isOvernight) continue;
     if ((r.approvedOtMinutes ?? 0) > 0) continue; // Lark-approved OT covers it.
 
@@ -151,13 +167,15 @@ List<RunWarning> detectWarnings({
       if (flagLateOut) '$lateOutMin min past shift end',
       if (flagEarlyIn) '$earlyInMin min before shift start',
     ];
-    out.add(RunWarning(
-      employeeId: r.employeeId,
-      employeeLabel: r.employeeLabel,
-      date: recDay,
-      type: WarningType.unapprovedOvertime,
-      message: 'Worked ${parts.join(' and ')} with no OT approval.',
-    ));
+    out.add(
+      RunWarning(
+        employeeId: r.employeeId,
+        employeeLabel: r.employeeLabel,
+        date: recDay,
+        type: WarningType.unapprovedOvertime,
+        message: 'Worked ${parts.join(' and ')} with no OT approval.',
+      ),
+    );
   }
 
   out.sort((a, b) {

@@ -14,7 +14,9 @@ String buildGenerateDocumentUrl({
   String? penaltyId,
   String? documentId,
 }) {
-  final buffer = StringBuffer('/documents/generate/$templateId?employeeId=$employeeId');
+  final buffer = StringBuffer(
+    '/documents/generate/$templateId?employeeId=$employeeId',
+  );
   if (changeId != null) buffer.write('&changeId=$changeId');
   if (penaltyId != null) buffer.write('&penaltyId=$penaltyId');
   if (documentId != null) buffer.write('&documentId=$documentId');

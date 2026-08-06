@@ -62,10 +62,7 @@ class _LiabilityWaiverFormState extends ConsumerState<LiabilityWaiverForm> {
     if (msg == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 4),
-      child: Text(
-        msg,
-        style: const TextStyle(color: Colors.red, fontSize: 12),
-      ),
+      child: Text(msg, style: const TextStyle(color: Colors.red, fontSize: 12)),
     );
   }
 

@@ -21,93 +21,93 @@ void main() {
   final logo = Uint8List.fromList([1, 2, 3]);
 
   group('EmploymentContractInputs.toJson', () {
-    test('serializes all fields, excludes logoBytes, nests responsibilities/kpis',
-        () {
-      final dateEntered = DateTime.utc(2026, 1, 2, 3, 4, 5);
-      final probationStart = DateTime.utc(2026, 1, 10);
-      final probationEnd = DateTime.utc(2026, 7, 10);
-      final inputs = EmploymentContractInputs(
-        employeeId: 'EMP-1',
-        applicantId: null,
-        employeeFullName: 'Jane Doe',
-        employeeAddress: '1 Main St',
-        companyId: 'CO-1',
-        companyName: 'Acme',
-        companyAddress: '2 Side St',
-        representativeName: 'Rep Name',
-        representativeRole: 'Rep Role',
-        place: 'Manila',
-        dateEntered: dateEntered,
-        industry: 'Retail',
-        position: 'Clerk',
-        probationStart: probationStart,
-        probationEnd: probationEnd,
-        monthlySalary: '20000',
-        salaryPeriod: 'month',
-        workHoursPerDay: 8,
-        workDaysPerWeek: '5',
-        nonCompeteMonths: 12,
-        trainingWage: const TrainingWage(dailyRate: '350', trainingDays: 7),
-        employerSignatoryName: 'Sig Name',
-        employerSignatoryRole: 'Sig Role',
-        witness1Name: 'W1',
-        witness1Role: 'W1R',
-        witness2Name: 'W2',
-        witness2Role: 'W2R',
-        missionStatement: 'Mission',
-        responsibilities: const [
-          ContractResponsibility(area: 'Sales', tasks: ['t1', 't2']),
-        ],
-        kpis: const [
-          ContractKpi(metric: 'Revenue', frequency: 'Monthly'),
-        ],
-        logoBytes: logo,
-      );
+    test(
+      'serializes all fields, excludes logoBytes, nests responsibilities/kpis',
+      () {
+        final dateEntered = DateTime.utc(2026, 1, 2, 3, 4, 5);
+        final probationStart = DateTime.utc(2026, 1, 10);
+        final probationEnd = DateTime.utc(2026, 7, 10);
+        final inputs = EmploymentContractInputs(
+          employeeId: 'EMP-1',
+          applicantId: null,
+          employeeFullName: 'Jane Doe',
+          employeeAddress: '1 Main St',
+          companyId: 'CO-1',
+          companyName: 'Acme',
+          companyAddress: '2 Side St',
+          representativeName: 'Rep Name',
+          representativeRole: 'Rep Role',
+          place: 'Manila',
+          dateEntered: dateEntered,
+          industry: 'Retail',
+          position: 'Clerk',
+          probationStart: probationStart,
+          probationEnd: probationEnd,
+          monthlySalary: '20000',
+          salaryPeriod: 'month',
+          workHoursPerDay: 8,
+          workDaysPerWeek: '5',
+          nonCompeteMonths: 12,
+          trainingWage: const TrainingWage(dailyRate: '350', trainingDays: 7),
+          employerSignatoryName: 'Sig Name',
+          employerSignatoryRole: 'Sig Role',
+          witness1Name: 'W1',
+          witness1Role: 'W1R',
+          witness2Name: 'W2',
+          witness2Role: 'W2R',
+          missionStatement: 'Mission',
+          responsibilities: const [
+            ContractResponsibility(area: 'Sales', tasks: ['t1', 't2']),
+          ],
+          kpis: const [ContractKpi(metric: 'Revenue', frequency: 'Monthly')],
+          logoBytes: logo,
+        );
 
-      final json = inputs.toJson();
+        final json = inputs.toJson();
 
-      expect(json['employeeId'], 'EMP-1');
-      expect(json['applicantId'], isNull);
-      expect(json['employeeFullName'], 'Jane Doe');
-      expect(json['employeeAddress'], '1 Main St');
-      expect(json['companyId'], 'CO-1');
-      expect(json['companyName'], 'Acme');
-      expect(json['companyAddress'], '2 Side St');
-      expect(json['representativeName'], 'Rep Name');
-      expect(json['representativeRole'], 'Rep Role');
-      expect(json['place'], 'Manila');
-      expect(json['dateEntered'], dateEntered.toIso8601String());
-      expect(json['industry'], 'Retail');
-      expect(json['position'], 'Clerk');
-      expect(json['probationStart'], probationStart.toIso8601String());
-      expect(json['probationEnd'], probationEnd.toIso8601String());
-      expect(json['monthlySalary'], '20000');
-      expect(json['salaryPeriod'], 'month');
-      expect(json['workHoursPerDay'], 8);
-      expect(json['workDaysPerWeek'], '5');
-      expect(json['nonCompeteMonths'], 12);
-      expect(json['trainingWage'], {'dailyRate': '350', 'trainingDays': 7});
-      expect(json['employerSignatoryName'], 'Sig Name');
-      expect(json['employerSignatoryRole'], 'Sig Role');
-      expect(json['witness1Name'], 'W1');
-      expect(json['witness1Role'], 'W1R');
-      expect(json['witness2Name'], 'W2');
-      expect(json['witness2Role'], 'W2R');
-      expect(json['missionStatement'], 'Mission');
+        expect(json['employeeId'], 'EMP-1');
+        expect(json['applicantId'], isNull);
+        expect(json['employeeFullName'], 'Jane Doe');
+        expect(json['employeeAddress'], '1 Main St');
+        expect(json['companyId'], 'CO-1');
+        expect(json['companyName'], 'Acme');
+        expect(json['companyAddress'], '2 Side St');
+        expect(json['representativeName'], 'Rep Name');
+        expect(json['representativeRole'], 'Rep Role');
+        expect(json['place'], 'Manila');
+        expect(json['dateEntered'], dateEntered.toIso8601String());
+        expect(json['industry'], 'Retail');
+        expect(json['position'], 'Clerk');
+        expect(json['probationStart'], probationStart.toIso8601String());
+        expect(json['probationEnd'], probationEnd.toIso8601String());
+        expect(json['monthlySalary'], '20000');
+        expect(json['salaryPeriod'], 'month');
+        expect(json['workHoursPerDay'], 8);
+        expect(json['workDaysPerWeek'], '5');
+        expect(json['nonCompeteMonths'], 12);
+        expect(json['trainingWage'], {'dailyRate': '350', 'trainingDays': 7});
+        expect(json['employerSignatoryName'], 'Sig Name');
+        expect(json['employerSignatoryRole'], 'Sig Role');
+        expect(json['witness1Name'], 'W1');
+        expect(json['witness1Role'], 'W1R');
+        expect(json['witness2Name'], 'W2');
+        expect(json['witness2Role'], 'W2R');
+        expect(json['missionStatement'], 'Mission');
 
-      final resp = json['responsibilities'] as List;
-      expect(resp.length, 1);
-      expect(resp.first, isA<Map>());
-      expect((resp.first as Map)['area'], 'Sales');
-      expect((resp.first as Map)['tasks'], ['t1', 't2']);
+        final resp = json['responsibilities'] as List;
+        expect(resp.length, 1);
+        expect(resp.first, isA<Map>());
+        expect((resp.first as Map)['area'], 'Sales');
+        expect((resp.first as Map)['tasks'], ['t1', 't2']);
 
-      final kpis = json['kpis'] as List;
-      expect(kpis.length, 1);
-      expect((kpis.first as Map)['metric'], 'Revenue');
-      expect((kpis.first as Map)['frequency'], 'Monthly');
+        final kpis = json['kpis'] as List;
+        expect(kpis.length, 1);
+        expect((kpis.first as Map)['metric'], 'Revenue');
+        expect((kpis.first as Map)['frequency'], 'Monthly');
 
-      expect(json.containsKey('logoBytes'), isFalse);
-    });
+        expect(json.containsKey('logoBytes'), isFalse);
+      },
+    );
 
     test('applicant-mode object serializes (assert passes)', () {
       final inputs = EmploymentContractInputs(
@@ -379,49 +379,51 @@ void main() {
   });
 
   group('NodInputs.toJson', () {
-    test('serializes all fields incl enum name, charges/findings are Strings',
-        () {
-      final nteDate = DateTime.utc(2026, 1, 1);
-      final effectiveDate = DateTime.utc(2026, 2, 1);
-      final issueDate = DateTime.utc(2026, 1, 15);
-      final inputs = NodInputs(
-        employeeId: 'EMP-1',
-        employeeFullName: 'Jane Doe',
-        employeePosition: 'Clerk',
-        employeeGender: 'FEMALE',
-        companyId: 'CO-1',
-        companyName: 'Acme',
-        companyAddress: 'addr',
-        hrManagerName: 'HR Mgr',
-        linkedNteDocumentId: 'NTE-1',
-        nteDate: nteDate,
-        charges: 'Tardiness',
-        employeeResponseSummary: 'Sorry',
-        findings: 'Guilty',
-        decision: NodDecision.suspension,
-        suspensionDays: 3,
-        effectiveDate: effectiveDate,
-        issueDate: issueDate,
-      );
-      final json = inputs.toJson();
-      expect(json['employeeId'], 'EMP-1');
-      expect(json['employeeFullName'], 'Jane Doe');
-      expect(json['employeePosition'], 'Clerk');
-      expect(json['employeeGender'], 'FEMALE');
-      expect(json['companyId'], 'CO-1');
-      expect(json['companyName'], 'Acme');
-      expect(json['companyAddress'], 'addr');
-      expect(json['hrManagerName'], 'HR Mgr');
-      expect(json['linkedNteDocumentId'], 'NTE-1');
-      expect(json['nteDate'], nteDate.toIso8601String());
-      expect(json['charges'], 'Tardiness');
-      expect(json['employeeResponseSummary'], 'Sorry');
-      expect(json['findings'], 'Guilty');
-      expect(json['decision'], 'suspension');
-      expect(json['suspensionDays'], 3);
-      expect(json['effectiveDate'], effectiveDate.toIso8601String());
-      expect(json['issueDate'], issueDate.toIso8601String());
-    });
+    test(
+      'serializes all fields incl enum name, charges/findings are Strings',
+      () {
+        final nteDate = DateTime.utc(2026, 1, 1);
+        final effectiveDate = DateTime.utc(2026, 2, 1);
+        final issueDate = DateTime.utc(2026, 1, 15);
+        final inputs = NodInputs(
+          employeeId: 'EMP-1',
+          employeeFullName: 'Jane Doe',
+          employeePosition: 'Clerk',
+          employeeGender: 'FEMALE',
+          companyId: 'CO-1',
+          companyName: 'Acme',
+          companyAddress: 'addr',
+          hrManagerName: 'HR Mgr',
+          linkedNteDocumentId: 'NTE-1',
+          nteDate: nteDate,
+          charges: 'Tardiness',
+          employeeResponseSummary: 'Sorry',
+          findings: 'Guilty',
+          decision: NodDecision.suspension,
+          suspensionDays: 3,
+          effectiveDate: effectiveDate,
+          issueDate: issueDate,
+        );
+        final json = inputs.toJson();
+        expect(json['employeeId'], 'EMP-1');
+        expect(json['employeeFullName'], 'Jane Doe');
+        expect(json['employeePosition'], 'Clerk');
+        expect(json['employeeGender'], 'FEMALE');
+        expect(json['companyId'], 'CO-1');
+        expect(json['companyName'], 'Acme');
+        expect(json['companyAddress'], 'addr');
+        expect(json['hrManagerName'], 'HR Mgr');
+        expect(json['linkedNteDocumentId'], 'NTE-1');
+        expect(json['nteDate'], nteDate.toIso8601String());
+        expect(json['charges'], 'Tardiness');
+        expect(json['employeeResponseSummary'], 'Sorry');
+        expect(json['findings'], 'Guilty');
+        expect(json['decision'], 'suspension');
+        expect(json['suspensionDays'], 3);
+        expect(json['effectiveDate'], effectiveDate.toIso8601String());
+        expect(json['issueDate'], issueDate.toIso8601String());
+      },
+    );
 
     test('excludes attachmentBytes and attachmentCaption', () {
       final inputs = NodInputs(
@@ -448,12 +450,16 @@ void main() {
         effectiveDate: DateTime.utc(2026, 2, 1),
         issueDate: DateTime.utc(2026, 1, 15),
       );
-      final withImg =
-          base.copyWith(attachmentBytes: logo, attachmentCaption: 'cap');
+      final withImg = base.copyWith(
+        attachmentBytes: logo,
+        attachmentCaption: 'cap',
+      );
       expect(withImg.attachmentBytes, logo);
       expect(withImg.attachmentCaption, 'cap');
-      final cleared =
-          withImg.copyWith(attachmentBytes: null, attachmentCaption: null);
+      final cleared = withImg.copyWith(
+        attachmentBytes: null,
+        attachmentCaption: null,
+      );
       expect(cleared.attachmentBytes, isNull);
       expect(cleared.attachmentCaption, isNull);
       expect(withImg.copyWith().attachmentBytes, logo);
@@ -461,123 +467,127 @@ void main() {
   });
 
   group('NonRegInputs.toJson', () {
-    test('serializes all fields, nested findings + subFindings, excludes logo',
-        () {
-      final dateIssued = DateTime.utc(2026, 1, 1);
-      final probStart = DateTime.utc(2025, 7, 1);
-      final probEnd = DateTime.utc(2026, 1, 1);
-      final effEnd = DateTime.utc(2026, 1, 5);
-      final inputs = NonRegInputs(
-        employeeId: 'EMP-1',
-        employeeFullName: 'Jane Doe',
-        employeeLastName: 'Doe',
-        employeePosition: 'Clerk',
-        companyId: 'CO-1',
-        companyName: 'Acme',
-        companyAddress: 'addr',
-        hrManagerName: 'HR Mgr',
-        dateIssued: dateIssued,
-        probationaryStart: probStart,
-        probationaryEnd: probEnd,
-        effectiveEndDate: effEnd,
-        salutationName: 'Jane',
-        noteOnScope: 'scope note',
-        findings: const [
-          FindingSection(
-            title: 'Attendance',
-            standard: 'Be on time',
-            finding: 'Often late',
-            subFindings: [
-              SubFinding(title: 'Late 1', body: 'b1'),
-              SubFinding(title: 'Late 2', body: 'b2'),
-            ],
-          ),
-        ],
-        witnessName: 'Witness',
-        logoBytes: logo,
-      );
-      final json = inputs.toJson();
-      expect(json['employeeId'], 'EMP-1');
-      expect(json['employeeFullName'], 'Jane Doe');
-      expect(json['employeeLastName'], 'Doe');
-      expect(json['employeePosition'], 'Clerk');
-      expect(json['companyId'], 'CO-1');
-      expect(json['companyName'], 'Acme');
-      expect(json['companyAddress'], 'addr');
-      expect(json['hrManagerName'], 'HR Mgr');
-      expect(json['dateIssued'], dateIssued.toIso8601String());
-      expect(json['probationaryStart'], probStart.toIso8601String());
-      expect(json['probationaryEnd'], probEnd.toIso8601String());
-      expect(json['effectiveEndDate'], effEnd.toIso8601String());
-      expect(json['salutationName'], 'Jane');
-      expect(json['noteOnScope'], 'scope note');
-      expect(json['witnessName'], 'Witness');
+    test(
+      'serializes all fields, nested findings + subFindings, excludes logo',
+      () {
+        final dateIssued = DateTime.utc(2026, 1, 1);
+        final probStart = DateTime.utc(2025, 7, 1);
+        final probEnd = DateTime.utc(2026, 1, 1);
+        final effEnd = DateTime.utc(2026, 1, 5);
+        final inputs = NonRegInputs(
+          employeeId: 'EMP-1',
+          employeeFullName: 'Jane Doe',
+          employeeLastName: 'Doe',
+          employeePosition: 'Clerk',
+          companyId: 'CO-1',
+          companyName: 'Acme',
+          companyAddress: 'addr',
+          hrManagerName: 'HR Mgr',
+          dateIssued: dateIssued,
+          probationaryStart: probStart,
+          probationaryEnd: probEnd,
+          effectiveEndDate: effEnd,
+          salutationName: 'Jane',
+          noteOnScope: 'scope note',
+          findings: const [
+            FindingSection(
+              title: 'Attendance',
+              standard: 'Be on time',
+              finding: 'Often late',
+              subFindings: [
+                SubFinding(title: 'Late 1', body: 'b1'),
+                SubFinding(title: 'Late 2', body: 'b2'),
+              ],
+            ),
+          ],
+          witnessName: 'Witness',
+          logoBytes: logo,
+        );
+        final json = inputs.toJson();
+        expect(json['employeeId'], 'EMP-1');
+        expect(json['employeeFullName'], 'Jane Doe');
+        expect(json['employeeLastName'], 'Doe');
+        expect(json['employeePosition'], 'Clerk');
+        expect(json['companyId'], 'CO-1');
+        expect(json['companyName'], 'Acme');
+        expect(json['companyAddress'], 'addr');
+        expect(json['hrManagerName'], 'HR Mgr');
+        expect(json['dateIssued'], dateIssued.toIso8601String());
+        expect(json['probationaryStart'], probStart.toIso8601String());
+        expect(json['probationaryEnd'], probEnd.toIso8601String());
+        expect(json['effectiveEndDate'], effEnd.toIso8601String());
+        expect(json['salutationName'], 'Jane');
+        expect(json['noteOnScope'], 'scope note');
+        expect(json['witnessName'], 'Witness');
 
-      final findings = json['findings'] as List;
-      expect(findings.length, 1);
-      final f0 = findings.first as Map;
-      expect(f0['title'], 'Attendance');
-      expect(f0['standard'], 'Be on time');
-      expect(f0['finding'], 'Often late');
-      final subs = f0['subFindings'] as List;
-      expect(subs.length, 2);
-      expect((subs.first as Map)['title'], 'Late 1');
-      expect((subs.first as Map)['body'], 'b1');
+        final findings = json['findings'] as List;
+        expect(findings.length, 1);
+        final f0 = findings.first as Map;
+        expect(f0['title'], 'Attendance');
+        expect(f0['standard'], 'Be on time');
+        expect(f0['finding'], 'Often late');
+        final subs = f0['subFindings'] as List;
+        expect(subs.length, 2);
+        expect((subs.first as Map)['title'], 'Late 1');
+        expect((subs.first as Map)['body'], 'b1');
 
-      expect(json.containsKey('logoBytes'), isFalse);
-    });
+        expect(json.containsKey('logoBytes'), isFalse);
+      },
+    );
   });
 
   group('NteInputs.toJson', () {
-    test('serializes all fields, charge body is a List (Delta), excludes logo',
-        () {
-      final dateIssued = DateTime.utc(2026, 1, 1);
-      final responseDeadline = DateTime.utc(2026, 1, 6);
-      final body = Delta()..insert('hello\n');
-      final inputs = NteInputs(
-        employeeId: 'EMP-1',
-        employeeFullName: 'Jane Doe',
-        employeeFirstName: 'Jane',
-        employeeLastName: 'Doe',
-        employeeHonorific: 'Ms.',
-        employeePosition: 'Clerk',
-        employeeDepartment: 'Ops',
-        companyId: 'CO-1',
-        companyName: 'Acme',
-        companyAddress: 'addr',
-        hrManagerName: 'HR Mgr',
-        dateIssued: dateIssued,
-        responseDeadline: responseDeadline,
-        subjectSubtopic: 'Tardiness',
-        charges: [NteCharge(title: 'Charge 1', body: body)],
-        applicableViolations: const ['V1', 'V2'],
-        logoBytes: logo,
-      );
-      final json = inputs.toJson();
-      expect(json['employeeId'], 'EMP-1');
-      expect(json['employeeFullName'], 'Jane Doe');
-      expect(json['employeeFirstName'], 'Jane');
-      expect(json['employeeLastName'], 'Doe');
-      expect(json['employeeHonorific'], 'Ms.');
-      expect(json['employeePosition'], 'Clerk');
-      expect(json['employeeDepartment'], 'Ops');
-      expect(json['companyId'], 'CO-1');
-      expect(json['companyName'], 'Acme');
-      expect(json['companyAddress'], 'addr');
-      expect(json['hrManagerName'], 'HR Mgr');
-      expect(json['dateIssued'], dateIssued.toIso8601String());
-      expect(json['responseDeadline'], responseDeadline.toIso8601String());
-      expect(json['subjectSubtopic'], 'Tardiness');
+    test(
+      'serializes all fields, charge body is a List (Delta), excludes logo',
+      () {
+        final dateIssued = DateTime.utc(2026, 1, 1);
+        final responseDeadline = DateTime.utc(2026, 1, 6);
+        final body = Delta()..insert('hello\n');
+        final inputs = NteInputs(
+          employeeId: 'EMP-1',
+          employeeFullName: 'Jane Doe',
+          employeeFirstName: 'Jane',
+          employeeLastName: 'Doe',
+          employeeHonorific: 'Ms.',
+          employeePosition: 'Clerk',
+          employeeDepartment: 'Ops',
+          companyId: 'CO-1',
+          companyName: 'Acme',
+          companyAddress: 'addr',
+          hrManagerName: 'HR Mgr',
+          dateIssued: dateIssued,
+          responseDeadline: responseDeadline,
+          subjectSubtopic: 'Tardiness',
+          charges: [NteCharge(title: 'Charge 1', body: body)],
+          applicableViolations: const ['V1', 'V2'],
+          logoBytes: logo,
+        );
+        final json = inputs.toJson();
+        expect(json['employeeId'], 'EMP-1');
+        expect(json['employeeFullName'], 'Jane Doe');
+        expect(json['employeeFirstName'], 'Jane');
+        expect(json['employeeLastName'], 'Doe');
+        expect(json['employeeHonorific'], 'Ms.');
+        expect(json['employeePosition'], 'Clerk');
+        expect(json['employeeDepartment'], 'Ops');
+        expect(json['companyId'], 'CO-1');
+        expect(json['companyName'], 'Acme');
+        expect(json['companyAddress'], 'addr');
+        expect(json['hrManagerName'], 'HR Mgr');
+        expect(json['dateIssued'], dateIssued.toIso8601String());
+        expect(json['responseDeadline'], responseDeadline.toIso8601String());
+        expect(json['subjectSubtopic'], 'Tardiness');
 
-      final charges = json['charges'] as List;
-      expect(charges.length, 1);
-      final c0 = charges.first as Map;
-      expect(c0['title'], 'Charge 1');
-      expect(c0['body'], isA<List>());
+        final charges = json['charges'] as List;
+        expect(charges.length, 1);
+        final c0 = charges.first as Map;
+        expect(c0['title'], 'Charge 1');
+        expect(c0['body'], isA<List>());
 
-      expect(json['applicableViolations'], ['V1', 'V2']);
-      expect(json.containsKey('logoBytes'), isFalse);
-    });
+        expect(json['applicableViolations'], ['V1', 'V2']);
+        expect(json.containsKey('logoBytes'), isFalse);
+      },
+    );
 
     test('excludes attachmentBytes and attachmentCaption', () {
       final inputs = NteInputs(
@@ -618,12 +628,16 @@ void main() {
         charges: const [],
         applicableViolations: const [],
       );
-      final withImg =
-          base.copyWith(attachmentBytes: logo, attachmentCaption: 'cap');
+      final withImg = base.copyWith(
+        attachmentBytes: logo,
+        attachmentCaption: 'cap',
+      );
       expect(withImg.attachmentBytes, logo);
       expect(withImg.attachmentCaption, 'cap');
-      final cleared =
-          withImg.copyWith(attachmentBytes: null, attachmentCaption: null);
+      final cleared = withImg.copyWith(
+        attachmentBytes: null,
+        attachmentCaption: null,
+      );
       expect(cleared.attachmentBytes, isNull);
       expect(cleared.attachmentCaption, isNull);
     });

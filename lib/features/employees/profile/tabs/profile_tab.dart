@@ -29,66 +29,80 @@ class ProfileTab extends ConsumerWidget {
 
     final statutoryIds =
         ref.watch(employeeStatutoryIdsProvider(employee.id)).asData?.value ??
-            const <String, String>{};
+        const <String, String>{};
 
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 16),
       children: [
         _Section(
           title: 'Personal Information',
-          child: _KVGrid(items: [
-            _KV('First Name', employee.firstName),
-            _KV('Middle Name', employee.middleName ?? '—'),
-            _KV('Last Name', employee.lastName),
-            _KV('Birthday',
-                employee.birthDate == null ? '—' : _fmtDate(employee.birthDate!)),
-            _KV('Work Email', employee.workEmail ?? '—'),
-            _KV('Mobile Number', employee.mobileNumber ?? '—'),
-            _KV('Address', _fmtAddress(employee)),
-            _KV('Lark User ID', employee.larkUserId ?? '—'),
-          ]),
+          child: _KVGrid(
+            items: [
+              _KV('First Name', employee.firstName),
+              _KV('Middle Name', employee.middleName ?? '—'),
+              _KV('Last Name', employee.lastName),
+              _KV(
+                'Birthday',
+                employee.birthDate == null
+                    ? '—'
+                    : _fmtDate(employee.birthDate!),
+              ),
+              _KV('Work Email', employee.workEmail ?? '—'),
+              _KV('Mobile Number', employee.mobileNumber ?? '—'),
+              _KV('Address', _fmtAddress(employee)),
+              _KV('Lark User ID', employee.larkUserId ?? '—'),
+            ],
+          ),
         ),
         const SizedBox(height: 16),
         _Section(
           title: 'Statutory IDs',
           subtitle: 'Used for SSS, PhilHealth, and Pag-IBIG remittances',
-          child: _KVGrid(items: [
-            _KV('SSS Number', statutoryIds['SSS'] ?? '—'),
-            _KV('PhilHealth Number', statutoryIds['PHILHEALTH'] ?? '—'),
-            _KV('Pag-IBIG Number', statutoryIds['PAGIBIG'] ?? '—'),
-          ]),
+          child: _KVGrid(
+            items: [
+              _KV('SSS Number', statutoryIds['SSS'] ?? '—'),
+              _KV('PhilHealth Number', statutoryIds['PHILHEALTH'] ?? '—'),
+              _KV('Pag-IBIG Number', statutoryIds['PAGIBIG'] ?? '—'),
+            ],
+          ),
         ),
         const SizedBox(height: 16),
         _Section(
           title: 'Employment Summary',
-          child: _KVGrid(items: [
-            _KV('Employee #', employee.employeeNumber),
-            _KV('Employment Type',
-                employee.employmentType.replaceAll('_', ' ')),
-            _KV('Employment Status',
-                employee.employmentStatus.replaceAll('_', ' ')),
-            _KV('Hire Date', _fmtDate(employee.hireDate)),
-            _KV(
-              'Regularization Date',
-              employee.regularizationDate == null
-                  ? '—'
-                  : _fmtDate(employee.regularizationDate!),
-            ),
-            _KV(
-              'Separation Date',
-              employee.separationDate == null
-                  ? '—'
-                  : _fmtDate(employee.separationDate!),
-            ),
-            _KV(
-              'Period of Employment',
-              employee.separationDate == null
-                  ? '${_fmtDate(employee.hireDate)} – Present'
-                  : '${_fmtDate(employee.hireDate)} – ${_fmtDate(employee.separationDate!)}',
-            ),
-            _KV('Job Title', employee.jobTitle ?? '—'),
-            _KV('Statutory Employer of Record', statutoryEntityLabel),
-          ]),
+          child: _KVGrid(
+            items: [
+              _KV('Employee #', employee.employeeNumber),
+              _KV(
+                'Employment Type',
+                employee.employmentType.replaceAll('_', ' '),
+              ),
+              _KV(
+                'Employment Status',
+                employee.employmentStatus.replaceAll('_', ' '),
+              ),
+              _KV('Hire Date', _fmtDate(employee.hireDate)),
+              _KV(
+                'Regularization Date',
+                employee.regularizationDate == null
+                    ? '—'
+                    : _fmtDate(employee.regularizationDate!),
+              ),
+              _KV(
+                'Separation Date',
+                employee.separationDate == null
+                    ? '—'
+                    : _fmtDate(employee.separationDate!),
+              ),
+              _KV(
+                'Period of Employment',
+                employee.separationDate == null
+                    ? '${_fmtDate(employee.hireDate)} – Present'
+                    : '${_fmtDate(employee.hireDate)} – ${_fmtDate(employee.separationDate!)}',
+              ),
+              _KV('Job Title', employee.jobTitle ?? '—'),
+              _KV('Statutory Employer of Record', statutoryEntityLabel),
+            ],
+          ),
         ),
         const SizedBox(height: 16),
         _Section(
@@ -97,14 +111,8 @@ class ProfileTab extends ConsumerWidget {
             spacing: 16,
             runSpacing: 12,
             children: [
-              _FlagTile(
-                label: 'Rank & File',
-                value: employee.isRankAndFile,
-              ),
-              _FlagTile(
-                label: 'OT Eligible',
-                value: employee.isOtEligible,
-              ),
+              _FlagTile(label: 'Rank & File', value: employee.isRankAndFile),
+              _FlagTile(label: 'OT Eligible', value: employee.isOtEligible),
               _FlagTile(
                 label: 'Night Diff. Eligible',
                 value: employee.isNdEligible,
@@ -121,38 +129,34 @@ class ProfileTab extends ConsumerWidget {
           _Section(
             title: 'Payroll Overrides',
             subtitle: 'Admin-only — statutory / tax overrides',
-            child: _KVGrid(items: [
-              _KV(
-                'Tax Calculation Mode',
-                employee.taxOnFullEarnings ? 'Gross Pay' : 'Basic Pay Only',
-              ),
-              _KV(
-                'Declared Wage Override',
-                employee.declaredWageOverride == null
-                    ? '—'
-                    : Money.fmtPhp(employee.declaredWageOverride!),
-              ),
-              _KV(
-                'Wage Type',
-                employee.declaredWageType ?? '—',
-              ),
-              _KV(
-                'Effective',
-                employee.declaredWageEffectiveAt == null
-                    ? '—'
-                    : _fmtDate(employee.declaredWageEffectiveAt!),
-              ),
-              _KV(
-                'Set At',
-                employee.declaredWageSetAt == null
-                    ? '—'
-                    : _fmtDate(employee.declaredWageSetAt!),
-              ),
-              _KV(
-                'Reason',
-                employee.declaredWageReason ?? '—',
-              ),
-            ]),
+            child: _KVGrid(
+              items: [
+                _KV(
+                  'Tax Calculation Mode',
+                  employee.taxOnFullEarnings ? 'Gross Pay' : 'Basic Pay Only',
+                ),
+                _KV(
+                  'Declared Wage Override',
+                  employee.declaredWageOverride == null
+                      ? '—'
+                      : Money.fmtPhp(employee.declaredWageOverride!),
+                ),
+                _KV('Wage Type', employee.declaredWageType ?? '—'),
+                _KV(
+                  'Effective',
+                  employee.declaredWageEffectiveAt == null
+                      ? '—'
+                      : _fmtDate(employee.declaredWageEffectiveAt!),
+                ),
+                _KV(
+                  'Set At',
+                  employee.declaredWageSetAt == null
+                      ? '—'
+                      : _fmtDate(employee.declaredWageSetAt!),
+                ),
+                _KV('Reason', employee.declaredWageReason ?? '—'),
+              ],
+            ),
           ),
         ],
         if (profile?.canManageEmployees ?? false) ...[
@@ -187,10 +191,7 @@ class _Section extends StatelessWidget {
             padding: EdgeInsets.fromLTRB(16, 14, 16, subtitle == null ? 14 : 4),
             child: Text(
               title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
           ),
           if (subtitle != null)
@@ -205,10 +206,7 @@ class _Section extends StatelessWidget {
               ),
             ),
           Divider(height: 1, color: Theme.of(context).dividerColor),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: child,
-          ),
+          Padding(padding: const EdgeInsets.all(16), child: child),
         ],
       ),
     );
@@ -227,45 +225,44 @@ class _KVGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (ctx, c) {
-      final cols = c.maxWidth >= 900
-          ? 3
-          : c.maxWidth >= 500
-              ? 2
-              : 1;
-      final rowGap = 16.0;
-      final colGap = 24.0;
-      final itemWidth = (c.maxWidth - colGap * (cols - 1)) / cols;
-      return Wrap(
-        spacing: colGap,
-        runSpacing: rowGap,
-        children: [
-          for (final kv in items)
-            SizedBox(
-              width: itemWidth,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    kv.label,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      letterSpacing: 0.3,
+    return LayoutBuilder(
+      builder: (ctx, c) {
+        final cols = c.maxWidth >= 900
+            ? 3
+            : c.maxWidth >= 500
+            ? 2
+            : 1;
+        final rowGap = 16.0;
+        final colGap = 24.0;
+        final itemWidth = (c.maxWidth - colGap * (cols - 1)) / cols;
+        return Wrap(
+          spacing: colGap,
+          runSpacing: rowGap,
+          children: [
+            for (final kv in items)
+              SizedBox(
+                width: itemWidth,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      kv.label,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        letterSpacing: 0.3,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    kv.value,
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    Text(kv.value, style: const TextStyle(fontSize: 14)),
+                  ],
+                ),
               ),
-            ),
-        ],
-      );
-    });
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -276,8 +273,7 @@ class _FlagTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        value ? const Color(0xFF16A34A) : const Color(0xFF9CA3AF);
+    final color = value ? const Color(0xFF16A34A) : const Color(0xFF9CA3AF);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -291,7 +287,9 @@ class _FlagTile extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: 13,
-            color: value ? null : Theme.of(context).colorScheme.onSurfaceVariant,
+            color: value
+                ? null
+                : Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
       ],
@@ -300,22 +298,36 @@ class _FlagTile extends StatelessWidget {
 }
 
 String _fmtAddress(Employee e) {
-  final cityProv = [e.city, e.province]
-      .where((s) => s != null && s.isNotEmpty)
-      .join(', ');
-  final tail = [cityProv, e.zipCode]
-      .where((s) => s != null && s.isNotEmpty)
-      .join(' ');
-  final parts = [e.addressLine1, e.addressLine2, tail]
-      .where((s) => s != null && s.isNotEmpty)
-      .toList();
+  final cityProv = [
+    e.city,
+    e.province,
+  ].where((s) => s != null && s.isNotEmpty).join(', ');
+  final tail = [
+    cityProv,
+    e.zipCode,
+  ].where((s) => s != null && s.isNotEmpty).join(' ');
+  final parts = [
+    e.addressLine1,
+    e.addressLine2,
+    tail,
+  ].where((s) => s != null && s.isNotEmpty).toList();
   return parts.isEmpty ? '—' : parts.join(', ');
 }
 
 String _fmtDate(DateTime d) {
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${months[d.month - 1]} ${d.day}, ${d.year}';
 }

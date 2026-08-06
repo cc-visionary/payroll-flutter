@@ -17,7 +17,6 @@ StatusTone? criticalityTone(String? c) {
 }
 
 /// Human label for a criticality level (null = unset).
-String? criticalityLabel(String? c) =>
-    (c == null || criticalityTone(c) == null)
-        ? null
-        : '${c[0]}${c.substring(1).toLowerCase()}';
+String? criticalityLabel(String? c) => (c == null || criticalityTone(c) == null)
+    ? null
+    : '${c[0]}${c.substring(1).toLowerCase()}';

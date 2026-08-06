@@ -39,8 +39,9 @@ class TemplatePickerField extends StatelessWidget {
     // Cap the menu height so a long, grouped list stays scrollable inside the
     // viewport rather than running off the bottom of the screen. Scales with
     // window height but stays within sane bounds for small/large displays.
-    final menuHeight =
-        (MediaQuery.sizeOf(context).height * 0.6).clamp(280.0, 520.0).toDouble();
+    final menuHeight = (MediaQuery.sizeOf(context).height * 0.6)
+        .clamp(280.0, 520.0)
+        .toDouble();
     final entries = <DropdownMenuEntry<String>>[];
 
     for (final cat in kDocumentCategories) {

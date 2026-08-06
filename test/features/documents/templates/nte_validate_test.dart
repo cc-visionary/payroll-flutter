@@ -7,21 +7,21 @@ void main() {
   Delta nonEmpty() => Delta()..insert('Body text\n');
 
   NteInputs valid() => NteInputs(
-        employeeId: 'e1',
-        employeeFullName: 'Donald',
-        employeeFirstName: 'Donald',
-        employeeLastName: 'Xu',
-        employeePosition: 'Engineer',
-        employeeDepartment: 'Tech',
-        companyId: 'c1',
-        companyName: 'X',
-        hrManagerName: 'Brixter',
-        dateIssued: DateTime(2026, 5, 5),
-        responseDeadline: DateTime(2026, 5, 10),
-        subjectSubtopic: '',
-        charges: [NteCharge(title: 'Charge 1', body: nonEmpty())],
-        applicableViolations: ['Code of Conduct §3.1'],
-      );
+    employeeId: 'e1',
+    employeeFullName: 'Donald',
+    employeeFirstName: 'Donald',
+    employeeLastName: 'Xu',
+    employeePosition: 'Engineer',
+    employeeDepartment: 'Tech',
+    companyId: 'c1',
+    companyName: 'X',
+    hrManagerName: 'Brixter',
+    dateIssued: DateTime(2026, 5, 5),
+    responseDeadline: DateTime(2026, 5, 10),
+    subjectSubtopic: '',
+    charges: [NteCharge(title: 'Charge 1', body: nonEmpty())],
+    applicableViolations: ['Code of Conduct §3.1'],
+  );
 
   test('valid inputs produce no errors', () {
     expect(validateNte(valid()), isEmpty);
@@ -33,19 +33,16 @@ void main() {
   });
 
   test('empty charge title flagged', () {
-    final i = valid().copyWith(charges: [
-      NteCharge(title: '', body: nonEmpty()),
-    ]);
-    expect(
-      validateNte(i).any((e) => e.field == 'charges[0].title'),
-      true,
+    final i = valid().copyWith(
+      charges: [NteCharge(title: '', body: nonEmpty())],
     );
+    expect(validateNte(i).any((e) => e.field == 'charges[0].title'), true);
   });
 
   test('empty charge body flagged', () {
-    final i = valid().copyWith(charges: [
-      NteCharge(title: 'X', body: Delta()..insert('\n')),
-    ]);
+    final i = valid().copyWith(
+      charges: [NteCharge(title: 'X', body: Delta()..insert('\n'))],
+    );
     expect(validateNte(i).any((e) => e.field == 'charges[0].body'), true);
   });
 
@@ -54,17 +51,11 @@ void main() {
       dateIssued: DateTime(2026, 5, 5),
       responseDeadline: DateTime(2026, 5, 5),
     );
-    expect(
-      validateNte(i).any((e) => e.field == 'responseDeadline'),
-      true,
-    );
+    expect(validateNte(i).any((e) => e.field == 'responseDeadline'), true);
   });
 
   test('empty violations flagged', () {
     final i = valid().copyWith(applicableViolations: []);
-    expect(
-      validateNte(i).any((e) => e.field == 'applicableViolations'),
-      true,
-    );
+    expect(validateNte(i).any((e) => e.field == 'applicableViolations'), true);
   });
 }

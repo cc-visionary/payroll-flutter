@@ -31,22 +31,18 @@ void main() {
     );
 
     test('round-trips toJson (full sample)', () {
-      expect(
-        QuitclaimInputs.fromJson(full.toJson()).toJson(),
-        full.toJson(),
-      );
+      expect(QuitclaimInputs.fromJson(full.toJson()).toJson(), full.toJson());
     });
 
     test('round-trips toJson (null/empty sample)', () {
-      expect(
-        QuitclaimInputs.fromJson(empty.toJson()).toJson(),
-        empty.toJson(),
-      );
+      expect(QuitclaimInputs.fromJson(empty.toJson()).toJson(), empty.toJson());
     });
 
     test('rebuilds blocks', () {
       expect(
-        const QuitclaimTemplate().build(QuitclaimInputs.fromJson(full.toJson())),
+        const QuitclaimTemplate().build(
+          QuitclaimInputs.fromJson(full.toJson()),
+        ),
         isNotEmpty,
       );
     });

@@ -29,9 +29,7 @@ class ComplianceScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final mobile = isMobile(context);
     return Scaffold(
-      appBar: mobile
-          ? AppBar(title: const Text('Compliance'))
-          : null,
+      appBar: mobile ? AppBar(title: const Text('Compliance')) : null,
       drawer: mobile ? const AppDrawer() : null,
       body: SafeArea(
         child: Padding(
@@ -51,9 +49,7 @@ class ComplianceScreen extends ConsumerWidget {
               const SizedBox(height: LuxiumSpacing.md),
               const _UnassignedWarning(),
               const SizedBox(height: LuxiumSpacing.md),
-              const Expanded(
-                child: Card(child: PayablesTable()),
-              ),
+              const Expanded(child: Card(child: PayablesTable())),
             ],
           ),
         ),
@@ -73,7 +69,8 @@ class _ToolbarRow extends ConsumerWidget {
         const Expanded(child: PayablesFilterBar()),
         const SizedBox(width: LuxiumSpacing.sm),
         IconButton(
-          tooltip: 'Refresh — re-fetch payables and payments from the database. '
+          tooltip:
+              'Refresh — re-fetch payables and payments from the database. '
               'Use after editing an employee\'s statutory employer of record.',
           icon: const Icon(Icons.refresh, size: 20),
           onPressed: () {
@@ -164,7 +161,9 @@ class _ExportMenu extends ConsumerWidget {
       );
       if (sheets.isEmpty) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Nothing to export for the current filter.')),
+          const SnackBar(
+            content: Text('Nothing to export for the current filter.'),
+          ),
         );
         return;
       }
@@ -185,23 +184,22 @@ class _ExportMenu extends ConsumerWidget {
             .toSet()
             .toList();
         final brandNames = sheets.map((s) => s.brand.name).toList();
-        final fileName = path
-            .replaceAll('\\', '/')
-            .split('/')
-            .last;
-        ref.read(auditRepositoryProvider).logExport(
-          description:
-              'Statutory payables export: $fileName · ${period.label()} · $recordCount records',
-          entityType: 'statutory_payables',
-          metadata: {
-            'file_name': fileName,
-            'period': period.label(),
-            'record_count': recordCount,
-            'agencies': agencies,
-            'brands': brandNames,
-            'single_brand': singleBrand,
-          },
-        );
+        final fileName = path.replaceAll('\\', '/').split('/').last;
+        ref
+            .read(auditRepositoryProvider)
+            .logExport(
+              description:
+                  'Statutory payables export: $fileName · ${period.label()} · $recordCount records',
+              entityType: 'statutory_payables',
+              metadata: {
+                'file_name': fileName,
+                'period': period.label(),
+                'record_count': recordCount,
+                'agencies': agencies,
+                'brands': brandNames,
+                'single_brand': singleBrand,
+              },
+            );
         messenger.showSnackBar(SnackBar(content: Text('Saved: $path')));
       }
     } catch (e) {

@@ -53,10 +53,9 @@ class RoleRollupRow {
 
   /// Null when nothing is costed yet — an uncosted role must read as "unknown",
   /// never as a confident 0%.
-  double? get loadFraction =>
-      costedResponsibilities == 0 || capacityHours <= 0
-          ? null
-          : hoursPerMonth / capacityHours;
+  double? get loadFraction => costedResponsibilities == 0 || capacityHours <= 0
+      ? null
+      : hoursPerMonth / capacityHours;
 
   LoadStatus? get status {
     final f = loadFraction;
@@ -68,9 +67,11 @@ class RoleRollupRow {
   /// misleadingly high rate.
   Decimal? get costPerHour {
     final c = monthlyCost;
-    if (c == null || hoursPerMonth <= 0 || costedResponsibilities == 0) return null;
-    return (c / Decimal.parse(hoursPerMonth.toString()))
-        .toDecimal(scaleOnInfinitePrecision: 4);
+    if (c == null || hoursPerMonth <= 0 || costedResponsibilities == 0)
+      return null;
+    return (c / Decimal.parse(hoursPerMonth.toString())).toDecimal(
+      scaleOnInfinitePrecision: 4,
+    );
   }
 }
 
@@ -120,7 +121,8 @@ List<RoleRollupRow> buildRoleRollup({
     // are separate fields on the role card that apply across the whole role;
     // counting them here would make every role look permanently under-costed.
     if (t.isExpectation) continue;
-    if (t.status != 'ACTIVE') continue; // archived work leaves the derived lists
+    if (t.status != 'ACTIVE')
+      continue; // archived work leaves the derived lists
     final cardId = t.roleScorecardId;
     if (cardId == null) continue;
     (tasksByCard[cardId] ??= []).add(t);
@@ -143,21 +145,28 @@ List<RoleRollupRow> buildRoleRollup({
     }
 
     final perHolder = monthlyCostPerHolder(card);
-    rows.add(RoleRollupRow(
-      cardId: card.id,
-      jobTitle: card.jobTitle,
-      holders: holders.length,
-      responsibilities: cardTasks.length,
-      costedResponsibilities: costed,
-      hoursPerMonth: hours,
-      capacityHours:
-          holders.fold(0.0, (sum, e) => sum + capacityHoursFor(e.id)),
-      monthlyCost:
-          perHolder == null ? null : perHolder * Decimal.fromInt(holders.length),
-    ));
+    rows.add(
+      RoleRollupRow(
+        cardId: card.id,
+        jobTitle: card.jobTitle,
+        holders: holders.length,
+        responsibilities: cardTasks.length,
+        costedResponsibilities: costed,
+        hoursPerMonth: hours,
+        capacityHours: holders.fold(
+          0.0,
+          (sum, e) => sum + capacityHoursFor(e.id),
+        ),
+        monthlyCost: perHolder == null
+            ? null
+            : perHolder * Decimal.fromInt(holders.length),
+      ),
+    );
   }
 
-  rows.sort((a, b) => a.jobTitle.toLowerCase().compareTo(b.jobTitle.toLowerCase()));
+  rows.sort(
+    (a, b) => a.jobTitle.toLowerCase().compareTo(b.jobTitle.toLowerCase()),
+  );
   return rows;
 }
 
@@ -183,10 +192,12 @@ class RoleRollupTotals {
 }
 
 RoleRollupTotals totalRoleRollup(List<RoleRollupRow> rows) => RoleRollupTotals(
-      holders: rows.fold(0, (s, r) => s + r.holders),
-      responsibilities: rows.fold(0, (s, r) => s + r.responsibilities),
-      costedResponsibilities: rows.fold(0, (s, r) => s + r.costedResponsibilities),
-      hoursPerMonth: rows.fold(0.0, (s, r) => s + r.hoursPerMonth),
-      monthlyCost: rows.fold(
-          Decimal.zero, (s, r) => s + (r.monthlyCost ?? Decimal.zero)),
-    );
+  holders: rows.fold(0, (s, r) => s + r.holders),
+  responsibilities: rows.fold(0, (s, r) => s + r.responsibilities),
+  costedResponsibilities: rows.fold(0, (s, r) => s + r.costedResponsibilities),
+  hoursPerMonth: rows.fold(0.0, (s, r) => s + r.hoursPerMonth),
+  monthlyCost: rows.fold(
+    Decimal.zero,
+    (s, r) => s + (r.monthlyCost ?? Decimal.zero),
+  ),
+);

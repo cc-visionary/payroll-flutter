@@ -46,9 +46,7 @@ class NestedNumberedListBlock extends Block {
                       children: [
                         pw.TextSpan(
                           text: '${items[i].leadBold}: ',
-                          style: pw.TextStyle(
-                            fontWeight: pw.FontWeight.bold,
-                          ),
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                         ),
                         pw.TextSpan(text: items[i].body),
                       ],

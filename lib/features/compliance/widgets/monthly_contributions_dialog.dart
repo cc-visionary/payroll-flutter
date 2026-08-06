@@ -27,8 +27,18 @@ class MonthlyContributionsDialog extends ConsumerStatefulWidget {
 class _MonthlyContributionsDialogState
     extends ConsumerState<MonthlyContributionsDialog> {
   static const _monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
 
   late int _year;
@@ -84,9 +94,9 @@ class _MonthlyContributionsDialogState
         brands: ref.read(complianceBrandsProvider).asData?.value ?? const [],
       );
       if (sheets.isEmpty) {
-        messenger.showSnackBar(SnackBar(
-          content: Text('No released contributions for $label.'),
-        ));
+        messenger.showSnackBar(
+          SnackBar(content: Text('No released contributions for $label.')),
+        );
         return;
       }
       final path = await exportMonthlyContributionsXlsx(
@@ -95,8 +105,7 @@ class _MonthlyContributionsDialogState
         month: _month,
       );
       if (path == null) return; // user cancelled the save dialog
-      final recordCount =
-          sheets.fold<int>(0, (n, s) => n + s.rows.length);
+      final recordCount = sheets.fold<int>(0, (n, s) => n + s.rows.length);
       final fileName = path.replaceAll('\\', '/').split('/').last;
       audit.logExport(
         description:
@@ -115,10 +124,12 @@ class _MonthlyContributionsDialogState
         navigator.pop();
       }
     } catch (e) {
-      messenger.showSnackBar(SnackBar(
-        content: Text('Export failed: $e'),
-        backgroundColor: errorColor,
-      ));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Export failed: $e'),
+          backgroundColor: errorColor,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -209,47 +220,52 @@ class _MonthlyContributionsDialogState
                     onSelected: _exporting
                         ? null
                         : (_) => setState(() {
-                              if (!_brandIds.remove(b.id)) {
-                                _brandIds.add(b.id);
-                              }
-                            }),
+                            if (!_brandIds.remove(b.id)) {
+                              _brandIds.add(b.id);
+                            }
+                          }),
                   ),
               ],
             ),
             if (runCount != null && runCount >= 0 && runCount < 2) ...[
               const SizedBox(height: LuxiumSpacing.md),
-              Builder(builder: (context) {
-                final warn = StatusPalette.of(context, StatusTone.warning);
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: LuxiumSpacing.md,
-                    vertical: LuxiumSpacing.sm,
-                  ),
-                  decoration: BoxDecoration(
-                    color: warn.background,
-                    borderRadius: BorderRadius.circular(LuxiumRadius.lg),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.warning_amber_outlined,
-                          size: 18, color: warn.foreground),
-                      const SizedBox(width: LuxiumSpacing.sm),
-                      Expanded(
-                        child: Text(
-                          runCount == 0
-                              ? 'No released payroll runs found for '
-                                  '${monthlyContributionsMonthLabel(_year, _month)} '
-                                  '— the report will be empty.'
-                              : 'Only 1 released cutoff found for '
-                                  '${monthlyContributionsMonthLabel(_year, _month)} '
-                                  '— the report may be missing half the month.',
-                          style: TextStyle(color: warn.foreground),
+              Builder(
+                builder: (context) {
+                  final warn = StatusPalette.of(context, StatusTone.warning);
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: LuxiumSpacing.md,
+                      vertical: LuxiumSpacing.sm,
+                    ),
+                    decoration: BoxDecoration(
+                      color: warn.background,
+                      borderRadius: BorderRadius.circular(LuxiumRadius.lg),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.warning_amber_outlined,
+                          size: 18,
+                          color: warn.foreground,
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              }),
+                        const SizedBox(width: LuxiumSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            runCount == 0
+                                ? 'No released payroll runs found for '
+                                      '${monthlyContributionsMonthLabel(_year, _month)} '
+                                      '— the report will be empty.'
+                                : 'Only 1 released cutoff found for '
+                                      '${monthlyContributionsMonthLabel(_year, _month)} '
+                                      '— the report may be missing half the month.',
+                            style: TextStyle(color: warn.foreground),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ],
           ],
         ),

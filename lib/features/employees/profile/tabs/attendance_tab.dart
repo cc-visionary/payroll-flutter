@@ -55,7 +55,8 @@ class _AttendanceTabState extends ConsumerState<AttendanceTab> {
   late DateTime _start;
   late DateTime _end;
   late _AttendanceViewMode _viewMode;
-  static const bool _selectMode = true; // selection is always on; no toggle button
+  static const bool _selectMode =
+      true; // selection is always on; no toggle button
   final _selected = <String>{}; // record ids
 
   @override
@@ -101,7 +102,11 @@ class _AttendanceTabState extends ConsumerState<AttendanceTab> {
     );
     if (picked == null) return;
     setState(() {
-      _start = DateTime(picked.start.year, picked.start.month, picked.start.day);
+      _start = DateTime(
+        picked.start.year,
+        picked.start.month,
+        picked.start.day,
+      );
       _end = DateTime(picked.end.year, picked.end.month, picked.end.day);
       _selected.clear();
     });
@@ -111,13 +116,15 @@ class _AttendanceTabState extends ConsumerState<AttendanceTab> {
 
   @override
   Widget build(BuildContext context) {
-    final attendanceAsync = ref.watch(attendanceListProvider(
-      AttendanceQuery(
-        start: _start,
-        end: _end,
-        employeeId: widget.employee.id,
+    final attendanceAsync = ref.watch(
+      attendanceListProvider(
+        AttendanceQuery(
+          start: _start,
+          end: _end,
+          employeeId: widget.employee.id,
+        ),
       ),
-    ));
+    );
     final leaveBalancesAsync = ref.watch(
       leaveBalancesProvider(
         LeaveBalanceQuery(employeeId: widget.employee.id, year: _year),
@@ -129,8 +136,9 @@ class _AttendanceTabState extends ConsumerState<AttendanceTab> {
     final holidayYears = <int>{
       for (var y = _start.year; y <= _end.year; y++) y,
     };
-    final holidayAsyncs =
-        holidayYears.map((y) => ref.watch(_holidayEventsForYearProvider(y))).toList();
+    final holidayAsyncs = holidayYears
+        .map((y) => ref.watch(_holidayEventsForYearProvider(y)))
+        .toList();
     final scorecardsAsync = ref.watch(roleScorecardListProvider);
     final workDaysPerWeek = () {
       final id = widget.employee.roleScorecardId;
@@ -171,7 +179,9 @@ class _AttendanceTabState extends ConsumerState<AttendanceTab> {
           ),
           data: (records) {
             final shifts = <String, ShiftTemplate>{
-              for (final s in shiftsAsync.asData?.value ?? const <ShiftTemplate>[]) s.id: s,
+              for (final s
+                  in shiftsAsync.asData?.value ?? const <ShiftTemplate>[])
+                s.id: s,
             };
             final holidays = <String, CalendarEvent>{
               for (final a in holidayAsyncs)
@@ -233,38 +243,42 @@ class _AttendanceTabState extends ConsumerState<AttendanceTab> {
                     onHeaderChecked: (v) => setState(() {
                       _selected.clear();
                       if (v) {
-                        _selected.addAll(rows
-                            .where((r) => r.record != null)
-                            .map((r) => r.record!.id));
+                        _selected.addAll(
+                          rows
+                              .where((r) => r.record != null)
+                              .map((r) => r.record!.id),
+                        );
                       }
                     }),
                     onRowTap: (row) => _openSingleEdit(context, row),
                   )
                 else
-                _MonthTable(
-                  rows: rows,
-                  start: _start,
-                  end: _end,
-                  selectMode: _selectMode,
-                  selected: _selected,
-                  onRowChecked: (id, v) => setState(() {
-                    if (v) {
-                      _selected.add(id);
-                    } else {
-                      _selected.remove(id);
-                    }
-                  }),
-                  onHeaderChecked: (v) => setState(() {
-                    _selected.clear();
-                    if (v) {
-                      _selected.addAll(rows
-                          .where((r) => r.record != null)
-                          .map((r) => r.record!.id));
-                    }
-                  }),
-                  onEdit: (row) => _openSingleEdit(context, row),
-                  onDelete: (row) => _confirmDelete(context, row),
-                ),
+                  _MonthTable(
+                    rows: rows,
+                    start: _start,
+                    end: _end,
+                    selectMode: _selectMode,
+                    selected: _selected,
+                    onRowChecked: (id, v) => setState(() {
+                      if (v) {
+                        _selected.add(id);
+                      } else {
+                        _selected.remove(id);
+                      }
+                    }),
+                    onHeaderChecked: (v) => setState(() {
+                      _selected.clear();
+                      if (v) {
+                        _selected.addAll(
+                          rows
+                              .where((r) => r.record != null)
+                              .map((r) => r.record!.id),
+                        );
+                      }
+                    }),
+                    onEdit: (row) => _openSingleEdit(context, row),
+                    onDelete: (row) => _confirmDelete(context, row),
+                  ),
                 const SizedBox(height: LuxiumSpacing.xl),
                 _LeaveBalances(async: leaveBalancesAsync),
               ],
@@ -276,7 +290,8 @@ class _AttendanceTabState extends ConsumerState<AttendanceTab> {
   }
 
   Future<void> _openSingleEdit(BuildContext context, _RowVM row) async {
-    final shifts = ref.read(shiftTemplateListProvider).asData?.value ?? const [];
+    final shifts =
+        ref.read(shiftTemplateListProvider).asData?.value ?? const [];
     final changed = await showAttendanceEditDialog(
       context: context,
       ref: ref,
@@ -304,11 +319,13 @@ class _AttendanceTabState extends ConsumerState<AttendanceTab> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton.tonal(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Delete')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
@@ -318,18 +335,31 @@ class _AttendanceTabState extends ConsumerState<AttendanceTab> {
       ref.invalidate(attendanceListProvider);
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
     }
   }
 
   Future<void> _openBatchEdit(BuildContext context) async {
     if (_selected.isEmpty) return;
     final count = _selected.length;
-    final shifts = ref.read(shiftTemplateListProvider).asData?.value ?? const [];
-    final records = ref.read(attendanceListProvider(
-      AttendanceQuery(start: _start, end: _end, employeeId: widget.employee.id),
-    )).asData?.value ?? const [];
+    final shifts =
+        ref.read(shiftTemplateListProvider).asData?.value ?? const [];
+    final records =
+        ref
+            .read(
+              attendanceListProvider(
+                AttendanceQuery(
+                  start: _start,
+                  end: _end,
+                  employeeId: widget.employee.id,
+                ),
+              ),
+            )
+            .asData
+            ?.value ??
+        const [];
     final datesByRecordId = <String, DateTime>{
       for (final r in records) r.id: r.attendanceDate,
     };
@@ -380,11 +410,13 @@ class _AttendanceTabState extends ConsumerState<AttendanceTab> {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton.tonal(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Delete')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
         ],
       ),
     );
@@ -423,16 +455,15 @@ List<_RowVM> _buildRows({
   required Map<String, CalendarEvent> holidays,
   ShiftTemplate? defaultShift,
   String? workDaysPerWeek,
-}) =>
-    buildAttendanceRows(
-      start: start,
-      end: end,
-      records: records,
-      shifts: shifts,
-      holidays: holidays,
-      defaultShift: defaultShift,
-      workDaysPerWeek: workDaysPerWeek,
-    );
+}) => buildAttendanceRows(
+  start: start,
+  end: end,
+  records: records,
+  shifts: shifts,
+  holidays: holidays,
+  defaultShift: defaultShift,
+  workDaysPerWeek: workDaysPerWeek,
+);
 
 String _isoDate(DateTime d) => isoDate(d);
 
@@ -460,8 +491,18 @@ String _fmtShiftTime(String hhmmss) {
 // ---------------------------------------------------------------------------
 
 const _monthNames = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 class _MonthBar extends StatelessWidget {
@@ -506,10 +547,7 @@ class _MonthBar extends StatelessWidget {
         runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          OutlinedButton(
-            onPressed: onPrev,
-            child: const Text('← Prev'),
-          ),
+          OutlinedButton(onPressed: onPrev, child: const Text('← Prev')),
           DropdownButton<int>(
             value: month,
             onChanged: (v) => v == null ? null : onMonth(v),
@@ -522,20 +560,16 @@ class _MonthBar extends StatelessWidget {
             value: year,
             onChanged: (v) => v == null ? null : onYear(v),
             items: [
-              for (int y = DateTime.now().year - 5;
-                  y <= DateTime.now().year + 1;
-                  y++)
+              for (
+                int y = DateTime.now().year - 5;
+                y <= DateTime.now().year + 1;
+                y++
+              )
                 DropdownMenuItem(value: y, child: Text(y.toString())),
             ],
           ),
-          OutlinedButton(
-            onPressed: onNext,
-            child: const Text('Next →'),
-          ),
-          OutlinedButton(
-            onPressed: onToday,
-            child: const Text('Today'),
-          ),
+          OutlinedButton(onPressed: onNext, child: const Text('Next →')),
+          OutlinedButton(onPressed: onToday, child: const Text('Today')),
           const SizedBox(width: 12),
           FilledButton.icon(
             onPressed: selectedCount == 0 ? null : onBatchEdit,
@@ -580,73 +614,75 @@ class _StatsGridState extends State<_StatsGrid> {
   @override
   Widget build(BuildContext context) {
     final s = widget.stats;
-    return LayoutBuilder(builder: (ctx, c) {
-      // Primary tiles: Work Days (ratio) + 4 metrics. Tighter col counts than
-      // the old 9-tile grid since the new layout is coarser-grained.
-      final cols = c.maxWidth >= 1100
-          ? 5
-          : c.maxWidth >= 760
-              ? 3
-              : c.maxWidth >= 480
-                  ? 2
-                  : 1;
-      final gap = LuxiumSpacing.md; // 12px
-      final w = (c.maxWidth - gap * (cols - 1)) / cols;
+    return LayoutBuilder(
+      builder: (ctx, c) {
+        // Primary tiles: Work Days (ratio) + 4 metrics. Tighter col counts than
+        // the old 9-tile grid since the new layout is coarser-grained.
+        final cols = c.maxWidth >= 1100
+            ? 5
+            : c.maxWidth >= 760
+            ? 3
+            : c.maxWidth >= 480
+            ? 2
+            : 1;
+        final gap = LuxiumSpacing.md; // 12px
+        final w = (c.maxWidth - gap * (cols - 1)) / cols;
 
-      final primary = <Widget>[
-        _RatioStatTile(
-          width: w,
-          label: 'Work Days',
-          numerator: s.present,
-          denominator: s.workDays,
-          unit: 'days',
-          tone: AttendanceStatus.present.tone,
-        ),
-        _CountStatTile(
-          width: w,
-          label: 'Absent',
-          value: s.absent.toString(),
-          unit: 'days',
-          tone: AttendanceStatus.absent.tone,
-        ),
-        _CountStatTile(
-          width: w,
-          label: 'Late / UT',
-          value: fmtMinutes(s.lateUndertimeMinutes),
-          unit: s.lateUndertimeMinutes < 0.001 ? null : 'mins',
-          tone: StatusTone.warning,
-        ),
-        _CountStatTile(
-          width: w,
-          label: 'Overtime',
-          value: fmtMinutes(s.otMinutes),
-          unit: s.otMinutes < 0.001 ? null : 'mins',
-          tone: StatusTone.success,
-        ),
-        _CountStatTile(
-          width: w,
-          label: 'On Leave',
-          value: s.onLeave.toString(),
-          unit: 'days',
-          tone: AttendanceStatus.onLeave.tone,
-        ),
-      ];
+        final primary = <Widget>[
+          _RatioStatTile(
+            width: w,
+            label: 'Work Days',
+            numerator: s.present,
+            denominator: s.workDays,
+            unit: 'days',
+            tone: AttendanceStatus.present.tone,
+          ),
+          _CountStatTile(
+            width: w,
+            label: 'Absent',
+            value: s.absent.toString(),
+            unit: 'days',
+            tone: AttendanceStatus.absent.tone,
+          ),
+          _CountStatTile(
+            width: w,
+            label: 'Late / UT',
+            value: fmtMinutes(s.lateUndertimeMinutes),
+            unit: s.lateUndertimeMinutes < 0.001 ? null : 'mins',
+            tone: StatusTone.warning,
+          ),
+          _CountStatTile(
+            width: w,
+            label: 'Overtime',
+            value: fmtMinutes(s.otMinutes),
+            unit: s.otMinutes < 0.001 ? null : 'mins',
+            tone: StatusTone.success,
+          ),
+          _CountStatTile(
+            width: w,
+            label: 'On Leave',
+            value: s.onLeave.toString(),
+            unit: 'days',
+            tone: AttendanceStatus.onLeave.tone,
+          ),
+        ];
 
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Wrap(spacing: gap, runSpacing: gap, children: primary),
-          if (!widget.compact) ...[
-            const SizedBox(height: LuxiumSpacing.md),
-            _MoreStatsDisclosure(
-              stats: s,
-              expanded: _expanded,
-              onToggle: () => setState(() => _expanded = !_expanded),
-            ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(spacing: gap, runSpacing: gap, children: primary),
+            if (!widget.compact) ...[
+              const SizedBox(height: LuxiumSpacing.md),
+              _MoreStatsDisclosure(
+                stats: s,
+                expanded: _expanded,
+                onToggle: () => setState(() => _expanded = !_expanded),
+              ),
+            ],
           ],
-        ],
-      );
-    });
+        );
+      },
+    );
   }
 }
 
@@ -671,8 +707,9 @@ class _RatioStatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = StatusPalette.of(context, tone);
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
-    final pct =
-        denominator == 0 ? 0.0 : (numerator / denominator).clamp(0.0, 1.0);
+    final pct = denominator == 0
+        ? 0.0
+        : (numerator / denominator).clamp(0.0, 1.0);
     final pctLabel = denominator == 0 ? '' : '${(pct * 100).round()}%';
     return SizedBox(
       width: width,
@@ -685,13 +722,15 @@ class _RatioStatTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.4,
-                  color: muted,
-                )),
+            Text(
+              label.toUpperCase(),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.4,
+                color: muted,
+              ),
+            ),
             const SizedBox(height: LuxiumSpacing.sm),
             Row(
               crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -777,13 +816,15 @@ class _CountStatTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.4,
-                  color: muted,
-                )),
+            Text(
+              label.toUpperCase(),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.4,
+                color: muted,
+              ),
+            ),
             const SizedBox(height: LuxiumSpacing.sm),
             Row(
               crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -844,7 +885,9 @@ class _MoreStatsDisclosure extends StatelessWidget {
           borderRadius: BorderRadius.circular(LuxiumRadius.lg),
           child: Padding(
             padding: const EdgeInsets.symmetric(
-                horizontal: LuxiumSpacing.sm, vertical: LuxiumSpacing.xs),
+              horizontal: LuxiumSpacing.sm,
+              vertical: LuxiumSpacing.xs,
+            ),
             child: Row(
               children: [
                 Icon(
@@ -971,8 +1014,8 @@ class _LeaveBalances extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: async.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Text('Error: $e',
-                  style: const TextStyle(color: Colors.red)),
+              error: (e, _) =>
+                  Text('Error: $e', style: const TextStyle(color: Colors.red)),
               data: (rows) {
                 if (rows.isEmpty) {
                   return Text(
@@ -982,25 +1025,30 @@ class _LeaveBalances extends StatelessWidget {
                     ),
                   );
                 }
-                return LayoutBuilder(builder: (ctx, c) {
-                  final cols = c.maxWidth >= 900
-                      ? 4
-                      : c.maxWidth >= 600
-                          ? 3
-                          : c.maxWidth >= 400
-                              ? 2
-                              : 1;
-                  final spacing = 12.0;
-                  final w = (c.maxWidth - spacing * (cols - 1)) / cols;
-                  return Wrap(
-                    spacing: spacing,
-                    runSpacing: spacing,
-                    children: [
-                      for (final row in rows)
-                        SizedBox(width: w, child: _LeaveCard(row: row)),
-                    ],
-                  );
-                });
+                return LayoutBuilder(
+                  builder: (ctx, c) {
+                    final cols = c.maxWidth >= 900
+                        ? 4
+                        : c.maxWidth >= 600
+                        ? 3
+                        : c.maxWidth >= 400
+                        ? 2
+                        : 1;
+                    final spacing = 12.0;
+                    final w = (c.maxWidth - spacing * (cols - 1)) / cols;
+                    return Wrap(
+                      spacing: spacing,
+                      runSpacing: spacing,
+                      children: [
+                        for (final row in rows)
+                          SizedBox(
+                            width: w,
+                            child: _LeaveCard(row: row),
+                          ),
+                      ],
+                    );
+                  },
+                );
               },
             ),
           ),
@@ -1016,7 +1064,8 @@ class _LeaveCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final type = (row['leave_types'] as Map?)?['name'] ??
+    final type =
+        (row['leave_types'] as Map?)?['name'] ??
         (row['leave_types'] as Map?)?['code'] ??
         'Leave';
     final opening = _num(row['opening_balance']);
@@ -1114,8 +1163,18 @@ class _MonthTable extends StatelessWidget {
   });
 
   static const _shortMonths = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   String _fmtShort(DateTime d) =>
@@ -1132,7 +1191,8 @@ class _MonthTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final recordRows = rows.where((r) => r.record != null).toList();
-    final allChecked = recordRows.isNotEmpty &&
+    final allChecked =
+        recordRows.isNotEmpty &&
         recordRows.every((r) => selected.contains(r.record!.id));
     return Container(
       decoration: BoxDecoration(
@@ -1182,33 +1242,49 @@ class _MonthTable extends StatelessWidget {
                             onChanged: (v) => onHeaderChecked(v ?? false),
                           ),
                         ),
-                      const DataColumn2(label: Text('Date'), size: ColumnSize.S),
+                      const DataColumn2(
+                        label: Text('Date'),
+                        size: ColumnSize.S,
+                      ),
                       const DataColumn2(label: Text('Day'), size: ColumnSize.S),
                       const DataColumn2(
-                          label: Text('Shift'), size: ColumnSize.S),
+                        label: Text('Shift'),
+                        size: ColumnSize.S,
+                      ),
                       const DataColumn2(
-                          label: Text('Clock In'), size: ColumnSize.S),
+                        label: Text('Clock In'),
+                        size: ColumnSize.S,
+                      ),
                       const DataColumn2(
-                          label: Text('Clock Out'), size: ColumnSize.S),
+                        label: Text('Clock Out'),
+                        size: ColumnSize.S,
+                      ),
                       const DataColumn2(
-                          label: Text('Mins'),
-                          size: ColumnSize.S,
-                          numeric: true),
+                        label: Text('Mins'),
+                        size: ColumnSize.S,
+                        numeric: true,
+                      ),
                       const DataColumn2(
-                          label: Text('Status'), size: ColumnSize.M),
+                        label: Text('Status'),
+                        size: ColumnSize.M,
+                      ),
                       const DataColumn2(
-                          label: Text('Deduction'),
-                          size: ColumnSize.S,
-                          numeric: true),
+                        label: Text('Deduction'),
+                        size: ColumnSize.S,
+                        numeric: true,
+                      ),
                       const DataColumn2(
-                          label: Text('Overtime'),
-                          size: ColumnSize.S,
-                          numeric: true),
-                      const DataColumn2(label: Text(''), size: ColumnSize.S, fixedWidth: 0),
+                        label: Text('Overtime'),
+                        size: ColumnSize.S,
+                        numeric: true,
+                      ),
+                      const DataColumn2(
+                        label: Text(''),
+                        size: ColumnSize.S,
+                        fixedWidth: 0,
+                      ),
                     ],
-                    rows: [
-                      for (final row in rows) _buildRow(context, row),
-                    ],
+                    rows: [for (final row in rows) _buildRow(context, row)],
                   ),
           ),
         ],
@@ -1220,8 +1296,8 @@ class _MonthTable extends StatelessWidget {
     final theme = Theme.of(context);
     final onMuted = theme.colorScheme.onSurfaceVariant;
     final hasRecord = row.record != null;
-    final isRestOrHoliday = row.dayType.contains('REST') ||
-        row.dayType.contains('HOLIDAY');
+    final isRestOrHoliday =
+        row.dayType.contains('REST') || row.dayType.contains('HOLIDAY');
     final rowColor = isRestOrHoliday
         ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
         : null;
@@ -1241,8 +1317,10 @@ class _MonthTable extends StatelessWidget {
     bool isLateIn = false;
     final tIn = row.record?.actualTimeIn?.toLocal();
     if (tIn != null && row.shift != null && !row.record!.lateInApproved) {
-      final scheduled = _applyTime(row.date, row.shift!.startTime)
-          .add(Duration(minutes: row.shift!.graceMinutesLate));
+      final scheduled = _applyTime(
+        row.date,
+        row.shift!.startTime,
+      ).add(Duration(minutes: row.shift!.graceMinutesLate));
       isLateIn = tIn.isAfter(scheduled);
     }
 
@@ -1259,56 +1337,76 @@ class _MonthTable extends StatelessWidget {
             hasRecord
                 ? Checkbox(
                     value: selected.contains(row.record!.id),
-                    onChanged: (v) =>
-                        onRowChecked(row.record!.id, v ?? false),
+                    onChanged: (v) => onRowChecked(row.record!.id, v ?? false),
                   )
                 : const SizedBox.shrink(),
           ),
-        DataCell(Text(
-            '${_monthNames[row.date.month - 1].substring(0, 3)} ${row.date.day}')),
-        DataCell(Text(_weekdayShort(row.date.weekday),
-            style: TextStyle(color: onMuted))),
-        DataCell(Text(shiftText,
-            style: TextStyle(color: recordShift == null ? onMuted : null))),
-        DataCell(Text(
-          hasRecord ? _fmtClock(row.record!.actualTimeIn) : '—',
-          style: TextStyle(
-            color: isLateIn ? Colors.red : (hasRecord ? null : onMuted),
-            fontWeight: isLateIn ? FontWeight.w600 : null,
+        DataCell(
+          Text(
+            '${_monthNames[row.date.month - 1].substring(0, 3)} ${row.date.day}',
           ),
-        )),
-        DataCell(Text(
-          hasRecord ? _fmtClock(row.record!.actualTimeOut) : '—',
-          style: TextStyle(color: hasRecord ? null : onMuted),
-        )),
-        DataCell(Text(
-          row.workedMinutes == null ? '—' : fmtDuration(row.workedMinutes!),
-          style: TextStyle(
-            color: row.workedMinutes == null ? onMuted : null,
-            fontFamily: 'GeistMono',
+        ),
+        DataCell(
+          Text(
+            _weekdayShort(row.date.weekday),
+            style: TextStyle(color: onMuted),
           ),
-        )),
+        ),
+        DataCell(
+          Text(
+            shiftText,
+            style: TextStyle(color: recordShift == null ? onMuted : null),
+          ),
+        ),
+        DataCell(
+          Text(
+            hasRecord ? _fmtClock(row.record!.actualTimeIn) : '—',
+            style: TextStyle(
+              color: isLateIn ? Colors.red : (hasRecord ? null : onMuted),
+              fontWeight: isLateIn ? FontWeight.w600 : null,
+            ),
+          ),
+        ),
+        DataCell(
+          Text(
+            hasRecord ? _fmtClock(row.record!.actualTimeOut) : '—',
+            style: TextStyle(color: hasRecord ? null : onMuted),
+          ),
+        ),
+        DataCell(
+          Text(
+            row.workedMinutes == null ? '—' : fmtDuration(row.workedMinutes!),
+            style: TextStyle(
+              color: row.workedMinutes == null ? onMuted : null,
+              fontFamily: 'GeistMono',
+            ),
+          ),
+        ),
         DataCell(_StatusCell(row: row)),
-        DataCell(Text(
-          ded == 0 ? '—' : fmtDuration(ded),
-          style: TextStyle(
-            color: ded == 0
-                ? onMuted
-                : StatusPalette.of(context, StatusTone.warning).foreground,
-            fontWeight: ded == 0 ? null : FontWeight.w600,
-            fontFamily: 'GeistMono',
+        DataCell(
+          Text(
+            ded == 0 ? '—' : fmtDuration(ded),
+            style: TextStyle(
+              color: ded == 0
+                  ? onMuted
+                  : StatusPalette.of(context, StatusTone.warning).foreground,
+              fontWeight: ded == 0 ? null : FontWeight.w600,
+              fontFamily: 'GeistMono',
+            ),
           ),
-        )),
-        DataCell(Text(
-          ot == 0 ? '—' : fmtDuration(ot),
-          style: TextStyle(
-            color: ot == 0
-                ? onMuted
-                : StatusPalette.of(context, StatusTone.success).foreground,
-            fontWeight: ot == 0 ? null : FontWeight.w600,
-            fontFamily: 'GeistMono',
+        ),
+        DataCell(
+          Text(
+            ot == 0 ? '—' : fmtDuration(ot),
+            style: TextStyle(
+              color: ot == 0
+                  ? onMuted
+                  : StatusPalette.of(context, StatusTone.success).foreground,
+              fontWeight: ot == 0 ? null : FontWeight.w600,
+              fontFamily: 'GeistMono',
+            ),
           ),
-        )),
+        ),
         // Per-row Actions column intentionally removed — all edits happen via
         // multi-select + batch dialog. Keep empty cell for grid alignment if
         // the table columns expect a trailing cell.
@@ -1341,11 +1439,14 @@ class _StatusCell extends StatelessWidget {
             color: palette.background,
             borderRadius: BorderRadius.circular(LuxiumRadius.lg),
           ),
-          child: Text(status.label,
-              style: TextStyle(
-                  color: palette.foreground,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600)),
+          child: Text(
+            status.label,
+            style: TextStyle(
+              color: palette.foreground,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
         if (row.holidayName != null)
           Padding(
@@ -1376,13 +1477,13 @@ String _weekdayShort(int w) =>
 /// calendars, not just the one currently selected in settings.
 final _holidayEventsForYearProvider =
     FutureProvider.family<List<CalendarEvent>, int>((ref, year) async {
-  final profile = ref.watch(userProfileProvider).asData?.value;
-  if (profile == null) return const [];
-  final repo = ref.read(holidayRepositoryProvider);
-  final cal = await repo.byYear(profile.companyId, year);
-  if (cal == null) return const [];
-  return repo.events(cal.id);
-});
+      final profile = ref.watch(userProfileProvider).asData?.value;
+      if (profile == null) return const [];
+      final repo = ref.read(holidayRepositoryProvider);
+      final cal = await repo.byYear(profile.companyId, year);
+      if (cal == null) return const [];
+      return repo.events(cal.id);
+    });
 
 enum _AttendanceViewMode { table, calendar, timeline }
 
@@ -1408,7 +1509,8 @@ class _DayTimelineView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final recordRows = rows.where((r) => r.record != null).toList();
-    final allChecked = recordRows.isNotEmpty &&
+    final allChecked =
+        recordRows.isNotEmpty &&
         recordRows.every((r) => selected.contains(r.record!.id));
     return Container(
       decoration: BoxDecoration(
@@ -1432,8 +1534,10 @@ class _DayTimelineView extends StatelessWidget {
                 const SizedBox(width: 4),
                 const SizedBox(
                   width: 110,
-                  child: Text('Date',
-                      style: TextStyle(fontSize: 11, color: Colors.grey)),
+                  child: Text(
+                    'Date',
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
                 ),
                 const Expanded(child: AttendanceTimelineHeader()),
               ],
@@ -1470,7 +1574,18 @@ class _DayTimelineRow extends StatelessWidget {
   });
 
   static const _months = [
-    'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   @override
@@ -1516,7 +1631,9 @@ class _DayTimelineRow extends StatelessWidget {
           children: [
             Checkbox(
               value: selected,
-              onChanged: onChecked == null ? null : (v) => onChecked!(v ?? false),
+              onChanged: onChecked == null
+                  ? null
+                  : (v) => onChecked!(v ?? false),
             ),
             const SizedBox(width: 4),
             SizedBox(
@@ -1557,7 +1674,20 @@ class _DayTimelineRow extends StatelessWidget {
 }
 
 String _fmtShort(DateTime d) {
-  const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const m = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   return '${m[d.month - 1]} ${d.day}, ${d.year}';
 }
 
@@ -1646,17 +1776,20 @@ class _RangeBar extends StatelessWidget {
           SegmentedButton<_AttendanceViewMode>(
             segments: const [
               ButtonSegment(
-                  value: _AttendanceViewMode.table,
-                  label: Text('Table'),
-                  icon: Icon(Icons.table_rows, size: 16)),
+                value: _AttendanceViewMode.table,
+                label: Text('Table'),
+                icon: Icon(Icons.table_rows, size: 16),
+              ),
               ButtonSegment(
-                  value: _AttendanceViewMode.calendar,
-                  label: Text('Calendar'),
-                  icon: Icon(Icons.calendar_month, size: 16)),
+                value: _AttendanceViewMode.calendar,
+                label: Text('Calendar'),
+                icon: Icon(Icons.calendar_month, size: 16),
+              ),
               ButtonSegment(
-                  value: _AttendanceViewMode.timeline,
-                  label: Text('Timeline'),
-                  icon: Icon(Icons.timeline, size: 16)),
+                value: _AttendanceViewMode.timeline,
+                label: Text('Timeline'),
+                icon: Icon(Icons.timeline, size: 16),
+              ),
             ],
             selected: {viewMode},
             onSelectionChanged: (s) => onViewModeChanged(s.first),
@@ -1696,7 +1829,9 @@ class _DateRangePill extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final content = Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: LuxiumSpacing.md, vertical: LuxiumSpacing.sm),
+        horizontal: LuxiumSpacing.md,
+        vertical: LuxiumSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(LuxiumRadius.lg),
@@ -1716,8 +1851,11 @@ class _DateRangePill extends StatelessWidget {
           ),
           if (onTap != null) ...[
             const SizedBox(width: LuxiumSpacing.sm),
-            Icon(Icons.keyboard_arrow_down,
-                size: 16, color: scheme.onSurfaceVariant),
+            Icon(
+              Icons.keyboard_arrow_down,
+              size: 16,
+              color: scheme.onSurfaceVariant,
+            ),
           ],
         ],
       ),
@@ -1755,7 +1893,11 @@ class _RangePickerDialogState extends State<_RangePickerDialog> {
       lastDate: DateTime(2100),
       helpText: 'From',
     );
-    if (d != null) setState(() { _s = d; if (_e.isBefore(_s)) _e = _s; });
+    if (d != null)
+      setState(() {
+        _s = d;
+        if (_e.isBefore(_s)) _e = _s;
+      });
   }
 
   Future<void> _pickEnd() async {
@@ -1781,54 +1923,88 @@ class _RangePickerDialogState extends State<_RangePickerDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(children: [
-              Expanded(child: OutlinedButton.icon(
-                icon: const Icon(Icons.calendar_today, size: 16),
-                label: Text('From: ${_fmtShort(_s)}'),
-                onPressed: _pickStart,
-              )),
-              const SizedBox(width: 8),
-              Expanded(child: OutlinedButton.icon(
-                icon: const Icon(Icons.calendar_today, size: 16),
-                label: Text('To: ${_fmtShort(_e)}'),
-                onPressed: _pickEnd,
-              )),
-            ]),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.calendar_today, size: 16),
+                    label: Text('From: ${_fmtShort(_s)}'),
+                    onPressed: _pickStart,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.calendar_today, size: 16),
+                    label: Text('To: ${_fmtShort(_e)}'),
+                    onPressed: _pickEnd,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 10),
-            Text('$days day${days == 1 ? '' : 's'} selected',
-                style: const TextStyle(color: Colors.grey, fontSize: 12)),
+            Text(
+              '$days day${days == 1 ? '' : 's'} selected',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            ),
             const SizedBox(height: 14),
-            const Text('Quick ranges', style: TextStyle(fontWeight: FontWeight.w600)),
+            const Text(
+              'Quick ranges',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 6),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              ActionChip(label: const Text('This month'), onPressed: () => setState(() {
-                _s = DateTime(now.year, now.month, 1);
-                _e = DateTime(now.year, now.month + 1, 0);
-              })),
-              ActionChip(label: const Text('Last month'), onPressed: () => setState(() {
-                _s = DateTime(now.year, now.month - 1, 1);
-                _e = DateTime(now.year, now.month, 0);
-              })),
-              ActionChip(label: const Text('Last 3 months'), onPressed: () => setState(() {
-                _s = DateTime(now.year, now.month - 2, 1);
-                _e = DateTime(now.year, now.month + 1, 0);
-              })),
-              ActionChip(label: const Text('Last 6 months'), onPressed: () => setState(() {
-                _s = DateTime(now.year, now.month - 5, 1);
-                _e = DateTime(now.year, now.month + 1, 0);
-              })),
-              ActionChip(label: const Text('Year to date'), onPressed: () => setState(() {
-                _s = DateTime(now.year, 1, 1);
-                _e = DateTime(now.year, now.month + 1, 0);
-              })),
-            ]),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ActionChip(
+                  label: const Text('This month'),
+                  onPressed: () => setState(() {
+                    _s = DateTime(now.year, now.month, 1);
+                    _e = DateTime(now.year, now.month + 1, 0);
+                  }),
+                ),
+                ActionChip(
+                  label: const Text('Last month'),
+                  onPressed: () => setState(() {
+                    _s = DateTime(now.year, now.month - 1, 1);
+                    _e = DateTime(now.year, now.month, 0);
+                  }),
+                ),
+                ActionChip(
+                  label: const Text('Last 3 months'),
+                  onPressed: () => setState(() {
+                    _s = DateTime(now.year, now.month - 2, 1);
+                    _e = DateTime(now.year, now.month + 1, 0);
+                  }),
+                ),
+                ActionChip(
+                  label: const Text('Last 6 months'),
+                  onPressed: () => setState(() {
+                    _s = DateTime(now.year, now.month - 5, 1);
+                    _e = DateTime(now.year, now.month + 1, 0);
+                  }),
+                ),
+                ActionChip(
+                  label: const Text('Year to date'),
+                  onPressed: () => setState(() {
+                    _s = DateTime(now.year, 1, 1);
+                    _e = DateTime(now.year, now.month + 1, 0);
+                  }),
+                ),
+              ],
+            ),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
-          onPressed: () => Navigator.pop(context, DateTimeRange(start: _s, end: _e)),
+          onPressed: () =>
+              Navigator.pop(context, DateTimeRange(start: _s, end: _e)),
           child: const Text('Apply'),
         ),
       ],
@@ -1893,7 +2069,20 @@ class _MonthCalendar extends StatelessWidget {
     final monthEnd = DateTime(first.year, first.month + 1, 0);
     // Grid starts on Sunday of the week containing day 1
     final leadingBlanks = monthStart.weekday % 7; // Sun=0
-    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
     final byDay = <int, _RowVM>{for (final r in rows) r.date.day: r};
     return Card(
       child: Padding(
@@ -1901,37 +2090,50 @@ class _MonthCalendar extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('${monthNames[monthStart.month - 1]} ${monthStart.year}',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+            Text(
+              '${monthNames[monthStart.month - 1]} ${monthStart.year}',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             // Weekday header
-            Row(children: const [
-              _WeekdayLabel('Sun'), _WeekdayLabel('Mon'), _WeekdayLabel('Tue'),
-              _WeekdayLabel('Wed'), _WeekdayLabel('Thu'), _WeekdayLabel('Fri'),
-              _WeekdayLabel('Sat'),
-            ]),
+            Row(
+              children: const [
+                _WeekdayLabel('Sun'),
+                _WeekdayLabel('Mon'),
+                _WeekdayLabel('Tue'),
+                _WeekdayLabel('Wed'),
+                _WeekdayLabel('Thu'),
+                _WeekdayLabel('Fri'),
+                _WeekdayLabel('Sat'),
+              ],
+            ),
             const SizedBox(height: 4),
-            LayoutBuilder(builder: (ctx, c) {
-              final cellW = c.maxWidth / 7;
-              final totalCells = leadingBlanks + monthEnd.day;
-              final rowsNum = (totalCells / 7).ceil();
-              return Column(
-                children: [
-                  for (int weekIdx = 0; weekIdx < rowsNum; weekIdx++)
-                    Row(
-                      children: [
-                        for (int d = 0; d < 7; d++) _cell(
-                          leadingBlanks: leadingBlanks,
-                          dayIdx: weekIdx * 7 + d,
-                          monthEnd: monthEnd.day,
-                          cellW: cellW,
-                          byDay: byDay,
-                        ),
-                      ],
-                    ),
-                ],
-              );
-            }),
+            LayoutBuilder(
+              builder: (ctx, c) {
+                final cellW = c.maxWidth / 7;
+                final totalCells = leadingBlanks + monthEnd.day;
+                final rowsNum = (totalCells / 7).ceil();
+                return Column(
+                  children: [
+                    for (int weekIdx = 0; weekIdx < rowsNum; weekIdx++)
+                      Row(
+                        children: [
+                          for (int d = 0; d < 7; d++)
+                            _cell(
+                              leadingBlanks: leadingBlanks,
+                              dayIdx: weekIdx * 7 + d,
+                              monthEnd: monthEnd.day,
+                              cellW: cellW,
+                              byDay: byDay,
+                            ),
+                        ],
+                      ),
+                  ],
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -1955,7 +2157,14 @@ class _MonthCalendar extends StatelessWidget {
       height: 92,
       child: Padding(
         padding: const EdgeInsets.all(2),
-        child: row == null ? const SizedBox() : _DayCell(row: row, selected: row.record != null && selected.contains(row.record!.id), onTap: onDayTap),
+        child: row == null
+            ? const SizedBox()
+            : _DayCell(
+                row: row,
+                selected:
+                    row.record != null && selected.contains(row.record!.id),
+                onTap: onDayTap,
+              ),
       ),
     );
   }
@@ -1966,17 +2175,26 @@ class _WeekdayLabel extends StatelessWidget {
   const _WeekdayLabel(this.label);
   @override
   Widget build(BuildContext context) => Expanded(
-        child: Center(
-          child: Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w600)),
+    child: Center(
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          color: Colors.grey,
+          fontWeight: FontWeight.w600,
         ),
-      );
+      ),
+    ),
+  );
 }
 
 /// Reads the canonical attendance palette from [AttendanceStatus] so calendar
 /// cells and table pills stay in lockstep. Falls back to neutral for unknown
 /// statuses without minting a one-off palette.
 ({String label, Color bg, Color fg}) _calendarPillColors(
-    BuildContext context, _RowVM row) {
+  BuildContext context,
+  _RowVM row,
+) {
   final worked = row.record?.actualTimeIn != null;
   final s = classifyAttendance(
     status: row.status,
@@ -1991,7 +2209,11 @@ class _DayCell extends StatelessWidget {
   final _RowVM row;
   final bool selected;
   final void Function(_RowVM row) onTap;
-  const _DayCell({required this.row, required this.selected, required this.onTap});
+  const _DayCell({
+    required this.row,
+    required this.selected,
+    required this.onTap,
+  });
 
   String _hhmm(DateTime t) {
     final local = t.toLocal();
@@ -2016,7 +2238,9 @@ class _DayCell extends StatelessWidget {
         decoration: BoxDecoration(
           color: bg,
           border: Border.all(
-            color: selected ? Theme.of(context).colorScheme.primary : Colors.black.withValues(alpha: 0.04),
+            color: selected
+                ? Theme.of(context).colorScheme.primary
+                : Colors.black.withValues(alpha: 0.04),
             width: selected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(6),
@@ -2028,28 +2252,49 @@ class _DayCell extends StatelessWidget {
             // Day number + compact status badge
             Row(
               children: [
-                Text('${row.date.day}',
-                    style: TextStyle(fontSize: 12, color: fg, fontWeight: FontWeight.w700)),
+                Text(
+                  '${row.date.day}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: fg,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const Spacer(),
-                Text(label,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 9, color: fg, fontWeight: FontWeight.w600)),
+                Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: fg,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
             // Subtitle: holiday name (e.g. "Maundy Thursday") when it's a holiday
             if ((row.holidayName ?? '').isNotEmpty) ...[
               const SizedBox(height: 1),
-              Text(row.holidayName!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 9, color: fg.withValues(alpha: 0.85))),
+              Text(
+                row.holidayName!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 9,
+                  color: fg.withValues(alpha: 0.85),
+                ),
+              ),
             ],
             const Spacer(),
             // Clock in / out row (only when present)
             if (tIn != null || tOut != null)
               Text(
                 '${tIn == null ? "—" : _hhmm(tIn)} → ${tOut == null ? "—" : _hhmm(tOut)}',
-                style: TextStyle(fontSize: 10, color: fg, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: fg,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             // OT + deduction chips
             if (ot > 0 || ded > 0) ...[
@@ -2059,24 +2304,32 @@ class _DayCell extends StatelessWidget {
                   if (ot > 0)
                     Padding(
                       padding: const EdgeInsets.only(right: 4),
-                      child: Text('OT ${fmtDuration(ot)}',
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontFamily: 'GeistMono',
-                            color: StatusPalette.of(context, StatusTone.success)
-                                .foreground,
-                            fontWeight: FontWeight.w700,
-                          )),
-                    ),
-                  if (ded > 0)
-                    Text('−${fmtDuration(ded)}',
+                      child: Text(
+                        'OT ${fmtDuration(ot)}',
                         style: TextStyle(
                           fontSize: 9,
                           fontFamily: 'GeistMono',
-                          color: StatusPalette.of(context, StatusTone.warning)
-                              .foreground,
+                          color: StatusPalette.of(
+                            context,
+                            StatusTone.success,
+                          ).foreground,
                           fontWeight: FontWeight.w700,
-                        )),
+                        ),
+                      ),
+                    ),
+                  if (ded > 0)
+                    Text(
+                      '−${fmtDuration(ded)}',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontFamily: 'GeistMono',
+                        color: StatusPalette.of(
+                          context,
+                          StatusTone.warning,
+                        ).foreground,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                 ],
               ),
             ],

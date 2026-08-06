@@ -9,8 +9,8 @@ import '../../../../data/repositories/payroll_repository.dart';
 /// typed model layer.
 final payslipDetailProvider =
     FutureProvider.family<Map<String, dynamic>?, String>((ref, payslipId) {
-  return ref.watch(payrollRepositoryProvider).payslipDetailById(payslipId);
-});
+      return ref.watch(payrollRepositoryProvider).payslipDetailById(payslipId);
+    });
 
 class AttendanceForPayslipKey {
   final String employeeId;
@@ -35,14 +35,14 @@ class AttendanceForPayslipKey {
 }
 
 final attendanceForPayslipProvider =
-    FutureProvider.family<List<AttendanceDay>, AttendanceForPayslipKey>(
-        (ref, k) {
-  return ref.watch(attendanceRepositoryProvider).listByRange(
-        start: k.from,
-        end: k.to,
-        employeeId: k.employeeId,
-      );
-});
+    FutureProvider.family<List<AttendanceDay>, AttendanceForPayslipKey>((
+      ref,
+      k,
+    ) {
+      return ref
+          .watch(attendanceRepositoryProvider)
+          .listByRange(start: k.from, end: k.to, employeeId: k.employeeId);
+    });
 
 class ManualAdjustmentsKey {
   final String runId;
@@ -60,9 +60,12 @@ class ManualAdjustmentsKey {
   int get hashCode => Object.hash(runId, employeeId);
 }
 
-final manualAdjustmentsProvider = FutureProvider.family<
-    List<Map<String, dynamic>>, ManualAdjustmentsKey>((ref, k) {
-  return ref
-      .watch(payrollRepositoryProvider)
-      .manualAdjustments(k.runId, k.employeeId);
-});
+final manualAdjustmentsProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, ManualAdjustmentsKey>((
+      ref,
+      k,
+    ) {
+      return ref
+          .watch(payrollRepositoryProvider)
+          .manualAdjustments(k.runId, k.employeeId);
+    });

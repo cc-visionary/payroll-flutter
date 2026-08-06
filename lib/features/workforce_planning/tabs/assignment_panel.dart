@@ -87,7 +87,8 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
     return existing;
   }
 
-  FocusNode _focusNodeFor(WpTaskAssignment a) => _focusNodes.putIfAbsent(a.id, () {
+  FocusNode _focusNodeFor(WpTaskAssignment a) =>
+      _focusNodes.putIfAbsent(a.id, () {
         final node = FocusNode();
         node.addListener(() {
           if (node.hasFocus) return;
@@ -108,11 +109,14 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
       );
     }
     if (byTaskAsync.hasError) {
-      return Text('Error: ${byTaskAsync.error}',
-          style: const TextStyle(color: Colors.red));
+      return Text(
+        'Error: ${byTaskAsync.error}',
+        style: const TextStyle(color: Colors.red),
+      );
     }
 
-    final byTask = byTaskAsync.asData?.value ?? const <String, List<WpTaskAssignment>>{};
+    final byTask =
+        byTaskAsync.asData?.value ?? const <String, List<WpTaskAssignment>>{};
     final rows = byTask[widget.taskId] ?? const <WpTaskAssignment>[];
     // Refresh so the focus-loss listener (see _focusNodeFor) always commits
     // against the row this build actually rendered, not a stale one.
@@ -123,7 +127,8 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
     // hoursPerMonth on the task is direct-hours only — null for every
     // driver/rate-costed task. Prefer the computed view's real hours; fall
     // back to widget.taskHours only when the computed row hasn't loaded yet.
-    final allComputed = ref.watch(wpAllTaskComputedProvider).asData?.value ??
+    final allComputed =
+        ref.watch(wpAllTaskComputedProvider).asData?.value ??
         const <WpTaskComputed>[];
     double? computedHours;
     for (final c in allComputed) {
@@ -185,7 +190,11 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
     );
   }
 
-  Widget _assignmentRow(BuildContext context, WpTaskAssignment a, double hours) {
+  Widget _assignmentRow(
+    BuildContext context,
+    WpTaskAssignment a,
+    double hours,
+  ) {
     final isPrimary = a.assignmentRole == 'PRIMARY';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -209,7 +218,9 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
               controller: _controllerFor(a),
               focusNode: _focusNodeFor(a),
               textAlign: TextAlign.right,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*$')),
               ],
@@ -267,10 +278,12 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
     final rowHours = hours * a.allocationPct / 100;
     if (a.roleScorecardId != null) {
       final n = widget.employees
-          .where((e) =>
-              e.roleScorecardId == a.roleScorecardId &&
-              e.employmentStatus == 'ACTIVE' &&
-              e.deletedAt == null)
+          .where(
+            (e) =>
+                e.roleScorecardId == a.roleScorecardId &&
+                e.employmentStatus == 'ACTIVE' &&
+                e.deletedAt == null,
+          )
           .length;
       if (n == 0) return 'no active holder';
       final each = rowHours / n;
@@ -284,7 +297,9 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
     final parsed = double.tryParse(raw.trim());
     if (parsed == null || parsed == a.allocationPct) return;
     try {
-      await ref.read(workforcePlanningRepositoryProvider).upsertAssignment(
+      await ref
+          .read(workforcePlanningRepositoryProvider)
+          .upsertAssignment(
             WpTaskAssignment(
               id: a.id,
               companyId: widget.companyId,
@@ -297,8 +312,9 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
           );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Could not update %: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not update %: $e')));
       }
     } finally {
       // Always resync, success or failure — a failed write can leave the
@@ -314,42 +330,45 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
         title: const Text('Remove contributor?'),
         content: Text('Remove ${_targetLabel(a)} from this accountability?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Remove')),
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Remove'),
+          ),
         ],
       ),
     );
     if (ok != true || !mounted) return;
     try {
-      await ref.read(workforcePlanningRepositoryProvider).deleteAssignment(a.id);
+      await ref
+          .read(workforcePlanningRepositoryProvider)
+          .deleteAssignment(a.id);
       if (mounted) {
         _controllers.remove(a.id)?.dispose();
         _focusNodes.remove(a.id)?.dispose();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Could not remove: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not remove: $e')));
       }
     } finally {
       if (mounted) _invalidate([a.roleScorecardId]);
     }
   }
 
-  Future<void> _splitEqually(List<WpTaskAssignment> rows) => _writeAll(
-        rows,
-        splitEqually(rows.length),
-      );
+  Future<void> _splitEqually(List<WpTaskAssignment> rows) =>
+      _writeAll(rows, splitEqually(rows.length));
 
-  Future<void> _ownerMajority(List<WpTaskAssignment> rows, int primaryIndex) => _writeAll(
-        rows,
-        ownerMajority(rows.length, primaryIndex: primaryIndex),
-      );
+  Future<void> _ownerMajority(List<WpTaskAssignment> rows, int primaryIndex) =>
+      _writeAll(rows, ownerMajority(rows.length, primaryIndex: primaryIndex));
 
-  Future<void> _clear(List<WpTaskAssignment> rows) => _writeAll(
-        rows,
-        clearAllocations(rows.length),
-      );
+  Future<void> _clear(List<WpTaskAssignment> rows) =>
+      _writeAll(rows, clearAllocations(rows.length));
 
   Future<void> _writeAll(List<WpTaskAssignment> rows, List<double> pcts) async {
     final map = {for (var i = 0; i < rows.length; i++) rows[i].id: pcts[i]};
@@ -357,8 +376,9 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
       await ref.read(workforcePlanningRepositoryProvider).setAllocations(map);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Could not update allocations: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not update allocations: $e')),
+        );
       }
     } finally {
       // setAllocations is a per-row loop with no transaction, so a mid-loop
@@ -368,12 +388,20 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
   }
 
   Future<void> _addContributor(List<WpTaskAssignment> rows) async {
-    final existingCardIds = rows.map((r) => r.roleScorecardId).whereType<String>().toSet();
-    final existingEmployeeIds = rows.map((r) => r.employeeId).whereType<String>().toSet();
-    final availableCards =
-        widget.cards.where((c) => !existingCardIds.contains(c.id)).toList();
-    final availableEmployees =
-        widget.employees.where((e) => !existingEmployeeIds.contains(e.id)).toList();
+    final existingCardIds = rows
+        .map((r) => r.roleScorecardId)
+        .whereType<String>()
+        .toSet();
+    final existingEmployeeIds = rows
+        .map((r) => r.employeeId)
+        .whereType<String>()
+        .toSet();
+    final availableCards = widget.cards
+        .where((c) => !existingCardIds.contains(c.id))
+        .toList();
+    final availableEmployees = widget.employees
+        .where((e) => !existingEmployeeIds.contains(e.id))
+        .toList();
 
     final picked = await showDialog<_ContributorPick>(
       context: context,
@@ -385,7 +413,9 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
     if (picked == null || !mounted) return;
 
     try {
-      await ref.read(workforcePlanningRepositoryProvider).upsertAssignment(
+      await ref
+          .read(workforcePlanningRepositoryProvider)
+          .upsertAssignment(
             WpTaskAssignment(
               id: '',
               companyId: widget.companyId,
@@ -398,8 +428,9 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
           );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Could not add contributor: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not add contributor: $e')),
+        );
       }
     } finally {
       if (mounted) _invalidate([picked.cardId]);
@@ -444,8 +475,14 @@ class _AddContributorDialogState extends State<_AddContributorDialog> {
   @override
   Widget build(BuildContext context) {
     final items = _isCard
-        ? [for (final c in widget.cards) DropdownMenuItem(value: c.id, child: Text(c.jobTitle))]
-        : [for (final e in widget.employees) DropdownMenuItem(value: e.id, child: Text(e.fullName))];
+        ? [
+            for (final c in widget.cards)
+              DropdownMenuItem(value: c.id, child: Text(c.jobTitle)),
+          ]
+        : [
+            for (final e in widget.employees)
+              DropdownMenuItem(value: e.id, child: Text(e.fullName)),
+          ];
 
     return AlertDialog(
       title: const Text('Add contributor'),
@@ -477,16 +514,19 @@ class _AddContributorDialogState extends State<_AddContributorDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           onPressed: _selectedId == null
               ? null
               : () => Navigator.pop(
-                    context,
-                    _isCard
-                        ? _ContributorPick(cardId: _selectedId)
-                        : _ContributorPick(employeeId: _selectedId),
-                  ),
+                  context,
+                  _isCard
+                      ? _ContributorPick(cardId: _selectedId)
+                      : _ContributorPick(employeeId: _selectedId),
+                ),
           child: const Text('Add'),
         ),
       ],

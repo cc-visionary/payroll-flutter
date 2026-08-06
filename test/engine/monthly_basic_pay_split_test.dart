@@ -33,25 +33,29 @@ EmployeePayrollInput _employee({
 
   final attendance = <AttendanceDayInput>[];
   for (var day = 1; day <= 22; day++) {
-    attendance.add(AttendanceDayInput(
-      id: 'A$day',
-      attendanceDate: DateTime.utc(2026, 7, day),
-      dayType: DayType.WORKDAY,
-      workedMinutes: 480,
-      deductionMinutes: 0,
-      absentMinutes: 0,
-      otMinutes: 0,
-      otEarlyInMinutes: 0,
-      otLateOutMinutes: 0,
-      overtimeRestDayMinutes: 0,
-      overtimeHolidayMinutes: 0,
-      earlyInApproved: false,
-      lateOutApproved: false,
-      nightDiffMinutes: 0,
-      isOnLeave: false,
-      leaveIsPaid: false,
-      dailyRateOverride: (overrideBefore != null && day < switchDay) ? overrideBefore : null,
-    ));
+    attendance.add(
+      AttendanceDayInput(
+        id: 'A$day',
+        attendanceDate: DateTime.utc(2026, 7, day),
+        dayType: DayType.WORKDAY,
+        workedMinutes: 480,
+        deductionMinutes: 0,
+        absentMinutes: 0,
+        otMinutes: 0,
+        otEarlyInMinutes: 0,
+        otLateOutMinutes: 0,
+        overtimeRestDayMinutes: 0,
+        overtimeHolidayMinutes: 0,
+        earlyInApproved: false,
+        lateOutApproved: false,
+        nightDiffMinutes: 0,
+        isOnLeave: false,
+        leaveIsPaid: false,
+        dailyRateOverride: (overrideBefore != null && day < switchDay)
+            ? overrideBefore
+            : null,
+      ),
+    );
   }
 
   return EmployeePayrollInput(
@@ -71,23 +75,23 @@ EmployeePayrollInput _employee({
 }
 
 PayPeriodInput get _july => PayPeriodInput(
-      id: 'PP-7',
-      startDate: DateTime.utc(2026, 7, 1),
-      endDate: DateTime.utc(2026, 7, 31),
-      cutoffDate: DateTime.utc(2026, 7, 31),
-      payDate: DateTime.utc(2026, 8, 5),
-      periodNumber: 7,
-      payFrequency: PayFrequency.MONTHLY,
-    );
+  id: 'PP-7',
+  startDate: DateTime.utc(2026, 7, 1),
+  endDate: DateTime.utc(2026, 7, 31),
+  cutoffDate: DateTime.utc(2026, 7, 31),
+  payDate: DateTime.utc(2026, 8, 5),
+  periodNumber: 7,
+  payFrequency: PayFrequency.MONTHLY,
+);
 
 RulesetInput get _ruleset => RulesetInput(
-      id: 'r',
-      version: 1,
-      sssTable: SSS_TABLE,
-      philhealthTable: PHILHEALTH_TABLE,
-      pagibigTable: PAGIBIG_TABLE,
-      taxTable: TAX_TABLE,
-    );
+  id: 'r',
+  version: 1,
+  sssTable: SSS_TABLE,
+  philhealthTable: PHILHEALTH_TABLE,
+  pagibigTable: PAGIBIG_TABLE,
+  taxTable: TAX_TABLE,
+);
 
 List<ComputedPayslipLine> _basicPayLines(EmployeePayrollInput emp) {
   final result = computePayroll(_july, _ruleset, [emp]);
@@ -105,26 +109,35 @@ void main() {
     expect(lines.single.rate, isNull);
   });
 
-  test('two rates -> two lines, old rate first, summing to the per-day total', () {
-    // Standard = 38000/26; days 1..16 overridden to 30000/26.
-    final oldRate = (_d('30000') / Decimal.fromInt(26))
-        .toDecimal(scaleOnInfinitePrecision: 10);
-    final lines = _basicPayLines(
-      _employee(baseRate: _d('38000'), overrideBefore: oldRate, switchDay: 17),
-    );
+  test(
+    'two rates -> two lines, old rate first, summing to the per-day total',
+    () {
+      // Standard = 38000/26; days 1..16 overridden to 30000/26.
+      final oldRate = (_d('30000') / Decimal.fromInt(26)).toDecimal(
+        scaleOnInfinitePrecision: 10,
+      );
+      final lines = _basicPayLines(
+        _employee(
+          baseRate: _d('38000'),
+          overrideBefore: oldRate,
+          switchDay: 17,
+        ),
+      );
 
-    expect(lines, hasLength(2));
-    // First-occurrence order: the overridden (old) rate is day 1.
-    expect(lines[0].quantity, Decimal.fromInt(16));
-    expect(lines[1].quantity, Decimal.fromInt(6));
-    expect(lines[0].description, 'Basic Pay (Monthly) — 16 days');
-    expect(lines[1].description, 'Basic Pay (Monthly) — 6 days');
-    // Old rate strictly below the new rate.
-    expect(lines[0].rate! < lines[1].rate!, isTrue);
+      expect(lines, hasLength(2));
+      // First-occurrence order: the overridden (old) rate is day 1.
+      expect(lines[0].quantity, Decimal.fromInt(16));
+      expect(lines[1].quantity, Decimal.fromInt(6));
+      expect(lines[0].description, 'Basic Pay (Monthly) — 16 days');
+      expect(lines[1].description, 'Basic Pay (Monthly) — 6 days');
+      // Old rate strictly below the new rate.
+      expect(lines[0].rate! < lines[1].rate!, isTrue);
 
-    final total = lines.fold<Decimal>(Decimal.zero, (a, l) => a + l.amount);
-    final expected = lines[0].rate! * Decimal.fromInt(16) +
-        lines[1].rate! * Decimal.fromInt(6);
-    expect(total, expected);
-  });
+      final total = lines.fold<Decimal>(Decimal.zero, (a, l) => a + l.amount);
+      final expected =
+          lines[0].rate! * Decimal.fromInt(16) +
+          lines[1].rate! * Decimal.fromInt(6);
+      expect(total, expected);
+    },
+  );
 }

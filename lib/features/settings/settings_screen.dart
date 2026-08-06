@@ -16,19 +16,38 @@ import 'users/users_settings_screen.dart';
 import '../lark/lark_settings_screen.dart';
 
 enum _Tab {
-  departments('departments', 'Departments', 'Manage company departments',
-      Icons.apartment_outlined),
-  hiringEntities('hiring-entities', 'Company Info',
-      'Hiring entities & registrations', Icons.business_outlined),
-  bankAccounts('bank-accounts', 'Bank Accounts', 'Company payment sources',
-      Icons.account_balance_outlined),
-  roles('roles', 'Roles', 'Manage roles and permissions',
-      Icons.shield_outlined),
-  users('users', 'Users', 'Manage who can log in',
-      Icons.people_alt_outlined),
+  departments(
+    'departments',
+    'Departments',
+    'Manage company departments',
+    Icons.apartment_outlined,
+  ),
+  hiringEntities(
+    'hiring-entities',
+    'Company Info',
+    'Hiring entities & registrations',
+    Icons.business_outlined,
+  ),
+  bankAccounts(
+    'bank-accounts',
+    'Bank Accounts',
+    'Company payment sources',
+    Icons.account_balance_outlined,
+  ),
+  roles(
+    'roles',
+    'Roles',
+    'Manage roles and permissions',
+    Icons.shield_outlined,
+  ),
+  users('users', 'Users', 'Manage who can log in', Icons.people_alt_outlined),
   shifts('shifts', 'Shift Templates', 'Define work schedules', Icons.schedule),
-  holidays('holidays', 'Holidays', 'Holiday calendar for payroll',
-      Icons.event_outlined),
+  holidays(
+    'holidays',
+    'Holidays',
+    'Holiday calendar for payroll',
+    Icons.event_outlined,
+  ),
   lark('lark', 'Integrations', 'Attendance source & Lark sync', Icons.sync),
   about('about', 'About', 'Version and appearance', Icons.info_outline);
 
@@ -83,26 +102,30 @@ class _State extends ConsumerState<SettingsScreen> {
   }
 
   Widget _desktopLayout() {
-    return Row(children: [
-      SizedBox(
-        width: 260,
-        child: ListView(children: [
-          _tile(_Tab.departments),
-          _tile(_Tab.hiringEntities),
-          _tile(_Tab.bankAccounts),
-          _tile(_Tab.roles),
-          if (_isSuperAdmin) _tile(_Tab.users),
-          const Divider(height: 24, indent: 16, endIndent: 16),
-          _tile(_Tab.shifts),
-          _tile(_Tab.holidays),
-          _tile(_Tab.lark),
-          const Divider(height: 24, indent: 16, endIndent: 16),
-          _tile(_Tab.about),
-        ]),
-      ),
-      const VerticalDivider(width: 1),
-      Expanded(child: _body()),
-    ]);
+    return Row(
+      children: [
+        SizedBox(
+          width: 260,
+          child: ListView(
+            children: [
+              _tile(_Tab.departments),
+              _tile(_Tab.hiringEntities),
+              _tile(_Tab.bankAccounts),
+              _tile(_Tab.roles),
+              if (_isSuperAdmin) _tile(_Tab.users),
+              const Divider(height: 24, indent: 16, endIndent: 16),
+              _tile(_Tab.shifts),
+              _tile(_Tab.holidays),
+              _tile(_Tab.lark),
+              const Divider(height: 24, indent: 16, endIndent: 16),
+              _tile(_Tab.about),
+            ],
+          ),
+        ),
+        const VerticalDivider(width: 1),
+        Expanded(child: _body()),
+      ],
+    );
   }
 
   Widget _mobileLayout() {
@@ -123,11 +146,13 @@ class _State extends ConsumerState<SettingsScreen> {
                 if (t != _Tab.users || _isSuperAdmin)
                   DropdownMenuItem(
                     value: t,
-                    child: Row(children: [
-                      Icon(t.icon, size: 18),
-                      const SizedBox(width: 8),
-                      Text(t.label),
-                    ]),
+                    child: Row(
+                      children: [
+                        Icon(t.icon, size: 18),
+                        const SizedBox(width: 8),
+                        Text(t.label),
+                      ],
+                    ),
                   ),
             ],
             onChanged: (next) {
@@ -148,11 +173,13 @@ class _State extends ConsumerState<SettingsScreen> {
     final color = selected ? Theme.of(context).colorScheme.primary : null;
     return ListTile(
       leading: Icon(tab.icon, color: color),
-      title: Text(tab.label,
-          style: TextStyle(
-            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-            color: color,
-          )),
+      title: Text(
+        tab.label,
+        style: TextStyle(
+          fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+          color: color,
+        ),
+      ),
       subtitle: Text(tab.subtitle, style: const TextStyle(fontSize: 12)),
       selected: selected,
       onTap: () {

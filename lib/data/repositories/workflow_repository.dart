@@ -46,8 +46,8 @@ class WorkflowStepInput {
 
 /// Filter parameters for the workflows list. Mirrors ApplicantListQuery shape.
 class WorkflowListQuery {
-  final List<String>? statuses;   // null = all; default in UI = exclude CANCELLED
-  final List<String>? types;       // null = all workflow_types
+  final List<String>? statuses; // null = all; default in UI = exclude CANCELLED
+  final List<String>? types; // null = all workflow_types
   final String? employeeId;
   const WorkflowListQuery({this.statuses, this.types, this.employeeId});
 
@@ -61,10 +61,10 @@ class WorkflowListQuery {
 
   @override
   int get hashCode => Object.hash(
-        Object.hashAll(statuses ?? const []),
-        Object.hashAll(types ?? const []),
-        employeeId,
-      );
+    Object.hashAll(statuses ?? const []),
+    Object.hashAll(types ?? const []),
+    employeeId,
+  );
 
   static bool _eq(List<String>? a, List<String>? b) {
     if (a == null && b == null) return true;
@@ -99,7 +99,11 @@ class WorkflowRepository {
   }
 
   Future<WorkflowInstance?> byId(String id) async {
-    final row = await _client.from('workflow_instances').select('*').eq('id', id).maybeSingle();
+    final row = await _client
+        .from('workflow_instances')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
     if (row == null) return null;
     return WorkflowInstanceFromRow.fromRow(row);
   }
@@ -130,7 +134,8 @@ class WorkflowRepository {
           'company_id': instance.companyId,
           'employee_id': instance.employeeId,
           'workflow_type': instance.workflowType,
-          'status': 'IN_PROGRESS',  // not DRAFT — DRAFT means "not yet kicked off"
+          'status':
+              'IN_PROGRESS', // not DRAFT — DRAFT means "not yet kicked off"
           'title': instance.title,
           'context': instance.context,
           'initiated_by_id': instance.initiatedById,
@@ -177,7 +182,9 @@ class WorkflowRepository {
       'completed_at': DateTime.now().toIso8601String(),
       if (remarks != null) ...{'remarks': remarks},
       if (outputData != null) ...{'output_data': outputData},
-      if (generatedDocumentId != null) ...{'generated_document_id': generatedDocumentId},
+      if (generatedDocumentId != null) ...{
+        'generated_document_id': generatedDocumentId,
+      },
     };
     await _client.from('workflow_steps').update(payload).eq('id', stepId);
   }
@@ -187,12 +194,15 @@ class WorkflowRepository {
     required String completedById,
     String? remarks,
   }) async {
-    await _client.from('workflow_steps').update({
-      'status': 'SKIPPED',
-      'completed_by_id': completedById,
-      'completed_at': DateTime.now().toIso8601String(),
-      if (remarks != null) ...{'remarks': remarks},
-    }).eq('id', stepId);
+    await _client
+        .from('workflow_steps')
+        .update({
+          'status': 'SKIPPED',
+          'completed_by_id': completedById,
+          'completed_at': DateTime.now().toIso8601String(),
+          if (remarks != null) ...{'remarks': remarks},
+        })
+        .eq('id', stepId);
   }
 
   Future<void> markStepRejected({
@@ -200,12 +210,15 @@ class WorkflowRepository {
     required String completedById,
     required String remarks,
   }) async {
-    await _client.from('workflow_steps').update({
-      'status': 'REJECTED',
-      'completed_by_id': completedById,
-      'completed_at': DateTime.now().toIso8601String(),
-      'remarks': remarks,
-    }).eq('id', stepId);
+    await _client
+        .from('workflow_steps')
+        .update({
+          'status': 'REJECTED',
+          'completed_by_id': completedById,
+          'completed_at': DateTime.now().toIso8601String(),
+          'remarks': remarks,
+        })
+        .eq('id', stepId);
   }
 
   /// If every step on the instance is COMPLETED or SKIPPED, flip the instance
@@ -224,12 +237,17 @@ class WorkflowRepository {
     if (statuses.isEmpty) return;
     final allDone = statuses.every((s) => s == 'COMPLETED' || s == 'SKIPPED');
     if (!allDone) return;
-    await _client.from('workflow_instances').update({
-      'status': 'COMPLETED',
-      'completed_at': DateTime.now().toIso8601String(),
-    })
-    .eq('id', instanceId)
-    .inFilter('status', ['DRAFT', 'IN_PROGRESS']);  // idempotent — don't re-complete
+    await _client
+        .from('workflow_instances')
+        .update({
+          'status': 'COMPLETED',
+          'completed_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', instanceId)
+        .inFilter('status', [
+          'DRAFT',
+          'IN_PROGRESS',
+        ]); // idempotent — don't re-complete
   }
 
   Future<void> cancelInstance({
@@ -239,13 +257,15 @@ class WorkflowRepository {
     // Note: `workflow_instances` schema has no cancelled_by_id column.
     // If/when audit-trail granularity is needed, add the column via
     // migration + a setByUserId param here (mirroring the step lifecycle).
-    await _client.from('workflow_instances').update({
-      'status': 'CANCELLED',
-      'cancelled_at': DateTime.now().toIso8601String(),
-      'cancel_reason': cancelReason,
-    })
-    .eq('id', instanceId)
-    .inFilter('status', ['DRAFT', 'IN_PROGRESS']);  // idempotent
+    await _client
+        .from('workflow_instances')
+        .update({
+          'status': 'CANCELLED',
+          'cancelled_at': DateTime.now().toIso8601String(),
+          'cancel_reason': cancelReason,
+        })
+        .eq('id', instanceId)
+        .inFilter('status', ['DRAFT', 'IN_PROGRESS']); // idempotent
   }
 
   /// Hard-deletes a CANCELLED, standalone (non-compensation) workflow together
@@ -258,7 +278,10 @@ class WorkflowRepository {
   /// delete — nothing is deleted in that case.
   Future<void> deleteWorkflow(String instanceId) async {
     try {
-      await _client.rpc('delete_workflow', params: {'p_instance_id': instanceId});
+      await _client.rpc(
+        'delete_workflow',
+        params: {'p_instance_id': instanceId},
+      );
     } catch (e) {
       final forbidden = deleteForbiddenFrom(e);
       if (forbidden != null) throw forbidden;
@@ -279,8 +302,10 @@ class WorkflowRepository {
   /// guard, mirroring how the Adjuncts screen reports a refused delete.
   Future<void> deletePenaltyWorkflow(String instanceId) async {
     try {
-      await _client
-          .rpc('delete_penalty_workflow', params: {'p_instance_id': instanceId});
+      await _client.rpc(
+        'delete_penalty_workflow',
+        params: {'p_instance_id': instanceId},
+      );
     } on PostgrestException catch (e) {
       throw AdjunctDeleteException(_penaltyWorkflowDeleteMessage(e.message));
     }
@@ -333,12 +358,15 @@ class WorkflowRepository {
     final rows = stepRows as List;
     if (rows.isNotEmpty) {
       final stepId = (rows.first as Map<String, dynamic>)['id'] as String;
-      await _client.from('workflow_steps').update({
-        'status': 'PENDING',
-        'completed_by_id': null,
-        'completed_at': null,
-        'remarks': null,
-      }).eq('id', stepId);
+      await _client
+          .from('workflow_steps')
+          .update({
+            'status': 'PENDING',
+            'completed_by_id': null,
+            'completed_at': null,
+            'remarks': null,
+          })
+          .eq('id', stepId);
     }
     await _client
         .from('workflow_instances')
@@ -348,17 +376,20 @@ class WorkflowRepository {
   }
 }
 
-final workflowRepositoryProvider =
-    Provider<WorkflowRepository>((ref) => WorkflowRepository(Supabase.instance.client));
+final workflowRepositoryProvider = Provider<WorkflowRepository>(
+  (ref) => WorkflowRepository(Supabase.instance.client),
+);
 
 final workflowListProvider =
-    FutureProvider.family<List<WorkflowInstance>, WorkflowListQuery>((ref, q) =>
-        ref.read(workflowRepositoryProvider).list(q));
+    FutureProvider.family<List<WorkflowInstance>, WorkflowListQuery>(
+      (ref, q) => ref.read(workflowRepositoryProvider).list(q),
+    );
 
-final workflowByIdProvider =
-    FutureProvider.family<WorkflowInstance?, String>((ref, id) =>
-        ref.read(workflowRepositoryProvider).byId(id));
+final workflowByIdProvider = FutureProvider.family<WorkflowInstance?, String>(
+  (ref, id) => ref.read(workflowRepositoryProvider).byId(id),
+);
 
-final workflowStepsProvider =
-    FutureProvider.family<List<WorkflowStep>, String>((ref, workflowInstanceId) =>
-        ref.read(workflowRepositoryProvider).stepsForInstance(workflowInstanceId));
+final workflowStepsProvider = FutureProvider.family<List<WorkflowStep>, String>(
+  (ref, workflowInstanceId) =>
+      ref.read(workflowRepositoryProvider).stepsForInstance(workflowInstanceId),
+);

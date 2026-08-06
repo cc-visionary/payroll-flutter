@@ -76,51 +76,50 @@ class NdaInputs extends TemplateInputs {
     String? authorizedSignatoryRole,
     Uint8List? logoBytes,
     String? companySignaturePngB64,
-  }) =>
-      NdaInputs(
-        employeeId: employeeId ?? this.employeeId,
-        employeeFullName: employeeFullName ?? this.employeeFullName,
-        employeePosition: employeePosition ?? this.employeePosition,
-        employeeHomeAddress: employeeHomeAddress ?? this.employeeHomeAddress,
-        companyId: companyId ?? this.companyId,
-        companyName: companyName ?? this.companyName,
-        companyAddress: companyAddress ?? this.companyAddress,
-        effectiveDate: identical(effectiveDate, _undef)
-            ? this.effectiveDate
-            : effectiveDate as DateTime?,
-        authorizedSignatoryName:
-            authorizedSignatoryName ?? this.authorizedSignatoryName,
-        authorizedSignatoryRole:
-            authorizedSignatoryRole ?? this.authorizedSignatoryRole,
-        logoBytes: logoBytes ?? this.logoBytes,
-        companySignaturePngB64:
-            companySignaturePngB64 ?? this.companySignaturePngB64,
-      );
+  }) => NdaInputs(
+    employeeId: employeeId ?? this.employeeId,
+    employeeFullName: employeeFullName ?? this.employeeFullName,
+    employeePosition: employeePosition ?? this.employeePosition,
+    employeeHomeAddress: employeeHomeAddress ?? this.employeeHomeAddress,
+    companyId: companyId ?? this.companyId,
+    companyName: companyName ?? this.companyName,
+    companyAddress: companyAddress ?? this.companyAddress,
+    effectiveDate: identical(effectiveDate, _undef)
+        ? this.effectiveDate
+        : effectiveDate as DateTime?,
+    authorizedSignatoryName:
+        authorizedSignatoryName ?? this.authorizedSignatoryName,
+    authorizedSignatoryRole:
+        authorizedSignatoryRole ?? this.authorizedSignatoryRole,
+    logoBytes: logoBytes ?? this.logoBytes,
+    companySignaturePngB64:
+        companySignaturePngB64 ?? this.companySignaturePngB64,
+  );
 
   @override
   Map<String, dynamic> toDebugMap() => {
-        'employeeId': employeeId,
-        'companyId': companyId,
-        'position': employeePosition,
-        'companySignaturePngB64': companySignaturePngB64 == null
-            ? null
-            : '<png b64, ${companySignaturePngB64!.length} chars>',
-      };
+    'employeeId': employeeId,
+    'companyId': companyId,
+    'position': employeePosition,
+    'companySignaturePngB64': companySignaturePngB64 == null
+        ? null
+        : '<png b64, ${companySignaturePngB64!.length} chars>',
+  };
 
   @override
   Map<String, dynamic> toJson() => {
-        'employeeId': employeeId,
-        'employeeFullName': employeeFullName,
-        'employeePosition': employeePosition,
-        'employeeHomeAddress': employeeHomeAddress,
-        'companyId': companyId,
-        'companyName': companyName,
-        'companyAddress': companyAddress,
-        'effectiveDate': effectiveDate?.toIso8601String(),
-        'authorizedSignatoryName': authorizedSignatoryName,
-        'authorizedSignatoryRole': authorizedSignatoryRole,
-        'companySignaturePngB64': companySignaturePngB64,
-      };
+    'employeeId': employeeId,
+    'employeeFullName': employeeFullName,
+    'employeePosition': employeePosition,
+    'employeeHomeAddress': employeeHomeAddress,
+    'companyId': companyId,
+    'companyName': companyName,
+    'companyAddress': companyAddress,
+    'effectiveDate': effectiveDate?.toIso8601String(),
+    'authorizedSignatoryName': authorizedSignatoryName,
+    'authorizedSignatoryRole': authorizedSignatoryRole,
+    'companySignaturePngB64': companySignaturePngB64,
+  };
 }
 
 const _undef = Object();

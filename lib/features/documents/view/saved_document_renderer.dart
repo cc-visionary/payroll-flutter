@@ -82,47 +82,60 @@ List<Block> blocksForSavedDocument(
   final o = generationOptions;
   switch (o['__template_id']) {
     case 'employment_contract':
-      return const EmploymentContractTemplate()
-          .build(EmploymentContractInputs.fromJson(o)
-              .copyWith(logoBytes: logoBytes));
+      return const EmploymentContractTemplate().build(
+        EmploymentContractInputs.fromJson(o).copyWith(logoBytes: logoBytes),
+      );
     case 'coe':
-      return const CoeTemplate()
-          .build(CoeInputs.fromJson(o).copyWith(logoBytes: logoBytes));
+      return const CoeTemplate().build(
+        CoeInputs.fromJson(o).copyWith(logoBytes: logoBytes),
+      );
     case 'nte':
-      return const NteTemplate()
-          .build(NteInputs.fromJson(o).copyWith(logoBytes: logoBytes));
+      return const NteTemplate().build(
+        NteInputs.fromJson(o).copyWith(logoBytes: logoBytes),
+      );
     case 'non_reg':
-      return const NonRegTemplate()
-          .build(NonRegInputs.fromJson(o).copyWith(logoBytes: logoBytes));
+      return const NonRegTemplate().build(
+        NonRegInputs.fromJson(o).copyWith(logoBytes: logoBytes),
+      );
     case 'nda':
-      return const NdaTemplate()
-          .build(NdaInputs.fromJson(o).copyWith(logoBytes: logoBytes));
+      return const NdaTemplate().build(
+        NdaInputs.fromJson(o).copyWith(logoBytes: logoBytes),
+      );
     case 'nod':
-      return const NodTemplate()
-          .build(NodInputs.fromJson(o).copyWith(logoBytes: logoBytes));
+      return const NodTemplate().build(
+        NodInputs.fromJson(o).copyWith(logoBytes: logoBytes),
+      );
     case 'final_pay':
-      return const FinalPayTemplate()
-          .build(FinalPayInputs.fromJson(o).copyWith(logoBytes: logoBytes));
+      return const FinalPayTemplate().build(
+        FinalPayInputs.fromJson(o).copyWith(logoBytes: logoBytes),
+      );
     case 'penalty_agreement':
-      return const PenaltyAgreementTemplate()
-          .build(PenaltyAgreementInputs.fromJson(o)
-              .copyWith(logoBytes: logoBytes));
+      return const PenaltyAgreementTemplate().build(
+        PenaltyAgreementInputs.fromJson(o).copyWith(logoBytes: logoBytes),
+      );
     case 'quitclaim':
-      return const QuitclaimTemplate()
-          .build(QuitclaimInputs.fromJson(o).copyWith(logoBytes: logoBytes));
+      return const QuitclaimTemplate().build(
+        QuitclaimInputs.fromJson(o).copyWith(logoBytes: logoBytes),
+      );
     case 'regularization':
-      return const RegularizationTemplate()
-          .build(RegularizationInputs.fromJson(o).copyWith(logoBytes: logoBytes));
+      return const RegularizationTemplate().build(
+        RegularizationInputs.fromJson(o).copyWith(logoBytes: logoBytes),
+      );
     case 'resignation_acceptance':
-      return const ResignationAcceptanceTemplate()
-          .build(ResignationAcceptanceInputs.fromJson(o).copyWith(logoBytes: logoBytes));
+      return const ResignationAcceptanceTemplate().build(
+        ResignationAcceptanceInputs.fromJson(o).copyWith(logoBytes: logoBytes),
+      );
     case 'salary_adjustment':
-      return const SalaryAdjustmentTemplate()
-          .build(SalaryAdjustmentInputs.fromJson(o).copyWith(logoBytes: logoBytes));
+      return const SalaryAdjustmentTemplate().build(
+        SalaryAdjustmentInputs.fromJson(o).copyWith(logoBytes: logoBytes),
+      );
     case 'liability_waiver':
-      return const LiabilityWaiverTemplate()
-          .build(LiabilityWaiverInputs.fromJson(o).copyWith(logoBytes: logoBytes));
+      return const LiabilityWaiverTemplate().build(
+        LiabilityWaiverInputs.fromJson(o).copyWith(logoBytes: logoBytes),
+      );
     default:
-      throw UnsupportedSavedDocument(o['__template_id'] as String? ?? '(unknown)');
+      throw UnsupportedSavedDocument(
+        o['__template_id'] as String? ?? '(unknown)',
+      );
   }
 }

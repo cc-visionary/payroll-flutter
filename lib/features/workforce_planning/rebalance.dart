@@ -62,7 +62,6 @@ class LoadProjection {
   /// missing most of the job.
   final int costedCount;
 
-
   double get currentLoad => loadFraction(currentHours, capacityHours);
   double get plannedLoad => loadFraction(plannedHours, capacityHours);
   LoadStatus get currentStatus => loadStatus(currentLoad);
@@ -84,21 +83,26 @@ class LoadProjection {
 }
 
 List<Employee> _activeHolders(List<Employee> employees, String cardId) => [
-      for (final e in employees)
-        // "Active" here must match wp_person_load exactly: ACTIVE *and* not
-        // soft-deleted. Counting either alone changes everyone's split.
-        if (e.employmentStatus == 'ACTIVE' &&
-            e.deletedAt == null &&
-            e.roleScorecardId == cardId)
-          e,
-    ];
+  for (final e in employees)
+    // "Active" here must match wp_person_load exactly: ACTIVE *and* not
+    // soft-deleted. Counting either alone changes everyone's split.
+    if (e.employmentStatus == 'ACTIVE' &&
+        e.deletedAt == null &&
+        e.roleScorecardId == cardId)
+      e,
+];
 
 double _hoursOf(WpTaskComputed? c, double multiplier) {
   if (c == null) return 0;
   return c.isGrowing ? c.hoursPerMonthBase * multiplier : c.hoursPerMonthBase;
 }
 
-typedef TaskShare = ({String employeeId, double hours, bool derived, int holderCount});
+typedef TaskShare = ({
+  String employeeId,
+  double hours,
+  bool derived,
+  int holderCount,
+});
 
 /// Distributes ONE task's [hours] across the people who carry it, plus the
 /// leftover that reaches nobody. Assignments win when present (person -> its
@@ -114,7 +118,14 @@ typedef TaskShare = ({String employeeId, double hours, bool derived, int holderC
 }) {
   if (moveOverride != null) {
     return (
-      shares: [(employeeId: moveOverride, hours: hours, derived: false, holderCount: 1)],
+      shares: [
+        (
+          employeeId: moveOverride,
+          hours: hours,
+          derived: false,
+          holderCount: 1,
+        ),
+      ],
       unattributed: 0,
     );
   }
@@ -124,13 +135,24 @@ typedef TaskShare = ({String employeeId, double hours, bool derived, int holderC
       final share = hours * a.allocationPct / 100.0;
       if (a.allocationPct <= 0) continue;
       if (a.employeeId != null) {
-        shares.add((employeeId: a.employeeId!, hours: share, derived: false, holderCount: 1));
+        shares.add((
+          employeeId: a.employeeId!,
+          hours: share,
+          derived: false,
+          holderCount: 1,
+        ));
       } else if (a.roleScorecardId != null) {
         final hs = holdersOf(a.roleScorecardId!);
-        if (hs.isEmpty) continue; // reaches nobody -> falls into unattributed below
+        if (hs.isEmpty)
+          continue; // reaches nobody -> falls into unattributed below
         final per = share / hs.length;
         for (final h in hs) {
-          shares.add((employeeId: h.id, hours: per, derived: true, holderCount: hs.length));
+          shares.add((
+            employeeId: h.id,
+            hours: per,
+            derived: true,
+            holderCount: hs.length,
+          ));
         }
       }
     }
@@ -140,7 +162,12 @@ typedef TaskShare = ({String employeeId, double hours, bool derived, int holderC
   // Fallback (no assignments): owner/card, identical to the pre-assignment split.
   final owner = task.ownerEmployeeId;
   if (owner != null) {
-    return (shares: [(employeeId: owner, hours: hours, derived: false, holderCount: 1)], unattributed: 0);
+    return (
+      shares: [
+        (employeeId: owner, hours: hours, derived: false, holderCount: 1),
+      ],
+      unattributed: 0,
+    );
   }
   final cardId = task.roleScorecardId;
   if (cardId == null) return (shares: const <TaskShare>[], unattributed: hours);
@@ -148,7 +175,10 @@ typedef TaskShare = ({String employeeId, double hours, bool derived, int holderC
   if (hs.isEmpty) return (shares: const <TaskShare>[], unattributed: hours);
   final per = hours / hs.length;
   return (
-    shares: [for (final h in hs) (employeeId: h.id, hours: per, derived: true, holderCount: hs.length)],
+    shares: [
+      for (final h in hs)
+        (employeeId: h.id, hours: per, derived: true, holderCount: hs.length),
+    ],
     unattributed: 0,
   );
 }
@@ -175,9 +205,11 @@ Map<String, double> hoursByEmployee({
     final hours = _hoursOf(computedByTaskId[t.id], multiplier);
     if (hours <= 0) continue; // a 0-hour task adds nothing to anyone's total
     final r = attributeTask(
-      hours: hours, task: t,
+      hours: hours,
+      task: t,
       assignments: assignmentsByTask[t.id] ?? const [],
-      holdersOf: holdersOf, moveOverride: moves[t.id],
+      holdersOf: holdersOf,
+      moveOverride: moves[t.id],
     );
     for (final s in r.shares) {
       out[s.employeeId] = (out[s.employeeId] ?? 0) + s.hours;
@@ -219,9 +251,11 @@ OrphanHours orphanHours({
   for (final t in tasks) {
     final hours = _hoursOf(computedByTaskId[t.id], multiplier);
     final u = attributeTask(
-      hours: hours, task: t,
+      hours: hours,
+      task: t,
       assignments: assignmentsByTask[t.id] ?? const [],
-      holdersOf: holdersOf, moveOverride: moves[t.id],
+      holdersOf: holdersOf,
+      moveOverride: moves[t.id],
     ).unattributed;
     if (u <= 0.0001) continue; // ignore float residue from an even holder split
     if (t.externalRef != null && t.roleScorecardId == null) {
@@ -253,11 +287,14 @@ double unattributedHours({
   for (final t in tasks) {
     final hours = _hoursOf(computedByTaskId[t.id], multiplier);
     final u = attributeTask(
-      hours: hours, task: t,
+      hours: hours,
+      task: t,
       assignments: assignmentsByTask[t.id] ?? const [],
-      holdersOf: holdersOf, moveOverride: moves[t.id],
+      holdersOf: holdersOf,
+      moveOverride: moves[t.id],
     ).unattributed;
-    if (u > 0.0001) total += u; // ignore float residue from an even holder split
+    if (u > 0.0001)
+      total += u; // ignore float residue from an even holder split
   }
   return total;
 }
@@ -275,15 +312,22 @@ List<LoadProjection> buildProjections({
   Map<String, List<WpTaskAssignment>> assignmentsByTask = const {},
 }) {
   final now = hoursByEmployee(
-      tasks: tasks, computedByTaskId: computedByTaskId,
-      employees: employees, multiplier: multiplier,
-      assignmentsByTask: assignmentsByTask);
+    tasks: tasks,
+    computedByTaskId: computedByTaskId,
+    employees: employees,
+    multiplier: multiplier,
+    assignmentsByTask: assignmentsByTask,
+  );
   final planned = moves.isEmpty
       ? now
       : hoursByEmployee(
-          tasks: tasks, computedByTaskId: computedByTaskId,
-          employees: employees, multiplier: multiplier, moves: moves,
-          assignmentsByTask: assignmentsByTask);
+          tasks: tasks,
+          computedByTaskId: computedByTaskId,
+          employees: employees,
+          multiplier: multiplier,
+          moves: moves,
+          assignmentsByTask: assignmentsByTask,
+        );
 
   final counts = <String, int>{};
   final costed = <String, int>{};
@@ -295,12 +339,15 @@ List<LoadProjection> buildProjections({
     // across the whole role; they carry no weight and are not workload, so they
     // are not counted or shown anywhere in workforce planning.
     if (t.isExpectation) continue;
-    if (t.status != 'ACTIVE') continue; // archived work leaves the derived lists
+    if (t.status != 'ACTIVE')
+      continue; // archived work leaves the derived lists
     final hasHours = (computedByTaskId[t.id]?.hoursPerMonthBase ?? 0) > 0;
     final r = attributeTask(
-      hours: _hoursOf(computedByTaskId[t.id], multiplier), task: t,
+      hours: _hoursOf(computedByTaskId[t.id], multiplier),
+      task: t,
       assignments: assignmentsByTask[t.id] ?? const [],
-      holdersOf: holdersOf, moveOverride: moves[t.id],
+      holdersOf: holdersOf,
+      moveOverride: moves[t.id],
     );
     for (final id in {for (final s in r.shares) s.employeeId}) {
       counts[id] = (counts[id] ?? 0) + 1;
@@ -347,31 +394,41 @@ List<PlannedTask> plannedTasksFor({
   for (final t in tasks) {
     // Workload only. Behavioural expectations live on the role scorecard.
     if (t.isExpectation) continue;
-    if (t.status != 'ACTIVE') continue; // archived work leaves the derived lists
+    if (t.status != 'ACTIVE')
+      continue; // archived work leaves the derived lists
     final hours = _hoursOf(computedByTaskId[t.id], multiplier);
     final moved = moves.containsKey(t.id);
     final r = attributeTask(
-      hours: hours, task: t,
+      hours: hours,
+      task: t,
       assignments: assignmentsByTask[t.id] ?? const [],
-      holdersOf: holdersOf, moveOverride: moves[t.id],
+      holdersOf: holdersOf,
+      moveOverride: moves[t.id],
     );
-    final mine = [for (final s in r.shares) if (s.employeeId == employeeId) s];
+    final mine = [
+      for (final s in r.shares)
+        if (s.employeeId == employeeId) s,
+    ];
     if (mine.isEmpty) continue;
     final derivedShare = mine.firstWhere(
       (s) => s.derived,
       orElse: () => mine.first,
     );
-    out.add(PlannedTask(
-      task: t,
-      hours: mine.fold<double>(0, (sum, s) => sum + s.hours),
-      derived: mine.any((s) => s.derived),
-      holderCount: derivedShare.derived ? derivedShare.holderCount : 1,
-      moved: moved,
-    ));
+    out.add(
+      PlannedTask(
+        task: t,
+        hours: mine.fold<double>(0, (sum, s) => sum + s.hours),
+        derived: mine.any((s) => s.derived),
+        holderCount: derivedShare.derived ? derivedShare.holderCount : 1,
+        moved: moved,
+      ),
+    );
   }
   out.sort((a, b) {
     final c = b.hours.compareTo(a.hours);
-    return c != 0 ? c : a.task.name.toLowerCase().compareTo(b.task.name.toLowerCase());
+    return c != 0
+        ? c
+        : a.task.name.toLowerCase().compareTo(b.task.name.toLowerCase());
   });
   return out;
 }
@@ -399,16 +456,26 @@ List<PlannedTask> unassignedTasks({
     if (moves[t.id] != null || t.ownerEmployeeId != null) continue;
     final cardId = t.roleScorecardId;
     if (cardId == null && t.externalRef != null) continue; // legacy reference
-    final orphaned = cardId == null ||
+    final orphaned =
+        cardId == null ||
         (holdersByCard[cardId] ??= _activeHolders(employees, cardId)).isEmpty;
     if (!orphaned) continue;
     final hours = _hoursOf(computedByTaskId[t.id], multiplier);
-    out.add(PlannedTask(
-        task: t, hours: hours, derived: false, holderCount: 0, moved: false));
+    out.add(
+      PlannedTask(
+        task: t,
+        hours: hours,
+        derived: false,
+        holderCount: 0,
+        moved: false,
+      ),
+    );
   }
   out.sort((a, b) {
     final c = b.hours.compareTo(a.hours);
-    return c != 0 ? c : a.task.name.toLowerCase().compareTo(b.task.name.toLowerCase());
+    return c != 0
+        ? c
+        : a.task.name.toLowerCase().compareTo(b.task.name.toLowerCase());
   });
   return out;
 }
@@ -418,21 +485,28 @@ List<PlannedTask> unassignedTasks({
 /// resulting load on BOTH ends before the user commits — deciding a move
 /// without seeing the delta is deciding blind.
 class HoverPreview {
-  const HoverPreview({required this.taskId, required this.fromEmployeeId, this.overEmployeeId});
+  const HoverPreview({
+    required this.taskId,
+    required this.fromEmployeeId,
+    this.overEmployeeId,
+  });
 
   final String taskId;
   final String fromEmployeeId;
   final String? overEmployeeId;
 
   HoverPreview over(String? id) => HoverPreview(
-      taskId: taskId, fromEmployeeId: fromEmployeeId, overEmployeeId: id);
+    taskId: taskId,
+    fromEmployeeId: fromEmployeeId,
+    overEmployeeId: id,
+  );
 
   /// The moves to apply on top of the drafts to render the preview. Empty while
   /// the pointer is over nothing, or back over the source.
   MoveDrafts get asMove =>
       (overEmployeeId == null || overEmployeeId == fromEmployeeId)
-          ? const {}
-          : {taskId: overEmployeeId!};
+      ? const {}
+      : {taskId: overEmployeeId!};
 }
 
 /// Why a drop is not allowed, or null when it is fine.

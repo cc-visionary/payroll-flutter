@@ -36,7 +36,11 @@ const paymentSourceAccounts = <PaymentSource>[
     hiringEntityCode: 'GC',
   ),
   PaymentSource(value: 'GCASH_CHRIS', label: 'GCash Chris', bankCode: 'GCASH'),
-  PaymentSource(value: 'GCASH_CLINTON', label: 'GCash Clinton', bankCode: 'GCASH'),
+  PaymentSource(
+    value: 'GCASH_CLINTON',
+    label: 'GCash Clinton',
+    bankCode: 'GCASH',
+  ),
   PaymentSource(value: 'CASH', label: 'Cash', bankCode: null),
 ];
 
@@ -49,11 +53,10 @@ String paymentSourceLabel(String? value) {
       value;
 }
 
-String? paymentSourceBankCode(String value) =>
-    paymentSourceAccounts
-        .where((p) => p.value == value)
-        .map((p) => p.bankCode)
-        .firstOrNull;
+String? paymentSourceBankCode(String value) => paymentSourceAccounts
+    .where((p) => p.value == value)
+    .map((p) => p.bankCode)
+    .firstOrNull;
 
 /// Pick the best source for an employee row in the disbursement tab.
 /// Matching rules, in priority order:
@@ -83,6 +86,9 @@ String? resolveAutoPaymentSource({
   }
 
   // 3. CASH fallback.
-  final cash = scoped.where((p) => p.value == 'CASH').map((p) => p.value).firstOrNull;
+  final cash = scoped
+      .where((p) => p.value == 'CASH')
+      .map((p) => p.value)
+      .firstOrNull;
   return cash;
 }

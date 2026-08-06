@@ -3,7 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/data/models/compensation_change.dart';
 import 'package:payroll_flutter/features/payroll/engine/effective_compensation.dart';
 
-CompensationChange _raise(String effective, String newSalary) => CompensationChange(
+CompensationChange _raise(String effective, String newSalary) =>
+    CompensationChange(
       id: 'R-$effective',
       companyId: 'CO1',
       employeeId: 'E1',

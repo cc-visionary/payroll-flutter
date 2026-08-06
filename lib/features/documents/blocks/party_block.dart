@@ -29,10 +29,12 @@ class PartyBlock extends Block {
               pw.TextSpan(
                 text: s.text,
                 style: pw.TextStyle(
-                  fontWeight:
-                      s.bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-                  fontStyle:
-                      s.italic ? pw.FontStyle.italic : pw.FontStyle.normal,
+                  fontWeight: s.bold
+                      ? pw.FontWeight.bold
+                      : pw.FontWeight.normal,
+                  fontStyle: s.italic
+                      ? pw.FontStyle.italic
+                      : pw.FontStyle.normal,
                 ),
               ),
           ],

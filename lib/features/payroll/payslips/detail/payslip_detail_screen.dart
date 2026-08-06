@@ -50,12 +50,12 @@ class PayslipDetailScreen extends ConsumerWidget {
           // Fall back to the payslip's `created_at` when the run row is
           // missing period_start/end — can happen if migration
           // 20260418000001 hasn't been applied yet.
-          DateTime parseOrCreated(Object? v) =>
-              v == null ? DateTime.parse(payslip['created_at'] as String) : DateTime.parse(v as String);
+          DateTime parseOrCreated(Object? v) => v == null
+              ? DateTime.parse(payslip['created_at'] as String)
+              : DateTime.parse(v as String);
           final from = parseOrCreated(period?['period_start']);
           final to = parseOrCreated(period?['period_end']);
-          final attendanceCount =
-              (to.difference(from).inDays + 1).clamp(0, 60);
+          final attendanceCount = (to.difference(from).inDays + 1).clamp(0, 60);
           final adjustmentsCount =
               // We don't want to block first render on this provider — but we
               // can surface the count after it loads via a separate watch in
@@ -170,10 +170,9 @@ class _Header extends StatelessWidget {
     final number = employee?['employee_number'] as String? ?? '—';
     final role =
         (employee?['role_scorecards'] as Map?)?['job_title'] as String? ??
-            employee?['job_title'] as String? ??
-            '—';
-    final dept =
-        (employee?['departments'] as Map?)?['name'] as String? ?? '—';
+        employee?['job_title'] as String? ??
+        '—';
+    final dept = (employee?['departments'] as Map?)?['name'] as String? ?? '—';
     final code = period?['code'] as String? ?? '';
 
     final mobile = isMobile(context);
@@ -201,10 +200,7 @@ class _Header extends StatelessWidget {
             Text('  /  ', style: TextStyle(color: muted)),
             Text(
               lastFirst.isEmpty ? 'Payslip' : lastFirst,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -282,25 +278,43 @@ class _SummaryCards extends StatelessWidget {
         value: (start != null && end != null)
             ? '${_fmtDate(DateTime.parse(start as String))} - ${_fmtDate(DateTime.parse(end as String))}'
             : '—',
-        subtitle: pay == null ? null : 'Pay Date: ${_fmtDate(DateTime.parse(pay as String))}',
+        subtitle: pay == null
+            ? null
+            : 'Pay Date: ${_fmtDate(DateTime.parse(pay as String))}',
       ),
     ];
-    return LayoutBuilder(builder: (ctx, c) {
-      final cols = c.maxWidth >= 1100 ? 4 : c.maxWidth >= 700 ? 2 : 1;
-      const spacing = 12.0;
-      final w = (c.maxWidth - spacing * (cols - 1)) / cols;
-      return Wrap(
-        spacing: spacing,
-        runSpacing: spacing,
-        children: [for (final cd in cards) SizedBox(width: w, child: cd)],
-      );
-    });
+    return LayoutBuilder(
+      builder: (ctx, c) {
+        final cols = c.maxWidth >= 1100
+            ? 4
+            : c.maxWidth >= 700
+            ? 2
+            : 1;
+        const spacing = 12.0;
+        final w = (c.maxWidth - spacing * (cols - 1)) / cols;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [for (final cd in cards) SizedBox(width: w, child: cd)],
+        );
+      },
+    );
   }
 
   static String _fmtDate(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
@@ -372,7 +386,8 @@ class _RateBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final snap = payslip['pay_profile_snapshot'] as Map<String, dynamic>?;
-    final wageType = snap?['wageType'] as String? ??
+    final wageType =
+        snap?['wageType'] as String? ??
         snap?['wage_type'] as String? ??
         'DAILY';
     final baseRate = _dec(snap?['baseRate'] ?? snap?['base_rate']);
@@ -392,8 +407,9 @@ class _RateBox extends StatelessWidget {
     );
     final daysPerMonth = daysPerWeek == Decimal.zero
         ? Decimal.fromInt(26)
-        : (daysPerWeek * Decimal.fromInt(52) / Decimal.fromInt(12))
-            .toDecimal(scaleOnInfinitePrecision: 4);
+        : (daysPerWeek * Decimal.fromInt(52) / Decimal.fromInt(12)).toDecimal(
+            scaleOnInfinitePrecision: 4,
+          );
 
     // Compute canonical daily/hourly/minute from baseRate+wageType, then
     // prefer snapshot-provided values when present (non-zero). Old snapshots
@@ -419,20 +435,22 @@ class _RateBox extends StatelessWidget {
       ratesFromBase.minute,
     );
 
-    final freq = (period?['pay_frequency'] as String?) ??
+    final freq =
+        (period?['pay_frequency'] as String?) ??
         snap?['payFrequency'] as String? ??
         '';
 
     final perLabel = wageType == 'HOURLY'
         ? 'hour'
         : wageType == 'MONTHLY'
-            ? 'month'
-            : 'day';
+        ? 'month'
+        : 'day';
 
     // Directional hint: show the *opposite* time unit so the user can sanity-
     // check the conversion factor at a glance.
-    final daysPerMonthInt =
-        daysPerMonth.toDouble().round(); // for the hint label
+    final daysPerMonthInt = daysPerMonth
+        .toDouble()
+        .round(); // for the hint label
     String? hintText;
     if (wageType == 'DAILY') {
       final monthly = daily * Decimal.fromInt(daysPerMonthInt);
@@ -442,8 +460,7 @@ class _RateBox extends StatelessWidget {
       hintText =
           '(Daily: ${Money.fmtPhp(daily)} = hourly × ${hoursPerDay.toDouble().round()})';
     } else if (wageType == 'MONTHLY') {
-      hintText =
-          '(Daily: ${Money.fmtPhp(daily)} = monthly / $daysPerMonthInt)';
+      hintText = '(Daily: ${Money.fmtPhp(daily)} = monthly / $daysPerMonthInt)';
     }
 
     return Container(
@@ -461,11 +478,18 @@ class _RateBox extends StatelessWidget {
             runSpacing: 4,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _kv(context, 'Rate:', '${Money.fmtPhp(baseRate)}/$perLabel',
-                  emphasis: true),
+              _kv(
+                context,
+                'Rate:',
+                '${Money.fmtPhp(baseRate)}/$perLabel',
+                emphasis: true,
+              ),
               if (hintText != null) _kv(context, '', hintText, muted: true),
-              _kv(context, 'Pay Frequency:',
-                  freq.toLowerCase().replaceAll('_', '-')),
+              _kv(
+                context,
+                'Pay Frequency:',
+                freq.toLowerCase().replaceAll('_', '-'),
+              ),
             ],
           ),
           const SizedBox(height: 6),
@@ -503,11 +527,7 @@ class _RateBox extends StatelessWidget {
 
     switch (wageType) {
       case 'HOURLY':
-        return (
-          daily: base * hpd,
-          hourly: base,
-          minute: div(base, sixty),
-        );
+        return (daily: base * hpd, hourly: base, minute: div(base, sixty));
       case 'MONTHLY':
         final d = div(base, dpm);
         final h = div(d, hpd);
@@ -529,8 +549,13 @@ class _RateBox extends StatelessWidget {
     return parsed ?? fallback;
   }
 
-  Widget _kv(BuildContext ctx, String k, String v,
-      {bool emphasis = false, bool muted = false}) {
+  Widget _kv(
+    BuildContext ctx,
+    String k,
+    String v, {
+    bool emphasis = false,
+    bool muted = false,
+  }) {
     return RichText(
       text: TextSpan(
         style: TextStyle(
@@ -580,7 +605,11 @@ class _TabBarHeaderDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => _height;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return SizedBox(height: _height, child: child);
   }
 
@@ -603,7 +632,8 @@ class _TabBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final adjCount = ref
+    final adjCount =
+        ref
             .watch(
               manualAdjustmentsProvider(
                 ManualAdjustmentsKey(runId: runId, employeeId: employeeId),

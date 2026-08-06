@@ -93,10 +93,7 @@ class _BulkGenerateScreenState extends ConsumerState<BulkGenerateScreen> {
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
-        Text(
-          'Bulk Generate',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
+        Text('Bulk Generate', style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 8),
         Text(
           'Pick one template and many employees. Each document autofills from '
@@ -132,8 +129,10 @@ class _BulkGenerateScreenState extends ConsumerState<BulkGenerateScreen> {
           ),
           error: (e, _) => Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Text('Error: $e',
-                style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            child: Text(
+              'Error: $e',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ),
           data: (employees) => _employeePicker(context, employees),
         ),
@@ -154,9 +153,7 @@ class _BulkGenerateScreenState extends ConsumerState<BulkGenerateScreen> {
                     )
                   : const Icon(Icons.bolt),
               label: Text(
-                _generating
-                    ? 'Generating…'
-                    : 'Generate (${_selected.length})',
+                _generating ? 'Generating…' : 'Generate (${_selected.length})',
               ),
             ),
             if (_result != null) ...[
@@ -181,9 +178,9 @@ class _BulkGenerateScreenState extends ConsumerState<BulkGenerateScreen> {
   }
 
   Widget _sectionLabel(BuildContext context, String text) => Text(
-        text,
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-      );
+    text,
+    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+  );
 
   Widget _templatePicker(BuildContext context) {
     return TemplatePickerField(
@@ -241,10 +238,12 @@ class _BulkGenerateScreenState extends ConsumerState<BulkGenerateScreen> {
     final filtered = q.isEmpty
         ? employees
         : employees
-            .where((e) =>
-                e.fullName.toLowerCase().contains(q) ||
-                e.employeeNumber.toLowerCase().contains(q))
-            .toList();
+              .where(
+                (e) =>
+                    e.fullName.toLowerCase().contains(q) ||
+                    e.employeeNumber.toLowerCase().contains(q),
+              )
+              .toList();
     final filteredIds = filtered.map((e) => e.id).toSet();
 
     return Column(
@@ -351,18 +350,20 @@ class _BulkGenerateScreenState extends ConsumerState<BulkGenerateScreen> {
       if (!mounted) return;
 
       // Audit: one row for the whole bulk run.
-      ref.read(auditRepositoryProvider).logExport(
-        description:
-            'Bulk ${_template.name} generated: ${result.generatedCount} '
-            'document(s), ${result.skipped.length} skipped',
-        entityType: 'document_template_bulk',
-        metadata: {
-          'template_id': _template.id,
-          'generated_count': result.generatedCount,
-          'skipped_count': result.skipped.length,
-          'selected_count': _selected.length,
-        },
-      );
+      ref
+          .read(auditRepositoryProvider)
+          .logExport(
+            description:
+                'Bulk ${_template.name} generated: ${result.generatedCount} '
+                'document(s), ${result.skipped.length} skipped',
+            entityType: 'document_template_bulk',
+            metadata: {
+              'template_id': _template.id,
+              'generated_count': result.generatedCount,
+              'skipped_count': result.skipped.length,
+              'selected_count': _selected.length,
+            },
+          );
 
       setState(() {
         _result = result;
@@ -371,9 +372,9 @@ class _BulkGenerateScreenState extends ConsumerState<BulkGenerateScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _generating = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Bulk generate failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Bulk generate failed: $e')));
     }
   }
 
@@ -509,10 +510,9 @@ class _BulkGenerateScreenState extends ConsumerState<BulkGenerateScreen> {
         final dir = await getTemporaryDirectory();
         final path = '${dir.path}${Platform.pathSeparator}$zipName';
         await File(path).writeAsBytes(zipBytes);
-        await Share.shareXFiles(
-          [XFile(path, mimeType: 'application/zip')],
-          subject: zipName,
-        );
+        await Share.shareXFiles([
+          XFile(path, mimeType: 'application/zip'),
+        ], subject: zipName);
         return;
       }
       final savePath = await FilePicker.platform.saveFile(
@@ -522,18 +522,19 @@ class _BulkGenerateScreenState extends ConsumerState<BulkGenerateScreen> {
         allowedExtensions: const ['zip'],
       );
       if (savePath == null) return;
-      final target =
-          savePath.toLowerCase().endsWith('.zip') ? savePath : '$savePath.zip';
+      final target = savePath.toLowerCase().endsWith('.zip')
+          ? savePath
+          : '$savePath.zip';
       await File(target).writeAsBytes(zipBytes);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Saved $zipName')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Saved $zipName')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save ZIP: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save ZIP: $e')));
     }
   }
 
@@ -560,7 +561,7 @@ class _BulkGenerateScreenState extends ConsumerState<BulkGenerateScreen> {
     final dot = desired.lastIndexOf('.');
     final stem = dot >= 0 ? desired.substring(0, dot) : desired;
     final ext = dot >= 0 ? desired.substring(dot) : '';
-    for (var i = 2;; i++) {
+    for (var i = 2; ; i++) {
       final candidate = '$stem ($i)$ext';
       if (used.add(candidate)) return candidate;
     }

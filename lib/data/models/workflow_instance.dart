@@ -7,8 +7,9 @@ class WorkflowInstance {
   final String id;
   final String companyId;
   final String employeeId;
-  final String workflowType;   // enum: HIRING|REGULARIZATION|SALARY_CHANGE|ROLE_CHANGE|DISCIPLINARY|SEPARATION|REPAYMENT_AGREEMENT
-  final String status;         // enum: DRAFT|IN_PROGRESS|COMPLETED|CANCELLED
+  final String
+  workflowType; // enum: HIRING|REGULARIZATION|SALARY_CHANGE|ROLE_CHANGE|DISCIPLINARY|SEPARATION|REPAYMENT_AGREEMENT
+  final String status; // enum: DRAFT|IN_PROGRESS|COMPLETED|CANCELLED
   final String title;
   final Map<String, dynamic> context;
   final Map<String, dynamic>? result;

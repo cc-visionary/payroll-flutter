@@ -60,12 +60,10 @@ class UserProfile {
       appRole == AppRole.PAYROLL_ADMIN ||
       appRole == AppRole.HR_ADMIN;
 
-  bool get isHrOrAdmin =>
-      isAdmin || appRole == AppRole.HR;
+  bool get isHrOrAdmin => isAdmin || appRole == AppRole.HR;
 
   bool get canManageEmployees => isHrOrAdmin;
-  bool get canRunPayroll =>
-      isHrOrAdmin || appRole == AppRole.PAYROLL_ADMIN;
+  bool get canRunPayroll => isHrOrAdmin || appRole == AppRole.PAYROLL_ADMIN;
   bool get canEditTaxTables => appRole == AppRole.SUPER_ADMIN;
 }
 

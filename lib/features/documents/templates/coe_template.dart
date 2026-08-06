@@ -34,16 +34,16 @@ class CoeTemplate extends DocumentTemplate<CoeInputs> {
 
   @override
   CoeInputs emptyInputs() => CoeInputs(
-        employeeId: '',
-        employeeFullName: '',
-        employeeLastName: '',
-        employeeHonorific: '',
-        companyId: '',
-        companyName: '',
-        position: '',
-        place: '',
-        dateIssued: DateTime.now(),
-      );
+    employeeId: '',
+    employeeFullName: '',
+    employeeLastName: '',
+    employeeHonorific: '',
+    companyId: '',
+    companyName: '',
+    position: '',
+    place: '',
+    dateIssued: DateTime.now(),
+  );
 
   @override
   Future<CoeInputs> autofill(AutofillContext ctx) async {
@@ -141,7 +141,9 @@ class CoeTemplate extends DocumentTemplate<CoeInputs> {
         const SpacerBlock(2),
       ],
       EmphasisParagraphBlock(
-        spans: [EmphasisSpan((i.hrManagerName ?? '').toUpperCase(), bold: true)],
+        spans: [
+          EmphasisSpan((i.hrManagerName ?? '').toUpperCase(), bold: true),
+        ],
         align: pw.TextAlign.center,
       ),
       const EmphasisParagraphBlock(
@@ -157,9 +159,11 @@ String _addressOf(dynamic co) {
   final parts = [
     co.addressLine1,
     co.addressLine2,
-    [co.city, co.province, co.zipCode]
-        .where((s) => s != null && (s as String).isNotEmpty)
-        .join(', '),
+    [
+      co.city,
+      co.province,
+      co.zipCode,
+    ].where((s) => s != null && (s as String).isNotEmpty).join(', '),
   ].where((s) => s != null && (s as String).isNotEmpty).cast<String>().toList();
   return parts.join(' · ');
 }

@@ -31,8 +31,10 @@ class LetterheadBlock extends Block {
           LogoBlock(logoBytes!, height: logoHeight).toPdf(theme),
           pw.SizedBox(height: 12),
         ],
-        CompanyHeaderBlock(name: companyName, address: companyAddress)
-            .toPdf(theme),
+        CompanyHeaderBlock(
+          name: companyName,
+          address: companyAddress,
+        ).toPdf(theme),
       ],
     );
   }

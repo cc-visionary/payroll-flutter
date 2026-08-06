@@ -32,19 +32,20 @@ void main() {
   });
 
   test('uses the real month length, February and leap years included', () {
-    expect(
-      projectedCutoffDates(from: DateTime(2026, 2, 16), count: 1),
-      [DateTime(2026, 2, 28)],
-    );
-    expect(
-      projectedCutoffDates(from: DateTime(2028, 2, 16), count: 1),
-      [DateTime(2028, 2, 29)],
-    );
+    expect(projectedCutoffDates(from: DateTime(2026, 2, 16), count: 1), [
+      DateTime(2026, 2, 28),
+    ]);
+    expect(projectedCutoffDates(from: DateTime(2028, 2, 16), count: 1), [
+      DateTime(2028, 2, 29),
+    ]);
   });
 
   test('returns nothing for a non-positive count', () {
     expect(projectedCutoffDates(from: DateTime(2026, 8, 5), count: 0), isEmpty);
-    expect(projectedCutoffDates(from: DateTime(2026, 8, 5), count: -1), isEmpty);
+    expect(
+      projectedCutoffDates(from: DateTime(2026, 8, 5), count: -1),
+      isEmpty,
+    );
   });
 
   test('produces exactly the requested number of cut-offs', () {

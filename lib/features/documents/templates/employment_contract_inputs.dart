@@ -26,9 +26,9 @@ class ContractKpi {
   Map<String, dynamic> toJson() => {'metric': metric, 'frequency': frequency};
 
   factory ContractKpi.fromJson(Map<String, dynamic> j) => ContractKpi(
-        metric: j['metric'] as String? ?? '',
-        frequency: j['frequency'] as String? ?? '',
-      );
+    metric: j['metric'] as String? ?? '',
+    frequency: j['frequency'] as String? ?? '',
+  );
 }
 
 /// Optional graduated "training wage" terms for §5 COMPENSATION. When
@@ -40,13 +40,15 @@ class TrainingWage {
   final int trainingDays; // e.g. 7
   const TrainingWage({required this.dailyRate, required this.trainingDays});
 
-  Map<String, dynamic> toJson() =>
-      {'dailyRate': dailyRate, 'trainingDays': trainingDays};
+  Map<String, dynamic> toJson() => {
+    'dailyRate': dailyRate,
+    'trainingDays': trainingDays,
+  };
 
   factory TrainingWage.fromJson(Map<String, dynamic> j) => TrainingWage(
-        dailyRate: j['dailyRate'] as String? ?? '',
-        trainingDays: (j['trainingDays'] as num?)?.toInt() ?? 0,
-      );
+    dailyRate: j['dailyRate'] as String? ?? '',
+    trainingDays: (j['trainingDays'] as num?)?.toInt() ?? 0,
+  );
 }
 
 /// Sentinel for `copyWith` so nullable fields can be explicitly cleared
@@ -133,9 +135,9 @@ class EmploymentContractInputs extends TemplateInputs {
     this.logoBytes,
     this.companySignaturePngB64,
   }) : assert(
-          (employeeId == null) != (applicantId == null),
-          'Exactly one of employeeId or applicantId must be set',
-        );
+         (employeeId == null) != (applicantId == null),
+         'Exactly one of employeeId or applicantId must be set',
+       );
 
   EmploymentContractInputs copyWith({
     Object? employeeId = _unset,
@@ -170,105 +172,102 @@ class EmploymentContractInputs extends TemplateInputs {
     List<ContractKpi>? kpis,
     Uint8List? logoBytes,
     String? companySignaturePngB64,
-  }) =>
-      EmploymentContractInputs(
-        employeeId: identical(employeeId, _unset)
-            ? this.employeeId
-            : employeeId as String?,
-        applicantId: identical(applicantId, _unset)
-            ? this.applicantId
-            : applicantId as String?,
-        employeeFullName: employeeFullName ?? this.employeeFullName,
-        employeeAddress: employeeAddress ?? this.employeeAddress,
-        companyId: companyId ?? this.companyId,
-        companyName: companyName ?? this.companyName,
-        companyAddress: companyAddress ?? this.companyAddress,
-        representativeName: representativeName ?? this.representativeName,
-        representativeRole: representativeRole ?? this.representativeRole,
-        place: place ?? this.place,
-        dateEntered: dateEntered ?? this.dateEntered,
-        industry: industry ?? this.industry,
-        position: position ?? this.position,
-        probationStart: identical(probationStart, _unset)
-            ? this.probationStart
-            : probationStart as DateTime?,
-        probationEnd: identical(probationEnd, _unset)
-            ? this.probationEnd
-            : probationEnd as DateTime?,
-        monthlySalary: monthlySalary ?? this.monthlySalary,
-        salaryPeriod: salaryPeriod ?? this.salaryPeriod,
-        workHoursPerDay: workHoursPerDay ?? this.workHoursPerDay,
-        workDaysPerWeek: workDaysPerWeek ?? this.workDaysPerWeek,
-        nonCompeteMonths: nonCompeteMonths ?? this.nonCompeteMonths,
-        trainingWage: identical(trainingWage, _unset)
-            ? this.trainingWage
-            : trainingWage as TrainingWage?,
-        employerSignatoryName:
-            employerSignatoryName ?? this.employerSignatoryName,
-        employerSignatoryRole:
-            employerSignatoryRole ?? this.employerSignatoryRole,
-        witness1Name: witness1Name ?? this.witness1Name,
-        witness1Role: witness1Role ?? this.witness1Role,
-        witness2Name: witness2Name ?? this.witness2Name,
-        witness2Role: witness2Role ?? this.witness2Role,
-        missionStatement: missionStatement ?? this.missionStatement,
-        responsibilities: responsibilities ?? this.responsibilities,
-        kpis: kpis ?? this.kpis,
-        logoBytes: logoBytes ?? this.logoBytes,
-        companySignaturePngB64:
-            companySignaturePngB64 ?? this.companySignaturePngB64,
-      );
+  }) => EmploymentContractInputs(
+    employeeId: identical(employeeId, _unset)
+        ? this.employeeId
+        : employeeId as String?,
+    applicantId: identical(applicantId, _unset)
+        ? this.applicantId
+        : applicantId as String?,
+    employeeFullName: employeeFullName ?? this.employeeFullName,
+    employeeAddress: employeeAddress ?? this.employeeAddress,
+    companyId: companyId ?? this.companyId,
+    companyName: companyName ?? this.companyName,
+    companyAddress: companyAddress ?? this.companyAddress,
+    representativeName: representativeName ?? this.representativeName,
+    representativeRole: representativeRole ?? this.representativeRole,
+    place: place ?? this.place,
+    dateEntered: dateEntered ?? this.dateEntered,
+    industry: industry ?? this.industry,
+    position: position ?? this.position,
+    probationStart: identical(probationStart, _unset)
+        ? this.probationStart
+        : probationStart as DateTime?,
+    probationEnd: identical(probationEnd, _unset)
+        ? this.probationEnd
+        : probationEnd as DateTime?,
+    monthlySalary: monthlySalary ?? this.monthlySalary,
+    salaryPeriod: salaryPeriod ?? this.salaryPeriod,
+    workHoursPerDay: workHoursPerDay ?? this.workHoursPerDay,
+    workDaysPerWeek: workDaysPerWeek ?? this.workDaysPerWeek,
+    nonCompeteMonths: nonCompeteMonths ?? this.nonCompeteMonths,
+    trainingWage: identical(trainingWage, _unset)
+        ? this.trainingWage
+        : trainingWage as TrainingWage?,
+    employerSignatoryName: employerSignatoryName ?? this.employerSignatoryName,
+    employerSignatoryRole: employerSignatoryRole ?? this.employerSignatoryRole,
+    witness1Name: witness1Name ?? this.witness1Name,
+    witness1Role: witness1Role ?? this.witness1Role,
+    witness2Name: witness2Name ?? this.witness2Name,
+    witness2Role: witness2Role ?? this.witness2Role,
+    missionStatement: missionStatement ?? this.missionStatement,
+    responsibilities: responsibilities ?? this.responsibilities,
+    kpis: kpis ?? this.kpis,
+    logoBytes: logoBytes ?? this.logoBytes,
+    companySignaturePngB64:
+        companySignaturePngB64 ?? this.companySignaturePngB64,
+  );
 
   @override
   Map<String, dynamic> toDebugMap() => {
-        'employeeId': employeeId,
-        'applicantId': applicantId,
-        'companyId': companyId,
-        'position': position,
-        'responsibilityCount': responsibilities.length,
-        'kpiCount': kpis.length,
-        'trainingWage': trainingWage == null
-            ? null
-            : '${trainingWage!.dailyRate}/${trainingWage!.trainingDays}d',
-        'companySignaturePngB64': companySignaturePngB64 == null
-            ? null
-            : '<png b64, ${companySignaturePngB64!.length} chars>',
-      };
+    'employeeId': employeeId,
+    'applicantId': applicantId,
+    'companyId': companyId,
+    'position': position,
+    'responsibilityCount': responsibilities.length,
+    'kpiCount': kpis.length,
+    'trainingWage': trainingWage == null
+        ? null
+        : '${trainingWage!.dailyRate}/${trainingWage!.trainingDays}d',
+    'companySignaturePngB64': companySignaturePngB64 == null
+        ? null
+        : '<png b64, ${companySignaturePngB64!.length} chars>',
+  };
 
   @override
   Map<String, dynamic> toJson() => {
-        'employeeId': employeeId,
-        'applicantId': applicantId,
-        'employeeFullName': employeeFullName,
-        'employeeAddress': employeeAddress,
-        'companyId': companyId,
-        'companyName': companyName,
-        'companyAddress': companyAddress,
-        'representativeName': representativeName,
-        'representativeRole': representativeRole,
-        'place': place,
-        'dateEntered': dateEntered.toIso8601String(),
-        'industry': industry,
-        'position': position,
-        'probationStart': probationStart?.toIso8601String(),
-        'probationEnd': probationEnd?.toIso8601String(),
-        'monthlySalary': monthlySalary,
-        'salaryPeriod': salaryPeriod,
-        'workHoursPerDay': workHoursPerDay,
-        'workDaysPerWeek': workDaysPerWeek,
-        'nonCompeteMonths': nonCompeteMonths,
-        'trainingWage': trainingWage?.toJson(),
-        'employerSignatoryName': employerSignatoryName,
-        'employerSignatoryRole': employerSignatoryRole,
-        'witness1Name': witness1Name,
-        'witness1Role': witness1Role,
-        'witness2Name': witness2Name,
-        'witness2Role': witness2Role,
-        'missionStatement': missionStatement,
-        'responsibilities': responsibilities.map((r) => r.toJson()).toList(),
-        'kpis': kpis.map((k) => k.toJson()).toList(),
-        'companySignaturePngB64': companySignaturePngB64,
-      };
+    'employeeId': employeeId,
+    'applicantId': applicantId,
+    'employeeFullName': employeeFullName,
+    'employeeAddress': employeeAddress,
+    'companyId': companyId,
+    'companyName': companyName,
+    'companyAddress': companyAddress,
+    'representativeName': representativeName,
+    'representativeRole': representativeRole,
+    'place': place,
+    'dateEntered': dateEntered.toIso8601String(),
+    'industry': industry,
+    'position': position,
+    'probationStart': probationStart?.toIso8601String(),
+    'probationEnd': probationEnd?.toIso8601String(),
+    'monthlySalary': monthlySalary,
+    'salaryPeriod': salaryPeriod,
+    'workHoursPerDay': workHoursPerDay,
+    'workDaysPerWeek': workDaysPerWeek,
+    'nonCompeteMonths': nonCompeteMonths,
+    'trainingWage': trainingWage?.toJson(),
+    'employerSignatoryName': employerSignatoryName,
+    'employerSignatoryRole': employerSignatoryRole,
+    'witness1Name': witness1Name,
+    'witness1Role': witness1Role,
+    'witness2Name': witness2Name,
+    'witness2Role': witness2Role,
+    'missionStatement': missionStatement,
+    'responsibilities': responsibilities.map((r) => r.toJson()).toList(),
+    'kpis': kpis.map((k) => k.toJson()).toList(),
+    'companySignaturePngB64': companySignaturePngB64,
+  };
 
   /// Reconstructs inputs from a persisted [toJson] snapshot
   /// (`employee_documents.generation_options`). The inverse of [toJson] — used
@@ -311,8 +310,11 @@ class EmploymentContractInputs extends TemplateInputs {
       witness2Role: j['witness2Role'] as String? ?? '',
       missionStatement: j['missionStatement'] as String? ?? '',
       responsibilities: ((j['responsibilities'] as List?) ?? const [])
-          .map((e) =>
-              ContractResponsibility.fromJson((e as Map).cast<String, dynamic>()))
+          .map(
+            (e) => ContractResponsibility.fromJson(
+              (e as Map).cast<String, dynamic>(),
+            ),
+          )
           .toList(),
       kpis: ((j['kpis'] as List?) ?? const [])
           .map((e) => ContractKpi.fromJson((e as Map).cast<String, dynamic>()))

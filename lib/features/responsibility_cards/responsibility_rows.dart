@@ -8,8 +8,12 @@ class RespDraft {
 }
 
 /// Diffs the edited tree against the card's existing responsibility rows.
-({List<Map<String, dynamic>> inserts, List<Map<String, dynamic>> updates, List<String> deleteIds})
-    diffResponsibilities({
+({
+  List<Map<String, dynamic>> inserts,
+  List<Map<String, dynamic>> updates,
+  List<String> deleteIds,
+})
+diffResponsibilities({
   required List<({String area, List<RespDraft> tasks})> draft,
   required List<Map<String, dynamic>> existingRows,
   required String cardId,
@@ -58,7 +62,8 @@ class RespDraft {
   }
   final deleteIds = [
     for (final r in existingRows)
-      if (r['id'] is String && !kept.contains(r['id'] as String)) r['id'] as String,
+      if (r['id'] is String && !kept.contains(r['id'] as String))
+        r['id'] as String,
   ];
   return (inserts: inserts, updates: updates, deleteIds: deleteIds);
 }

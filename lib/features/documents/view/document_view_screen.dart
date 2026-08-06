@@ -45,7 +45,7 @@ class DocumentViewScreen extends ConsumerWidget {
           }
           final options =
               (row['generation_options'] as Map?)?.cast<String, dynamic>() ??
-                  const <String, dynamic>{};
+              const <String, dynamic>{};
           if (!canRenderSavedDocument(options)) {
             final type = (row['document_type'] as String?) ?? 'this';
             return _message(
@@ -67,8 +67,7 @@ class DocumentViewScreen extends ConsumerWidget {
                   ? null
                   : await ref.read(hiringEntityByIdProvider(companyId).future);
               final logo = await loadCompanyLogoBytes(entity);
-              final blocks =
-                  blocksForSavedDocument(options, logoBytes: logo);
+              final blocks = blocksForSavedDocument(options, logoBytes: logo);
               return buildDocumentPdf(blocks: blocks, theme: theme);
             },
           );
@@ -78,15 +77,13 @@ class DocumentViewScreen extends ConsumerWidget {
   }
 
   Widget _message(BuildContext context, String text) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      );
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+    ),
+  );
 }

@@ -7,20 +7,20 @@ import 'package:payroll_flutter/data/repositories/employee_repository.dart';
 import 'package:payroll_flutter/features/performance/new_check_in_dialog.dart';
 
 Employee _emp(String id, String first, String last) => Employee(
-      id: id,
-      companyId: 'c1',
-      employeeNumber: id,
-      firstName: first,
-      lastName: last,
-      employmentType: 'REGULAR',
-      employmentStatus: 'ACTIVE',
-      hireDate: DateTime.utc(2024, 1, 1),
-      isRankAndFile: true,
-      isOtEligible: true,
-      isNdEligible: true,
-      isHolidayPayEligible: true,
-      taxOnFullEarnings: false,
-    );
+  id: id,
+  companyId: 'c1',
+  employeeNumber: id,
+  firstName: first,
+  lastName: last,
+  employmentType: 'REGULAR',
+  employmentStatus: 'ACTIVE',
+  hireDate: DateTime.utc(2024, 1, 1),
+  isRankAndFile: true,
+  isOtEligible: true,
+  isNdEligible: true,
+  isHolidayPayEligible: true,
+  taxOnFullEarnings: false,
+);
 
 Future<void> _openDialog(WidgetTester tester) async {
   await tester.pumpWidget(
@@ -53,10 +53,11 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('hovering a mouse over the dialog does not crash', (tester) async {
+  testWidgets('hovering a mouse over the dialog does not crash', (
+    tester,
+  ) async {
     await _openDialog(tester);
-    final gesture =
-        await tester.createGesture(kind: PointerDeviceKind.mouse);
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await gesture.addPointer(location: Offset.zero);
     addTearDown(gesture.removePointer);
     // Sweep the pointer across the dialog surface.

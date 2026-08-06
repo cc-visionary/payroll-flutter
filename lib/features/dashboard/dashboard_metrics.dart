@@ -158,8 +158,9 @@ class MonthMetrics {
   Decimal get avgGrossPerEmployee {
     final n = payrollEmployeeIds.length;
     if (n == 0) return Decimal.zero;
-    return (payrollGross / Decimal.fromInt(n))
-        .toDecimal(scaleOnInfinitePrecision: 2);
+    return (payrollGross / Decimal.fromInt(n)).toDecimal(
+      scaleOnInfinitePrecision: 2,
+    );
   }
 
   bool get isEmpty =>
@@ -199,12 +200,7 @@ const _kVoluntary = {'RESIGNED', 'RETIRED'};
 
 /// AWOL is treated as employer-side: in practice abandonment resolves to
 /// termination for cause.
-const _kInvoluntary = {
-  'TERMINATED',
-  'END_OF_CONTRACT',
-  'AWOL',
-  'DECEASED',
-};
+const _kInvoluntary = {'TERMINATED', 'END_OF_CONTRACT', 'AWOL', 'DECEASED'};
 
 /// An employee counts toward headcount "as of" [asOf] when they were hired on
 /// or before that date and had not yet separated. Rows that were
@@ -556,8 +552,7 @@ SnapshotMetrics computeSnapshot(DashboardYearInput input, DateTime asOf) {
     asOf: asOf,
     activeEmployees: active,
     // "Total" = every non-archived employee row, separated or not.
-    totalEmployees:
-        input.employees.where((e) => e.deletedAt == null).length,
+    totalEmployees: input.employees.where((e) => e.deletedAt == null).length,
     avgTenureMonths: avgTenure,
     headcountByDepartment: Map.unmodifiable(dept),
     employmentTypeCounts: Map.unmodifiable(type),

@@ -34,10 +34,7 @@ class AnnexAEditor extends StatelessWidget {
   }
 
   void _addKpi() {
-    onKpisChanged([
-      ...kpis,
-      const ContractKpi(metric: '', frequency: ''),
-    ]);
+    onKpisChanged([...kpis, const ContractKpi(metric: '', frequency: '')]);
   }
 
   void _removeKpi(int idx) {
@@ -74,10 +71,7 @@ class AnnexAEditor extends StatelessWidget {
           label: const Text('Add responsibility area'),
         ),
         const SizedBox(height: 16),
-        Text(
-          'KPIs (optional)',
-          style: Theme.of(context).textTheme.labelMedium,
-        ),
+        Text('KPIs (optional)', style: Theme.of(context).textTheme.labelMedium),
         for (var i = 0; i < kpis.length; i++)
           Padding(
             padding: const EdgeInsets.only(top: 8),
@@ -145,31 +139,25 @@ class _ResponsibilityCard extends StatelessWidget {
     required this.onRemove,
   });
 
-  void _setArea(String s) => onChanged(ContractResponsibility(
-        area: s,
-        tasks: responsibility.tasks,
-      ));
+  void _setArea(String s) =>
+      onChanged(ContractResponsibility(area: s, tasks: responsibility.tasks));
 
-  void _addTask() => onChanged(ContractResponsibility(
-        area: responsibility.area,
-        tasks: [...responsibility.tasks, ''],
-      ));
+  void _addTask() => onChanged(
+    ContractResponsibility(
+      area: responsibility.area,
+      tasks: [...responsibility.tasks, ''],
+    ),
+  );
 
   void _setTask(int i, String s) {
     final next = [...responsibility.tasks];
     next[i] = s;
-    onChanged(ContractResponsibility(
-      area: responsibility.area,
-      tasks: next,
-    ));
+    onChanged(ContractResponsibility(area: responsibility.area, tasks: next));
   }
 
   void _removeTask(int i) {
     final next = [...responsibility.tasks]..removeAt(i);
-    onChanged(ContractResponsibility(
-      area: responsibility.area,
-      tasks: next,
-    ));
+    onChanged(ContractResponsibility(area: responsibility.area, tasks: next));
   }
 
   @override

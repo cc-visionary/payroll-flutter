@@ -37,9 +37,6 @@ void main() {
       ).toPdf(theme),
       returnsNormally,
     );
-    expect(
-      () => const MemoAcknowledgmentBlock().toPdf(theme),
-      returnsNormally,
-    );
+    expect(() => const MemoAcknowledgmentBlock().toPdf(theme), returnsNormally);
   });
 }

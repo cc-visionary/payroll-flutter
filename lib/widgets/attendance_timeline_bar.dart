@@ -116,14 +116,30 @@ class AttendanceDayTimelineBar extends StatelessWidget {
     } else {
       // 1. Early-in OT (only when approved).
       if (actualIn < schedIn && earlyInApproved) {
-        segments.add((actualIn, schedIn, green,
-            tip(actualIn, schedIn, 'Early in (${schedIn - actualIn} min, approved)')));
+        segments.add((
+          actualIn,
+          schedIn,
+          green,
+          tip(
+            actualIn,
+            schedIn,
+            'Early in (${schedIn - actualIn} min, approved)',
+          ),
+        ));
       }
       // 2. Late-in undertime (always counted).
       if (actualIn > schedIn + graceMinutesLate) {
         final endClamped = actualIn.clamp(schedIn, schedOut);
-        segments.add((schedIn, endClamped, red,
-            tip(schedIn, endClamped, 'Late in (${actualIn - schedIn} min, undertime)')));
+        segments.add((
+          schedIn,
+          endClamped,
+          red,
+          tip(
+            schedIn,
+            endClamped,
+            'Late in (${actualIn - schedIn} min, undertime)',
+          ),
+        ));
       }
       // 3. Normal worked window.
       final normStart = actualIn > schedIn ? actualIn : schedIn;
@@ -131,17 +147,38 @@ class AttendanceDayTimelineBar extends StatelessWidget {
           ? schedOut
           : (actualOut < schedOut ? actualOut : schedOut);
       if (normEnd > normStart) {
-        segments.add((normStart, normEnd, green, tip(normStart, normEnd, 'Worked')));
+        segments.add((
+          normStart,
+          normEnd,
+          green,
+          tip(normStart, normEnd, 'Worked'),
+        ));
       }
       // 4. Early-out undertime.
       if (actualOut != null && actualOut < schedOut - graceMinutesEarlyOut) {
-        segments.add((actualOut, schedOut, yellow,
-            tip(actualOut, schedOut, 'Early out (${schedOut - actualOut} min, undertime)')));
+        segments.add((
+          actualOut,
+          schedOut,
+          yellow,
+          tip(
+            actualOut,
+            schedOut,
+            'Early out (${schedOut - actualOut} min, undertime)',
+          ),
+        ));
       }
       // 5. Late-out OT (only when approved).
       if (actualOut != null && actualOut > schedOut && lateOutApproved) {
-        segments.add((schedOut, actualOut, green,
-            tip(schedOut, actualOut, 'Late out / OT (${actualOut - schedOut} min, approved)')));
+        segments.add((
+          schedOut,
+          actualOut,
+          green,
+          tip(
+            schedOut,
+            actualOut,
+            'Late out / OT (${actualOut - schedOut} min, approved)',
+          ),
+        ));
       }
     }
 
@@ -197,34 +234,35 @@ class AttendanceTimelineHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (ctx, c) {
-      final hours = endHour - startHour;
-      final labelCount = (hours ~/ labelStepHours) + 1;
-      const labelWidth = 36.0;
-      return SizedBox(
-        height: 20,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: List.generate(labelCount, (i) {
-            final hour = startHour + i * labelStepHours;
-            final x = ((i * labelStepHours) / hours) * c.maxWidth;
-            final isLast = i == labelCount - 1;
-            return Positioned(
-              left: isLast
-                  ? (c.maxWidth - labelWidth).clamp(0.0, c.maxWidth)
-                  : (x - labelWidth / 2)
-                      .clamp(0.0, c.maxWidth - labelWidth),
-              width: labelWidth,
-              child: Text(
-                '${hour.toString().padLeft(2, '0')}:00',
-                textAlign: isLast ? TextAlign.right : TextAlign.left,
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
-              ),
-            );
-          }),
-        ),
-      );
-    });
+    return LayoutBuilder(
+      builder: (ctx, c) {
+        final hours = endHour - startHour;
+        final labelCount = (hours ~/ labelStepHours) + 1;
+        const labelWidth = 36.0;
+        return SizedBox(
+          height: 20,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: List.generate(labelCount, (i) {
+              final hour = startHour + i * labelStepHours;
+              final x = ((i * labelStepHours) / hours) * c.maxWidth;
+              final isLast = i == labelCount - 1;
+              return Positioned(
+                left: isLast
+                    ? (c.maxWidth - labelWidth).clamp(0.0, c.maxWidth)
+                    : (x - labelWidth / 2).clamp(0.0, c.maxWidth - labelWidth),
+                width: labelWidth,
+                child: Text(
+                  '${hour.toString().padLeft(2, '0')}:00',
+                  textAlign: isLast ? TextAlign.right : TextAlign.left,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+              );
+            }),
+          ),
+        );
+      },
+    );
   }
 }
 
@@ -250,7 +288,9 @@ class _ScheduledTick extends StatelessWidget {
       child: Tooltip(
         message: tooltip,
         child: CustomPaint(
-          painter: _DashedLinePainter(color: Colors.grey.withValues(alpha: 0.7)),
+          painter: _DashedLinePainter(
+            color: Colors.grey.withValues(alpha: 0.7),
+          ),
         ),
       ),
     );
@@ -269,8 +309,11 @@ class _DashedLinePainter extends CustomPainter {
     const gap = 3.0;
     double y = 0;
     while (y < size.height) {
-      canvas.drawLine(Offset(size.width / 2, y),
-          Offset(size.width / 2, (y + dash).clamp(0, size.height)), paint);
+      canvas.drawLine(
+        Offset(size.width / 2, y),
+        Offset(size.width / 2, (y + dash).clamp(0, size.height)),
+        paint,
+      );
       y += dash + gap;
     }
   }

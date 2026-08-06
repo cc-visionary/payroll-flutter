@@ -58,8 +58,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          compensationChangesByEmployeeProvider('e1')
-              .overrideWith((ref) async => [c1, c2]),
+          compensationChangesByEmployeeProvider(
+            'e1',
+          ).overrideWith((ref) async => [c1, c2]),
         ],
         child: Consumer(
           builder: (_, ref, _) {
@@ -79,24 +80,27 @@ void main() {
     );
   }
 
-  testWidgets('linked change id selects THAT change, not the newest',
-      (tester) async {
+  testWidgets('linked change id selects THAT change, not the newest', (
+    tester,
+  ) async {
     final filled = await runAutofill(tester, 'C1');
     expect(filled.type, SalaryAdjustmentType.salaryAdjustment);
     expect(filled.newSalary, Decimal.parse('30000'));
     expect(filled.oldSalary, Decimal.parse('25000'));
   });
 
-  testWidgets('no linked change id falls back to the newest change',
-      (tester) async {
+  testWidgets('no linked change id falls back to the newest change', (
+    tester,
+  ) async {
     final filled = await runAutofill(tester, null);
     expect(filled.type, SalaryAdjustmentType.promotion);
     expect(filled.newSalary, Decimal.parse('50000'));
     expect(filled.oldSalary, Decimal.parse('40000'));
   });
 
-  testWidgets('unknown linked change id falls back to the newest change',
-      (tester) async {
+  testWidgets('unknown linked change id falls back to the newest change', (
+    tester,
+  ) async {
     final filled = await runAutofill(tester, 'does-not-exist');
     expect(filled.type, SalaryAdjustmentType.promotion);
     expect(filled.newSalary, Decimal.parse('50000'));
@@ -104,18 +108,18 @@ void main() {
 }
 
 Employee _buildEmployee() => Employee(
-      id: 'e1',
-      companyId: 'co1',
-      employeeNumber: 'EMP-001',
-      firstName: 'Jamaica',
-      lastName: 'Vidal',
-      hiringEntityId: null,
-      employmentType: 'REGULAR',
-      employmentStatus: 'ACTIVE',
-      hireDate: DateTime(2020, 1, 1),
-      isRankAndFile: true,
-      isOtEligible: true,
-      isNdEligible: true,
-      isHolidayPayEligible: true,
-      taxOnFullEarnings: false,
-    );
+  id: 'e1',
+  companyId: 'co1',
+  employeeNumber: 'EMP-001',
+  firstName: 'Jamaica',
+  lastName: 'Vidal',
+  hiringEntityId: null,
+  employmentType: 'REGULAR',
+  employmentStatus: 'ACTIVE',
+  hireDate: DateTime(2020, 1, 1),
+  isRankAndFile: true,
+  isOtEligible: true,
+  isNdEligible: true,
+  isHolidayPayEligible: true,
+  taxOnFullEarnings: false,
+);

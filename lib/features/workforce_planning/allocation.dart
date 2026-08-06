@@ -15,10 +15,16 @@ List<double> splitEqually(int n) {
   return out;
 }
 
-List<double> ownerMajority(int n, {int primaryIndex = 0, double primaryPct = 60}) {
+List<double> ownerMajority(
+  int n, {
+  int primaryIndex = 0,
+  double primaryPct = 60,
+}) {
   if (n <= 0) return const [];
   if (n == 1) return [100];
-  final rest = splitEqually(n - 1).map((p) => _round1(p * (100 - primaryPct) / 100)).toList();
+  final rest = splitEqually(
+    n - 1,
+  ).map((p) => _round1(p * (100 - primaryPct) / 100)).toList();
   final out = <double>[];
   var r = 0;
   for (var i = 0; i < n; i++) {

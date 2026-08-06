@@ -8,7 +8,9 @@ SignatoryInfo? _info(Employee? e) => e == null
     ? null
     : SignatoryInfo(
         name: e.fullName,
-        title: (e.signatoryTitle?.isNotEmpty ?? false) ? e.signatoryTitle : null,
+        title: (e.signatoryTitle?.isNotEmpty ?? false)
+            ? e.signatoryTitle
+            : null,
         signaturePngB64: e.signaturePngB64,
       );
 
@@ -16,7 +18,8 @@ SignatoryInfo? _info(Employee? e) => e == null
 /// to nulls so generation still works when the lookup fails (fields fall
 /// back to hiring-entity defaults).
 Future<({SignatoryInfo? hr, SignatoryInfo? legal})> loadAutofillSignatories(
-    WidgetRef ref) async {
+  WidgetRef ref,
+) async {
   try {
     final hr = await ref.read(hrSignatoryProvider.future);
     final legal = await ref.read(legalSignatoryProvider.future);

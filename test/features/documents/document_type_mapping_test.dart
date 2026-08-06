@@ -14,7 +14,10 @@ void main() {
 
     test('spot-checks a few ids', () {
       expect(documentTypeForTemplateId('coe')!.code, 'COE');
-      expect(documentTypeForTemplateId('coe')!.title, 'Certificate of Employment');
+      expect(
+        documentTypeForTemplateId('coe')!.title,
+        'Certificate of Employment',
+      );
       expect(documentTypeForTemplateId('nte')!.code, 'NTE');
       expect(documentTypeForTemplateId('non_reg')!.code, 'NON_REGULARIZATION');
       expect(

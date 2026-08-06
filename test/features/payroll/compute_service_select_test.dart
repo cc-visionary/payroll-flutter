@@ -15,20 +15,22 @@ void main() {
       expect(cols, contains('pagibig_eligibility_override'));
     });
 
-    test('includes the per-employee flags read when building the engine input',
-        () {
-      const cols = PayrollComputeService.employeeSelectColumns;
-      for (final col in const [
-        'regularization_date',
-        'employment_type',
-        'is_ot_eligible',
-        'is_nd_eligible',
-        'tax_on_full_earnings',
-        'declared_wage_override',
-        'declared_wage_type',
-      ]) {
-        expect(cols, contains(col), reason: '$col must be SELECTed');
-      }
-    });
+    test(
+      'includes the per-employee flags read when building the engine input',
+      () {
+        const cols = PayrollComputeService.employeeSelectColumns;
+        for (final col in const [
+          'regularization_date',
+          'employment_type',
+          'is_ot_eligible',
+          'is_nd_eligible',
+          'tax_on_full_earnings',
+          'declared_wage_override',
+          'declared_wage_type',
+        ]) {
+          expect(cols, contains(col), reason: '$col must be SELECTed');
+        }
+      },
+    );
   });
 }

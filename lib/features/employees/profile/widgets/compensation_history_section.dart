@@ -13,11 +13,11 @@ import 'delete_compensation_change_action.dart';
 /// Maps a `compensation_changes.status` to the semantic tone used to render
 /// its [StatusChip]. Pure — no BuildContext, no theme lookups.
 StatusTone statusToneFor(String status) => switch (status) {
-      'SCHEDULED' => StatusTone.warning,
-      'APPLIED' => StatusTone.success,
-      'CANCELLED' => StatusTone.danger,
-      _ => StatusTone.warning,
-    };
+  'SCHEDULED' => StatusTone.warning,
+  'APPLIED' => StatusTone.success,
+  'CANCELLED' => StatusTone.danger,
+  _ => StatusTone.warning,
+};
 
 /// Title-cases a raw status string for display, e.g. `SCHEDULED` -> `Scheduled`.
 String _titleCase(String s) =>
@@ -37,8 +37,9 @@ class CompensationHistorySection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final changesAsync =
-        ref.watch(compensationChangesByEmployeeProvider(employee.id));
+    final changesAsync = ref.watch(
+      compensationChangesByEmployeeProvider(employee.id),
+    );
 
     return changesAsync.when(
       loading: () => const SizedBox.shrink(),
@@ -88,10 +89,7 @@ class _HistoryCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
             child: Text(
               'Compensation History',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
           ),
           Divider(height: 1, color: Theme.of(context).dividerColor),
@@ -112,7 +110,9 @@ class _HistoryCard extends StatelessWidget {
                       for (var i = 0; i < changes.length; i++) ...[
                         if (i > 0)
                           Divider(
-                              height: 24, color: Theme.of(context).dividerColor),
+                            height: 24,
+                            color: Theme.of(context).dividerColor,
+                          ),
                         _HistoryRow(
                           change: changes[i],
                           canManage: canManage,

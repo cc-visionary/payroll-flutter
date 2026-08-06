@@ -63,10 +63,7 @@ class _QuitclaimFormState extends ConsumerState<QuitclaimForm> {
     if (msg == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 4),
-      child: Text(
-        msg,
-        style: const TextStyle(color: Colors.red, fontSize: 12),
-      ),
+      child: Text(msg, style: const TextStyle(color: Colors.red, fontSize: 12)),
     );
   }
 

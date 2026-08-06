@@ -91,21 +91,23 @@ class _EmploymentContractFormState
       }
       if (match == null || !mounted) return;
       final salary = match.baseSalary;
-      _set(_i.copyWith(
-        missionStatement: match.missionStatement,
-        responsibilities: match.responsibilities
-            .map((r) => ContractResponsibility(area: r.area, tasks: r.tasks))
-            .toList(),
-        kpis: match.kpis
-            .map((k) => ContractKpi(metric: k.metric, frequency: k.frequency))
-            .toList(),
-        workHoursPerDay: match.workHoursPerDay,
-        workDaysPerWeek: match.workDaysPerWeek,
-        monthlySalary: salary == null
-            ? _i.monthlySalary
-            : NumberFormat('#,##0', 'en_US').format(salary.toDouble()),
-        salaryPeriod: _periodFromWageType(match.wageType),
-      ));
+      _set(
+        _i.copyWith(
+          missionStatement: match.missionStatement,
+          responsibilities: match.responsibilities
+              .map((r) => ContractResponsibility(area: r.area, tasks: r.tasks))
+              .toList(),
+          kpis: match.kpis
+              .map((k) => ContractKpi(metric: k.metric, frequency: k.frequency))
+              .toList(),
+          workHoursPerDay: match.workHoursPerDay,
+          workDaysPerWeek: match.workDaysPerWeek,
+          monthlySalary: salary == null
+              ? _i.monthlySalary
+              : NumberFormat('#,##0', 'en_US').format(salary.toDouble()),
+          salaryPeriod: _periodFromWageType(match.wageType),
+        ),
+      );
     } catch (_) {
       // Best-effort: leave the position set, derived fields unchanged.
     }

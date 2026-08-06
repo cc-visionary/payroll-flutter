@@ -1,11 +1,13 @@
 import '../../data/models/kpi.dart';
-import '../../data/repositories/role_scorecard_repository.dart' show KpiAssignee;
+import '../../data/repositories/role_scorecard_repository.dart'
+    show KpiAssignee;
 
 const String kUncategorized = 'Uncategorized';
 const String kNoDepartment = 'No department';
 
-String kpiCategoryOf(Kpi k) =>
-    (k.category?.trim().isNotEmpty ?? false) ? k.category!.trim() : kUncategorized;
+String kpiCategoryOf(Kpi k) => (k.category?.trim().isNotEmpty ?? false)
+    ? k.category!.trim()
+    : kUncategorized;
 
 /// Whether a KPI is tracked on anybody. An unassigned KPI is not a mistake —
 /// it may be deliberately held in reserve — but it measures nothing today, and
@@ -158,7 +160,10 @@ KpiLibraryStats kpiLibraryStats(
   Map<String, List<KpiAssignee>> assignedByKpi, {
   Map<String, String> departmentNameById = const {},
 }) {
-  final active = [for (final k in kpis) if (k.isActive) k];
+  final active = [
+    for (final k in kpis)
+      if (k.isActive) k,
+  ];
   final people = <String>{};
   for (final k in active) {
     for (final a in assignedByKpi[k.id] ?? const <KpiAssignee>[]) {
@@ -169,15 +174,17 @@ KpiLibraryStats kpiLibraryStats(
     total: kpis.length,
     active: active.length,
     assigned: active.where((k) => kpiIsAssigned(k, assignedByKpi)).length,
-    uncategorized:
-        active.where((k) => kpiCategoryOf(k) == kUncategorized).length,
+    uncategorized: active
+        .where((k) => kpiCategoryOf(k) == kUncategorized)
+        .length,
     noDepartment: active
         .where((k) => kpiDepartmentOf(k, departmentNameById) == kNoDepartment)
         .length,
     peopleTracked: people.length,
     categories: kpiCategories(active).where((c) => c != kUncategorized).length,
-    departments: kpiDepartments(active, departmentNameById)
-        .where((d) => d != kNoDepartment)
-        .length,
+    departments: kpiDepartments(
+      active,
+      departmentNameById,
+    ).where((d) => d != kNoDepartment).length,
   );
 }

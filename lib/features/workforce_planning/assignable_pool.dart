@@ -12,7 +12,9 @@ Set<String> tasksOnCard({
 }) {
   if (cardId == null) return const {};
   return {
-    for (final t in allTasks) if (t.roleScorecardId == cardId) t.id,
-    for (final a in allAssignments) if (a.roleScorecardId == cardId) a.taskId,
+    for (final t in allTasks)
+      if (t.roleScorecardId == cardId) t.id,
+    for (final a in allAssignments)
+      if (a.roleScorecardId == cardId) a.taskId,
   };
 }

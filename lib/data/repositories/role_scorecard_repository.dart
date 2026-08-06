@@ -9,7 +9,10 @@ import '../models/workforce_planning.dart';
 /// The checkbox state to show when the assignment section opens: if the employee
 /// has no assignment, all role KPIs are checked (they're tracked on the full
 /// set by default); otherwise only the assigned KPIs that are still on the role.
-Set<String> initialCheckedKpiIds(Set<String> assigned, List<String> roleKpiIds) {
+Set<String> initialCheckedKpiIds(
+  Set<String> assigned,
+  List<String> roleKpiIds,
+) {
   if (assigned.isEmpty) return roleKpiIds.toSet();
   final inter = roleKpiIds.where(assigned.contains).toSet();
   // A role change can leave assigned rows that no longer match the role; treat
@@ -32,7 +35,11 @@ class KpiAssignee {
   final String employeeId;
   final String name;
   final String? roleTitle;
-  const KpiAssignee({required this.employeeId, required this.name, this.roleTitle});
+  const KpiAssignee({
+    required this.employeeId,
+    required this.name,
+    this.roleTitle,
+  });
 }
 
 /// kpiId -> employees effectively tracked on it. An employee tracks a KPI if it
@@ -50,8 +57,9 @@ Map<String, List<KpiAssignee>> employeesByKpi({
     final roleSet = roleKpiIds[rsId] ?? const <String>{};
     if (roleSet.isEmpty) continue;
     final subset = employeeSubsets[e.assignee.employeeId];
-    final onRoleSubset =
-        subset == null ? const <String>{} : subset.where(roleSet.contains).toSet();
+    final onRoleSubset = subset == null
+        ? const <String>{}
+        : subset.where(roleSet.contains).toSet();
     final effective = onRoleSubset.isEmpty ? roleSet : onRoleSubset;
     for (final kpiId in effective) {
       (out[kpiId] ??= []).add(e.assignee);
@@ -73,8 +81,10 @@ class RoleScorecardRepository {
         );
     if (onlyActive) q = q.eq('is_active', true);
     final rows = await q.order('job_title');
-    final cards =
-        rows.cast<Map<String, dynamic>>().map(RoleScorecard.fromRow).toList();
+    final cards = rows
+        .cast<Map<String, dynamic>>()
+        .map(RoleScorecard.fromRow)
+        .toList();
     return _withSharedResponsibilities(cards);
   }
 
@@ -88,7 +98,9 @@ class RoleScorecardRepository {
         .eq('id', id)
         .maybeSingle();
     if (row == null) return null;
-    final merged = await _withSharedResponsibilities([RoleScorecard.fromRow(row)]);
+    final merged = await _withSharedResponsibilities([
+      RoleScorecard.fromRow(row),
+    ]);
     return merged.first;
   }
 
@@ -139,7 +151,11 @@ class RoleScorecardRepository {
         .maybeSingle();
     Map<String, dynamic> row;
     if (existing == null) {
-      row = await _client.from('role_scorecards').insert(payload).select().single();
+      row = await _client
+          .from('role_scorecards')
+          .insert(payload)
+          .select()
+          .single();
     } else {
       row = await _client
           .from('role_scorecards')
@@ -161,31 +177,42 @@ class RoleScorecardRepository {
     required String jobTitle,
     required List<String> taskIds,
   }) async {
-    final row = await _client.from('role_scorecards').insert({
-      'company_id': companyId,
-      'job_title': jobTitle,
-      'mission_statement': '',
-      'wage_type': 'MONTHLY',
-      'work_hours_per_day': 8,
-      'work_days_per_week': 'MON_FRI',
-      'is_active': false,
-      'effective_date': DateTime.now().toIso8601String().substring(0, 10),
-    }).select('id').single();
+    final row = await _client
+        .from('role_scorecards')
+        .insert({
+          'company_id': companyId,
+          'job_title': jobTitle,
+          'mission_statement': '',
+          'wage_type': 'MONTHLY',
+          'work_hours_per_day': 8,
+          'work_days_per_week': 'MON_FRI',
+          'is_active': false,
+          'effective_date': DateTime.now().toIso8601String().substring(0, 10),
+        })
+        .select('id')
+        .single();
     final id = row['id'] as String;
     if (taskIds.isNotEmpty) {
-      await _client.from('wp_tasks')
+      await _client
+          .from('wp_tasks')
           .update({'role_scorecard_id': id})
           .inFilter('id', taskIds);
       // Keep the PRIMARY assignment in lockstep with the repointed card — these
       // tasks come from the unassigned pool (no owner by construction), so the
       // correct PRIMARY is a card assignment @100 on the new draft card.
-      await _client.from('wp_task_assignments')
-          .delete().inFilter('task_id', taskIds).eq('assignment_role', 'PRIMARY');
+      await _client
+          .from('wp_task_assignments')
+          .delete()
+          .inFilter('task_id', taskIds)
+          .eq('assignment_role', 'PRIMARY');
       await _client.from('wp_task_assignments').insert([
         for (final tid in taskIds)
           {
-            'company_id': companyId, 'task_id': tid, 'role_scorecard_id': id,
-            'assignment_role': 'PRIMARY', 'allocation_pct': 100,
+            'company_id': companyId,
+            'task_id': tid,
+            'role_scorecard_id': id,
+            'assignment_role': 'PRIMARY',
+            'allocation_pct': 100,
           },
       ]);
     }
@@ -236,7 +263,10 @@ class RoleScorecardRepository {
     // cannot target — so find-then-insert rather than upsert. Stored names are
     // already trimmed by the migration and inserts, so lower-case compare is enough.
     final name = kpi.name.trim();
-    final rows = await _client.from('kpis').select().eq('company_id', companyId);
+    final rows = await _client
+        .from('kpis')
+        .select()
+        .eq('company_id', companyId);
     for (final r in (rows as List).cast<Map<String, dynamic>>()) {
       if ((r['name'] as String).trim().toLowerCase() == name.toLowerCase()) {
         return Kpi.fromRow(r);
@@ -266,8 +296,9 @@ class RoleScorecardRepository {
     final fields = <String, dynamic>{
       'name': name.trim(),
       'category': (category?.trim().isEmpty ?? true) ? null : category!.trim(),
-      'description':
-          (description?.trim().isEmpty ?? true) ? null : description!.trim(),
+      'description': (description?.trim().isEmpty ?? true)
+          ? null
+          : description!.trim(),
       'measurement_unit': (measurementUnit?.trim().isEmpty ?? true)
           ? null
           : measurementUnit!.trim(),
@@ -282,8 +313,10 @@ class RoleScorecardRepository {
           .single();
       return Kpi.fromRow(row);
     }
-    final existingRows =
-        await _client.from('kpis').select().eq('company_id', companyId);
+    final existingRows = await _client
+        .from('kpis')
+        .select()
+        .eq('company_id', companyId);
     final target = name.trim().toLowerCase();
     for (final r in (existingRows as List).cast<Map<String, dynamic>>()) {
       if ((r['name'] as String).trim().toLowerCase() == target) {
@@ -329,7 +362,11 @@ class RoleScorecardRepository {
         );
         kpiId = kpi.id;
       }
-      resolved.add((kpiId: kpiId, target: link.target, frequency: link.frequency));
+      resolved.add((
+        kpiId: kpiId,
+        target: link.target,
+        frequency: link.frequency,
+      ));
     }
     // Collapse duplicate library KPIs (same kpi_id attached twice) to the first
     // occurrence — matches the (role_scorecard_id, kpi_id) uniqueness and avoids
@@ -356,8 +393,9 @@ class RoleScorecardRepository {
           {
             'role_scorecard_id': roleScorecardId,
             'kpi_id': deduped[i].kpiId,
-            'target':
-                deduped[i].target.trim().isEmpty ? null : deduped[i].target.trim(),
+            'target': deduped[i].target.trim().isEmpty
+                ? null
+                : deduped[i].target.trim(),
             'frequency': deduped[i].frequency.trim().isEmpty
                 ? null
                 : deduped[i].frequency.trim(),
@@ -388,7 +426,8 @@ class RoleScorecardRepository {
     }
     await _client
         .from('role_scorecards')
-        .update({'key_responsibilities': const []}).eq('id', cardId);
+        .update({'key_responsibilities': const []})
+        .eq('id', cardId);
   }
 
   Future<List<RoleKpi>> roleKpis(String roleScorecardId) async {
@@ -429,11 +468,12 @@ class RoleScorecardRepository {
   /// as opposed to those authored on it via wp_tasks.role_scorecard_id.
   /// Keyed by role_scorecard_id.
   Future<Map<String, List<WpTask>>> assignedTasksByCard() async {
-    final rows = (await _client
-            .from('wp_task_assignments')
-            .select('role_scorecard_id, wp_tasks(*)')
-            .not('role_scorecard_id', 'is', null))
-        .cast<Map<String, dynamic>>();
+    final rows =
+        (await _client
+                .from('wp_task_assignments')
+                .select('role_scorecard_id, wp_tasks(*)')
+                .not('role_scorecard_id', 'is', null))
+            .cast<Map<String, dynamic>>();
     final out = <String, List<WpTask>>{};
     for (final r in rows) {
       final cardId = r['role_scorecard_id'] as String?;
@@ -453,12 +493,13 @@ class RoleScorecardRepository {
   /// responsibilitiesFromAssignedTasks. Task counts per person are small
   /// (tens), so no paging.
   Future<List<WpTask>> activeTasksOwnedBy(String employeeId) async {
-    final rows = (await _client
-            .from('wp_tasks')
-            .select()
-            .eq('owner_employee_id', employeeId)
-            .eq('status', 'ACTIVE'))
-        .cast<Map<String, dynamic>>();
+    final rows =
+        (await _client
+                .from('wp_tasks')
+                .select()
+                .eq('owner_employee_id', employeeId)
+                .eq('status', 'ACTIVE'))
+            .cast<Map<String, dynamic>>();
     return rows.map(WpTask.fromRow).toList();
   }
 
@@ -468,12 +509,17 @@ class RoleScorecardRepository {
   Future<Map<String, List<KpiAssignee>>> assignedEmployeesByKpi() async {
     final emps = await _client
         .from('employees')
-        .select('id, first_name, last_name, role_scorecard_id, role_scorecards(job_title)')
+        .select(
+          'id, first_name, last_name, role_scorecard_id, role_scorecards(job_title)',
+        )
         .isFilter('deleted_at', null)
         .order('first_name');
-    final roleLinks =
-        await _client.from('role_scorecard_kpis').select('role_scorecard_id, kpi_id');
-    final ek = await _client.from('employee_kpis').select('employee_id, kpi_id');
+    final roleLinks = await _client
+        .from('role_scorecard_kpis')
+        .select('role_scorecard_id, kpi_id');
+    final ek = await _client
+        .from('employee_kpis')
+        .select('employee_id, kpi_id');
 
     final employees = [
       for (final e in (emps as List).cast<Map<String, dynamic>>())
@@ -488,11 +534,15 @@ class RoleScorecardRepository {
     ];
     final roleKpiIds = <String, Set<String>>{};
     for (final r in (roleLinks as List).cast<Map<String, dynamic>>()) {
-      (roleKpiIds[r['role_scorecard_id'] as String] ??= {}).add(r['kpi_id'] as String);
+      (roleKpiIds[r['role_scorecard_id'] as String] ??= {}).add(
+        r['kpi_id'] as String,
+      );
     }
     final employeeSubsets = <String, Set<String>>{};
     for (final r in (ek as List).cast<Map<String, dynamic>>()) {
-      (employeeSubsets[r['employee_id'] as String] ??= {}).add(r['kpi_id'] as String);
+      (employeeSubsets[r['employee_id'] as String] ??= {}).add(
+        r['kpi_id'] as String,
+      );
     }
     return employeesByKpi(
       employees: employees,
@@ -502,8 +552,9 @@ class RoleScorecardRepository {
   }
 }
 
-final roleScorecardRepositoryProvider =
-    Provider<RoleScorecardRepository>((ref) => RoleScorecardRepository(Supabase.instance.client));
+final roleScorecardRepositoryProvider = Provider<RoleScorecardRepository>(
+  (ref) => RoleScorecardRepository(Supabase.instance.client),
+);
 
 final roleScorecardListProvider = FutureProvider<List<RoleScorecard>>((ref) {
   return ref.watch(roleScorecardRepositoryProvider).list();
@@ -519,15 +570,21 @@ final kpiLibraryProvider = FutureProvider<List<Kpi>>((ref) {
 
 final kpiAssignedEmployeesProvider =
     FutureProvider<Map<String, List<KpiAssignee>>>((ref) {
-  return ref.watch(roleScorecardRepositoryProvider).assignedEmployeesByKpi();
-});
+      return ref
+          .watch(roleScorecardRepositoryProvider)
+          .assignedEmployeesByKpi();
+    });
 
-final roleKpisProvider =
-    FutureProvider.family<List<RoleKpi>, String>((ref, roleScorecardId) {
+final roleKpisProvider = FutureProvider.family<List<RoleKpi>, String>((
+  ref,
+  roleScorecardId,
+) {
   return ref.watch(roleScorecardRepositoryProvider).roleKpis(roleScorecardId);
 });
 
 final employeeAssignedKpiIdsProvider =
     FutureProvider.family<Set<String>, String>((ref, employeeId) {
-  return ref.watch(roleScorecardRepositoryProvider).employeeAssignedKpiIds(employeeId);
-});
+      return ref
+          .watch(roleScorecardRepositoryProvider)
+          .employeeAssignedKpiIds(employeeId);
+    });

@@ -30,8 +30,9 @@ class EmployeeNameField extends ConsumerStatefulWidget {
 }
 
 class _EmployeeNameFieldState extends ConsumerState<EmployeeNameField> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.value);
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.value,
+  );
   late final FocusNode _focusNode = FocusNode();
 
   @override
@@ -59,7 +60,8 @@ class _EmployeeNameFieldState extends ConsumerState<EmployeeNameField> {
         .map((e) => e.trim().toLowerCase())
         .where((e) => e.isNotEmpty)
         .toSet();
-    final names = async.asData?.value
+    final names =
+        async.asData?.value
             .map((e) => e.fullName)
             .where((n) => n.isNotEmpty && !excludeLc.contains(n.toLowerCase()))
             .toList() ??
@@ -73,8 +75,7 @@ class _EmployeeNameFieldState extends ConsumerState<EmployeeNameField> {
         if (q.isEmpty) return names.take(8);
         return names.where((n) => n.toLowerCase().contains(q)).take(8);
       },
-      fieldViewBuilder:
-          (context, controller, focusNode, onFieldSubmitted) {
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
         return TextFormField(
           controller: controller,
           focusNode: focusNode,
@@ -104,7 +105,9 @@ class _EmployeeNameFieldState extends ConsumerState<EmployeeNameField> {
                     onTap: () => onSelected(option),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                       child: Text(option),
                     ),
                   );

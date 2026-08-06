@@ -18,8 +18,7 @@ void main() {
     final theme = PdfTheme.testStub();
     expect(() => const HeadingBlock('h').toPdf(theme), returnsNormally);
     expect(
-      () =>
-          const SectionHeadingBlock(number: 1, title: 't').toPdf(theme),
+      () => const SectionHeadingBlock(number: 1, title: 't').toPdf(theme),
       returnsNormally,
     );
   });

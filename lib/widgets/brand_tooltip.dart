@@ -24,11 +24,8 @@ class BrandTooltip extends StatefulWidget {
   final String? message;
   final Map<String, String>? rows;
 
-  const BrandTooltip({
-    super.key,
-    required this.message,
-    required this.child,
-  }) : rows = null;
+  const BrandTooltip({super.key, required this.message, required this.child})
+    : rows = null;
 
   const BrandTooltip.richRows({
     super.key,
@@ -162,10 +159,12 @@ class _BrandTooltipState extends State<BrandTooltip>
         child: OverlayPortal(
           controller: _portalController,
           overlayChildBuilder: (overlayCtx) {
-            final targetAnchor =
-                _openAbove ? Alignment.topCenter : Alignment.bottomCenter;
-            final followerAnchor =
-                _openAbove ? Alignment.bottomCenter : Alignment.topCenter;
+            final targetAnchor = _openAbove
+                ? Alignment.topCenter
+                : Alignment.bottomCenter;
+            final followerAnchor = _openAbove
+                ? Alignment.bottomCenter
+                : Alignment.topCenter;
             final offset = Offset(0, _openAbove ? -_gap : _gap);
             // `Align` absorbs the Overlay's StackFit.expand tight constraints
             // and hands loose constraints to CompositedTransformFollower, so

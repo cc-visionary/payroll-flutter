@@ -69,11 +69,12 @@ Future<BulkGenerateResult> bulkGenerate({
         ? null
         : await ref.read(hiringEntityByIdProvider(emp.hiringEntityId!).future);
     final ctx = AutofillContext(
-        employee: emp,
-        company: co,
-        ref: ref,
-        hrSignatory: sigs.hr,
-        legalSignatory: sigs.legal);
+      employee: emp,
+      company: co,
+      ref: ref,
+      hrSignatory: sigs.hr,
+      legalSignatory: sigs.legal,
+    );
 
     final gates = template.gates(ctx);
     if (gates.isNotEmpty) {
@@ -89,7 +90,8 @@ Future<BulkGenerateResult> bulkGenerate({
     // Apply shared overrides (only the Liability Waiver has shared fields in
     // v1). Guard each field with `containsKey` so an absent key never clears
     // the autofilled value via copyWith's null-sentinel semantics.
-    if (template is LiabilityWaiverTemplate && inputs is LiabilityWaiverInputs) {
+    if (template is LiabilityWaiverTemplate &&
+        inputs is LiabilityWaiverInputs) {
       inputs = inputs.copyWith(
         outingDate: shared.containsKey('outingDate')
             ? shared['outingDate'] as DateTime?
@@ -125,10 +127,7 @@ Future<BulkGenerateResult> bulkGenerate({
   // empty document when no employees produced output.
   final combinedPdf = perEmployeeBlocks.isEmpty
       ? await buildDocumentPdf(blocks: const [], theme: theme)
-      : await buildMultiEmployeePdf(
-          employees: perEmployeeBlocks,
-          theme: theme,
-        );
+      : await buildMultiEmployeePdf(employees: perEmployeeBlocks, theme: theme);
 
   return BulkGenerateResult(
     combinedPdf: combinedPdf,

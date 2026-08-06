@@ -56,7 +56,8 @@ class DisbursementExportRow {
   factory DisbursementExportRow.fromPayslipRow(
     Map<String, dynamic> r, {
     required String? source,
-    required (String?, String?) Function(Map<String, dynamic>, String?) resolveAccount,
+    required (String?, String?) Function(Map<String, dynamic>, String?)
+    resolveAccount,
   }) {
     final emp = r['employees'] as Map<String, dynamic>? ?? const {};
     final (num, name) = resolveAccount(r, source);
@@ -173,7 +174,9 @@ Future<void> _writeExcel(Excel excel, String path) async {
 /// Write bytes to disk, ensuring the path ends with [extension] (the save
 /// dialog may strip or omit it).
 Future<void> _writeBytes(List<int> bytes, String path, String extension) async {
-  final target = path.toLowerCase().endsWith(extension) ? path : '$path$extension';
+  final target = path.toLowerCase().endsWith(extension)
+      ? path
+      : '$path$extension';
   await File(target).writeAsBytes(bytes);
 }
 
@@ -202,10 +205,9 @@ Future<String?> _shareBytes(
   final safe = _safeFileName(fileName);
   final path = '${dir.path}${Platform.pathSeparator}$safe';
   await File(path).writeAsBytes(bytes);
-  final result = await Share.shareXFiles(
-    [XFile(path, mimeType: mimeType)],
-    subject: fileName,
-  );
+  final result = await Share.shareXFiles([
+    XFile(path, mimeType: mimeType),
+  ], subject: fileName);
   // Treat dismiss as "no export happened" so the UI doesn't report a false
   // success; the temp file still exists for the OS to clean up.
   if (result.status == ShareResultStatus.dismissed) return null;
@@ -282,11 +284,7 @@ Future<String?> exportDisbursementAllZip({
   }
 
   if (_useMobileShareSheet) {
-    return _shareBytes(
-      zipBytes,
-      filename,
-      mimeType: 'application/zip',
-    );
+    return _shareBytes(zipBytes, filename, mimeType: 'application/zip');
   }
   final path = await _promptSaveLocation(
     dialogTitle: 'Save disbursement',
@@ -305,7 +303,7 @@ String _uniqueZipEntryName(String name, Set<String> used) {
   final dot = name.lastIndexOf('.');
   final base = dot > 0 ? name.substring(0, dot) : name;
   final ext = dot > 0 ? name.substring(dot) : '';
-  for (var i = 2;; i++) {
+  for (var i = 2; ; i++) {
     final candidate = '$base ($i)$ext';
     if (used.add(candidate)) return candidate;
   }
@@ -329,9 +327,11 @@ String buildGroupTsv(DisbursementGroupExport group) {
 }
 
 String _fullName(DisbursementExportRow r) {
-  final parts = [r.firstName, r.middleName, r.lastName]
-      .where((s) => s != null && s.isNotEmpty)
-      .toList();
+  final parts = [
+    r.firstName,
+    r.middleName,
+    r.lastName,
+  ].where((s) => s != null && s.isNotEmpty).toList();
   return parts.join(' ');
 }
 

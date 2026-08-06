@@ -46,11 +46,17 @@ class MemoHeaderBlock extends Block {
         ],
         TitleBlock(titleText).toPdf(theme),
         pw.SizedBox(height: 12),
-        CompanyHeaderBlock(name: companyName, address: companyAddress)
-            .toPdf(theme),
+        CompanyHeaderBlock(
+          name: companyName,
+          address: companyAddress,
+        ).toPdf(theme),
         pw.SizedBox(height: 12),
-        LetterMetaBlock(date: date, to: to, from: from, subject: subject)
-            .toPdf(theme),
+        LetterMetaBlock(
+          date: date,
+          to: to,
+          from: from,
+          subject: subject,
+        ).toPdf(theme),
         if (salutation != null && salutation!.isNotEmpty) ...[
           pw.SizedBox(height: 16),
           ParagraphBlock('Dear $salutation,').toPdf(theme),

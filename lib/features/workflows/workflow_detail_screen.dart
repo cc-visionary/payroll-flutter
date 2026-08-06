@@ -14,7 +14,10 @@ import '../../data/repositories/workflow_repository.dart';
 import '../auth/profile_provider.dart';
 import '../documents/providers.dart' show allDocumentsProvider;
 import '../employees/profile/providers.dart'
-    show employeeDocumentsProvider, financialsByEmployeeProvider, timelineProvider;
+    show
+        employeeDocumentsProvider,
+        financialsByEmployeeProvider,
+        timelineProvider;
 import 'generate_url.dart';
 import 'remarks_dialog.dart';
 
@@ -62,8 +65,10 @@ class _Body extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final employee =
-        ref.watch(employeeByIdProvider(w.employeeId)).asData?.value;
+    final employee = ref
+        .watch(employeeByIdProvider(w.employeeId))
+        .asData
+        ?.value;
     final stepsAsync = ref.watch(workflowStepsProvider(w.id));
     return Scaffold(
       appBar: AppBar(
@@ -86,14 +91,20 @@ class _Body extends ConsumerWidget {
                   color: Colors.green.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Row(children: [
-                  const Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Workflow completed ${w.completedAt?.toIso8601String().substring(0, 10) ?? ''}',
-                    style: const TextStyle(color: Colors.green),
-                  ),
-                ]),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.check_circle_outline,
+                      color: Colors.green,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Workflow completed ${w.completedAt?.toIso8601String().substring(0, 10) ?? ''}',
+                      style: const TextStyle(color: Colors.green),
+                    ),
+                  ],
+                ),
               ),
             ],
             if (w.status == 'CANCELLED') ...[
@@ -101,29 +112,41 @@ class _Body extends ConsumerWidget {
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.4),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.errorContainer.withValues(alpha: 0.4),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Row(children: [
-                  Icon(Icons.cancel_outlined, color: Theme.of(context).colorScheme.error, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Cancelled${w.cancelReason != null ? ' — ${w.cancelReason}' : ''}',
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.cancel_outlined,
+                      color: Theme.of(context).colorScheme.error,
+                      size: 18,
                     ),
-                  ),
-                ]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Cancelled${w.cancelReason != null ? ' — ${w.cancelReason}' : ''}',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
-            Row(children: [
-              Chip(label: Text(w.workflowType)),
-              const SizedBox(width: 8),
-              Chip(label: Text(w.status)),
-              const SizedBox(width: 12),
-              if (employee != null)
-                Text(employee.fullName, style: const TextStyle(fontSize: 16)),
-            ]),
+            Row(
+              children: [
+                Chip(label: Text(w.workflowType)),
+                const SizedBox(width: 8),
+                Chip(label: Text(w.status)),
+                const SizedBox(width: 12),
+                if (employee != null)
+                  Text(employee.fullName, style: const TextStyle(fontSize: 16)),
+              ],
+            ),
             const SizedBox(height: 16),
             Text(
               'Created ${w.createdAt.toIso8601String().substring(0, 10)}'
@@ -137,12 +160,14 @@ class _Body extends ConsumerWidget {
             const SizedBox(height: 24),
             stepsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Text('Error loading steps: $e',
-                  style: const TextStyle(color: Colors.red)),
-              data: (steps) =>
-                  _StepsTimeline(workflow: w, steps: steps),
+              error: (e, _) => Text(
+                'Error loading steps: $e',
+                style: const TextStyle(color: Colors.red),
+              ),
+              data: (steps) => _StepsTimeline(workflow: w, steps: steps),
             ),
-            if (w.workflowType == 'SALARY_CHANGE' || w.workflowType == 'ROLE_CHANGE') ...[
+            if (w.workflowType == 'SALARY_CHANGE' ||
+                w.workflowType == 'ROLE_CHANGE') ...[
               const SizedBox(height: 24),
               _CompensationChangeSection(workflow: w),
             ],
@@ -152,8 +177,17 @@ class _Body extends ConsumerWidget {
                 alignment: Alignment.centerRight,
                 child: OutlinedButton.icon(
                   onPressed: () => _cancelWorkflow(context, ref),
-                  icon: Icon(Icons.cancel_outlined, color: Theme.of(context).colorScheme.error, size: 18),
-                  label: Text('Cancel workflow', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  icon: Icon(
+                    Icons.cancel_outlined,
+                    color: Theme.of(context).colorScheme.error,
+                    size: 18,
+                  ),
+                  label: Text(
+                    'Cancel workflow',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -163,8 +197,17 @@ class _Body extends ConsumerWidget {
                 alignment: Alignment.centerRight,
                 child: OutlinedButton.icon(
                   onPressed: () => _deleteWorkflow(context, ref),
-                  icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error, size: 18),
-                  label: Text('Delete workflow', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  icon: Icon(
+                    Icons.delete_outline,
+                    color: Theme.of(context).colorScheme.error,
+                    size: 18,
+                  ),
+                  label: Text(
+                    'Delete workflow',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -187,25 +230,31 @@ class _Body extends ConsumerWidget {
 
   Future<void> _cancelWorkflow(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
-    final reason = await showRemarksDialog(context, 'Cancel this workflow?', 'Cancellation reason (required)', requireNonEmpty: true);
+    final reason = await showRemarksDialog(
+      context,
+      'Cancel this workflow?',
+      'Cancellation reason (required)',
+      requireNonEmpty: true,
+    );
     if (reason == null) return;
     // Without this the write's failure went nowhere — an RLS refusal or a
     // dropped connection looked identical to success, since the only feedback
     // was the status chip quietly not changing.
     try {
-      await ref.read(workflowRepositoryProvider).cancelInstance(
-            instanceId: w.id,
-            cancelReason: reason.trim(),
-          );
+      await ref
+          .read(workflowRepositoryProvider)
+          .cancelInstance(instanceId: w.id, cancelReason: reason.trim());
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Cancel failed: $e')));
       return;
     }
     ref.invalidate(workflowByIdProvider(w.id));
     ref.invalidate(workflowListProvider);
-    messenger.showSnackBar(const SnackBar(
-      content: Text('Workflow cancelled. You can now delete it.'),
-    ));
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Workflow cancelled. You can now delete it.'),
+      ),
+    );
   }
 
   Future<void> _deleteWorkflow(BuildContext context, WidgetRef ref) async {
@@ -213,23 +262,24 @@ class _Body extends ConsumerWidget {
     // Route comp-linked workflows through the compensation-change delete so the
     // change + notice + timeline entry go with the workflow (symmetry with the
     // profile-side delete). Standalone workflows use the workflow RPC.
-    final change =
-        await ref.read(compensationChangeByWorkflowProvider(w.id).future);
+    final change = await ref.read(
+      compensationChangeByWorkflowProvider(w.id).future,
+    );
     if (!context.mounted) return;
 
     final isPenalty = w.workflowType == 'REPAYMENT_AGREEMENT';
     final body = change != null
         ? 'This permanently deletes the workflow, its steps, and the linked '
-            'compensation change — including its notice document and timeline '
-            'entry. This cannot be undone.'
+              'compensation change — including its notice document and timeline '
+              'entry. This cannot be undone.'
         : isPenalty
-            ? 'This permanently deletes the workflow, its steps, the repayment '
-                'agreement it generated, and the penalty itself with its '
-                'installment schedule. This cannot be undone.\n\n'
-                'Blocked if any installment has already been deducted or is '
-                'sitting on a payroll run.'
-            : 'This permanently deletes the workflow and its steps. This cannot '
-                'be undone.';
+        ? 'This permanently deletes the workflow, its steps, the repayment '
+              'agreement it generated, and the penalty itself with its '
+              'installment schedule. This cannot be undone.\n\n'
+              'Blocked if any installment has already been deducted or is '
+              'sitting on a payroll run.'
+        : 'This permanently deletes the workflow and its steps. This cannot '
+              'be undone.';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dctx) => AlertDialog(
@@ -269,17 +319,21 @@ class _Body extends ConsumerWidget {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
       return;
     } on ReleasedPayrollException catch (e) {
-      messenger.showSnackBar(SnackBar(
-        content: Text(
-          'Cannot delete: released payroll (${e.runPeriod ?? "a released run"}) '
-          'already paid at this rate. Cancel the change instead.',
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Cannot delete: released payroll (${e.runPeriod ?? "a released run"}) '
+            'already paid at this rate. Cancel the change instead.',
+          ),
         ),
-      ));
+      );
       return;
     } on DeleteForbiddenException {
-      messenger.showSnackBar(const SnackBar(
-        content: Text('You do not have permission to delete this workflow.'),
-      ));
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('You do not have permission to delete this workflow.'),
+        ),
+      );
       return;
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Delete failed: $e')));
@@ -358,7 +412,10 @@ class _CompensationChangeSection extends ConsumerWidget {
       error: (e, _) => const SizedBox.shrink(),
       data: (change) {
         if (change == null) return const SizedBox.shrink();
-        final dateLabel = change.effectiveDate.toIso8601String().substring(0, 10);
+        final dateLabel = change.effectiveDate.toIso8601String().substring(
+          0,
+          10,
+        );
         final now = DateTime.now();
         final today = DateTime(now.year, now.month, now.day);
         final effectiveDay = DateTime(
@@ -391,7 +448,10 @@ class _CompensationChangeSection extends ConsumerWidget {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              StatusChip(label: 'Scheduled for $dateLabel', tone: StatusTone.warning),
+              StatusChip(
+                label: 'Scheduled for $dateLabel',
+                tone: StatusTone.warning,
+              ),
               TextButton(
                 onPressed: () => _cancelChange(context, ref, change),
                 child: const Text('Cancel change'),
@@ -399,13 +459,23 @@ class _CompensationChangeSection extends ConsumerWidget {
             ],
           );
         } else if (change.status == 'APPLIED') {
-          final appliedLabel = change.appliedAt?.toIso8601String().substring(0, 10) ?? dateLabel;
-          content = StatusChip(label: 'Applied $appliedLabel', tone: StatusTone.success);
+          final appliedLabel =
+              change.appliedAt?.toIso8601String().substring(0, 10) ?? dateLabel;
+          content = StatusChip(
+            label: 'Applied $appliedLabel',
+            tone: StatusTone.success,
+          );
         } else {
-          content = const StatusChip(label: 'Cancelled', tone: StatusTone.danger);
+          content = const StatusChip(
+            label: 'Cancelled',
+            tone: StatusTone.danger,
+          );
         }
 
-        return Padding(padding: const EdgeInsets.only(bottom: 8), child: content);
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: content,
+        );
       },
     );
   }
@@ -423,9 +493,9 @@ class _CompensationChangeSection extends ConsumerWidget {
     ref.invalidate(pendingCompensationChangesProvider(workflow.employeeId));
     ref.invalidate(compensationChangeByWorkflowProvider(workflow.id));
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Change applied.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Change applied.')));
   }
 
   Future<void> _cancelChange(
@@ -440,7 +510,9 @@ class _CompensationChangeSection extends ConsumerWidget {
     );
     if (!confirmed) return;
     await ref.read(compensationChangeRepositoryProvider).cancel(change.id);
-    await ref.read(workflowRepositoryProvider).cancelInstance(
+    await ref
+        .read(workflowRepositoryProvider)
+        .cancelInstance(
           instanceId: workflow.id,
           cancelReason: 'Compensation change cancelled',
         );
@@ -450,13 +522,17 @@ class _CompensationChangeSection extends ConsumerWidget {
     ref.invalidate(compensationChangeByWorkflowProvider(workflow.id));
     ref.invalidate(workflowListProvider);
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Change cancelled.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Change cancelled.')));
   }
 }
 
-Future<bool> _confirmDialog(BuildContext context, String title, String body) async {
+Future<bool> _confirmDialog(
+  BuildContext context,
+  String title,
+  String body,
+) async {
   final result = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -493,8 +569,10 @@ class _StepsTimeline extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('$done / ${steps.length} steps complete',
-            style: const TextStyle(fontWeight: FontWeight.w600)),
+        Text(
+          '$done / ${steps.length} steps complete',
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
         const SizedBox(height: 12),
         for (final s in steps)
           Card(
@@ -506,58 +584,71 @@ class _StepsTimeline extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 14,
-                    child: Text('${s.stepIndex + 1}',
-                        style: const TextStyle(fontSize: 12)),
+                    child: Text(
+                      '${s.stepIndex + 1}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(s.name,
-                            style: const TextStyle(fontWeight: FontWeight.w600)),
+                        Text(
+                          s.name,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
                         if (s.description != null) ...[
                           const SizedBox(height: 4),
-                          Text(s.description!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              )),
+                          Text(
+                            s.description!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
                         ],
                         const SizedBox(height: 8),
-                        Row(children: [
-                          Chip(label: Text(s.status)),
-                          const SizedBox(width: 8),
-                          Text(s.stepType,
+                        Row(
+                          children: [
+                            Chip(label: Text(s.status)),
+                            const SizedBox(width: 8),
+                            Text(
+                              s.stepType,
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              )),
-                        ]),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
                         if (s.completedAt != null) ...[
                           const SizedBox(height: 4),
                           Text(
                             'Completed ${s.completedAt!.toIso8601String().substring(0, 16)}',
                             style: TextStyle(
-                                fontSize: 11,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant),
+                              fontSize: 11,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
                           ),
                         ],
                         if (s.remarks != null) ...[
                           const SizedBox(height: 4),
-                          Text(s.remarks!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              )),
+                          Text(
+                            s.remarks!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
                         ],
                         _StepActions(workflow: workflow, step: s),
                       ],
@@ -580,46 +671,51 @@ class _StepActions extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isOpen = step.status == 'PENDING' || step.status == 'IN_PROGRESS';
-    final isTerminal = workflow.status == 'COMPLETED' || workflow.status == 'CANCELLED';
+    final isTerminal =
+        workflow.status == 'COMPLETED' || workflow.status == 'CANCELLED';
     if (!isOpen || isTerminal) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 8),
-      child: Wrap(spacing: 8, children: [
-        if (step.stepType == 'DOCUMENT_GENERATION') ...[
-          FilledButton.icon(
-            onPressed: () => _generateNow(context, ref),
-            icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-            label: const Text('Generate now'),
-          ),
-          // "Generate now" navigates away to the generate screen and never
-          // returns, so without this a DOCUMENT_GENERATION step could only
-          // ever be skipped — it had no path to COMPLETED at all.
-          FilledButton.tonal(
-            onPressed: () => _markComplete(context, ref),
-            child: const Text('Mark complete'),
+      child: Wrap(
+        spacing: 8,
+        children: [
+          if (step.stepType == 'DOCUMENT_GENERATION') ...[
+            FilledButton.icon(
+              onPressed: () => _generateNow(context, ref),
+              icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+              label: const Text('Generate now'),
+            ),
+            // "Generate now" navigates away to the generate screen and never
+            // returns, so without this a DOCUMENT_GENERATION step could only
+            // ever be skipped — it had no path to COMPLETED at all.
+            FilledButton.tonal(
+              onPressed: () => _markComplete(context, ref),
+              child: const Text('Mark complete'),
+            ),
+          ],
+          if (step.stepType != 'DOCUMENT_GENERATION' &&
+              step.stepType != 'APPROVAL')
+            FilledButton.tonal(
+              onPressed: () => _markComplete(context, ref),
+              child: const Text('Mark complete'),
+            ),
+          if (step.stepType == 'APPROVAL') ...[
+            FilledButton.tonal(
+              onPressed: () => _approve(context, ref),
+              child: const Text('Approve'),
+            ),
+            OutlinedButton(
+              onPressed: () => _reject(context, ref),
+              child: const Text('Reject'),
+            ),
+          ],
+          TextButton(
+            onPressed: () => _skip(context, ref),
+            child: const Text('Skip'),
           ),
         ],
-        if (step.stepType != 'DOCUMENT_GENERATION' && step.stepType != 'APPROVAL')
-          FilledButton.tonal(
-            onPressed: () => _markComplete(context, ref),
-            child: const Text('Mark complete'),
-          ),
-        if (step.stepType == 'APPROVAL') ...[
-          FilledButton.tonal(
-            onPressed: () => _approve(context, ref),
-            child: const Text('Approve'),
-          ),
-          OutlinedButton(
-            onPressed: () => _reject(context, ref),
-            child: const Text('Reject'),
-          ),
-        ],
-        TextButton(
-          onPressed: () => _skip(context, ref),
-          child: const Text('Skip'),
-        ),
-      ]),
+      ),
     );
   }
 
@@ -627,7 +723,9 @@ class _StepActions extends ConsumerWidget {
     final templateId = step.inputData?['template_id'] as String?;
     if (templateId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Step has no template_id; cannot generate.')),
+        const SnackBar(
+          content: Text('Step has no template_id; cannot generate.'),
+        ),
       );
       return;
     }
@@ -640,8 +738,9 @@ class _StepActions extends ConsumerWidget {
     String? changeId;
     if (workflow.workflowType == 'SALARY_CHANGE' ||
         workflow.workflowType == 'ROLE_CHANGE') {
-      final change =
-          await ref.read(compensationChangeByWorkflowProvider(workflow.id).future);
+      final change = await ref.read(
+        compensationChangeByWorkflowProvider(workflow.id).future,
+      );
       changeId = change?.id;
     }
     // Same idea for a repayment agreement: render THIS penalty's schedule, not
@@ -659,41 +758,66 @@ class _StepActions extends ConsumerWidget {
   }
 
   Future<void> _markComplete(BuildContext context, WidgetRef ref) async {
-    final remarks = await showRemarksDialog(context, 'Mark step complete?', 'Remarks (optional)');
+    final remarks = await showRemarksDialog(
+      context,
+      'Mark step complete?',
+      'Remarks (optional)',
+    );
     if (remarks == null) return;
     final profile = ref.read(userProfileProvider).asData!.value!;
-    await ref.read(workflowRepositoryProvider).markStepCompleted(
+    await ref
+        .read(workflowRepositoryProvider)
+        .markStepCompleted(
           stepId: step.id,
           completedById: profile.userId,
           remarks: remarks.trim().isEmpty ? null : remarks.trim(),
-          generatedDocumentId: step.stepType == 'DOCUMENT_GENERATION' ? step.generatedDocumentId : null,
+          generatedDocumentId: step.stepType == 'DOCUMENT_GENERATION'
+              ? step.generatedDocumentId
+              : null,
         );
-    await ref.read(workflowRepositoryProvider).maybeCompleteInstance(workflow.id);
+    await ref
+        .read(workflowRepositoryProvider)
+        .maybeCompleteInstance(workflow.id);
     ref.invalidate(workflowStepsProvider(workflow.id));
     ref.invalidate(workflowByIdProvider(workflow.id));
     ref.invalidate(workflowListProvider);
   }
 
   Future<void> _approve(BuildContext context, WidgetRef ref) async {
-    final remarks = await showRemarksDialog(context, 'Approve this step?', 'Approval remarks (optional)');
+    final remarks = await showRemarksDialog(
+      context,
+      'Approve this step?',
+      'Approval remarks (optional)',
+    );
     if (remarks == null) return;
     final profile = ref.read(userProfileProvider).asData!.value!;
-    await ref.read(workflowRepositoryProvider).markStepCompleted(
+    await ref
+        .read(workflowRepositoryProvider)
+        .markStepCompleted(
           stepId: step.id,
           completedById: profile.userId,
           remarks: remarks.trim().isEmpty ? null : remarks.trim(),
         );
-    await ref.read(workflowRepositoryProvider).maybeCompleteInstance(workflow.id);
+    await ref
+        .read(workflowRepositoryProvider)
+        .maybeCompleteInstance(workflow.id);
     ref.invalidate(workflowStepsProvider(workflow.id));
     ref.invalidate(workflowByIdProvider(workflow.id));
     ref.invalidate(workflowListProvider);
   }
 
   Future<void> _reject(BuildContext context, WidgetRef ref) async {
-    final remarks = await showRemarksDialog(context, 'Reject this step?', 'Rejection reason (required)', requireNonEmpty: true);
+    final remarks = await showRemarksDialog(
+      context,
+      'Reject this step?',
+      'Rejection reason (required)',
+      requireNonEmpty: true,
+    );
     if (remarks == null) return;
     final profile = ref.read(userProfileProvider).asData!.value!;
-    await ref.read(workflowRepositoryProvider).markStepRejected(
+    await ref
+        .read(workflowRepositoryProvider)
+        .markStepRejected(
           stepId: step.id,
           completedById: profile.userId,
           remarks: remarks.trim(),
@@ -704,15 +828,23 @@ class _StepActions extends ConsumerWidget {
   }
 
   Future<void> _skip(BuildContext context, WidgetRef ref) async {
-    final remarks = await showRemarksDialog(context, 'Skip this step?', 'Skip reason (optional)');
+    final remarks = await showRemarksDialog(
+      context,
+      'Skip this step?',
+      'Skip reason (optional)',
+    );
     if (remarks == null) return;
     final profile = ref.read(userProfileProvider).asData!.value!;
-    await ref.read(workflowRepositoryProvider).markStepSkipped(
+    await ref
+        .read(workflowRepositoryProvider)
+        .markStepSkipped(
           stepId: step.id,
           completedById: profile.userId,
           remarks: remarks.trim().isEmpty ? null : remarks.trim(),
         );
-    await ref.read(workflowRepositoryProvider).maybeCompleteInstance(workflow.id);
+    await ref
+        .read(workflowRepositoryProvider)
+        .maybeCompleteInstance(workflow.id);
     ref.invalidate(workflowStepsProvider(workflow.id));
     ref.invalidate(workflowByIdProvider(workflow.id));
     ref.invalidate(workflowListProvider);

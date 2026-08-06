@@ -71,8 +71,7 @@ class ResignationAcceptanceInputs extends TemplateInputs {
       turnoverInstructions:
           json['turnoverInstructions'] as String? ??
           kDefaultTurnoverInstructions,
-      includeClearanceMention:
-          json['includeClearanceMention'] as bool? ?? true,
+      includeClearanceMention: json['includeClearanceMention'] as bool? ?? true,
       includeFinalPayMention: json['includeFinalPayMention'] as bool? ?? true,
       companySignaturePngB64: json['companySignaturePngB64'] as String?,
     );

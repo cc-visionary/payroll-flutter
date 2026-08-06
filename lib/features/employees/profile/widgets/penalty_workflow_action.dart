@@ -39,12 +39,14 @@ Future<void> runPenaltyWorkflow({
   final container = ProviderScope.containerOf(context, listen: false);
   final actorId = ref.read(userProfileProvider).asData?.value?.userId;
   if (actorId == null) {
-    messenger.showSnackBar(const SnackBar(
-      content: Text(
-        'Penalty recorded, but your user could not be resolved — open the '
-        'employee\'s Documents tab to generate the agreement.',
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Penalty recorded, but your user could not be resolved — open the '
+          'employee\'s Documents tab to generate the agreement.',
+        ),
       ),
-    ));
+    );
     return;
   }
 
@@ -87,19 +89,29 @@ Future<void> runPenaltyWorkflow({
     container.invalidate(workflowListProvider);
 
     if (!context.mounted) return;
-    messenger.showSnackBar(SnackBar(
-      content: Text('Penalty recorded for ${employee.fullName}. '
-          'Review and generate the repayment agreement.'),
-    ));
-    context.go(buildGenerateDocumentUrl(
-      templateId: 'penalty_agreement',
-      employeeId: employee.id,
-      penaltyId: penaltyId,
-      documentId: docId,
-    ));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Penalty recorded for ${employee.fullName}. '
+          'Review and generate the repayment agreement.',
+        ),
+      ),
+    );
+    context.go(
+      buildGenerateDocumentUrl(
+        templateId: 'penalty_agreement',
+        employeeId: employee.id,
+        penaltyId: penaltyId,
+        documentId: docId,
+      ),
+    );
   } catch (e) {
-    messenger.showSnackBar(SnackBar(
-      content: Text('Penalty recorded, but the agreement workflow failed: $e'),
-    ));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Penalty recorded, but the agreement workflow failed: $e',
+        ),
+      ),
+    );
   }
 }

@@ -47,9 +47,13 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: p.cta,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LuxiumRadius.lg)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(LuxiumRadius.lg),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          textStyle: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+          textStyle: textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
 
@@ -58,7 +62,9 @@ class AppTheme {
           backgroundColor: p.cta,
           foregroundColor: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LuxiumRadius.lg)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(LuxiumRadius.lg),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
@@ -67,7 +73,9 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: scheme.onSurface,
           side: BorderSide(color: p.border),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LuxiumRadius.lg)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(LuxiumRadius.lg),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         ),
       ),
@@ -75,7 +83,9 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: p.cta,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LuxiumRadius.lg)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(LuxiumRadius.lg),
+          ),
         ),
       ),
 
@@ -98,9 +108,16 @@ class AppTheme {
           borderRadius: BorderRadius.circular(LuxiumRadius.lg),
           borderSide: BorderSide(color: p.cta, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        labelStyle: textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
-        hintStyle: textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
+        labelStyle: textTheme.bodyMedium?.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
+        hintStyle: textTheme.bodyMedium?.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
       ),
 
       chipTheme: ChipThemeData(
@@ -117,9 +134,14 @@ class AppTheme {
         backgroundColor: p.surface,
         indicatorColor: p.cta.withValues(alpha: 0.12),
         selectedIconTheme: IconThemeData(color: p.cta),
-        selectedLabelTextStyle: textTheme.labelMedium?.copyWith(color: p.cta, fontWeight: FontWeight.w600),
+        selectedLabelTextStyle: textTheme.labelMedium?.copyWith(
+          color: p.cta,
+          fontWeight: FontWeight.w600,
+        ),
         unselectedIconTheme: IconThemeData(color: scheme.onSurfaceVariant),
-        unselectedLabelTextStyle: textTheme.labelMedium?.copyWith(color: scheme.onSurfaceVariant),
+        unselectedLabelTextStyle: textTheme.labelMedium?.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
       ),
 
       drawerTheme: DrawerThemeData(
@@ -130,14 +152,20 @@ class AppTheme {
       dialogTheme: DialogThemeData(
         backgroundColor: p.surface,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LuxiumRadius.xl)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(LuxiumRadius.xl),
+        ),
       ),
 
       snackBarTheme: SnackBarThemeData(
         backgroundColor: scheme.inverseSurface,
-        contentTextStyle: textTheme.bodyMedium?.copyWith(color: scheme.onInverseSurface),
+        contentTextStyle: textTheme.bodyMedium?.copyWith(
+          color: scheme.onInverseSurface,
+        ),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LuxiumRadius.lg)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(LuxiumRadius.lg),
+        ),
       ),
 
       dataTableTheme: DataTableThemeData(
@@ -157,14 +185,15 @@ class AppTheme {
   /// use Satoshi 700 with tight negative tracking; body uses Satoshi 400.
   static TextTheme _luxiumTextTheme(Color onSurface) {
     TextStyle h(double size, double tracking) => TextStyle(
-          fontFamily: 'Satoshi',
-          fontSize: size,
-          fontWeight: FontWeight.w700,
-          letterSpacing: tracking,
-          color: onSurface,
-          height: 1.15,
-        );
-    TextStyle b(double size, {FontWeight w = FontWeight.w400, double ls = 0}) => TextStyle(
+      fontFamily: 'Satoshi',
+      fontSize: size,
+      fontWeight: FontWeight.w700,
+      letterSpacing: tracking,
+      color: onSurface,
+      height: 1.15,
+    );
+    TextStyle b(double size, {FontWeight w = FontWeight.w400, double ls = 0}) =>
+        TextStyle(
           fontFamily: 'Satoshi',
           fontSize: size,
           fontWeight: w,
@@ -197,7 +226,12 @@ class AppTheme {
   /// the team decides to bundle Geist locally.
   ///
   /// Usage: `Text(value, style: AppTheme.mono(context))`
-  static TextStyle mono(BuildContext context, {double? fontSize, FontWeight? fontWeight, Color? color}) {
+  static TextStyle mono(
+    BuildContext context, {
+    double? fontSize,
+    FontWeight? fontWeight,
+    Color? color,
+  }) {
     return GoogleFonts.jetBrainsMono(
       fontSize: fontSize ?? 13,
       fontWeight: fontWeight ?? FontWeight.w400,

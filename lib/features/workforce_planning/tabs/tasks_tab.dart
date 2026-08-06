@@ -100,7 +100,8 @@ class _TasksTabState extends ConsumerState<TasksTab> {
         cardsAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    final err = tasksAsync.error ??
+    final err =
+        tasksAsync.error ??
         nodesAsync.error ??
         driversAsync.error ??
         ratesAsync.error ??
@@ -129,12 +130,17 @@ class _TasksTabState extends ConsumerState<TasksTab> {
     // Scope first, then page: "Operations Manager" should be its own 38 rows,
     // not page 2-of-6 of everything.
     final scopes = buildScopes(activeTasks, cards);
-    final scopeKey =
-        scopes.any((s) => s.key == _scope) ? _scope : TaskScope.allKey;
+    final scopeKey = scopes.any((s) => s.key == _scope)
+        ? _scope
+        : TaskScope.allKey;
     final withHolders = cardsWithActiveHolders(employees);
     final scoped = applyTaskFilter(
-        tasksInScope(activeTasks, cards, scopeKey), _filter, driverById, rateById,
-        cardsWithHolders: withHolders);
+      tasksInScope(activeTasks, cards, scopeKey),
+      _filter,
+      driverById,
+      rateById,
+      cardsWithHolders: withHolders,
+    );
     final pageInfo = pageOfTasks(scoped, _page, _pageSize);
     final groups = groupTasks(pageInfo.tasks, cards);
     // Counts and bulk actions must see the WHOLE inventory, never the page —
@@ -181,18 +187,21 @@ class _TasksTabState extends ConsumerState<TasksTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const TabIntro(
-            purpose: 'Every responsibility in the business, what it costs in '
+            purpose:
+                'Every responsibility in the business, what it costs in '
                 'hours, and who it reaches.',
             details: [
               (
                 term: 'A responsibility IS a task.',
-                meaning: 'The same row appears on the role card and here. Edit '
+                meaning:
+                    'The same row appears on the role card and here. Edit '
                     'it in either place — rename, re-area, re-card — and both '
                     'update, because there is only one record.',
               ),
               (
                 term: 'Three costing states.',
-                meaning: 'Costed (has hours) · Needs costing (real work, no '
+                meaning:
+                    'Costed (has hours) · Needs costing (real work, no '
                     'estimate yet) · Expectation (a behavioural standard that '
                     'will never carry hours). Only the middle one is a backlog.',
               ),
@@ -201,42 +210,64 @@ class _TasksTabState extends ConsumerState<TasksTab> {
               WpGlossary.multiplier,
               (
                 term: 'From capacity model',
-                meaning: 'The original spreadsheet rows. Their hours were moved '
+                meaning:
+                    'The original spreadsheet rows. Their hours were moved '
                     'onto the responsibilities they describe, so they are kept '
                     'only as a reference and are counted nowhere.',
               ),
             ],
           ),
           const SizedBox(height: 12),
-          _header(context, activeTasks, progress, companyId, nodes, drivers, rates,
-              employees, cards),
+          _header(
+            context,
+            activeTasks,
+            progress,
+            companyId,
+            nodes,
+            drivers,
+            rates,
+            employees,
+            cards,
+          ),
           const SizedBox(height: 12),
           _scopeBar(context, scopes, scopeKey, pageInfo),
           const SizedBox(height: 8),
-          _filterBar(context, nodes, employees, employeeNameById,
-              tallyAssignments(activeTasks, withHolders)),
+          _filterBar(
+            context,
+            nodes,
+            employees,
+            employeeNameById,
+            tallyAssignments(activeTasks, withHolders),
+          ),
           const SizedBox(height: 12),
           if (activeTasks.isEmpty)
             const Text('No tasks yet. Click "New task".')
           else ...[
             for (final cardGroup in groups.cardGroups) ...[
-              Text(cardGroup.jobTitle, style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                cardGroup.jobTitle,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const SizedBox(height: 8),
               for (final areaGroup in cardGroup.areas) ...[
                 Padding(
                   padding: const EdgeInsets.only(left: 4, bottom: 6),
                   child: Row(
                     children: [
-                      Text(areaGroup.area, style: Theme.of(context).textTheme.labelLarge),
+                      Text(
+                        areaGroup.area,
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
                       if (_costMode) ...[
                         const SizedBox(width: 12),
                         TextButton.icon(
                           onPressed: () => _fillArea(
-                              areaGroup.area,
-                              wholeArea['${cardGroup.cardId} ${areaGroup.area}'] ??
-                                  areaGroup.tasks,
-                              driverById,
-                              rateById),
+                            areaGroup.area,
+                            wholeArea['${cardGroup.cardId} ${areaGroup.area}'] ??
+                                areaGroup.tasks,
+                            driverById,
+                            rateById,
+                          ),
                           icon: const Icon(Icons.playlist_add_check, size: 16),
                           label: const Text('Fill area'),
                           style: TextButton.styleFrom(
@@ -264,8 +295,11 @@ class _TasksTabState extends ConsumerState<TasksTab> {
                     ),
                   ),
                   TextButton.icon(
-                    onPressed: () =>
-                        _confirmBulkDeleteLegacy(context, ref, allGroups.legacy),
+                    onPressed: () => _confirmBulkDeleteLegacy(
+                      context,
+                      ref,
+                      allGroups.legacy,
+                    ),
                     icon: const Icon(Icons.delete_outline, size: 18),
                     label: const Text('Delete all'),
                   ),
@@ -292,7 +326,8 @@ class _TasksTabState extends ConsumerState<TasksTab> {
             _ArchivedSection(
               tasks: partition.archived,
               onRestore: (t) async {
-                await ref.read(workforcePlanningRepositoryProvider)
+                await ref
+                    .read(workforcePlanningRepositoryProvider)
                     .setTaskArchived(t.id, false);
                 _invalidateAfterTaskChange(ref, [t.roleScorecardId]);
               },
@@ -324,7 +359,9 @@ class _TasksTabState extends ConsumerState<TasksTab> {
               n == 0
                   ? 'Costing — edit the cells, then save.'
                   : '$n unsaved ${n == 1 ? 'change' : 'changes'}',
-              style: TextStyle(color: n == 0 ? cs.onSurfaceVariant : cs.primary),
+              style: TextStyle(
+                color: n == 0 ? cs.onSurfaceVariant : cs.primary,
+              ),
             ),
           ),
           TextButton(
@@ -336,7 +373,10 @@ class _TasksTabState extends ConsumerState<TasksTab> {
             onPressed: (_saving || n == 0) ? null : () => _saveCosts(tasks),
             icon: _saving
                 ? const SizedBox(
-                    width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.save_outlined),
             label: Text(_saving ? 'Saving…' : (n == 0 ? 'Save' : 'Save $n')),
           ),
@@ -347,10 +387,16 @@ class _TasksTabState extends ConsumerState<TasksTab> {
       children: [
         Expanded(
           child: progress.done
-              ? Text('All ${progress.total} tasks resolved — '
+              ? Text(
+                  'All ${progress.total} tasks resolved — '
                   '${progress.costed} costed, ${progress.expectation} expectations.',
                   style: TextStyle(
-                      color: StatusPalette.of(context, StatusTone.success).foreground))
+                    color: StatusPalette.of(
+                      context,
+                      StatusTone.success,
+                    ).foreground,
+                  ),
+                )
               : Text(
                   '${progress.resolved} of ${progress.total} resolved · '
                   '${progress.toCost} still to cost'
@@ -368,7 +414,15 @@ class _TasksTabState extends ConsumerState<TasksTab> {
           onPressed: companyId == null
               ? null
               : () => _openForm(
-                    context, ref, companyId, nodes, drivers, rates, employees, cards),
+                  context,
+                  ref,
+                  companyId,
+                  nodes,
+                  drivers,
+                  rates,
+                  employees,
+                  cards,
+                ),
           icon: const Icon(Icons.add),
           label: const Text('New task'),
         ),
@@ -382,13 +436,17 @@ class _TasksTabState extends ConsumerState<TasksTab> {
   /// turns it into ~42 estimates plus the exceptions HR chooses to override.
   /// Search + status/node/owner filters. Any change resets to page 0 —
   /// filtering down to two results while sitting on page 4 shows nothing.
-  Widget _filterBar(BuildContext context, List<WpNode> nodes,
-      List<Employee> employees, Map<String, String> employeeNameById,
-      AssignmentTally tally) {
+  Widget _filterBar(
+    BuildContext context,
+    List<WpNode> nodes,
+    List<Employee> employees,
+    Map<String, String> employeeNameById,
+    AssignmentTally tally,
+  ) {
     void set(TaskFilter f) => setState(() {
-          _filter = f;
-          _page = 0;
-        });
+      _filter = f;
+      _page = 0;
+    });
 
     return Wrap(
       spacing: 12,
@@ -410,20 +468,26 @@ class _TasksTabState extends ConsumerState<TasksTab> {
                       icon: const Icon(Icons.clear, size: 18),
                       onPressed: () {
                         _searchCtl.clear();
-                        set(TaskFilter(
+                        set(
+                          TaskFilter(
                             state: _filter.state,
                             nodeId: _filter.nodeId,
                             ownerId: _filter.ownerId,
-                            assignment: _filter.assignment));
+                            assignment: _filter.assignment,
+                          ),
+                        );
                       },
                     ),
             ),
-            onChanged: (v) => set(TaskFilter(
+            onChanged: (v) => set(
+              TaskFilter(
                 query: v,
                 state: _filter.state,
                 nodeId: _filter.nodeId,
                 ownerId: _filter.ownerId,
-                assignment: _filter.assignment)),
+                assignment: _filter.assignment,
+              ),
+            ),
           ),
         ),
         DropdownButton<TaskCostState?>(
@@ -432,33 +496,50 @@ class _TasksTabState extends ConsumerState<TasksTab> {
           underline: const SizedBox.shrink(),
           items: const [
             DropdownMenuItem(value: null, child: Text('Any status')),
-            DropdownMenuItem(value: TaskCostState.toCost, child: Text('To cost')),
-            DropdownMenuItem(value: TaskCostState.costed, child: Text('Costed')),
             DropdownMenuItem(
-                value: TaskCostState.expectation, child: Text('Expectation')),
+              value: TaskCostState.toCost,
+              child: Text('To cost'),
+            ),
+            DropdownMenuItem(
+              value: TaskCostState.costed,
+              child: Text('Costed'),
+            ),
+            DropdownMenuItem(
+              value: TaskCostState.expectation,
+              child: Text('Expectation'),
+            ),
           ],
-          onChanged: (v) => set(TaskFilter(
+          onChanged: (v) => set(
+            TaskFilter(
               query: _filter.query,
               state: v,
               nodeId: _filter.nodeId,
               ownerId: _filter.ownerId,
-              assignment: _filter.assignment)),
+              assignment: _filter.assignment,
+            ),
+          ),
         ),
         DropdownButton<String?>(
           value: _filter.nodeId,
           hint: const Text('Any node'),
           underline: const SizedBox.shrink(),
           items: [
-            const DropdownMenuItem<String?>(value: null, child: Text('Any node')),
+            const DropdownMenuItem<String?>(
+              value: null,
+              child: Text('Any node'),
+            ),
             for (final n in nodes)
               DropdownMenuItem<String?>(value: n.id, child: Text(n.name)),
           ],
-          onChanged: (v) => set(TaskFilter(
+          onChanged: (v) => set(
+            TaskFilter(
               query: _filter.query,
               state: _filter.state,
               nodeId: v,
               ownerId: _filter.ownerId,
-              assignment: _filter.assignment)),
+              assignment: _filter.assignment,
+            ),
+          ),
         ),
         // Assignment is NOT the same question as owner: every card
         // responsibility has a null owner, but most of them still reach
@@ -469,42 +550,60 @@ class _TasksTabState extends ConsumerState<TasksTab> {
           underline: const SizedBox.shrink(),
           items: [
             const DropdownMenuItem<TaskAssignment?>(
-                value: null, child: Text('Any assignment')),
+              value: null,
+              child: Text('Any assignment'),
+            ),
             DropdownMenuItem(
-                value: TaskAssignment.explicit,
-                child: Text('Assigned to a person (${tally.explicit})')),
+              value: TaskAssignment.explicit,
+              child: Text('Assigned to a person (${tally.explicit})'),
+            ),
             DropdownMenuItem(
-                value: TaskAssignment.derived,
-                child: Text('Via role holders (${tally.derived})')),
+              value: TaskAssignment.derived,
+              child: Text('Via role holders (${tally.derived})'),
+            ),
             DropdownMenuItem(
-                value: TaskAssignment.unassigned,
-                child: Text('Unassigned — reaches nobody (${tally.unassigned})')),
+              value: TaskAssignment.unassigned,
+              child: Text('Unassigned — reaches nobody (${tally.unassigned})'),
+            ),
           ],
-          onChanged: (v) => set(TaskFilter(
+          onChanged: (v) => set(
+            TaskFilter(
               query: _filter.query,
               state: _filter.state,
               nodeId: _filter.nodeId,
               ownerId: _filter.ownerId,
-              assignment: v)),
+              assignment: v,
+            ),
+          ),
         ),
         DropdownButton<String?>(
           value: _filter.ownerId,
           hint: const Text('Any owner'),
           underline: const SizedBox.shrink(),
           items: [
-            const DropdownMenuItem<String?>(value: null, child: Text('Any owner')),
             const DropdownMenuItem<String?>(
-                value: TaskFilter.unownedKey, child: Text('No explicit owner')),
+              value: null,
+              child: Text('Any owner'),
+            ),
+            const DropdownMenuItem<String?>(
+              value: TaskFilter.unownedKey,
+              child: Text('No explicit owner'),
+            ),
             for (final e in employees)
               DropdownMenuItem<String?>(
-                  value: e.id, child: Text(employeeNameById[e.id] ?? e.id)),
+                value: e.id,
+                child: Text(employeeNameById[e.id] ?? e.id),
+              ),
           ],
-          onChanged: (v) => set(TaskFilter(
+          onChanged: (v) => set(
+            TaskFilter(
               query: _filter.query,
               state: _filter.state,
               nodeId: _filter.nodeId,
               ownerId: v,
-              assignment: _filter.assignment)),
+              assignment: _filter.assignment,
+            ),
+          ),
         ),
         if (!_filter.isEmpty)
           TextButton.icon(
@@ -533,13 +632,18 @@ class _TasksTabState extends ConsumerState<TasksTab> {
         builder: (ctx) => AlertDialog(
           title: const Text('Discard the hours?'),
           content: const Text(
-              'An expectation carries no hours. Marking this one will clear its '
-              'costing and remove it from everyone\'s load.'),
+            'An expectation carries no hours. Marking this one will clear its '
+            'costing and remove it from everyone\'s load.',
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
             FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Mark as expectation')),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Mark as expectation'),
+            ),
           ],
         ),
       );
@@ -551,17 +655,22 @@ class _TasksTabState extends ConsumerState<TasksTab> {
           .setTaskExpectation(t.id, becoming);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not update: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not update: $e')));
       return;
     }
     if (!mounted) return;
     _invalidateAfterTaskChange(ref, [t.roleScorecardId]);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(becoming
-          ? 'Marked as an expectation — excluded from costing.'
-          : 'Back to costable work.'),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          becoming
+              ? 'Marked as an expectation — excluded from costing.'
+              : 'Back to costable work.',
+        ),
+      ),
+    );
   }
 
   Future<void> _fillArea(
@@ -583,21 +692,31 @@ class _TasksTabState extends ConsumerState<TasksTab> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Applies to ${tasks.length} '
-                  '${tasks.length == 1 ? 'responsibility' : 'responsibilities'} in this area.'),
+              Text(
+                'Applies to ${tasks.length} '
+                '${tasks.length == 1 ? 'responsibility' : 'responsibilities'} in this area.',
+              ),
               const SizedBox(height: 16),
               TextFormField(
                 autofocus: true,
                 decoration: const InputDecoration(
-                    labelText: 'Times per month', hintText: 'e.g. 20'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  labelText: 'Times per month',
+                  hintText: 'e.g. 20',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 onChanged: (v) => times = parseCostField(v),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 decoration: const InputDecoration(
-                    labelText: 'Minutes each', hintText: 'e.g. 30'),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  labelText: 'Minutes each',
+                  hintText: 'e.g. 30',
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 onChanged: (v) => minutes = parseCostField(v),
               ),
               const SizedBox(height: 8),
@@ -611,8 +730,14 @@ class _TasksTabState extends ConsumerState<TasksTab> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Apply')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Apply'),
+            ),
           ],
         ),
       ),
@@ -629,11 +754,15 @@ class _TasksTabState extends ConsumerState<TasksTab> {
       onlyUncosted: onlyUncosted,
     );
     setState(() => _drafts.addAll(filled));
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(filled.isEmpty
-          ? 'Nothing to fill — those rows are already costed.'
-          : 'Filled ${filled.length} of ${tasks.length}. Review, then Save.'),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          filled.isEmpty
+              ? 'Nothing to fill — those rows are already costed.'
+              : 'Filled ${filled.length} of ${tasks.length}. Review, then Save.',
+        ),
+      ),
+    );
   }
 
   /// Scope picker + page size + pager. Changing scope or size resets to page 0
@@ -656,7 +785,10 @@ class _TasksTabState extends ConsumerState<TasksTab> {
           underline: const SizedBox.shrink(),
           items: [
             for (final s in scopes)
-              DropdownMenuItem(value: s.key, child: Text('${s.label} (${s.count})')),
+              DropdownMenuItem(
+                value: s.key,
+                child: Text('${s.label} (${s.count})'),
+              ),
           ],
           onChanged: (v) => setState(() {
             _scope = v ?? TaskScope.allKey;
@@ -697,21 +829,31 @@ class _TasksTabState extends ConsumerState<TasksTab> {
                 tooltip: 'Previous page',
                 visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.chevron_left),
-                onPressed: page.hasPrev ? () => setState(() => _page = page.page - 1) : null,
+                onPressed: page.hasPrev
+                    ? () => setState(() => _page = page.page - 1)
+                    : null,
               ),
-              Text('${page.page + 1} / ${page.pageCount}', style: AppTheme.mono(context)),
+              Text(
+                '${page.page + 1} / ${page.pageCount}',
+                style: AppTheme.mono(context),
+              ),
               IconButton(
                 tooltip: 'Next page',
                 visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.chevron_right),
-                onPressed: page.hasNext ? () => setState(() => _page = page.page + 1) : null,
+                onPressed: page.hasNext
+                    ? () => setState(() => _page = page.page + 1)
+                    : null,
               ),
             ],
           ),
         if (_costMode && _drafts.isNotEmpty)
           Text(
             'Unsaved edits are kept when you change page.',
-            style: TextStyle(color: cs.onSurfaceVariant, fontStyle: FontStyle.italic),
+            style: TextStyle(
+              color: cs.onSurfaceVariant,
+              fontStyle: FontStyle.italic,
+            ),
           ),
       ],
     );
@@ -724,12 +866,17 @@ class _TasksTabState extends ConsumerState<TasksTab> {
         builder: (ctx) => AlertDialog(
           title: const Text('Discard changes?'),
           content: Text(
-              '${_drafts.length} edited ${_drafts.length == 1 ? 'row has' : 'rows have'} not been saved.'),
+            '${_drafts.length} edited ${_drafts.length == 1 ? 'row has' : 'rows have'} not been saved.',
+          ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep editing')),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Keep editing'),
+            ),
             FilledButton(
-                onPressed: () => Navigator.pop(ctx, true), child: const Text('Discard')),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Discard'),
+            ),
           ],
         ),
       );
@@ -750,12 +897,15 @@ class _TasksTabState extends ConsumerState<TasksTab> {
     setState(() => _saving = true);
     List<String> failed;
     try {
-      failed = await ref.read(workforcePlanningRepositoryProvider).updateTaskCosts(patches);
+      failed = await ref
+          .read(workforcePlanningRepositoryProvider)
+          .updateTaskCosts(patches);
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Could not save: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not save: $e')));
       return;
     }
     if (!mounted) return;
@@ -765,13 +915,20 @@ class _TasksTabState extends ConsumerState<TasksTab> {
       _saving = false;
       _drafts.removeWhere((id, _) => !failed.contains(id));
     });
-    _invalidateAfterTaskChange(ref, patches.keys.map((id) => byId[id]?.roleScorecardId));
+    _invalidateAfterTaskChange(
+      ref,
+      patches.keys.map((id) => byId[id]?.roleScorecardId),
+    );
     final saved = patches.length - failed.length;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(failed.isEmpty
-          ? 'Saved $saved ${saved == 1 ? 'task' : 'tasks'}.'
-          : 'Saved $saved, ${failed.length} failed — the failed rows are still highlighted.'),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          failed.isEmpty
+              ? 'Saved $saved ${saved == 1 ? 'task' : 'tasks'}.'
+              : 'Saved $saved, ${failed.length} failed — the failed rows are still highlighted.',
+        ),
+      ),
+    );
   }
 
   /// Bulk costing grid. Times and minutes each have a source picker (manual, or
@@ -809,7 +966,9 @@ class _TasksTabState extends ConsumerState<TasksTab> {
             for (final t in rows)
               DataRow(
                 color: _drafts.containsKey(t.id)
-                    ? WidgetStatePropertyAll(cs.primaryContainer.withValues(alpha: 0.25))
+                    ? WidgetStatePropertyAll(
+                        cs.primaryContainer.withValues(alpha: 0.25),
+                      )
                     : null,
                 cells: [
                   DataCell(_nameCell(t.name, _nameWidth(c.maxWidth, others))),
@@ -854,9 +1013,9 @@ class _TasksTabState extends ConsumerState<TasksTab> {
   /// Fades the times/minutes/node path when a direct Hours figure is set, so
   /// it reads as inactive rather than as a second, conflicting answer.
   Widget _deemphasise(WpTask t, Widget child) => Opacity(
-        opacity: _draftFor(t).hoursPerMonth == null ? 1 : 0.4,
-        child: child,
-      );
+    opacity: _draftFor(t).hoursPerMonth == null ? 1 : 0.4,
+    child: child,
+  );
 
   /// Width left for the task name once the fixed columns have taken their
   /// share. Without this the name — a full responsibility sentence — sets the
@@ -869,9 +1028,14 @@ class _TasksTabState extends ConsumerState<TasksTab> {
   /// Two lines then ellipsis: enough for the long responsibility sentences
   /// promoted from role cards, without letting one row tower over the rest.
   static Widget _nameCell(String name, double width) => SizedBox(
-        width: width,
-        child: Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, softWrap: true),
-      );
+    width: width,
+    child: Text(
+      name,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      softWrap: true,
+    ),
+  );
 
   Widget _nodeCell(WpTask t, List<WpNode> nodes) {
     final d = _draftFor(t);
@@ -885,14 +1049,24 @@ class _TasksTabState extends ConsumerState<TasksTab> {
         items: [
           const DropdownMenuItem<String?>(value: null, child: Text('—')),
           for (final n in nodes)
-            DropdownMenuItem<String?>(value: n.id, child: Text(n.name, overflow: TextOverflow.ellipsis)),
+            DropdownMenuItem<String?>(
+              value: n.id,
+              child: Text(n.name, overflow: TextOverflow.ellipsis),
+            ),
         ],
-        onChanged: (v) => _edit(t, v == null ? d.copyWith(clearNodeId: true) : d.copyWith(nodeId: v)),
+        onChanged: (v) => _edit(
+          t,
+          v == null ? d.copyWith(clearNodeId: true) : d.copyWith(nodeId: v),
+        ),
       ),
     );
   }
 
-  Widget _timesCell(WpTask t, List<WpDriver> drivers, Map<String, WpDriver> driverById) {
+  Widget _timesCell(
+    WpTask t,
+    List<WpDriver> drivers,
+    Map<String, WpDriver> driverById,
+  ) {
     final d = _draftFor(t);
     final isDriver = d.timesSource == 'driver';
     return Row(
@@ -902,7 +1076,9 @@ class _TasksTabState extends ConsumerState<TasksTab> {
           width: 190,
           child: DropdownButton<String>(
             isExpanded: true,
-            value: isDriver && driverById.containsKey(d.driverId) ? d.driverId! : 'manual',
+            value: isDriver && driverById.containsKey(d.driverId)
+                ? d.driverId!
+                : 'manual',
             underline: const SizedBox.shrink(),
             items: [
               const DropdownMenuItem(value: 'manual', child: Text('Manual')),
@@ -919,7 +1095,11 @@ class _TasksTabState extends ConsumerState<TasksTab> {
               t,
               v == 'manual'
                   ? d.copyWith(timesSource: 'manual', clearDriverId: true)
-                  : d.copyWith(timesSource: 'driver', driverId: v, driverFactor: d.driverFactor),
+                  : d.copyWith(
+                      timesSource: 'driver',
+                      driverId: v,
+                      driverFactor: d.driverFactor,
+                    ),
             ),
           ),
         ),
@@ -948,8 +1128,8 @@ class _TasksTabState extends ConsumerState<TasksTab> {
                 isDriver
                     ? d.copyWith(driverFactor: v ?? 1)
                     : (v == null
-                        ? d.copyWith(clearTimesManual: true)
-                        : d.copyWith(timesManual: v)),
+                          ? d.copyWith(clearTimesManual: true)
+                          : d.copyWith(timesManual: v)),
               );
             },
           ),
@@ -958,7 +1138,11 @@ class _TasksTabState extends ConsumerState<TasksTab> {
     );
   }
 
-  Widget _minutesCell(WpTask t, List<WpRate> rates, Map<String, WpRate> rateById) {
+  Widget _minutesCell(
+    WpTask t,
+    List<WpRate> rates,
+    Map<String, WpRate> rateById,
+  ) {
     final d = _draftFor(t);
     final isRate = d.minutesSource == 'rate';
     return Row(
@@ -968,12 +1152,17 @@ class _TasksTabState extends ConsumerState<TasksTab> {
           width: 190,
           child: DropdownButton<String>(
             isExpanded: true,
-            value: isRate && rateById.containsKey(d.rateId) ? d.rateId! : 'manual',
+            value: isRate && rateById.containsKey(d.rateId)
+                ? d.rateId!
+                : 'manual',
             underline: const SizedBox.shrink(),
             items: [
               const DropdownMenuItem(value: 'manual', child: Text('Manual')),
               for (final r in rates)
-                DropdownMenuItem(value: r.id, child: Text(r.name, overflow: TextOverflow.ellipsis)),
+                DropdownMenuItem(
+                  value: r.id,
+                  child: Text(r.name, overflow: TextOverflow.ellipsis),
+                ),
             ],
             onChanged: (v) => _edit(
               t,
@@ -996,9 +1185,16 @@ class _TasksTabState extends ConsumerState<TasksTab> {
                 )
               : TextFormField(
                   key: ValueKey('mins-${t.id}-manual'),
-                  initialValue: d.minutesManual == null ? '' : _num(d.minutesManual!),
-                  decoration: const InputDecoration(isDense: true, hintText: '0'),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  initialValue: d.minutesManual == null
+                      ? ''
+                      : _num(d.minutesManual!),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    hintText: '0',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   onChanged: (raw) {
                     final v = parseCostField(raw);
                     _edit(
@@ -1062,87 +1258,103 @@ class _TasksTabState extends ConsumerState<TasksTab> {
     const double others = 120 + 96 + 210 + 96 + 96 + (24 * 5) + 48;
     return LayoutBuilder(
       builder: (context, c) => ResponsiveTable(
-      fullWidth: true,
-      child: DataTable(
-        columnSpacing: 24,
-        dataRowMinHeight: 48,
-        dataRowMaxHeight: 72,
-        columns: const [
-          DataColumn(label: Text('Task')),
-          DataColumn(
+        fullWidth: true,
+        child: DataTable(
+          columnSpacing: 24,
+          dataRowMinHeight: 48,
+          dataRowMaxHeight: 72,
+          columns: const [
+            DataColumn(label: Text('Task')),
+            DataColumn(
               label: Tooltip(
-                  message: 'Value-chain stage. Grouping only — it does not '
-                      'affect the hours.',
-                  child: Text('Node'))),
-          DataColumn(
+                message:
+                    'Value-chain stage. Grouping only — it does not '
+                    'affect the hours.',
+                child: Text('Node'),
+              ),
+            ),
+            DataColumn(
               label: Tooltip(
-                  message: 'Estimated hours per month at the current growth '
-                      'multiplier.',
-                  child: Text('Hours/mo'))),
-          DataColumn(
+                message:
+                    'Estimated hours per month at the current growth '
+                    'multiplier.',
+                child: Text('Hours/mo'),
+              ),
+            ),
+            DataColumn(
               label: Tooltip(
-                  message: 'A named owner carries the whole task. "Derived" '
-                      'means it reaches whoever holds the role card instead, '
-                      'split between them.',
-                  child: Text('Owner'))),
-          DataColumn(
+                message:
+                    'A named owner carries the whole task. "Derived" '
+                    'means it reaches whoever holds the role card instead, '
+                    'split between them.',
+                child: Text('Owner'),
+              ),
+            ),
+            DataColumn(
               label: Tooltip(
-                  message: 'How often the work recurs. Descriptive — the hours '
-                      'come from times × minutes.',
-                  child: Text('Cadence'))),
-          DataColumn(label: Text('')),
-        ],
-        rows: [
-          for (final t in rows)
-            DataRow(cells: [
-              DataCell(_nameWithBadges(context, t, _nameWidth(c.maxWidth, others))),
-              DataCell(Text(nodeNameById[t.nodeId] ?? '—')),
-              DataCell(_hoursCell(context, t, driverById, rateById)),
-              DataCell(_ownerCell(context, t, employees, employeeNameById)),
-              DataCell(Text(t.cadence ?? '—')),
-              DataCell(Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    tooltip: 'Edit',
-                    icon: const Icon(Icons.edit, size: 18),
-                    onPressed: companyId == null
-                        ? null
-                        : () => _openForm(
-                              context,
-                              ref,
-                              companyId,
-                              nodes,
-                              drivers,
-                              rates,
-                              employees,
-                              cards,
-                              existing: t,
-                            ),
+                message:
+                    'How often the work recurs. Descriptive — the hours '
+                    'come from times × minutes.',
+                child: Text('Cadence'),
+              ),
+            ),
+            DataColumn(label: Text('')),
+          ],
+          rows: [
+            for (final t in rows)
+              DataRow(
+                cells: [
+                  DataCell(
+                    _nameWithBadges(context, t, _nameWidth(c.maxWidth, others)),
                   ),
-                  IconButton(
-                    tooltip: t.isExpectation
-                        ? 'Treat as costable work again'
-                        : 'Mark as an expectation (no hours, ever)',
-                    icon: Icon(
-                      t.isExpectation
-                          ? Icons.flag
-                          : Icons.outlined_flag,
-                      size: 18,
+                  DataCell(Text(nodeNameById[t.nodeId] ?? '—')),
+                  DataCell(_hoursCell(context, t, driverById, rateById)),
+                  DataCell(_ownerCell(context, t, employees, employeeNameById)),
+                  DataCell(Text(t.cadence ?? '—')),
+                  DataCell(
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: 'Edit',
+                          icon: const Icon(Icons.edit, size: 18),
+                          onPressed: companyId == null
+                              ? null
+                              : () => _openForm(
+                                  context,
+                                  ref,
+                                  companyId,
+                                  nodes,
+                                  drivers,
+                                  rates,
+                                  employees,
+                                  cards,
+                                  existing: t,
+                                ),
+                        ),
+                        IconButton(
+                          tooltip: t.isExpectation
+                              ? 'Treat as costable work again'
+                              : 'Mark as an expectation (no hours, ever)',
+                          icon: Icon(
+                            t.isExpectation ? Icons.flag : Icons.outlined_flag,
+                            size: 18,
+                          ),
+                          onPressed: () => _toggleExpectation(t),
+                        ),
+                        IconButton(
+                          tooltip: 'Archive (no longer needed)',
+                          icon: const Icon(Icons.archive_outlined, size: 18),
+                          onPressed: () => _confirmArchive(context, ref, t),
+                        ),
+                      ],
                     ),
-                    onPressed: () => _toggleExpectation(t),
-                  ),
-                  IconButton(
-                    tooltip: 'Archive (no longer needed)',
-                    icon: const Icon(Icons.archive_outlined, size: 18),
-                    onPressed: () => _confirmArchive(context, ref, t),
                   ),
                 ],
-              )),
-            ]),
-        ],
+              ),
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -1175,7 +1387,11 @@ class _TasksTabState extends ConsumerState<TasksTab> {
     if (isTaskNotCosted(t)) {
       return const StatusChip(label: 'Not costed', tone: StatusTone.neutral);
     }
-    final hours = taskHours(task: t, driverById: driverById, rateById: rateById);
+    final hours = taskHours(
+      task: t,
+      driverById: driverById,
+      rateById: rateById,
+    );
     return Text(hours.toStringAsFixed(1), style: AppTheme.mono(context));
   }
 
@@ -1260,9 +1476,9 @@ class _TasksTabState extends ConsumerState<TasksTab> {
       await Future.wait([for (final t in legacyTasks) repo.deleteTask(t.id)]);
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not delete tasks: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not delete tasks: $e')));
       return;
     }
     // Legacy bucket rows have no role_scorecard_id, so no card to refresh.
@@ -1302,23 +1518,26 @@ class _TasksTabState extends ConsumerState<TasksTab> {
     if (cardId != null && area != null && needsResort(existing, result)) {
       final all = ref.read(wpTasksProvider).asData?.value ?? const <WpTask>[];
       final pos = nextSortFor(allTasks: all, cardId: cardId, area: area);
-      toSave = result.copyWithSort(areaSort: pos.areaSort, taskSort: pos.taskSort);
+      toSave = result.copyWithSort(
+        areaSort: pos.areaSort,
+        taskSort: pos.taskSort,
+      );
     }
     try {
       await ref.read(workforcePlanningRepositoryProvider).saveTask(toSave);
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save task: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not save task: $e')));
       return;
     }
     // Both cards: an edit can move a task from one card to another, and the
     // card it LEFT needs refreshing just as much as the one it joined.
-    _invalidateAfterTaskChange(
-      ref,
-      [result.roleScorecardId, existing?.roleScorecardId],
-    );
+    _invalidateAfterTaskChange(ref, [
+      result.roleScorecardId,
+      existing?.roleScorecardId,
+    ]);
   }
 
   Future<void> _confirmArchive(
@@ -1348,13 +1567,14 @@ class _TasksTabState extends ConsumerState<TasksTab> {
     );
     if (ok != true) return;
     try {
-      await ref.read(workforcePlanningRepositoryProvider)
+      await ref
+          .read(workforcePlanningRepositoryProvider)
           .setTaskArchived(task.id, true);
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not archive task: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not archive task: $e')));
       return;
     }
     _invalidateAfterTaskChange(ref, [task.roleScorecardId]);

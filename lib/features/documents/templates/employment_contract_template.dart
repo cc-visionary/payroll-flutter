@@ -352,25 +352,41 @@ const _annexBPerfIntro =
 // Each entry: bold lead label + body, rendered as a LabelledBulletListBlock.
 // (label, body) pairs:
 const _annexBPerfStandards = <List<String>>[
-  ['Quality of Work',
-      'Produces accurate, reliable, and high-quality outputs that meet deadlines.'],
-  ['Productivity',
-      'Efficiently completes tasks within the required time frame and maintains consistent output.'],
-  ['Adaptability',
-      'Quickly learns and applies new skills, and adjusts to changes in tasks or priorities.'],
-  ['Initiative and Problem-Solving',
-      'Proactively addresses challenges and suggests improvements.'],
-  ['Teamwork and Communication',
-      'Collaborates effectively and maintains professional communication.'],
+  [
+    'Quality of Work',
+    'Produces accurate, reliable, and high-quality outputs that meet deadlines.',
+  ],
+  [
+    'Productivity',
+    'Efficiently completes tasks within the required time frame and maintains consistent output.',
+  ],
+  [
+    'Adaptability',
+    'Quickly learns and applies new skills, and adjusts to changes in tasks or priorities.',
+  ],
+  [
+    'Initiative and Problem-Solving',
+    'Proactively addresses challenges and suggests improvements.',
+  ],
+  [
+    'Teamwork and Communication',
+    'Collaborates effectively and maintains professional communication.',
+  ],
 ];
 
 const _annexBBehavioral = <List<String>>[
-  ['Punctuality and Attendance',
-      'Reports to work on time and follows attendance policies.'],
-  ['Compliance with Company Policies',
-      "Adheres to the EMPLOYER's rules and confidentiality standards."],
-  ['Professionalism',
-      'Maintains a positive attitude, appropriate appearance, and professional demeanor.'],
+  [
+    'Punctuality and Attendance',
+    'Reports to work on time and follows attendance policies.',
+  ],
+  [
+    'Compliance with Company Policies',
+    "Adheres to the EMPLOYER's rules and confidentiality standards.",
+  ],
+  [
+    'Professionalism',
+    'Maintains a positive attitude, appropriate appearance, and professional demeanor.',
+  ],
 ];
 
 const _annexBTechnical =
@@ -378,14 +394,22 @@ const _annexBTechnical =
     'knowledge to perform their job effectively.';
 
 const _annexBEvaluation = <List<String>>[
-  ['Frequency',
-      'The EMPLOYEE will be evaluated at least twice during the probationary period.'],
-  ['Criteria',
-      'The evaluation will be based on the above performance and behavioral standards.'],
-  ['Feedback and Improvement',
-      'Areas for improvement will be discussed, with possible training or mentorship.'],
-  ['Final Decision',
-      'Regularization will depend on overall performance and meeting expectations.'],
+  [
+    'Frequency',
+    'The EMPLOYEE will be evaluated at least twice during the probationary period.',
+  ],
+  [
+    'Criteria',
+    'The evaluation will be based on the above performance and behavioral standards.',
+  ],
+  [
+    'Feedback and Improvement',
+    'Areas for improvement will be discussed, with possible training or mentorship.',
+  ],
+  [
+    'Final Decision',
+    'Regularization will depend on overall performance and meeting expectations.',
+  ],
 ];
 
 const _annexBConsequencesIntro =
@@ -519,8 +543,9 @@ class EmploymentContractTemplate
     // Address and gender are also blank — captured at conversion time.
     // ---------------------------------------------------------------
     if (ctx.applicantId != null) {
-      final applicant = await ctx.ref
-          .read(applicantByIdProvider(ctx.applicantId!).future);
+      final applicant = await ctx.ref.read(
+        applicantByIdProvider(ctx.applicantId!).future,
+      );
       if (applicant == null) return emptyInputs();
 
       final person = ContractPerson.fromApplicant(applicant);
@@ -539,22 +564,25 @@ class EmploymentContractTemplate
       final entity = (entityId != null && entityId.isNotEmpty)
           ? await () async {
               try {
-                return await ctx.ref
-                    .read(hiringEntityByIdProvider(entityId).future);
+                return await ctx.ref.read(
+                  hiringEntityByIdProvider(entityId).future,
+                );
               } catch (_) {
                 return null;
               }
             }()
           : ctx.company;
 
-      final repName = ctx.legalSignatory?.name ??
+      final repName =
+          ctx.legalSignatory?.name ??
           (entity?.hrManagerName ?? ctx.company?.hrManagerName ?? '');
-      final repRole = ctx.legalSignatory?.title ??
+      final repRole =
+          ctx.legalSignatory?.title ??
           ((entity?.legalSignatoryRole?.isNotEmpty == true)
               ? entity!.legalSignatoryRole!
               : (ctx.company?.legalSignatoryRole?.isNotEmpty == true)
-                  ? ctx.company!.legalSignatoryRole!
-                  : 'People Manager');
+              ? ctx.company!.legalSignatoryRole!
+              : 'People Manager');
 
       final place = <String?>[
         entity?.city ?? ctx.company?.city,
@@ -604,15 +632,18 @@ class EmploymentContractTemplate
         responsibilities: scorecard == null
             ? const []
             : scorecard.responsibilities
-                .map((r) =>
-                    ContractResponsibility(area: r.area, tasks: r.tasks))
-                .toList(),
+                  .map(
+                    (r) => ContractResponsibility(area: r.area, tasks: r.tasks),
+                  )
+                  .toList(),
         kpis: scorecard == null
             ? const []
             : scorecard.kpis
-                .map((k) =>
-                    ContractKpi(metric: k.metric, frequency: k.frequency))
-                .toList(),
+                  .map(
+                    (k) =>
+                        ContractKpi(metric: k.metric, frequency: k.frequency),
+                  )
+                  .toList(),
         logoBytes: logo,
       );
     }
@@ -633,8 +664,9 @@ class EmploymentContractTemplate
     final scorecardId = emp.roleScorecardId;
     if (scorecardId != null && scorecardId.isNotEmpty) {
       try {
-        scorecard = await ctx.ref
-            .read(roleScorecardByIdProvider(scorecardId).future);
+        scorecard = await ctx.ref.read(
+          roleScorecardByIdProvider(scorecardId).future,
+        );
       } catch (_) {
         scorecard = null;
       }
@@ -663,9 +695,12 @@ class EmploymentContractTemplate
     // degrade gracefully (mirrors the Non-Reg autofill pattern).
     Map<String, dynamic>? hireRow;
     try {
-      hireRow = await ctx.ref.read(latestEmploymentEventProvider(
-              (employeeId: emp.id, eventType: 'HIRE'))
-          .future);
+      hireRow = await ctx.ref.read(
+        latestEmploymentEventProvider((
+          employeeId: emp.id,
+          eventType: 'HIRE',
+        )).future,
+      );
     } catch (_) {
       hireRow = null;
     }
@@ -679,15 +714,17 @@ class EmploymentContractTemplate
     final probEnd = defaultProbationaryEnd(probStart);
 
     final repName = ctx.legalSignatory?.name ?? (co?.hrManagerName ?? '');
-    final repRole = ctx.legalSignatory?.title ??
+    final repRole =
+        ctx.legalSignatory?.title ??
         ((co?.legalSignatoryRole?.isNotEmpty == true)
             ? co!.legalSignatoryRole!
             : 'People Manager');
 
-    final place = <String?>[co?.city, co?.province, 'Philippines']
-        .where((s) => s != null && s.isNotEmpty)
-        .cast<String>()
-        .join(', ');
+    final place = <String?>[
+      co?.city,
+      co?.province,
+      'Philippines',
+    ].where((s) => s != null && s.isNotEmpty).cast<String>().join(', ');
 
     final salary = scorecard?.baseSalary;
     final monthlySalary = salary == null
@@ -731,19 +768,23 @@ class EmploymentContractTemplate
       employerSignatoryRole: repRole,
       companySignaturePngB64: ctx.legalSignatory?.signaturePngB64,
       missionStatement: scorecard?.missionStatement ?? '',
-      responsibilities: [
-        ...?scorecard?.responsibilities,
-        ...dedupeAppendedAreas(
-            scorecard?.responsibilities ?? const [], ownedExtra),
-      ]
-          .map((r) => ContractResponsibility(area: r.area, tasks: r.tasks))
-          .toList(),
+      responsibilities:
+          [
+                ...?scorecard?.responsibilities,
+                ...dedupeAppendedAreas(
+                  scorecard?.responsibilities ?? const [],
+                  ownedExtra,
+                ),
+              ]
+              .map((r) => ContractResponsibility(area: r.area, tasks: r.tasks))
+              .toList(),
       kpis: scorecard == null
           ? const []
           : scorecard.kpis
-              .map((k) =>
-                  ContractKpi(metric: k.metric, frequency: k.frequency))
-              .toList(),
+                .map(
+                  (k) => ContractKpi(metric: k.metric, frequency: k.frequency),
+                )
+                .toList(),
       logoBytes: logo,
     );
   }
@@ -764,11 +805,13 @@ class EmploymentContractTemplate
 
     // Letterhead — logo + company name + address, above the title.
     if (i.logoBytes != null || i.companyName.isNotEmpty) {
-      blocks.add(LetterheadBlock(
-        logoBytes: i.logoBytes,
-        companyName: i.companyName,
-        companyAddress: i.companyAddress.isEmpty ? null : i.companyAddress,
-      ));
+      blocks.add(
+        LetterheadBlock(
+          logoBytes: i.logoBytes,
+          companyName: i.companyName,
+          companyAddress: i.companyAddress.isEmpty ? null : i.companyAddress,
+        ),
+      );
     }
     blocks.add(const SpacerBlock(16));
 
@@ -777,23 +820,30 @@ class EmploymentContractTemplate
     blocks.add(const SpacerBlock(16));
 
     // 4-5. Preamble intro (date + place).
-    blocks.add(ParagraphBlock(interpolate(
-      _preambleIntro,
-      {'dateEntered': fmt.format(i.dateEntered), 'place': i.place},
-      lenient: true,
-    )));
+    blocks.add(
+      ParagraphBlock(
+        interpolate(_preambleIntro, {
+          'dateEntered': fmt.format(i.dateEntered),
+          'place': i.place,
+        }, lenient: true),
+      ),
+    );
     blocks.add(const SpacerBlock(12));
 
     // 6. EMPLOYER party — bold company name, italic address, normal-weight
     // representative role/name, with the fixed connector fragments between.
-    blocks.add(PartyBlock(spans: [
-      EmphasisSpan(i.companyName, bold: true),
-      const EmphasisSpan(_employerPartyPrefix),
-      EmphasisSpan(i.companyAddress, italic: true),
-      const EmphasisSpan(_employerPartyMid),
-      EmphasisSpan('${i.representativeRole}, ${i.representativeName}'),
-      const EmphasisSpan(_employerPartySuffix),
-    ]));
+    blocks.add(
+      PartyBlock(
+        spans: [
+          EmphasisSpan(i.companyName, bold: true),
+          const EmphasisSpan(_employerPartyPrefix),
+          EmphasisSpan(i.companyAddress, italic: true),
+          const EmphasisSpan(_employerPartyMid),
+          EmphasisSpan('${i.representativeRole}, ${i.representativeName}'),
+          const EmphasisSpan(_employerPartySuffix),
+        ],
+      ),
+    );
     blocks.add(const SpacerBlock(12));
 
     // 8-9. Centered "- and -" connector.
@@ -801,31 +851,44 @@ class EmploymentContractTemplate
     blocks.add(const SpacerBlock(12));
 
     // 10-11. EMPLOYEE party — bold name, italic address.
-    blocks.add(PartyBlock(spans: [
-      EmphasisSpan(i.employeeFullName, bold: true),
-      const EmphasisSpan(_employeePartyPrefix),
-      EmphasisSpan(i.employeeAddress, italic: true),
-      const EmphasisSpan(_employeePartySuffix),
-    ]));
+    blocks.add(
+      PartyBlock(
+        spans: [
+          EmphasisSpan(i.employeeFullName, bold: true),
+          const EmphasisSpan(_employeePartyPrefix),
+          EmphasisSpan(i.employeeAddress, italic: true),
+          const EmphasisSpan(_employeePartySuffix),
+        ],
+      ),
+    );
     blocks.add(const SpacerBlock(24));
 
     // 12-13. WITNESSETH recitals.
     blocks.add(const TitleBlock('WITNESSETH THAT:', centered: true));
     blocks.add(const SpacerBlock(8));
-    blocks.add(EmphasisParagraphBlock(spans: [
-      const EmphasisSpan('1.   '),
-      ..._boldValueSpans(_recital1, {'industry': i.industry}),
-    ]));
+    blocks.add(
+      EmphasisParagraphBlock(
+        spans: [
+          const EmphasisSpan('1.   '),
+          ..._boldValueSpans(_recital1, {'industry': i.industry}),
+        ],
+      ),
+    );
     blocks.add(const SpacerBlock(4));
-    blocks.add(EmphasisParagraphBlock(spans: [
-      const EmphasisSpan('2.   '),
-      EmphasisSpan(_recital2),
-    ]));
+    blocks.add(
+      EmphasisParagraphBlock(
+        spans: [const EmphasisSpan('2.   '), EmphasisSpan(_recital2)],
+      ),
+    );
     blocks.add(const SpacerBlock(4));
-    blocks.add(EmphasisParagraphBlock(spans: [
-      const EmphasisSpan('3.   '),
-      ..._boldValueSpans(_recital3, {'position': i.position}),
-    ]));
+    blocks.add(
+      EmphasisParagraphBlock(
+        spans: [
+          const EmphasisSpan('3.   '),
+          ..._boldValueSpans(_recital3, {'position': i.position}),
+        ],
+      ),
+    );
     blocks.add(const SpacerBlock(8));
     blocks.add(const ParagraphBlock(_nowTherefore));
 
@@ -839,33 +902,37 @@ class EmploymentContractTemplate
     section(1, const [ParagraphBlock(_s1ProbationaryEmployment)]);
     section(2, [
       EmphasisParagraphBlock(
-          spans: _boldValueSpans(_s2JobTitle, {'position': i.position})),
+        spans: _boldValueSpans(_s2JobTitle, {'position': i.position}),
+      ),
     ]);
     section(3, [
       EmphasisParagraphBlock(
-          spans: _boldValueSpans(_s3PeriodP1, {
-        'probationStart': dateOrDash(i.probationStart),
-        'probationEnd': dateOrDash(i.probationEnd),
-      })),
+        spans: _boldValueSpans(_s3PeriodP1, {
+          'probationStart': dateOrDash(i.probationStart),
+          'probationEnd': dateOrDash(i.probationEnd),
+        }),
+      ),
       const SpacerBlock(6),
       const ParagraphBlock(_s3PeriodP2),
     ]);
     section(4, const [ParagraphBlock(_s4Evaluation)]);
-    final s5 = interpolate(
-        _s5CompensationP1, {'salaryPeriod': i.salaryPeriod},
-        lenient: true);
+    final s5 = interpolate(_s5CompensationP1, {
+      'salaryPeriod': i.salaryPeriod,
+    }, lenient: true);
     final tw = i.trainingWage;
     section(5, [
       EmphasisParagraphBlock(
-          spans: _boldValueSpans(s5, {'monthlySalary': i.monthlySalary})),
+        spans: _boldValueSpans(s5, {'monthlySalary': i.monthlySalary}),
+      ),
       // Optional graduated training-wage clause — both numeric values bold.
       if (tw != null) ...[
         const SpacerBlock(6),
         EmphasisParagraphBlock(
-            spans: _boldValueSpans(_s5TrainingWage, {
-          'trainingDays': '${tw.trainingDays}',
-          'trainingDailyRate': tw.dailyRate,
-        })),
+          spans: _boldValueSpans(_s5TrainingWage, {
+            'trainingDays': '${tw.trainingDays}',
+            'trainingDailyRate': tw.dailyRate,
+          }),
+        ),
       ],
       const SpacerBlock(6),
       const ParagraphBlock(_s5CompensationP2),
@@ -873,14 +940,12 @@ class EmploymentContractTemplate
       const ParagraphBlock(_s5CompensationP3),
     ]);
     section(6, [
-      ParagraphBlock(interpolate(
-        _s6WorkHours,
-        {
+      ParagraphBlock(
+        interpolate(_s6WorkHours, {
           'workHoursPerDay': '${i.workHoursPerDay}',
           'workDaysPerWeek': i.workDaysPerWeek,
-        },
-        lenient: true,
-      )),
+        }, lenient: true),
+      ),
     ]);
     section(7, const [ParagraphBlock(_s7Assignment)]);
     section(8, const [ParagraphBlock(_s8Medical)]);
@@ -899,8 +964,10 @@ class EmploymentContractTemplate
     section(11, const [ParagraphBlock(_s11Disciplinary)]);
     section(12, [
       EmphasisParagraphBlock(
-          spans: _boldValueSpans(_s12NonCompeteIntro,
-              {'nonCompeteMonths': '${i.nonCompeteMonths}'})),
+        spans: _boldValueSpans(_s12NonCompeteIntro, {
+          'nonCompeteMonths': '${i.nonCompeteMonths}',
+        }),
+      ),
       const SpacerBlock(4),
       const BulletListBlock(_s12NonCompeteBullets),
       const SpacerBlock(4),
@@ -930,26 +997,27 @@ class EmploymentContractTemplate
     blocks.add(const ParagraphBlock('By:'));
     blocks.add(const SpacerBlock(12));
     // Employer + employee stacked, each with signature line + name + bold role.
-    blocks.add(SignatureLineBlock([
-      SignatoryLine(
-        name: i.employerSignatoryName,
-        role: i.employerSignatoryRole,
-        signatureImage: decodeSignaturePngB64(i.companySignaturePngB64),
-      ),
-      SignatoryLine(name: i.employeeFullName, role: i.position),
-    ]));
+    blocks.add(
+      SignatureLineBlock([
+        SignatoryLine(
+          name: i.employerSignatoryName,
+          role: i.employerSignatoryRole,
+          signatureImage: decodeSignaturePngB64(i.companySignaturePngB64),
+        ),
+        SignatoryLine(name: i.employeeFullName, role: i.position),
+      ]),
+    );
 
     // 24-27. Witnesses — two side by side, blank lines when names are empty.
     blocks.add(const SpacerBlock(24));
     blocks.add(const ParagraphBlock('SIGNED IN THE PRESENCE OF:'));
     blocks.add(const SpacerBlock(12));
-    blocks.add(SignatureLineBlock(
-      [
+    blocks.add(
+      SignatureLineBlock([
         SignatoryLine(name: i.witness1Name, role: i.witness1Role),
         SignatoryLine(name: i.witness2Name, role: i.witness2Role),
-      ],
-      row: true,
-    ));
+      ], row: true),
+    );
 
     // 28. Page break before Annex A.
     blocks.add(const PageBreakBlock());
@@ -957,10 +1025,14 @@ class EmploymentContractTemplate
     // 29-31. Annex A header + position title.
     blocks.add(const TitleBlock(_annexAHeader));
     blocks.add(const SpacerBlock(12));
-    blocks.add(EmphasisParagraphBlock(spans: [
-      const EmphasisSpan('Position Title: ', bold: true),
-      EmphasisSpan(i.position, bold: true),
-    ]));
+    blocks.add(
+      EmphasisParagraphBlock(
+        spans: [
+          const EmphasisSpan('Position Title: ', bold: true),
+          EmphasisSpan(i.position, bold: true),
+        ],
+      ),
+    );
 
     // 32. Mission statement (optional).
     if (i.missionStatement.isNotEmpty) {
@@ -973,74 +1045,105 @@ class EmploymentContractTemplate
     // tasks — matching the source's numbered duty areas + nested sub-bullets.
     blocks.add(const SpacerBlock(12));
     blocks.add(const HeadingBlock('Duties and Responsibilities'));
-    blocks.add(EmphasisParagraphBlock(spans: [
-      const EmphasisSpan(
-          'The EMPLOYEE, in their role as '),
-      EmphasisSpan(i.position, bold: true),
-      const EmphasisSpan(
-          ', shall perform the following duties and responsibilities:'),
-    ]));
+    blocks.add(
+      EmphasisParagraphBlock(
+        spans: [
+          const EmphasisSpan('The EMPLOYEE, in their role as '),
+          EmphasisSpan(i.position, bold: true),
+          const EmphasisSpan(
+            ', shall perform the following duties and responsibilities:',
+          ),
+        ],
+      ),
+    );
     blocks.add(const SpacerBlock(4));
     for (var idx = 0; idx < i.responsibilities.length; idx++) {
       final r = i.responsibilities[idx];
-      blocks.add(EmphasisParagraphBlock(spans: [
-        EmphasisSpan('${idx + 1}. ${r.area}', bold: true),
-      ]));
+      blocks.add(
+        EmphasisParagraphBlock(
+          spans: [EmphasisSpan('${idx + 1}. ${r.area}', bold: true)],
+        ),
+      );
       blocks.add(BulletListBlock(r.tasks));
       blocks.add(const SpacerBlock(4));
     }
 
     // 34. Training and Development (canonical boilerplate; representative role
     // interpolated). Falls back to "HR Manager" when no role is set.
-    final repRole =
-        i.representativeRole.isEmpty ? 'HR Manager' : i.representativeRole;
+    final repRole = i.representativeRole.isEmpty
+        ? 'HR Manager'
+        : i.representativeRole;
     blocks.add(const SpacerBlock(8));
     blocks.add(const HeadingBlock('Training and Development'));
-    blocks.add(BulletListBlock([
-      _annexATrainingBullet1,
-      'The $repRole will oversee the training process and provide '
-          'performance guidance.',
-    ]));
+    blocks.add(
+      BulletListBlock([
+        _annexATrainingBullet1,
+        'The $repRole will oversee the training process and provide '
+            'performance guidance.',
+      ]),
+    );
 
     // 35. Work Hours — structured Flexibility + Overtime, with the daily-hours
     // and work-days values rendered bold.
     blocks.add(const SpacerBlock(8));
     blocks.add(const HeadingBlock('Work Hours'));
-    blocks.add(EmphasisParagraphBlock(spans: [
-      const EmphasisSpan('Flexibility: ', bold: true),
-      const EmphasisSpan('The EMPLOYEE is expected to render '),
-      EmphasisSpan('${i.workHoursPerDay} hours per day', bold: true),
-      EmphasisSpan(', ${i.workDaysPerWeek}. Subject to company policy and '
-          'operational requirements, the schedule may be flexible provided '
-          'the required daily hours are completed each day.'),
-    ]));
+    blocks.add(
+      EmphasisParagraphBlock(
+        spans: [
+          const EmphasisSpan('Flexibility: ', bold: true),
+          const EmphasisSpan('The EMPLOYEE is expected to render '),
+          EmphasisSpan('${i.workHoursPerDay} hours per day', bold: true),
+          EmphasisSpan(
+            ', ${i.workDaysPerWeek}. Subject to company policy and '
+            'operational requirements, the schedule may be flexible provided '
+            'the required daily hours are completed each day.',
+          ),
+        ],
+      ),
+    );
     blocks.add(const SpacerBlock(4));
-    blocks.add(const EmphasisParagraphBlock(spans: [
-      EmphasisSpan('Overtime: ', bold: true),
-      EmphasisSpan('The EMPLOYEE may be required to render overtime work '
-          'beyond their regular hours upon the '),
-      EmphasisSpan('request of the EMPLOYER', bold: true),
-      EmphasisSpan(' and in compliance with Philippine labor laws. Any '
-          'overtime work must have prior approval from the EMPLOYER or the '
-          'immediate supervisor to qualify for compensation.'),
-    ]));
+    blocks.add(
+      const EmphasisParagraphBlock(
+        spans: [
+          EmphasisSpan('Overtime: ', bold: true),
+          EmphasisSpan(
+            'The EMPLOYEE may be required to render overtime work '
+            'beyond their regular hours upon the ',
+          ),
+          EmphasisSpan('request of the EMPLOYER', bold: true),
+          EmphasisSpan(
+            ' and in compliance with Philippine labor laws. Any '
+            'overtime work must have prior approval from the EMPLOYER or the '
+            'immediate supervisor to qualify for compensation.',
+          ),
+        ],
+      ),
+    );
 
     // 36. Performance Evaluation — scorecard KPIs (optional) + canonical
     // Evaluation Timeline (1st/3rd/6th month).
     blocks.add(const SpacerBlock(8));
     blocks.add(const HeadingBlock('Performance Evaluation'));
     if (i.kpis.isNotEmpty) {
-      blocks.add(const EmphasisParagraphBlock(spans: [
-        EmphasisSpan('Key Performance Indicators (KPIs)', bold: true),
-      ]));
-      blocks.add(BulletListBlock(
-        [for (final k in i.kpis) '${k.metric} — ${k.frequency}'],
-      ));
+      blocks.add(
+        const EmphasisParagraphBlock(
+          spans: [
+            EmphasisSpan('Key Performance Indicators (KPIs)', bold: true),
+          ],
+        ),
+      );
+      blocks.add(
+        BulletListBlock([
+          for (final k in i.kpis) '${k.metric} — ${k.frequency}',
+        ]),
+      );
       blocks.add(const SpacerBlock(4));
     }
-    blocks.add(const EmphasisParagraphBlock(spans: [
-      EmphasisSpan('Evaluation Timeline', bold: true),
-    ]));
+    blocks.add(
+      const EmphasisParagraphBlock(
+        spans: [EmphasisSpan('Evaluation Timeline', bold: true)],
+      ),
+    );
     blocks.add(const NumberedListBlock(_annexAEvaluationTimeline));
 
     // 37. Annex B — Standards for Regularization (canonical boilerplate).
@@ -1053,18 +1156,26 @@ class EmploymentContractTemplate
     blocks.add(const HeadingBlock('1. Performance Standards'));
     blocks.add(const ParagraphBlock(_annexBPerfIntro));
     blocks.add(const SpacerBlock(4));
-    blocks.add(LabelledBulletListBlock(items: [
-      for (final pair in _annexBPerfStandards)
-        LabelledBulletItem(leadBold: pair[0], body: pair[1]),
-    ]));
+    blocks.add(
+      LabelledBulletListBlock(
+        items: [
+          for (final pair in _annexBPerfStandards)
+            LabelledBulletItem(leadBold: pair[0], body: pair[1]),
+        ],
+      ),
+    );
 
     // B.2 Behavioral Standards.
     blocks.add(const SpacerBlock(10));
     blocks.add(const HeadingBlock('2. Behavioral Standards'));
-    blocks.add(LabelledBulletListBlock(items: [
-      for (final pair in _annexBBehavioral)
-        LabelledBulletItem(leadBold: pair[0], body: pair[1]),
-    ]));
+    blocks.add(
+      LabelledBulletListBlock(
+        items: [
+          for (final pair in _annexBBehavioral)
+            LabelledBulletItem(leadBold: pair[0], body: pair[1]),
+        ],
+      ),
+    );
 
     // B.3 Technical Competencies.
     blocks.add(const SpacerBlock(10));
@@ -1074,10 +1185,14 @@ class EmploymentContractTemplate
     // B.4 Evaluation Process.
     blocks.add(const SpacerBlock(10));
     blocks.add(const HeadingBlock('4. Evaluation Process'));
-    blocks.add(LabelledBulletListBlock(items: [
-      for (final pair in _annexBEvaluation)
-        LabelledBulletItem(leadBold: pair[0], body: pair[1]),
-    ]));
+    blocks.add(
+      LabelledBulletListBlock(
+        items: [
+          for (final pair in _annexBEvaluation)
+            LabelledBulletItem(leadBold: pair[0], body: pair[1]),
+        ],
+      ),
+    );
 
     // B.5 Consequences of Non-Compliance.
     blocks.add(const SpacerBlock(10));
@@ -1100,8 +1215,10 @@ String _composeAddress(
   String? city,
   String? province,
   String? zipCode,
-) =>
-    [line1, line2, city, province, zipCode]
-        .where((s) => s != null && s.isNotEmpty)
-        .cast<String>()
-        .join(', ');
+) => [
+  line1,
+  line2,
+  city,
+  province,
+  zipCode,
+].where((s) => s != null && s.isNotEmpty).cast<String>().join(', ');

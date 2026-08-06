@@ -15,7 +15,8 @@ class ResponsibilityCardsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(roleScorecardListProvider);
-    final counts = ref.watch(scorecardEmployeeCountProvider).asData?.value ?? const {};
+    final counts =
+        ref.watch(scorecardEmployeeCountProvider).asData?.value ?? const {};
     final profile = ref.watch(userProfileProvider).asData?.value;
     final canManage = profile?.isHrOrAdmin ?? false;
     final canDelete = profile?.appRole == AppRole.SUPER_ADMIN;
@@ -47,7 +48,9 @@ class ResponsibilityCardsScreen extends ConsumerWidget {
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.red))),
+        error: (e, _) => Center(
+          child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
+        ),
         data: (rows) => rows.isEmpty
             ? const Center(child: Text('No responsibility cards yet.'))
             : ListView.separated(
@@ -59,34 +62,59 @@ class ResponsibilityCardsScreen extends ConsumerWidget {
                   employeeCount: counts[rows[i].id] ?? 0,
                   canManage: canManage,
                   canDelete: canDelete,
-                  onOpen: () => context.push('/responsibility-cards/${rows[i].id}'),
-                  onEdit: () => context.push('/responsibility-cards/${rows[i].id}/edit'),
-                  onDelete: () => _confirmDelete(context, ref, rows[i], counts[rows[i].id] ?? 0),
+                  onOpen: () =>
+                      context.push('/responsibility-cards/${rows[i].id}'),
+                  onEdit: () =>
+                      context.push('/responsibility-cards/${rows[i].id}/edit'),
+                  onDelete: () => _confirmDelete(
+                    context,
+                    ref,
+                    rows[i],
+                    counts[rows[i].id] ?? 0,
+                  ),
                 ),
               ),
       ),
     );
   }
 
-  Future<void> _confirmDelete(BuildContext ctx, WidgetRef ref, RoleScorecard card, int count) async {
+  Future<void> _confirmDelete(
+    BuildContext ctx,
+    WidgetRef ref,
+    RoleScorecard card,
+    int count,
+  ) async {
     if (count > 0) {
       await showDialog(
         context: ctx,
         builder: (c) => AlertDialog(
           title: const Text('Cannot delete'),
-          content: Text('Reassign the $count employee(s) on "${card.jobTitle}" first.'),
-          actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('OK'))],
+          content: Text(
+            'Reassign the $count employee(s) on "${card.jobTitle}" first.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c),
+              child: const Text('OK'),
+            ),
+          ],
         ),
       );
       return;
     }
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: ctx,
           builder: (c) => AlertDialog(
             title: const Text('Delete card?'),
-            content: Text('This will delete "${card.jobTitle}". This cannot be undone.'),
+            content: Text(
+              'This will delete "${card.jobTitle}". This cannot be undone.',
+            ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+              TextButton(
+                onPressed: () => Navigator.pop(c, false),
+                child: const Text('Cancel'),
+              ),
               FilledButton(
                 onPressed: () => Navigator.pop(c, true),
                 style: FilledButton.styleFrom(backgroundColor: Colors.red),
@@ -133,8 +161,10 @@ class _CardTile extends StatelessWidget {
         visualDensity: VisualDensity.compact,
       ),
     );
-    final wageChip =
-        Chip(label: Text(card.wageType), visualDensity: VisualDensity.compact);
+    final wageChip = Chip(
+      label: Text(card.wageType),
+      visualDensity: VisualDensity.compact,
+    );
     final moreMenu = canManage
         ? PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, size: 20),
@@ -145,16 +175,14 @@ class _CardTile extends StatelessWidget {
             itemBuilder: (_) => [
               const PopupMenuItem(
                 value: 'edit',
-                child: ListTile(
-                    leading: Icon(Icons.edit), title: Text('Edit')),
+                child: ListTile(leading: Icon(Icons.edit), title: Text('Edit')),
               ),
               if (canDelete)
                 const PopupMenuItem(
                   value: 'delete',
                   child: ListTile(
                     leading: Icon(Icons.delete, color: Colors.red),
-                    title: Text('Delete',
-                        style: TextStyle(color: Colors.red)),
+                    title: Text('Delete', style: TextStyle(color: Colors.red)),
                   ),
                 ),
             ],
@@ -175,8 +203,9 @@ class _CardTile extends StatelessWidget {
                   Expanded(
                     child: Text(
                       card.jobTitle,
-                      style: t.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600),
+                      style: t.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   if (moreMenu != null) moreMenu,
@@ -190,8 +219,10 @@ class _CardTile extends StatelessWidget {
                 children: [
                   countChip,
                   if (card.baseSalary != null)
-                    Text('Base: ${Money.fmtPhp(card.baseSalary!)}',
-                        style: t.textTheme.bodyMedium),
+                    Text(
+                      'Base: ${Money.fmtPhp(card.baseSalary!)}',
+                      style: t.textTheme.bodyMedium,
+                    ),
                   wageChip,
                 ],
               ),

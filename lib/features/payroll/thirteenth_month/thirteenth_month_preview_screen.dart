@@ -73,7 +73,8 @@ class _ThirteenthMonthPreviewScreenState
               child: Text('No released payslips in this date range.'),
             );
           }
-          final canPrint = !kIsWeb &&
+          final canPrint =
+              !kIsWeb &&
               (Platform.isLinux ||
                   Platform.isMacOS ||
                   Platform.isWindows ||
@@ -121,11 +122,7 @@ class _ThirteenthMonthPreviewScreenState
     final to = widget.to;
     final breakdown = await ref
         .read(payrollRepositoryProvider)
-        .thirteenthMonthBreakdownForEmployee(
-          employee.id,
-          from: from,
-          to: to,
-        );
+        .thirteenthMonthBreakdownForEmployee(employee.id, from: from, to: to);
 
     final profile = await ref.read(userProfileProvider.future);
     HiringEntity? entity;
@@ -150,9 +147,11 @@ class _ThirteenthMonthPreviewScreenState
         : [
             entity.addressLine1,
             entity.addressLine2,
-            [entity.city, entity.province, entity.zipCode]
-                .where((s) => s != null && s.isNotEmpty)
-                .join(', '),
+            [
+              entity.city,
+              entity.province,
+              entity.zipCode,
+            ].where((s) => s != null && s.isNotEmpty).join(', '),
           ].where((s) => s != null && s.isNotEmpty).cast<String>().toList();
     final companyAddress = addrParts.isEmpty ? null : addrParts.join(' · ');
 
@@ -170,19 +169,21 @@ class _ThirteenthMonthPreviewScreenState
   }
 
   void _log13thMonth(String action, Employee employee, String filename) {
-    ref.read(auditRepositoryProvider).logExport(
-      description: '13th-month PDF $action: ${employee.fullName}',
-      entityType: '13th_month',
-      entityId: employee.id,
-      metadata: {
-        'employee_id': employee.id,
-        'employee_number': employee.employeeNumber,
-        'from': widget.from.toIso8601String(),
-        'to': widget.to.toIso8601String(),
-        'file_name': filename,
-        'action': action,
-      },
-    );
+    ref
+        .read(auditRepositoryProvider)
+        .logExport(
+          description: '13th-month PDF $action: ${employee.fullName}',
+          entityType: '13th_month',
+          entityId: employee.id,
+          metadata: {
+            'employee_id': employee.id,
+            'employee_number': employee.employeeNumber,
+            'from': widget.from.toIso8601String(),
+            'to': widget.to.toIso8601String(),
+            'file_name': filename,
+            'action': action,
+          },
+        );
   }
 }
 

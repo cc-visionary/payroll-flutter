@@ -30,9 +30,11 @@ Future<bool> runLarkBundleSync(
   final today = DateTime(now.year, now.month, now.day);
   final cappedTo = to.isAfter(today) ? today : to;
   if (from.isAfter(cappedTo)) {
-    messenger.showSnackBar(const SnackBar(
-      content: Text('Pay period starts in the future — nothing to sync yet.'),
-    ));
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Pay period starts in the future — nothing to sync yet.'),
+      ),
+    );
     return false;
   }
   final lark = ref.read(larkRepositoryProvider);
@@ -65,14 +67,18 @@ Future<bool> runLarkBundleSync(
     String summaryLine(String label, LarkSyncResult r) =>
         '$label: +${r.created} ~${r.updated} skipped ${r.skipped}'
         '${r.errors.isNotEmpty ? ' (${r.errors.length} errors)' : ''}';
-    messenger.showSnackBar(SnackBar(
-      content: Text([
-        attLine,
-        summaryLine('Leaves', results.leaves),
-        summaryLine('Reimbursements', results.reimbursements),
-      ].join('  •  ')),
-      duration: const Duration(seconds: 6),
-    ));
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          [
+            attLine,
+            summaryLine('Leaves', results.leaves),
+            summaryLine('Reimbursements', results.reimbursements),
+          ].join('  •  '),
+        ),
+        duration: const Duration(seconds: 6),
+      ),
+    );
     if (context.mounted) ref.invalidate(attendanceListProvider);
     return true;
   } catch (e) {

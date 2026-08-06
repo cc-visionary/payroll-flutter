@@ -14,6 +14,7 @@ class Employee {
   final String? roleScorecardId;
   final String? reportsToId;
   final String? hiringEntityId;
+
   /// Override of `hiringEntityId` for statutory remittance grouping only
   /// (SSS / PhilHealth / Pag-IBIG / BIR / employee loans). When `null` the
   /// statutory views inherit from `hiringEntityId`. Brand allocation,
@@ -38,6 +39,7 @@ class Employee {
   final bool isOtEligible;
   final bool isNdEligible;
   final bool isHolidayPayEligible;
+
   /// Per-benefit statutory eligibility overrides. When `false` (default) the
   /// employee falls under the standard regularization-date gate. When `true`,
   /// the named benefit is force-enrolled even while still probationary. Each
@@ -56,14 +58,17 @@ class Employee {
   final String? paymentMethod;
   final String? paymentSourceAccount;
   final String? larkUserId;
+
   /// Authorized-signatory flags. At most one employee per company holds each
   /// capacity (partial unique indexes, migration 20260801000001). The title
   /// is what documents PRINT (e.g. 'HR Manager'), independent of jobTitle.
   final bool isHrSignatory;
   final bool isLegalSignatory;
   final String? signatoryTitle;
+
   /// Transparent-PNG signature, base64. Rendered onto generated documents.
   final String? signaturePngB64;
+
   /// Running sum of BASIC_PAY earned since this employee's last 13th-month
   /// distribution. Ticks up on every payroll release; resets to 0 when a
   /// distribution pays them out.
@@ -120,11 +125,14 @@ class Employee {
     this.signaturePngB64,
     Decimal? accruedThirteenthMonthBasis,
     this.deletedAt,
-  }) : accruedThirteenthMonthBasis = accruedThirteenthMonthBasis ?? Decimal.zero;
+  }) : accruedThirteenthMonthBasis =
+           accruedThirteenthMonthBasis ?? Decimal.zero;
 
-  String get fullName => [firstName, middleName, lastName]
-      .where((s) => s != null && s.isNotEmpty)
-      .join(' ');
+  String get fullName => [
+    firstName,
+    middleName,
+    lastName,
+  ].where((s) => s != null && s.isNotEmpty).join(' ');
 
   /// 'Mr.' for male, 'Ms.' for female, or '' when unknown. Tolerant of
   /// free-text gender values ('Male'/'M'/'MALE' → Mr.; 'Female'/'F' → Ms.).
@@ -137,75 +145,72 @@ class Employee {
   }
 
   factory Employee.fromRow(Map<String, dynamic> r) => Employee(
-        id: r['id'] as String,
-        companyId: r['company_id'] as String,
-        employeeNumber: r['employee_number'] as String,
-        firstName: r['first_name'] as String,
-        middleName: r['middle_name'] as String?,
-        lastName: r['last_name'] as String,
-        jobTitle: r['job_title'] as String?,
-        departmentId: r['department_id'] as String?,
-        roleScorecardId: r['role_scorecard_id'] as String?,
-        reportsToId: r['reports_to_id'] as String?,
-        hiringEntityId: r['hiring_entity_id'] as String?,
-        statutoryEntityId: r['statutory_entity_id'] as String?,
-        employmentType: r['employment_type'] as String,
-        employmentStatus: r['employment_status'] as String,
-        hireDate: DateTime.parse(r['hire_date'] as String),
-        regularizationDate: r['regularization_date'] == null
-            ? null
-            : DateTime.parse(r['regularization_date'] as String),
-        separationDate: r['separation_date'] == null
-            ? null
-            : DateTime.parse(r['separation_date'] as String),
-        workEmail: r['work_email'] as String?,
-        mobileNumber: r['mobile_number'] as String?,
-        birthDate: r['birth_date'] == null
-            ? null
-            : DateTime.parse(r['birth_date'] as String),
-        gender: r['gender'] as String?,
-        addressLine1: r['present_address_line1'] as String?,
-        addressLine2: r['present_address_line2'] as String?,
-        city: r['present_city'] as String?,
-        province: r['present_province'] as String?,
-        zipCode: r['present_zip_code'] as String?,
-        isRankAndFile: r['is_rank_and_file'] as bool? ?? true,
-        isOtEligible: r['is_ot_eligible'] as bool? ?? true,
-        isNdEligible: r['is_nd_eligible'] as bool? ?? true,
-        isHolidayPayEligible: r['is_holiday_pay_eligible'] as bool? ?? true,
-        sssEligibilityOverride:
-            (r['sss_eligibility_override'] as bool?) ?? false,
-        philhealthEligibilityOverride:
-            (r['philhealth_eligibility_override'] as bool?) ?? false,
-        pagibigEligibilityOverride:
-            (r['pagibig_eligibility_override'] as bool?) ?? false,
-        declaredWageOverride: r['declared_wage_override'] == null
-            ? null
-            : Decimal.parse(r['declared_wage_override'].toString()),
-        declaredWageType: r['declared_wage_type'] as String?,
-        declaredWageEffectiveAt: r['declared_wage_effective_at'] == null
-            ? null
-            : DateTime.parse(r['declared_wage_effective_at'] as String),
-        declaredWageSetById: r['declared_wage_set_by_id'] as String?,
-        declaredWageSetAt: r['declared_wage_set_at'] == null
-            ? null
-            : DateTime.parse(r['declared_wage_set_at'] as String),
-        declaredWageReason: r['declared_wage_reason'] as String?,
-        taxOnFullEarnings: r['tax_on_full_earnings'] as bool? ?? false,
-        paymentMethod: r['payment_method'] as String?,
-        paymentSourceAccount: r['payment_source_account'] as String?,
-        larkUserId: r['lark_user_id'] as String?,
-        isHrSignatory: r['is_hr_signatory'] as bool? ?? false,
-        isLegalSignatory: r['is_legal_signatory'] as bool? ?? false,
-        signatoryTitle: r['signatory_title'] as String?,
-        signaturePngB64: r['signature_png'] as String?,
-        accruedThirteenthMonthBasis:
-            r['accrued_thirteenth_month_basis'] == null
-                ? Decimal.zero
-                : Decimal.parse(
-                    r['accrued_thirteenth_month_basis'].toString()),
-        deletedAt: r['deleted_at'] == null
-            ? null
-            : DateTime.parse(r['deleted_at'] as String),
-      );
+    id: r['id'] as String,
+    companyId: r['company_id'] as String,
+    employeeNumber: r['employee_number'] as String,
+    firstName: r['first_name'] as String,
+    middleName: r['middle_name'] as String?,
+    lastName: r['last_name'] as String,
+    jobTitle: r['job_title'] as String?,
+    departmentId: r['department_id'] as String?,
+    roleScorecardId: r['role_scorecard_id'] as String?,
+    reportsToId: r['reports_to_id'] as String?,
+    hiringEntityId: r['hiring_entity_id'] as String?,
+    statutoryEntityId: r['statutory_entity_id'] as String?,
+    employmentType: r['employment_type'] as String,
+    employmentStatus: r['employment_status'] as String,
+    hireDate: DateTime.parse(r['hire_date'] as String),
+    regularizationDate: r['regularization_date'] == null
+        ? null
+        : DateTime.parse(r['regularization_date'] as String),
+    separationDate: r['separation_date'] == null
+        ? null
+        : DateTime.parse(r['separation_date'] as String),
+    workEmail: r['work_email'] as String?,
+    mobileNumber: r['mobile_number'] as String?,
+    birthDate: r['birth_date'] == null
+        ? null
+        : DateTime.parse(r['birth_date'] as String),
+    gender: r['gender'] as String?,
+    addressLine1: r['present_address_line1'] as String?,
+    addressLine2: r['present_address_line2'] as String?,
+    city: r['present_city'] as String?,
+    province: r['present_province'] as String?,
+    zipCode: r['present_zip_code'] as String?,
+    isRankAndFile: r['is_rank_and_file'] as bool? ?? true,
+    isOtEligible: r['is_ot_eligible'] as bool? ?? true,
+    isNdEligible: r['is_nd_eligible'] as bool? ?? true,
+    isHolidayPayEligible: r['is_holiday_pay_eligible'] as bool? ?? true,
+    sssEligibilityOverride: (r['sss_eligibility_override'] as bool?) ?? false,
+    philhealthEligibilityOverride:
+        (r['philhealth_eligibility_override'] as bool?) ?? false,
+    pagibigEligibilityOverride:
+        (r['pagibig_eligibility_override'] as bool?) ?? false,
+    declaredWageOverride: r['declared_wage_override'] == null
+        ? null
+        : Decimal.parse(r['declared_wage_override'].toString()),
+    declaredWageType: r['declared_wage_type'] as String?,
+    declaredWageEffectiveAt: r['declared_wage_effective_at'] == null
+        ? null
+        : DateTime.parse(r['declared_wage_effective_at'] as String),
+    declaredWageSetById: r['declared_wage_set_by_id'] as String?,
+    declaredWageSetAt: r['declared_wage_set_at'] == null
+        ? null
+        : DateTime.parse(r['declared_wage_set_at'] as String),
+    declaredWageReason: r['declared_wage_reason'] as String?,
+    taxOnFullEarnings: r['tax_on_full_earnings'] as bool? ?? false,
+    paymentMethod: r['payment_method'] as String?,
+    paymentSourceAccount: r['payment_source_account'] as String?,
+    larkUserId: r['lark_user_id'] as String?,
+    isHrSignatory: r['is_hr_signatory'] as bool? ?? false,
+    isLegalSignatory: r['is_legal_signatory'] as bool? ?? false,
+    signatoryTitle: r['signatory_title'] as String?,
+    signaturePngB64: r['signature_png'] as String?,
+    accruedThirteenthMonthBasis: r['accrued_thirteenth_month_basis'] == null
+        ? Decimal.zero
+        : Decimal.parse(r['accrued_thirteenth_month_basis'].toString()),
+    deletedAt: r['deleted_at'] == null
+        ? null
+        : DateTime.parse(r['deleted_at'] as String),
+  );
 }

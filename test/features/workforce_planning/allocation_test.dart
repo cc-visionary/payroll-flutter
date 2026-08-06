@@ -11,18 +11,25 @@ void main() {
     for (final n in [1, 2, 3, 4, 6, 7]) {
       final s = splitEqually(n);
       expect(s.length, n);
-      expect(allocationTotal(s), closeTo(100, 1e-9), reason: 'n=$n must total 100');
+      expect(
+        allocationTotal(s),
+        closeTo(100, 1e-9),
+        reason: 'n=$n must total 100',
+      );
     }
     expect(splitEqually(2), [50, 50]);
     expect(splitEqually(4), [25, 25, 25, 25]);
   });
 
-  test('splitEqually(3) is 33.3/33.3/33.4 — the last absorbs the remainder', () {
-    final s = splitEqually(3);
-    expect(s[0], 33.3);
-    expect(s[1], 33.3);
-    expect(s[2], 33.4);
-  });
+  test(
+    'splitEqually(3) is 33.3/33.3/33.4 — the last absorbs the remainder',
+    () {
+      final s = splitEqually(3);
+      expect(s[0], 33.3);
+      expect(s[1], 33.3);
+      expect(s[2], 33.4);
+    },
+  );
 
   test('ownerMajority gives the primary 60 and splits 40 across the rest', () {
     expect(ownerMajority(2), [60, 40]);

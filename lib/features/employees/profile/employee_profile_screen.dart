@@ -25,8 +25,11 @@ class _ProfileTabBarDelegate extends SliverPersistentHeaderDelegate {
   @override
   double get maxExtent => _h;
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) =>
-      SizedBox(height: _h, child: child);
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) => SizedBox(height: _h, child: child);
   @override
   bool shouldRebuild(covariant _ProfileTabBarDelegate oldDelegate) =>
       oldDelegate.child != child;
@@ -85,8 +88,7 @@ class EmployeeProfileScreen extends ConsumerWidget {
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
-                            unselectedLabelStyle:
-                                const TextStyle(fontSize: 14),
+                            unselectedLabelStyle: const TextStyle(fontSize: 14),
                             indicatorSize: TabBarIndicatorSize.label,
                             tabs: const [
                               Tab(text: 'Profile'),
@@ -114,8 +116,9 @@ class EmployeeProfileScreen extends ConsumerWidget {
                 // the ambient scrollbar here — each tab is short and works fine
                 // without it.
                 child: ScrollConfiguration(
-                  behavior: ScrollConfiguration.of(context)
-                      .copyWith(scrollbars: false),
+                  behavior: ScrollConfiguration.of(
+                    context,
+                  ).copyWith(scrollbars: false),
                   child: TabBarView(
                     children: [
                       ProfileTab(employee: employee),

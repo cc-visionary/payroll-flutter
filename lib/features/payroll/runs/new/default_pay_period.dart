@@ -13,8 +13,9 @@ DateTime? lastReleasedPeriodEnd(
   required String companyId,
   required String frequency,
 }) {
-  final released =
-      runs.where((r) => r.companyId == companyId && r.status == 'RELEASED');
+  final released = runs.where(
+    (r) => r.companyId == companyId && r.status == 'RELEASED',
+  );
   final sameFreq = released.where((r) => r.payFrequency == frequency);
   final pick = sameFreq.isNotEmpty
       ? sameFreq.first

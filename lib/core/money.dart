@@ -19,7 +19,9 @@ class Money {
     final rounded = round2(d);
     final parts = rounded.toString().split('.');
     final whole = parts[0];
-    final frac = parts.length > 1 ? parts[1].padRight(2, '0').substring(0, 2) : '00';
+    final frac = parts.length > 1
+        ? parts[1].padRight(2, '0').substring(0, 2)
+        : '00';
     final buf = StringBuffer();
     final digits = whole.replaceFirst('-', '');
     for (int i = 0; i < digits.length; i++) {
@@ -36,7 +38,9 @@ class Money {
     final rounded = round2(d);
     final parts = rounded.toString().split('.');
     final whole = parts[0];
-    final frac = parts.length > 1 ? parts[1].padRight(2, '0').substring(0, 2) : '00';
+    final frac = parts.length > 1
+        ? parts[1].padRight(2, '0').substring(0, 2)
+        : '00';
     final buf = StringBuffer();
     final digits = whole.replaceFirst('-', '');
     for (int i = 0; i < digits.length; i++) {

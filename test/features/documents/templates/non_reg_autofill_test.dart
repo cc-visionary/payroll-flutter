@@ -22,15 +22,18 @@ void main() {
     expect(i.employeeId, isEmpty);
   });
 
-  testWidgets('autofill with employee + company copies basic fields',
-      (tester) async {
+  testWidgets('autofill with employee + company copies basic fields', (
+    tester,
+  ) async {
     late WidgetRef capturedRef;
     await tester.pumpWidget(
       ProviderScope(
-        child: Consumer(builder: (_, ref, __) {
-          capturedRef = ref;
-          return const SizedBox();
-        }),
+        child: Consumer(
+          builder: (_, ref, __) {
+            capturedRef = ref;
+            return const SizedBox();
+          },
+        ),
       ),
     );
     final emp = _buildEmployee();
@@ -56,26 +59,26 @@ void main() {
 }
 
 Employee _buildEmployee() => Employee(
-      id: 'e1',
-      companyId: 'c1',
-      employeeNumber: 'EMP-001',
-      firstName: 'Jamaica',
-      lastName: 'Vidal',
-      hiringEntityId: 'c1',
-      employmentType: 'PROBATIONARY',
-      employmentStatus: 'ACTIVE',
-      hireDate: DateTime(2020, 1, 1),
-      isRankAndFile: true,
-      isOtEligible: true,
-      isNdEligible: true,
-      isHolidayPayEligible: true,
-      taxOnFullEarnings: false,
-    );
+  id: 'e1',
+  companyId: 'c1',
+  employeeNumber: 'EMP-001',
+  firstName: 'Jamaica',
+  lastName: 'Vidal',
+  hiringEntityId: 'c1',
+  employmentType: 'PROBATIONARY',
+  employmentStatus: 'ACTIVE',
+  hireDate: DateTime(2020, 1, 1),
+  isRankAndFile: true,
+  isOtEligible: true,
+  isNdEligible: true,
+  isHolidayPayEligible: true,
+  taxOnFullEarnings: false,
+);
 
 HiringEntity _buildHiringEntity() => const HiringEntity(
-      id: 'c1',
-      companyId: 'c1',
-      code: 'LUX',
-      name: 'LUXIUM TRADING CO.',
-      hrManagerName: 'Brixter Del Mundo',
-    );
+  id: 'c1',
+  companyId: 'c1',
+  code: 'LUX',
+  name: 'LUXIUM TRADING CO.',
+  hrManagerName: 'Brixter Del Mundo',
+);

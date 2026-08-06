@@ -52,17 +52,19 @@ WorkflowSeed seedSeparationWorkflow({
     final type = documentTypes[i];
     final templateId = _templateIdByDocType[type] ?? type.toLowerCase();
     final label = _docLabel[type] ?? type;
-    steps.add(WorkflowStepInput(
-      stepIndex: i,
-      stepType: 'DOCUMENT_GENERATION',
-      name: 'Generate $label',
-      description: 'Render the $label PDF and mark this step complete.',
-      inputData: {
-        'template_id': templateId,
-        'employee_document_id': docIdByType[type],
-      },
-      generatedDocumentId: docIdByType[type],
-    ));
+    steps.add(
+      WorkflowStepInput(
+        stepIndex: i,
+        stepType: 'DOCUMENT_GENERATION',
+        name: 'Generate $label',
+        description: 'Render the $label PDF and mark this step complete.',
+        inputData: {
+          'template_id': templateId,
+          'employee_document_id': docIdByType[type],
+        },
+        generatedDocumentId: docIdByType[type],
+      ),
+    );
   }
   return WorkflowSeed(
     instance: WorkflowInstanceInput(
@@ -171,18 +173,18 @@ WorkflowSeed seedPenaltyWorkflow({
 /// employee_documents.document_type for a compensation change notice.
 /// Pay-only changes file as SALARY_ADJUSTMENT; role changes file distinctly.
 String compensationDocumentType(String changeType) => switch (changeType) {
-      'PROMOTION' => 'PROMOTION',
-      'LATERAL_TRANSFER' => 'LATERAL_TRANSFER',
-      'DEMOTION' => 'DEMOTION',
-      _ => 'SALARY_ADJUSTMENT', // SALARY_INCREASE | SALARY_DECREASE
-    };
+  'PROMOTION' => 'PROMOTION',
+  'LATERAL_TRANSFER' => 'LATERAL_TRANSFER',
+  'DEMOTION' => 'DEMOTION',
+  _ => 'SALARY_ADJUSTMENT', // SALARY_INCREASE | SALARY_DECREASE
+};
 
 String compensationDocTitle(String changeType) => switch (changeType) {
-      'PROMOTION' => 'Notice of Promotion',
-      'LATERAL_TRANSFER' => 'Notice of Lateral Transfer',
-      'DEMOTION' => 'Notice of Change in Role',
-      _ => 'Notice of Salary Adjustment',
-    };
+  'PROMOTION' => 'Notice of Promotion',
+  'LATERAL_TRANSFER' => 'Notice of Lateral Transfer',
+  'DEMOTION' => 'Notice of Change in Role',
+  _ => 'Notice of Salary Adjustment',
+};
 
 /// Build a SALARY_CHANGE (pay-only) or ROLE_CHANGE (role moved) workflow with a
 /// single DOCUMENT_GENERATION step wired to the pre-inserted DRAFT notice row.
@@ -194,7 +196,8 @@ WorkflowSeed seedCompensationChangeWorkflow({
   required String employeeDocumentId,
   required String initiatedById,
 }) {
-  final isRole = changeType == 'PROMOTION' ||
+  final isRole =
+      changeType == 'PROMOTION' ||
       changeType == 'LATERAL_TRANSFER' ||
       changeType == 'DEMOTION';
   final label = compensationDocTitle(changeType);

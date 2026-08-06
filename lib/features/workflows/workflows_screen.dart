@@ -26,7 +26,9 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
       return Scaffold(
         drawer: isMobile(context) ? const AppDrawer() : null,
         appBar: AppBar(title: const Text('Workflows')),
-        body: const Center(child: Text('You do not have permission to view workflows.')),
+        body: const Center(
+          child: Text('You do not have permission to view workflows.'),
+        ),
       );
     }
     return Scaffold(
@@ -41,7 +43,10 @@ class _WorkflowsScreenState extends ConsumerState<WorkflowsScreen> {
             onStatusesChanged: (s) => setState(() => _statuses = s),
             onTypesChanged: (t) => setState(() => _types = t),
           ),
-          const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: _HintBanner()),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: _HintBanner(),
+          ),
           Expanded(
             child: _WorkflowsTable(statuses: _statuses, types: _types),
           ),
@@ -60,7 +65,12 @@ const _kAllTypes = <String>[
   'SEPARATION',
   'REPAYMENT_AGREEMENT',
 ];
-const _kAllStatuses = <String>['DRAFT', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
+const _kAllStatuses = <String>[
+  'DRAFT',
+  'IN_PROGRESS',
+  'COMPLETED',
+  'CANCELLED',
+];
 
 class _HintBanner extends StatelessWidget {
   const _HintBanner();
@@ -71,17 +81,26 @@ class _HintBanner extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.only(top: 4, bottom: 8),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        color: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          Icon(
+            Icons.info_outline,
+            size: 16,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               'Workflows start from the HR action that justifies them — use "Start Workflow" on an employee\'s profile, convert an applicant, or record a penalty.',
-              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],
@@ -161,7 +180,11 @@ class _WorkflowsTable extends ConsumerWidget {
     final async = ref.watch(workflowListProvider(q));
     final employees =
         ref
-            .watch(employeeListProvider(const EmployeeListQuery(includeArchived: true)))
+            .watch(
+              employeeListProvider(
+                const EmployeeListQuery(includeArchived: true),
+              ),
+            )
             .asData
             ?.value ??
         const [];
@@ -174,7 +197,9 @@ class _WorkflowsTable extends ConsumerWidget {
       ),
       data: (rows) {
         if (rows.isEmpty) {
-          return const Center(child: Text('No workflows match the current filters.'));
+          return const Center(
+            child: Text('No workflows match the current filters.'),
+          );
         }
         return ListView.builder(
           padding: const EdgeInsets.all(16),
@@ -188,7 +213,9 @@ class _WorkflowsTable extends ConsumerWidget {
                 subtitle: Text(
                   '${empNameById[w.employeeId] ?? '(unknown employee)'} · '
                   '${w.workflowType} · ${w.status}',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 trailing: Text(
                   w.createdAt.toIso8601String().substring(0, 10),

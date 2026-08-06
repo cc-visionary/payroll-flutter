@@ -63,11 +63,11 @@ class PayableBreakdownDrawer extends ConsumerWidget {
             const SizedBox(height: LuxiumSpacing.md),
             Expanded(
               child: breakdownAsync.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Text('Error: $e',
-                    style: TextStyle(
-                        color: Theme.of(context).colorScheme.error)),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Text(
+                  'Error: $e',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
                 data: (rows) =>
                     _BreakdownTable(rows: rows, scrollController: controller),
               ),
@@ -126,7 +126,8 @@ class _BreakdownTableState extends ConsumerState<_BreakdownTable> {
     }
 
     final fmt = NumberFormat.currency(symbol: '₱', decimalDigits: 2);
-    final sorted = [...widget.rows]..sort((a, b) {
+    final sorted = [...widget.rows]
+      ..sort((a, b) {
         final ea = emps[a.employeeId]?.lastName ?? '';
         final eb = emps[b.employeeId]?.lastName ?? '';
         return ea.compareTo(eb);
@@ -156,35 +157,66 @@ class _BreakdownTableState extends ConsumerState<_BreakdownTable> {
         ],
         rows: [
           for (final r in sorted)
-            DataRow(cells: [
-              DataCell(Text(emps[r.employeeId]?.lastName ?? '—')),
-              DataCell(Text(emps[r.employeeId]?.firstName ?? '—')),
-              DataCell(Text(_mi(emps[r.employeeId]?.middleName))),
-              DataCell(Text(emps[r.employeeId]?.employeeNumber ?? '—',
-                  style: AppTheme.mono(context))),
-              DataCell(Text(fmt.format(r.eeShare.toDouble()),
-                  style: AppTheme.mono(context))),
-              DataCell(Text(fmt.format(r.erShare.toDouble()),
-                  style: AppTheme.mono(context))),
-              DataCell(Text(fmt.format(r.totalAmount.toDouble()),
-                  style:
-                      AppTheme.mono(context, fontWeight: FontWeight.w600))),
-            ]),
+            DataRow(
+              cells: [
+                DataCell(Text(emps[r.employeeId]?.lastName ?? '—')),
+                DataCell(Text(emps[r.employeeId]?.firstName ?? '—')),
+                DataCell(Text(_mi(emps[r.employeeId]?.middleName))),
+                DataCell(
+                  Text(
+                    emps[r.employeeId]?.employeeNumber ?? '—',
+                    style: AppTheme.mono(context),
+                  ),
+                ),
+                DataCell(
+                  Text(
+                    fmt.format(r.eeShare.toDouble()),
+                    style: AppTheme.mono(context),
+                  ),
+                ),
+                DataCell(
+                  Text(
+                    fmt.format(r.erShare.toDouble()),
+                    style: AppTheme.mono(context),
+                  ),
+                ),
+                DataCell(
+                  Text(
+                    fmt.format(r.totalAmount.toDouble()),
+                    style: AppTheme.mono(context, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
           DataRow(
             color: WidgetStateProperty.all(
               LuxiumColors.of(context).muted.withValues(alpha: 0.4),
             ),
             cells: [
-              const DataCell(Text('TOTAL', style: TextStyle(fontWeight: FontWeight.w700))),
+              const DataCell(
+                Text('TOTAL', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
               const DataCell(Text('')),
               const DataCell(Text('')),
               const DataCell(Text('')),
-              DataCell(Text(fmt.format(totalEe.toDouble()),
-                  style: AppTheme.mono(context, fontWeight: FontWeight.w700))),
-              DataCell(Text(fmt.format(totalEr.toDouble()),
-                  style: AppTheme.mono(context, fontWeight: FontWeight.w700))),
-              DataCell(Text(fmt.format(totalSum.toDouble()),
-                  style: AppTheme.mono(context, fontWeight: FontWeight.w700))),
+              DataCell(
+                Text(
+                  fmt.format(totalEe.toDouble()),
+                  style: AppTheme.mono(context, fontWeight: FontWeight.w700),
+                ),
+              ),
+              DataCell(
+                Text(
+                  fmt.format(totalEr.toDouble()),
+                  style: AppTheme.mono(context, fontWeight: FontWeight.w700),
+                ),
+              ),
+              DataCell(
+                Text(
+                  fmt.format(totalSum.toDouble()),
+                  style: AppTheme.mono(context, fontWeight: FontWeight.w700),
+                ),
+              ),
             ],
           ),
         ],
@@ -211,17 +243,27 @@ class _EmpInfo {
   });
 
   factory _EmpInfo.fromRow(Map<String, dynamic> r) => _EmpInfo(
-        employeeNumber: r['employee_number'] as String? ?? '',
-        firstName: r['first_name'] as String? ?? '',
-        middleName: r['middle_name'] as String?,
-        lastName: r['last_name'] as String? ?? '',
-      );
+    employeeNumber: r['employee_number'] as String? ?? '',
+    firstName: r['first_name'] as String? ?? '',
+    middleName: r['middle_name'] as String?,
+    lastName: r['last_name'] as String? ?? '',
+  );
 }
 
 String _periodLabel(StatutoryPayable p) {
   const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
   return '${months[p.periodMonth - 1]} ${p.periodYear}';
 }

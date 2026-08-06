@@ -92,9 +92,7 @@ Future<void> runDeleteCompensationChange({
     );
     return;
   } catch (e) {
-    messenger.showSnackBar(
-      SnackBar(content: Text('Delete failed: $e')),
-    );
+    messenger.showSnackBar(SnackBar(content: Text('Delete failed: $e')));
     return;
   }
 
@@ -110,13 +108,13 @@ Future<void> runDeleteCompensationChange({
   container.invalidate(allDocumentsProvider);
   container.invalidate(workflowListProvider);
   if (change.workflowId != null) {
-    container.invalidate(compensationChangeByWorkflowProvider(change.workflowId!));
+    container.invalidate(
+      compensationChangeByWorkflowProvider(change.workflowId!),
+    );
   }
 
   // 4) Confirm success.
   if (context.mounted) {
-    messenger.showSnackBar(
-      SnackBar(content: Text('$label deleted.')),
-    );
+    messenger.showSnackBar(SnackBar(content: Text('$label deleted.')));
   }
 }

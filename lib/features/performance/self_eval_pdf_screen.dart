@@ -50,15 +50,13 @@ class SelfEvalPdfScreen extends ConsumerWidget {
   }
 
   Widget _message(BuildContext context, String text) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      );
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+    ),
+  );
 }

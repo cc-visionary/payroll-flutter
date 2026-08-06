@@ -11,11 +11,13 @@ void main() {
   });
 
   test('EmphasisParagraphBlock accepts Spans with bold flag', () {
-    const block = EmphasisParagraphBlock(spans: [
-      EmphasisSpan('Plain text. '),
-      EmphasisSpan('Bold inline.', bold: true),
-      EmphasisSpan(' Trailing.'),
-    ]);
+    const block = EmphasisParagraphBlock(
+      spans: [
+        EmphasisSpan('Plain text. '),
+        EmphasisSpan('Bold inline.', bold: true),
+        EmphasisSpan(' Trailing.'),
+      ],
+    );
     expect(block.spans.length, 3);
     expect(block.spans[1].bold, true);
   });
@@ -33,10 +35,9 @@ void main() {
   test('EmphasisParagraphBlock renders with italic span without throwing', () {
     final theme = PdfTheme.testStub();
     expect(
-      () => const EmphasisParagraphBlock(spans: [
-        EmphasisSpan('plain '),
-        EmphasisSpan('italic', italic: true),
-      ]).toPdf(theme),
+      () => const EmphasisParagraphBlock(
+        spans: [EmphasisSpan('plain '), EmphasisSpan('italic', italic: true)],
+      ).toPdf(theme),
       returnsNormally,
     );
   });

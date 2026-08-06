@@ -654,9 +654,11 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
   /// Composes a single-line address string from the hiring entity's address
   /// fields, filtering out null and empty segments.
   String _composeCompanyAddress(dynamic co) {
-    final tail = [co.city, co.province, co.zipCode]
-        .where((s) => s != null && (s as String).isNotEmpty)
-        .join(', ');
+    final tail = [
+      co.city,
+      co.province,
+      co.zipCode,
+    ].where((s) => s != null && (s as String).isNotEmpty).join(', ');
     return [co.addressLine1, co.addressLine2, tail]
         .where((s) => s != null && (s as String).isNotEmpty)
         .cast<String>()
@@ -670,8 +672,9 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
     final tpl = findTemplateById(widget.templateId);
     if (tpl == null) return;
     final co = await ref.read(hiringEntityByIdProvider(companyId).future);
-    final legalSig =
-        await ref.read(legalSignatoryProvider.future).catchError((_) => null);
+    final legalSig = await ref
+        .read(legalSignatoryProvider.future)
+        .catchError((_) => null);
     final logo = await loadCompanyLogoBytes(co);
     if (!mounted) return;
     final name = co?.name ?? '';
@@ -688,16 +691,18 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           place: co == null
               ? ''
               : [co.city, co.province, 'Philippines']
-                  .where((s) => s != null && s.isNotEmpty)
-                  .cast<String>()
-                  .join(', '),
+                    .where((s) => s != null && s.isNotEmpty)
+                    .cast<String>()
+                    .join(', '),
           representativeName: legalSig?.fullName ?? co?.hrManagerName ?? '',
-          representativeRole: legalSig?.signatoryTitle ??
+          representativeRole:
+              legalSig?.signatoryTitle ??
               ((co?.legalSignatoryRole?.isNotEmpty ?? false)
                   ? co!.legalSignatoryRole!
                   : 'People Manager'),
           employerSignatoryName: legalSig?.fullName ?? co?.hrManagerName ?? '',
-          employerSignatoryRole: legalSig?.signatoryTitle ??
+          employerSignatoryRole:
+              legalSig?.signatoryTitle ??
               ((co?.legalSignatoryRole?.isNotEmpty ?? false)
                   ? co!.legalSignatoryRole!
                   : 'People Manager'),
@@ -738,11 +743,13 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           companyName: name,
           companyAddress: addr,
           logoBytes: logo,
-          authorizedSignatoryName: legalSig?.fullName ??
+          authorizedSignatoryName:
+              legalSig?.fullName ??
               ((co?.legalSignatoryName?.isNotEmpty ?? false)
                   ? co!.legalSignatoryName!
                   : (co?.hrManagerName ?? '')),
-          authorizedSignatoryRole: legalSig?.signatoryTitle ??
+          authorizedSignatoryRole:
+              legalSig?.signatoryTitle ??
               ((co?.legalSignatoryRole?.isNotEmpty ?? false)
                   ? co!.legalSignatoryRole!
                   : 'Authorized Signatory'),
@@ -823,9 +830,9 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           signingPlace: co == null
               ? ''
               : [co.city, co.province]
-                  .where((s) => s != null && s.isNotEmpty)
-                  .cast<String>()
-                  .join(', '),
+                    .where((s) => s != null && s.isNotEmpty)
+                    .cast<String>()
+                    .join(', '),
         );
       }
     });
@@ -886,9 +893,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       if (!mounted) return;
       setState(() => _generating = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Couldn't generate the document. $e"),
-        ),
+        SnackBar(content: Text("Couldn't generate the document. $e")),
       );
       return;
     }
@@ -937,9 +942,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       setState(() => _saveFailed = true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            "Saved to preview, but the settings weren't recorded.",
-          ),
+          content: Text("Saved to preview, but the settings weren't recorded."),
         ),
       );
     }
@@ -1197,8 +1200,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
                             : 'Saved to the employee record.',
                         style: TextStyle(
                           fontSize: 13,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
               ),
@@ -1422,8 +1424,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         auditDescription: (action, who) => 'Quitclaim PDF $action: $who',
         auditMetadata: (action) => {
           'template_id': 'quitclaim',
-          'employee_id':
-              inputs.employeeId.isEmpty ? null : inputs.employeeId,
+          'employee_id': inputs.employeeId.isEmpty ? null : inputs.employeeId,
           'file_name': filename,
           'action': action,
         },
@@ -1449,8 +1450,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         auditDescription: (action, who) => 'COE PDF $action: $who',
         auditMetadata: (action) => {
           'template_id': 'coe',
-          'employee_id':
-              inputs.employeeId.isEmpty ? null : inputs.employeeId,
+          'employee_id': inputs.employeeId.isEmpty ? null : inputs.employeeId,
           'file_name': filename,
           'action': action,
         },
@@ -1477,8 +1477,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         auditDescription: (action, who) => 'NTE PDF $action: $who — $subject',
         auditMetadata: (action) => {
           'template_id': 'nte',
-          'employee_id':
-              inputs.employeeId.isEmpty ? null : inputs.employeeId,
+          'employee_id': inputs.employeeId.isEmpty ? null : inputs.employeeId,
           'subject': subject,
           'file_name': filename,
           'action': action,
@@ -1505,8 +1504,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         auditDescription: (action, who) => 'Non-Reg PDF $action: $who',
         auditMetadata: (action) => {
           'template_id': 'non_reg',
-          'employee_id':
-              inputs.employeeId.isEmpty ? null : inputs.employeeId,
+          'employee_id': inputs.employeeId.isEmpty ? null : inputs.employeeId,
           'file_name': filename,
           'action': action,
         },
@@ -1531,10 +1529,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         employeeId: scopedEmployeeId(inputs.employeeId),
         docType: docType,
         blocks: () => tpl.build(inputs),
-        who: _who(
-          inputs.employeeFullName,
-          inputs.employeeId ?? '',
-        ),
+        who: _who(inputs.employeeFullName, inputs.employeeId ?? ''),
         auditDescription: (action, who) =>
             'Employment Contract PDF $action: $who',
         auditMetadata: (action) => {
@@ -1567,8 +1562,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         auditDescription: (action, who) => 'NDA PDF $action: $who',
         auditMetadata: (action) => {
           'template_id': 'nda',
-          'employee_id':
-              inputs.employeeId.isEmpty ? null : inputs.employeeId,
+          'employee_id': inputs.employeeId.isEmpty ? null : inputs.employeeId,
           'file_name': filename,
           'action': action,
         },
@@ -1594,8 +1588,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         auditDescription: (action, who) => 'Liability Waiver PDF $action: $who',
         auditMetadata: (action) => {
           'template_id': 'liability_waiver',
-          'employee_id':
-              inputs.employeeId.isEmpty ? null : inputs.employeeId,
+          'employee_id': inputs.employeeId.isEmpty ? null : inputs.employeeId,
           'file_name': filename,
           'action': action,
         },
@@ -1621,8 +1614,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         auditDescription: (action, who) => 'Final Pay PDF $action: $who',
         auditMetadata: (action) => {
           'template_id': 'final_pay',
-          'employee_id':
-              inputs.employeeId.isEmpty ? null : inputs.employeeId,
+          'employee_id': inputs.employeeId.isEmpty ? null : inputs.employeeId,
           'file_name': filename,
           'action': action,
         },
@@ -1649,8 +1641,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
             'Salary Adjustment PDF $action: $who',
         auditMetadata: (action) => {
           'template_id': 'salary_adjustment',
-          'employee_id':
-              inputs.employeeId.isEmpty ? null : inputs.employeeId,
+          'employee_id': inputs.employeeId.isEmpty ? null : inputs.employeeId,
           'file_name': filename,
           'action': action,
         },
@@ -1676,8 +1667,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         auditDescription: (action, who) => 'NOD PDF $action: $who',
         auditMetadata: (action) => {
           'template_id': 'nod',
-          'employee_id':
-              inputs.employeeId.isEmpty ? null : inputs.employeeId,
+          'employee_id': inputs.employeeId.isEmpty ? null : inputs.employeeId,
           'file_name': filename,
           'action': action,
         },
@@ -1703,8 +1693,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
         auditDescription: (action, who) => 'Regularization PDF $action: $who',
         auditMetadata: (action) => {
           'template_id': 'regularization',
-          'employee_id':
-              inputs.employeeId.isEmpty ? null : inputs.employeeId,
+          'employee_id': inputs.employeeId.isEmpty ? null : inputs.employeeId,
           'file_name': filename,
           'action': action,
         },
@@ -1732,8 +1721,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
             'Resignation Acceptance PDF $action: $who',
         auditMetadata: (action) => {
           'template_id': 'resignation_acceptance',
-          'employee_id':
-              inputs.employeeId.isEmpty ? null : inputs.employeeId,
+          'employee_id': inputs.employeeId.isEmpty ? null : inputs.employeeId,
           'file_name': filename,
           'action': action,
         },
@@ -1760,8 +1748,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
             'Penalty Repayment Agreement PDF $action: $who',
         auditMetadata: (action) => {
           'template_id': 'penalty_agreement',
-          'employee_id':
-              inputs.employeeId.isEmpty ? null : inputs.employeeId,
+          'employee_id': inputs.employeeId.isEmpty ? null : inputs.employeeId,
           'penalty_id': inputs.penaltyId,
           'file_name': filename,
           'action': action,
@@ -1773,10 +1760,9 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
 
   /// Resolve the display "who" string for audit descriptions: prefer the
   /// typed-in / autofilled full name; fall back to the short employee id.
-  String _who(String fullName, String employeeId) =>
-      fullName.trim().isNotEmpty
-          ? fullName.trim()
-          : (employeeId.isEmpty ? '(unknown employee)' : employeeId);
+  String _who(String fullName, String employeeId) => fullName.trim().isNotEmpty
+      ? fullName.trim()
+      : (employeeId.isEmpty ? '(unknown employee)' : employeeId);
 
   /// Assembles a [_GenerateDescriptor], wiring the audit callback to the same
   /// `auditRepositoryProvider.logExport` the screen used previously.
@@ -1799,12 +1785,12 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       fileName: fileName,
       employeeId: employeeId,
       docTypeInfo: docType,
-      buildBytes: (theme) async => buildDocumentPdf(
-        blocks: blocks(),
-        theme: theme,
-      ),
+      buildBytes: (theme) async =>
+          buildDocumentPdf(blocks: blocks(), theme: theme),
       onExported: (action) {
-        ref.read(auditRepositoryProvider).logExport(
+        ref
+            .read(auditRepositoryProvider)
+            .logExport(
               description: auditDescription(action, who),
               entityType: 'document_template_pdf',
               metadata: auditMetadata(action),

@@ -97,18 +97,24 @@ void main() {
       expect(opts['k'], 'v');
     });
 
-    test('marks the row ISSUED so a DRAFT placeholder becomes the real notice', () {
-      final payload = buildUpdatePayload(
-        fileName: 'notice.pdf',
-        generationOptions: const {'foo': 'bar'},
-        updatedAt: DateTime.utc(2026, 7, 10),
-        templateId: 'salary_adjustment',
-      );
-      expect(payload['status'], 'ISSUED');
-      expect(payload['file_name'], 'notice.pdf');
-      expect(payload['updated_at'], DateTime.utc(2026, 7, 10).toIso8601String());
-      final opts = payload['generation_options'] as Map<String, dynamic>;
-      expect(opts['__template_id'], 'salary_adjustment');
-    });
+    test(
+      'marks the row ISSUED so a DRAFT placeholder becomes the real notice',
+      () {
+        final payload = buildUpdatePayload(
+          fileName: 'notice.pdf',
+          generationOptions: const {'foo': 'bar'},
+          updatedAt: DateTime.utc(2026, 7, 10),
+          templateId: 'salary_adjustment',
+        );
+        expect(payload['status'], 'ISSUED');
+        expect(payload['file_name'], 'notice.pdf');
+        expect(
+          payload['updated_at'],
+          DateTime.utc(2026, 7, 10).toIso8601String(),
+        );
+        final opts = payload['generation_options'] as Map<String, dynamic>;
+        expect(opts['__template_id'], 'salary_adjustment');
+      },
+    );
   });
 }

@@ -12,8 +12,12 @@ void main() {
 
   test('role changes seed a ROLE_CHANGE workflow', () {
     final seed = seedCompensationChangeWorkflow(
-      companyId: 'CO1', employeeId: 'E1', employeeFullName: 'Jane Cruz',
-      changeType: 'PROMOTION', employeeDocumentId: 'DOC1', initiatedById: 'U1',
+      companyId: 'CO1',
+      employeeId: 'E1',
+      employeeFullName: 'Jane Cruz',
+      changeType: 'PROMOTION',
+      employeeDocumentId: 'DOC1',
+      initiatedById: 'U1',
     );
     expect(seed.instance.workflowType, 'ROLE_CHANGE');
     expect(seed.steps.single.stepType, 'DOCUMENT_GENERATION');
@@ -24,8 +28,12 @@ void main() {
 
   test('pay-only changes seed a SALARY_CHANGE workflow', () {
     final seed = seedCompensationChangeWorkflow(
-      companyId: 'CO1', employeeId: 'E1', employeeFullName: 'Jane Cruz',
-      changeType: 'SALARY_INCREASE', employeeDocumentId: 'DOC1', initiatedById: 'U1',
+      companyId: 'CO1',
+      employeeId: 'E1',
+      employeeFullName: 'Jane Cruz',
+      changeType: 'SALARY_INCREASE',
+      employeeDocumentId: 'DOC1',
+      initiatedById: 'U1',
     );
     expect(seed.instance.workflowType, 'SALARY_CHANGE');
   });

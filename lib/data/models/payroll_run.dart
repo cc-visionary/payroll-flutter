@@ -26,6 +26,7 @@ class PayrollRun {
   final String? createdByEmail;
   final String? approvedById;
   final String? approvedByEmail;
+
   /// Flipped to `true` when HR hits "Distribute 13th Month" on this run.
   /// Lets reports filter 13th-month distributions separately from regular
   /// payroll runs.

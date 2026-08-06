@@ -66,34 +66,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(children: [
-                      Icon(Icons.payments,
-                          color: Theme.of(context).colorScheme.primary),
-                      const SizedBox(width: 8),
-                      const Text('Luxium Payroll',
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.payments,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Luxium Payroll',
                           style: TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 18)),
-                    ]),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 16),
-                    Text('Sign in',
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      'Sign in',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       'Welcome back.',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: Colors.grey[600]),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 20),
                     TextField(
                       controller: _email,
                       decoration: const InputDecoration(
-                          labelText: 'Email',
-                          border: OutlineInputBorder()),
+                        labelText: 'Email',
+                        border: OutlineInputBorder(),
+                      ),
                       keyboardType: TextInputType.emailAddress,
                       autofillHints: const [AutofillHints.email],
                     ),
@@ -114,9 +122,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ],
                     if (_info != null) ...[
                       const SizedBox(height: 12),
-                      Text(_info!,
-                          style: TextStyle(
-                              color: Theme.of(context).colorScheme.primary)),
+                      Text(
+                        _info!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
                     ],
                     const SizedBox(height: 20),
                     FilledButton(
@@ -125,7 +136,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ? const SizedBox(
                               height: 18,
                               width: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2))
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
                           : const Text('Sign in'),
                     ),
                     const SizedBox(height: 4),

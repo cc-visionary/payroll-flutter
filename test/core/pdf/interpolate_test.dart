@@ -4,10 +4,7 @@ import 'package:payroll_flutter/core/pdf/interpolate.dart';
 void main() {
   group('interpolate', () {
     test('substitutes single placeholder', () {
-      expect(
-        interpolate('Hello {name}', {'name': 'Donald'}),
-        'Hello Donald',
-      );
+      expect(interpolate('Hello {name}', {'name': 'Donald'}), 'Hello Donald');
     });
 
     test('substitutes multiple placeholders', () {
@@ -25,10 +22,7 @@ void main() {
     });
 
     test('lenient mode leaves missing placeholders intact', () {
-      expect(
-        interpolate('Hello {name}', {}, lenient: true),
-        'Hello {name}',
-      );
+      expect(interpolate('Hello {name}', {}, lenient: true), 'Hello {name}');
     });
 
     test('escaped braces stay literal', () {

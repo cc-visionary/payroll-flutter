@@ -27,23 +27,28 @@ List<Block> roleCardBlocks(
   var section = 0;
 
   if (logoBytes != null || companyName.isNotEmpty) {
-    blocks.add(LetterheadBlock(
-      logoBytes: logoBytes,
-      companyName: companyName,
-      companyAddress:
-          (companyAddress?.trim().isEmpty ?? true) ? null : companyAddress,
-    ));
+    blocks.add(
+      LetterheadBlock(
+        logoBytes: logoBytes,
+        companyName: companyName,
+        companyAddress: (companyAddress?.trim().isEmpty ?? true)
+            ? null
+            : companyAddress,
+      ),
+    );
     blocks.add(const SpacerBlock(16));
   }
 
   blocks.add(TitleBlock(card.jobTitle));
-  blocks.add(KeyValueBlock([
-    KeyValueRow(
-      'Effective date',
-      card.effectiveDate.toIso8601String().substring(0, 10),
-    ),
-    KeyValueRow('Status', card.isActive ? 'Active' : 'Inactive'),
-  ]));
+  blocks.add(
+    KeyValueBlock([
+      KeyValueRow(
+        'Effective date',
+        card.effectiveDate.toIso8601String().substring(0, 10),
+      ),
+      KeyValueRow('Status', card.isActive ? 'Active' : 'Inactive'),
+    ]),
+  );
 
   if (card.missionStatement.trim().isNotEmpty) {
     blocks.add(SectionHeadingBlock(number: ++section, title: 'Mission'));
@@ -51,8 +56,9 @@ List<Block> roleCardBlocks(
   }
 
   if (card.responsibilities.isNotEmpty) {
-    blocks.add(SectionHeadingBlock(
-        number: ++section, title: 'Key Responsibilities'));
+    blocks.add(
+      SectionHeadingBlock(number: ++section, title: 'Key Responsibilities'),
+    );
     for (final area in card.responsibilities) {
       blocks.add(HeadingBlock(area.area));
       if (area.tasks.isNotEmpty) {
@@ -62,38 +68,52 @@ List<Block> roleCardBlocks(
   }
 
   if (card.kpis.isNotEmpty) {
-    blocks.add(SectionHeadingBlock(
-        number: ++section, title: 'Key Performance Indicators'));
-    blocks.add(TableBlock(
-      headers: const ['KPI', 'Measurement', 'Target', 'Frequency'],
-      rows: [
-        for (final kpi in card.kpis)
-          [kpi.name, kpi.measurement, kpi.target, kpi.frequency],
-      ],
-    ));
+    blocks.add(
+      SectionHeadingBlock(
+        number: ++section,
+        title: 'Key Performance Indicators',
+      ),
+    );
+    blocks.add(
+      TableBlock(
+        headers: const ['KPI', 'Measurement', 'Target', 'Frequency'],
+        rows: [
+          for (final kpi in card.kpis)
+            [kpi.name, kpi.measurement, kpi.target, kpi.frequency],
+        ],
+      ),
+    );
   }
 
   if (card.requiredSkills.isNotEmpty) {
     blocks.add(
-        SectionHeadingBlock(number: ++section, title: 'Required Skills'));
-    blocks.add(LabelledBulletListBlock(
-      items: [
-        for (final skill in card.requiredSkills)
-          LabelledBulletItem(leadBold: skill.name, body: skill.description),
-      ],
-    ));
+      SectionHeadingBlock(number: ++section, title: 'Required Skills'),
+    );
+    blocks.add(
+      LabelledBulletListBlock(
+        items: [
+          for (final skill in card.requiredSkills)
+            LabelledBulletItem(leadBold: skill.name, body: skill.description),
+        ],
+      ),
+    );
   }
 
   if (card.behavioralExpectations.isNotEmpty) {
-    blocks.add(SectionHeadingBlock(
-        number: ++section, title: 'Behavioral Expectations'));
-    blocks.add(LabelledBulletListBlock(
-      items: [
-        for (final behavior in card.behavioralExpectations)
-          LabelledBulletItem(
-              leadBold: behavior.name, body: behavior.description),
-      ],
-    ));
+    blocks.add(
+      SectionHeadingBlock(number: ++section, title: 'Behavioral Expectations'),
+    );
+    blocks.add(
+      LabelledBulletListBlock(
+        items: [
+          for (final behavior in card.behavioralExpectations)
+            LabelledBulletItem(
+              leadBold: behavior.name,
+              body: behavior.description,
+            ),
+        ],
+      ),
+    );
   }
 
   return blocks;

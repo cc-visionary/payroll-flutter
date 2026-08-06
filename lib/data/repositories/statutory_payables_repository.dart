@@ -30,9 +30,9 @@ class StatutoryPayablesRepository {
   }) async {
     final fromKey = fromYear * 100 + fromMonth;
     final toKey = toYear * 100 + toMonth;
-    final rows = await _client
-        .from('statutory_payables_due_v')
-        .select() as List<dynamic>;
+    final rows =
+        await _client.from('statutory_payables_due_v').select()
+            as List<dynamic>;
     return rows
         .cast<Map<String, dynamic>>()
         .map(StatutoryPayable.fromRow)
@@ -52,9 +52,9 @@ class StatutoryPayablesRepository {
   }) async {
     final fromKey = fromYear * 100 + fromMonth;
     final toKey = toYear * 100 + toMonth;
-    final rows = await _client
-        .from('statutory_payments_paid_v')
-        .select() as List<dynamic>;
+    final rows =
+        await _client.from('statutory_payments_paid_v').select()
+            as List<dynamic>;
     return rows
         .cast<Map<String, dynamic>>()
         .map(StatutoryPaymentSummary.fromRow)
@@ -74,15 +74,17 @@ class StatutoryPayablesRepository {
     required int periodMonth,
     required StatutoryAgency agency,
   }) async {
-    final rows = await _client
-        .from('statutory_payments')
-        .select()
-        .eq('hiring_entity_id', hiringEntityId)
-        .eq('period_year', periodYear)
-        .eq('period_month', periodMonth)
-        .eq('agency', agency.dbValue)
-        .order('paid_on', ascending: false)
-        .order('created_at', ascending: false) as List<dynamic>;
+    final rows =
+        await _client
+                .from('statutory_payments')
+                .select()
+                .eq('hiring_entity_id', hiringEntityId)
+                .eq('period_year', periodYear)
+                .eq('period_month', periodMonth)
+                .eq('agency', agency.dbValue)
+                .order('paid_on', ascending: false)
+                .order('created_at', ascending: false)
+            as List<dynamic>;
     return rows
         .cast<Map<String, dynamic>>()
         .map(StatutoryPayment.fromRow)
@@ -98,13 +100,15 @@ class StatutoryPayablesRepository {
     required int periodMonth,
     required StatutoryAgency agency,
   }) async {
-    final rows = await _client
-        .from('statutory_payable_breakdown_v')
-        .select()
-        .eq('hiring_entity_id', hiringEntityId)
-        .eq('period_year', periodYear)
-        .eq('period_month', periodMonth)
-        .eq('agency', agency.dbValue) as List<dynamic>;
+    final rows =
+        await _client
+                .from('statutory_payable_breakdown_v')
+                .select()
+                .eq('hiring_entity_id', hiringEntityId)
+                .eq('period_year', periodYear)
+                .eq('period_month', periodMonth)
+                .eq('agency', agency.dbValue)
+            as List<dynamic>;
     return rows
         .cast<Map<String, dynamic>>()
         .map(StatutoryPayableBreakdownRow.fromRow)
@@ -118,12 +122,14 @@ class StatutoryPayablesRepository {
     required int periodYear,
     required int periodMonth,
   }) async {
-    final rows = await _client
-        .from('statutory_payable_breakdown_v')
-        .select()
-        .eq('hiring_entity_id', hiringEntityId)
-        .eq('period_year', periodYear)
-        .eq('period_month', periodMonth) as List<dynamic>;
+    final rows =
+        await _client
+                .from('statutory_payable_breakdown_v')
+                .select()
+                .eq('hiring_entity_id', hiringEntityId)
+                .eq('period_year', periodYear)
+                .eq('period_month', periodMonth)
+            as List<dynamic>;
     return rows
         .cast<Map<String, dynamic>>()
         .map(StatutoryPayableBreakdownRow.fromRow)
@@ -227,14 +233,18 @@ class StatutoryPayablesRepository {
     required String voidReason,
     String? voidedById,
   }) async {
-    await _client.from('statutory_payments').update({
-      'voided_at': DateTime.now().toUtc().toIso8601String(),
-      'voided_by_id': voidedById,
-      'void_reason': voidReason,
-    }).eq('id', paymentId);
+    await _client
+        .from('statutory_payments')
+        .update({
+          'voided_at': DateTime.now().toUtc().toIso8601String(),
+          'voided_by_id': voidedById,
+          'void_reason': voidReason,
+        })
+        .eq('id', paymentId);
   }
 }
 
 final statutoryPayablesRepositoryProvider =
     Provider<StatutoryPayablesRepository>(
-        (ref) => StatutoryPayablesRepository(Supabase.instance.client));
+      (ref) => StatutoryPayablesRepository(Supabase.instance.client),
+    );

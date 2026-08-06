@@ -9,6 +9,7 @@ class DerivedRates {
   final Decimal dailyRate;
   final Decimal hourlyRate;
   final Decimal minuteRate;
+
   /// Monthly Salary Credit = dailyRate × 26, for statutory contributions.
   final Decimal msc;
 
@@ -25,10 +26,13 @@ Decimal _zero = Decimal.zero;
 
 Decimal _round3(Decimal v) {
   final factor = Decimal.fromInt(1000);
-  return ((v * factor).round(scale: 0) / factor).toDecimal(scaleOnInfinitePrecision: 3);
+  return ((v * factor).round(scale: 0) / factor).toDecimal(
+    scaleOnInfinitePrecision: 3,
+  );
 }
 
-Decimal _div(Decimal a, Decimal b) => (a / b).toDecimal(scaleOnInfinitePrecision: 10);
+Decimal _div(Decimal a, Decimal b) =>
+    (a / b).toDecimal(scaleOnInfinitePrecision: 10);
 
 Decimal _fromInt(int i) => Decimal.fromInt(i);
 
@@ -113,17 +117,28 @@ Decimal calculateAbsentDeduction(
   int standardMinutesPerDay,
 ) {
   if (absentMinutes <= 0) return _zero;
-  final absentDays = _div(_fromInt(absentMinutes), _fromInt(standardMinutesPerDay));
+  final absentDays = _div(
+    _fromInt(absentMinutes),
+    _fromInt(standardMinutesPerDay),
+  );
   return _round3(rates.dailyRate * absentDays);
 }
 
-Decimal calculateOvertimePay(int otMinutes, DerivedRates rates, Decimal multiplier) {
+Decimal calculateOvertimePay(
+  int otMinutes,
+  DerivedRates rates,
+  Decimal multiplier,
+) {
   if (otMinutes <= 0) return _zero;
   final otHours = _div(_fromInt(otMinutes), _fromInt(60));
   return _round3(rates.hourlyRate * otHours * multiplier);
 }
 
-Decimal calculateNightDiffPay(int ndMinutes, DerivedRates rates, [Decimal? ndMultiplier]) {
+Decimal calculateNightDiffPay(
+  int ndMinutes,
+  DerivedRates rates, [
+  Decimal? ndMultiplier,
+]) {
   if (ndMinutes <= 0) return _zero;
   final mult = ndMultiplier ?? Decimal.parse('0.10');
   final ndHours = _div(_fromInt(ndMinutes), _fromInt(60));
@@ -156,7 +171,8 @@ Decimal calculateRestDayPremiumPay(
   return _round3(regularPay * premium);
 }
 
-Decimal calculateUnworkedRegularHolidayPay(DerivedRates rates) => rates.dailyRate;
+Decimal calculateUnworkedRegularHolidayPay(DerivedRates rates) =>
+    rates.dailyRate;
 
 /// Standard PH multipliers per DOLE.
 class PhMultipliers {

@@ -30,7 +30,9 @@ void main() {
     expect(
       () => const TableBlock(
         headers: ['A'],
-        rows: [['1']],
+        rows: [
+          ['1'],
+        ],
       ).toPdf(theme),
       returnsNormally,
     );

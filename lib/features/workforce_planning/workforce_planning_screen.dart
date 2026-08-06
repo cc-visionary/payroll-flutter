@@ -42,7 +42,10 @@ class WorkforcePlanningScreen extends StatelessWidget {
                 context: context,
                 builder: (ctx) => Dialog(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1000, maxHeight: 720),
+                    constraints: const BoxConstraints(
+                      maxWidth: 1000,
+                      maxHeight: 720,
+                    ),
                     child: Column(
                       children: [
                         AppBar(

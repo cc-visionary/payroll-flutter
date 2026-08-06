@@ -40,6 +40,7 @@ enum PayslipLineCategory {
   PAGIBIG_EE,
   PAGIBIG_ER,
   TAX_WITHHOLDING,
+
   /// Year-end annualization refund (BIR RR 11-2018). Emitted ONLY on the
   /// final payroll of the year when YTD withholding exceeds true annual tax.
   /// Positive amount — rendered on the earnings side so Net Pay goes up by
@@ -214,21 +215,23 @@ class ComputedPayslipLine {
   });
 
   Map<String, dynamic> toJson() => {
-        'category': category.name,
-        'description': description,
-        if (quantity != null) 'quantity': quantity.toString(),
-        if (rate != null) 'rate': rate.toString(),
-        if (multiplier != null) 'multiplier': multiplier.toString(),
-        'amount': amount.toString(),
-        'sortOrder': sortOrder,
-        if (attendanceDayRecordId != null) 'attendanceDayRecordId': attendanceDayRecordId,
-        if (manualAdjustmentId != null) 'manualAdjustmentId': manualAdjustmentId,
-        if (penaltyInstallmentId != null) 'penaltyInstallmentId': penaltyInstallmentId,
-        if (cashAdvanceId != null) 'cashAdvanceId': cashAdvanceId,
-        if (reimbursementId != null) 'reimbursementId': reimbursementId,
-        if (ruleCode != null) 'ruleCode': ruleCode,
-        if (ruleDescription != null) 'ruleDescription': ruleDescription,
-      };
+    'category': category.name,
+    'description': description,
+    if (quantity != null) 'quantity': quantity.toString(),
+    if (rate != null) 'rate': rate.toString(),
+    if (multiplier != null) 'multiplier': multiplier.toString(),
+    'amount': amount.toString(),
+    'sortOrder': sortOrder,
+    if (attendanceDayRecordId != null)
+      'attendanceDayRecordId': attendanceDayRecordId,
+    if (manualAdjustmentId != null) 'manualAdjustmentId': manualAdjustmentId,
+    if (penaltyInstallmentId != null)
+      'penaltyInstallmentId': penaltyInstallmentId,
+    if (cashAdvanceId != null) 'cashAdvanceId': cashAdvanceId,
+    if (reimbursementId != null) 'reimbursementId': reimbursementId,
+    if (ruleCode != null) 'ruleCode': ruleCode,
+    if (ruleDescription != null) 'ruleDescription': ruleDescription,
+  };
 }
 
 class ComputedPayslip {
@@ -424,6 +427,7 @@ class PreviousYtd {
   final Decimal grossPay;
   final Decimal taxableIncome;
   final Decimal taxWithheld;
+
   /// Number of prior RELEASED payslips for this employee in the same year.
   /// Drives the tax period number (`priorPeriodCount + 1`) so the projected-
   /// annual calculation divides cumulative taxable income by the correct
@@ -443,7 +447,11 @@ class ReimbursementInput {
   final String id;
   final Decimal amount;
   final String description;
-  const ReimbursementInput({required this.id, required this.amount, required this.description});
+  const ReimbursementInput({
+    required this.id,
+    required this.amount,
+    required this.description,
+  });
 }
 
 class CashAdvanceDeduction {
@@ -456,7 +464,11 @@ class OrIncentive {
   final String id;
   final Decimal amount;
   final String description;
-  const OrIncentive({required this.id, required this.amount, required this.description});
+  const OrIncentive({
+    required this.id,
+    required this.amount,
+    required this.description,
+  });
 }
 
 class EmployeeComputationInput {
@@ -570,7 +582,10 @@ class PayrollComputationTotals {
 class PayrollComputationError {
   final String employeeId;
   final String error;
-  const PayrollComputationError({required this.employeeId, required this.error});
+  const PayrollComputationError({
+    required this.employeeId,
+    required this.error,
+  });
 }
 
 class PayrollComputationResult {

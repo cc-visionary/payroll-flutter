@@ -31,12 +31,10 @@ class BreakdownTab extends StatelessWidget {
     // Holiday Pay 400-500 → Allowances / Commissions / Adjustments 500-900.
     // Sort both columns so what's on screen matches the way payroll is
     // actually computed, top to bottom.
-    int sortKey(Map<String, dynamic> l) =>
-        (l['sort_order'] as int?) ?? 0;
-    final earnings = lines
-        .where((l) => _isEarning(l['category'] as String))
-        .toList()
-      ..sort((a, b) => sortKey(a).compareTo(sortKey(b)));
+    int sortKey(Map<String, dynamic> l) => (l['sort_order'] as int?) ?? 0;
+    final earnings =
+        lines.where((l) => _isEarning(l['category'] as String)).toList()
+          ..sort((a, b) => sortKey(a).compareTo(sortKey(b)));
     final deductions =
         lines.where((l) => _isDeduction(l['category'] as String)).toList()
           ..sort((a, b) => sortKey(a).compareTo(sortKey(b)));
@@ -219,10 +217,7 @@ class _LineRow extends StatelessWidget {
               color: amountColor,
             ),
           ),
-          if (trailing != null) ...[
-            const SizedBox(width: 8),
-            trailing!,
-          ],
+          if (trailing != null) ...[const SizedBox(width: 8), trailing!],
         ],
       ),
     );
@@ -282,10 +277,7 @@ class _EarningsCard extends ConsumerWidget {
                 const Expanded(
                   child: Text(
                     'Total Earnings',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                   ),
                 ),
                 Text(
@@ -306,11 +298,15 @@ class _EarningsCard extends ConsumerWidget {
   /// Skip link — only shown on lines backed by a `reimbursement_id`. Other
   /// earning categories (basic pay, OT, allowances, etc.) stay as-is.
   Widget? _reimbursementSkipAction(
-      BuildContext context, WidgetRef ref, Map<String, dynamic> line) {
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, dynamic> line,
+  ) {
     final reimbursementId = line['reimbursement_id'] as String?;
     if (reimbursementId == null) return null;
     return TextButton.icon(
-      onPressed: () => _confirmAndSkipReimbursement(context, ref, reimbursementId),
+      onPressed: () =>
+          _confirmAndSkipReimbursement(context, ref, reimbursementId),
       style: TextButton.styleFrom(
         foregroundColor: const Color(0xFF2563EB),
         padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -323,7 +319,10 @@ class _EarningsCard extends ConsumerWidget {
   }
 
   Future<void> _confirmAndSkipReimbursement(
-      BuildContext context, WidgetRef ref, String reimbursementId) async {
+    BuildContext context,
+    WidgetRef ref,
+    String reimbursementId,
+  ) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
@@ -348,19 +347,23 @@ class _EarningsCard extends ConsumerWidget {
     if (ok != true || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(payrollRepositoryProvider).setReimbursementSkip(
+      await ref
+          .read(payrollRepositoryProvider)
+          .setReimbursementSkip(
             reimbursementId: reimbursementId,
             runId: runId!,
             skip: true,
           );
       ref.invalidate(payslipDetailProvider);
       if (!context.mounted) return;
-      messenger.showSnackBar(const SnackBar(
-        content: Text(
-          'Reimbursement skipped. Hit Recompute on the run to rebuild '
-          'payslips.',
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Reimbursement skipped. Hit Recompute on the run to rebuild '
+            'payslips.',
+          ),
         ),
-      ));
+      );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Skip failed: $e')));
     }
@@ -406,9 +409,7 @@ class _DeductionsCard extends ConsumerWidget {
                 amountText:
                     '-${Money.fmtPhp(BreakdownTab._dec(lines[i]['amount']))}',
                 amountColor: const Color(0xFFDC2626),
-                trailing: _canSkip
-                    ? _skipAction(context, ref, lines[i])
-                    : null,
+                trailing: _canSkip ? _skipAction(context, ref, lines[i]) : null,
               ),
               if (i < lines.length - 1)
                 Divider(height: 1, color: Theme.of(context).dividerColor),
@@ -422,10 +423,7 @@ class _DeductionsCard extends ConsumerWidget {
                 const Expanded(
                   child: Text(
                     'Total Deductions',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                   ),
                 ),
                 Text(
@@ -448,7 +446,10 @@ class _DeductionsCard extends ConsumerWidget {
   /// `cash_advance_id`. Statutory / late / other deduction categories stay
   /// as-is.
   Widget? _skipAction(
-      BuildContext context, WidgetRef ref, Map<String, dynamic> line) {
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, dynamic> line,
+  ) {
     final installmentId = line['penalty_installment_id'] as String?;
     final advanceId = line['cash_advance_id'] as String?;
     if (installmentId == null && advanceId == null) return null;
@@ -472,7 +473,10 @@ class _DeductionsCard extends ConsumerWidget {
   }
 
   Future<void> _confirmAndSkipInstallment(
-      BuildContext context, WidgetRef ref, String installmentId) async {
+    BuildContext context,
+    WidgetRef ref,
+    String installmentId,
+  ) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
@@ -497,26 +501,33 @@ class _DeductionsCard extends ConsumerWidget {
     if (ok != true || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(payrollRepositoryProvider).setPenaltyInstallmentSkip(
+      await ref
+          .read(payrollRepositoryProvider)
+          .setPenaltyInstallmentSkip(
             installmentId: installmentId,
             runId: runId!,
             skip: true,
           );
       ref.invalidate(payslipDetailProvider);
       if (!context.mounted) return;
-      messenger.showSnackBar(const SnackBar(
-        content: Text(
-          'Installment skipped. Hit Recompute on the run to rebuild '
-          'payslips.',
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Installment skipped. Hit Recompute on the run to rebuild '
+            'payslips.',
+          ),
         ),
-      ));
+      );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Skip failed: $e')));
     }
   }
 
   Future<void> _confirmAndSkipCashAdvance(
-      BuildContext context, WidgetRef ref, String advanceId) async {
+    BuildContext context,
+    WidgetRef ref,
+    String advanceId,
+  ) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
@@ -541,19 +552,19 @@ class _DeductionsCard extends ConsumerWidget {
     if (ok != true || !context.mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(payrollRepositoryProvider).setCashAdvanceSkip(
-            advanceId: advanceId,
-            runId: runId!,
-            skip: true,
-          );
+      await ref
+          .read(payrollRepositoryProvider)
+          .setCashAdvanceSkip(advanceId: advanceId, runId: runId!, skip: true);
       ref.invalidate(payslipDetailProvider);
       if (!context.mounted) return;
-      messenger.showSnackBar(const SnackBar(
-        content: Text(
-          'Cash advance skipped. Hit Recompute on the run to rebuild '
-          'payslips.',
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Cash advance skipped. Hit Recompute on the run to rebuild '
+            'payslips.',
+          ),
         ),
-      ));
+      );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Skip failed: $e')));
     }
@@ -594,45 +605,49 @@ class _StatutoryCard extends StatelessWidget {
       title: 'Statutory Contributions',
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: LayoutBuilder(builder: (ctx, c) {
-          final cols = c.maxWidth >= 900 ? 4 : c.maxWidth >= 600 ? 2 : 1;
-          const spacing = 16.0;
-          final w = (c.maxWidth - spacing * (cols - 1)) / cols;
-          final tiles = <Widget>[
-            _StatTile(
-              title: 'SSS',
-              rows: [
-                ('Employee', sssEe, const Color(0xFFDC2626)),
-                ('Employer', sssEr, null),
-              ],
-            ),
-            _StatTile(
-              title: 'PhilHealth',
-              rows: [
-                ('Employee', phEe, const Color(0xFFDC2626)),
-                ('Employer', phEr, null),
-              ],
-            ),
-            _StatTile(
-              title: 'Pag-IBIG',
-              rows: [
-                ('Employee', piEe, const Color(0xFFDC2626)),
-                ('Employer', piEr, null),
-              ],
-            ),
-            _StatTile(
-              title: 'Withholding Tax',
-              rows: [
-                ('Tax Due', tax, const Color(0xFFDC2626)),
-              ],
-            ),
-          ];
-          return Wrap(
-            spacing: spacing,
-            runSpacing: spacing,
-            children: [for (final t in tiles) SizedBox(width: w, child: t)],
-          );
-        }),
+        child: LayoutBuilder(
+          builder: (ctx, c) {
+            final cols = c.maxWidth >= 900
+                ? 4
+                : c.maxWidth >= 600
+                ? 2
+                : 1;
+            const spacing = 16.0;
+            final w = (c.maxWidth - spacing * (cols - 1)) / cols;
+            final tiles = <Widget>[
+              _StatTile(
+                title: 'SSS',
+                rows: [
+                  ('Employee', sssEe, const Color(0xFFDC2626)),
+                  ('Employer', sssEr, null),
+                ],
+              ),
+              _StatTile(
+                title: 'PhilHealth',
+                rows: [
+                  ('Employee', phEe, const Color(0xFFDC2626)),
+                  ('Employer', phEr, null),
+                ],
+              ),
+              _StatTile(
+                title: 'Pag-IBIG',
+                rows: [
+                  ('Employee', piEe, const Color(0xFFDC2626)),
+                  ('Employer', piEr, null),
+                ],
+              ),
+              _StatTile(
+                title: 'Withholding Tax',
+                rows: [('Tax Due', tax, const Color(0xFFDC2626))],
+              ),
+            ];
+            return Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              children: [for (final t in tiles) SizedBox(width: w, child: t)],
+            );
+          },
+        ),
       ),
     );
   }
@@ -662,10 +677,7 @@ class _StatTile extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                r.$1,
-                style: const TextStyle(fontSize: 13),
-              ),
+              Text(r.$1, style: const TextStyle(fontSize: 13)),
               Text(
                 Money.fmtPhp(r.$2),
                 style: TextStyle(
@@ -696,21 +708,23 @@ class _YtdCard extends StatelessWidget {
       title: 'Year-to-Date',
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: LayoutBuilder(builder: (ctx, c) {
-          final cols = c.maxWidth >= 700 ? 3 : 1;
-          const spacing = 16.0;
-          final w = (c.maxWidth - spacing * (cols - 1)) / cols;
-          final tiles = <Widget>[
-            _YtdTile(label: 'YTD Gross Pay', value: gross),
-            _YtdTile(label: 'YTD Taxable Income', value: taxable),
-            _YtdTile(label: 'YTD Tax Withheld', value: tax),
-          ];
-          return Wrap(
-            spacing: spacing,
-            runSpacing: spacing,
-            children: [for (final t in tiles) SizedBox(width: w, child: t)],
-          );
-        }),
+        child: LayoutBuilder(
+          builder: (ctx, c) {
+            final cols = c.maxWidth >= 700 ? 3 : 1;
+            const spacing = 16.0;
+            final w = (c.maxWidth - spacing * (cols - 1)) / cols;
+            final tiles = <Widget>[
+              _YtdTile(label: 'YTD Gross Pay', value: gross),
+              _YtdTile(label: 'YTD Taxable Income', value: taxable),
+              _YtdTile(label: 'YTD Tax Withheld', value: tax),
+            ];
+            return Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              children: [for (final t in tiles) SizedBox(width: w, child: t)],
+            );
+          },
+        ),
       ),
     );
   }
@@ -736,10 +750,7 @@ class _YtdTile extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           Money.fmtPhp(value),
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-          ),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
         ),
       ],
     );

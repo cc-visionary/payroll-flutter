@@ -440,7 +440,10 @@ class ReviewCycleRepository {
     // Postgrest cap (config.toml max_rows). Truncation here is invisible —
     // the newest rows still arrive — so every dashboard counter would quietly
     // under-report instead of failing.
-    final reviewRows = await fetchAllPages<Map<String, dynamic>>((from, to) async {
+    final reviewRows = await fetchAllPages<Map<String, dynamic>>((
+      from,
+      to,
+    ) async {
       final page = await _client
           .from('employee_reviews')
           .select()
@@ -448,7 +451,10 @@ class ReviewCycleRepository {
           .range(from, to);
       return (page as List<dynamic>).cast<Map<String, dynamic>>();
     });
-    final goalRows = await fetchAllPages<Map<String, dynamic>>((from, to) async {
+    final goalRows = await fetchAllPages<Map<String, dynamic>>((
+      from,
+      to,
+    ) async {
       final page = await _client
           .from('development_goals')
           .select()
@@ -458,7 +464,10 @@ class ReviewCycleRepository {
     });
     // Carries self/manager review due dates so overdueReviewsAsOf can derive
     // what no cron or trigger ever writes.
-    final cycleRows = await fetchAllPages<Map<String, dynamic>>((from, to) async {
+    final cycleRows = await fetchAllPages<Map<String, dynamic>>((
+      from,
+      to,
+    ) async {
       final page = await _client
           .from('review_cycles')
           .select()

@@ -283,8 +283,9 @@ class _SelfEvalCard extends StatelessWidget {
             for (final e in answers) ...[
               Text(
                 e.key,
-                style:
-                    theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 2),
               Text('${e.value}', style: theme.textTheme.bodyMedium),
@@ -293,8 +294,9 @@ class _SelfEvalCard extends StatelessWidget {
             if (ratings.isNotEmpty) ...[
               Text(
                 'Ratings',
-                style:
-                    theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 6),
               for (final e in ratings)
@@ -322,8 +324,7 @@ class _SelfEvalCard extends StatelessWidget {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
-              onPressed: () =>
-                  context.push('/self-evals/${response.id}/pdf'),
+              onPressed: () => context.push('/self-evals/${response.id}/pdf'),
               icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
               label: const Text('View PDF'),
             ),

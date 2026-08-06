@@ -11,11 +11,19 @@ class SignatureImageBlock extends Block {
   final Uint8List bytes;
   final double height;
   final bool centered;
-  const SignatureImageBlock(this.bytes, {this.height = 40, this.centered = true});
+  const SignatureImageBlock(
+    this.bytes, {
+    this.height = 40,
+    this.centered = true,
+  });
 
   @override
   pw.Widget toPdf(PdfTheme theme) {
-    final img = pw.Image(pw.MemoryImage(bytes), height: height, fit: pw.BoxFit.contain);
+    final img = pw.Image(
+      pw.MemoryImage(bytes),
+      height: height,
+      fit: pw.BoxFit.contain,
+    );
     return centered ? pw.Center(child: img) : img;
   }
 }

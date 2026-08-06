@@ -39,7 +39,8 @@ Map<String, dynamic> buildCompensationChangeInsert({
     'new_scorecard_id': newScorecardId,
     'reason': reason,
     'initiated_by_id': initiatedById,
-    if (status == 'APPLIED') 'applied_at': DateTime.now().toUtc().toIso8601String(),
+    if (status == 'APPLIED')
+      'applied_at': DateTime.now().toUtc().toIso8601String(),
   };
 }
 
@@ -205,10 +206,13 @@ class CompensationChangeRepository {
           .update({'role_scorecard_id': newScorecardId})
           .eq('id', row['employee_id'] as String);
     }
-    await _client.from('compensation_changes').update({
-      'status': 'APPLIED',
-      'applied_at': DateTime.now().toUtc().toIso8601String(),
-    }).eq('id', changeId);
+    await _client
+        .from('compensation_changes')
+        .update({
+          'status': 'APPLIED',
+          'applied_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', changeId);
   }
 
   /// Materializes every SCHEDULED change due on or before [asOf]: repoints the
@@ -241,10 +245,13 @@ class CompensationChangeRepository {
             .update({'role_scorecard_id': newScorecardId})
             .eq('id', r['employee_id'] as String);
       }
-      await _client.from('compensation_changes').update({
-        'status': 'APPLIED',
-        'applied_at': DateTime.now().toUtc().toIso8601String(),
-      }).eq('id', r['id'] as String);
+      await _client
+          .from('compensation_changes')
+          .update({
+            'status': 'APPLIED',
+            'applied_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', r['id'] as String);
       count++;
     }
     return count;
@@ -275,16 +282,26 @@ class CompensationChangeRepository {
 
 final compensationChangeRepositoryProvider =
     Provider<CompensationChangeRepository>(
-        (ref) => CompensationChangeRepository(Supabase.instance.client));
+      (ref) => CompensationChangeRepository(Supabase.instance.client),
+    );
 
 final compensationChangesByEmployeeProvider =
-    FutureProvider.family<List<CompensationChange>, String>((ref, employeeId) =>
-        ref.read(compensationChangeRepositoryProvider).listByEmployee(employeeId));
+    FutureProvider.family<List<CompensationChange>, String>(
+      (ref, employeeId) => ref
+          .read(compensationChangeRepositoryProvider)
+          .listByEmployee(employeeId),
+    );
 
 final pendingCompensationChangesProvider =
-    FutureProvider.family<List<CompensationChange>, String>((ref, employeeId) =>
-        ref.read(compensationChangeRepositoryProvider).pendingByEmployee(employeeId));
+    FutureProvider.family<List<CompensationChange>, String>(
+      (ref, employeeId) => ref
+          .read(compensationChangeRepositoryProvider)
+          .pendingByEmployee(employeeId),
+    );
 
 final compensationChangeByWorkflowProvider =
-    FutureProvider.family<CompensationChange?, String>((ref, workflowId) =>
-        ref.read(compensationChangeRepositoryProvider).byWorkflowId(workflowId));
+    FutureProvider.family<CompensationChange?, String>(
+      (ref, workflowId) => ref
+          .read(compensationChangeRepositoryProvider)
+          .byWorkflowId(workflowId),
+    );

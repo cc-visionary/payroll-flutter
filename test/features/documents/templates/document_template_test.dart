@@ -31,8 +31,9 @@ class _StubTemplate extends DocumentTemplate<_StubInputs> {
   @override
   List<Gate> gates(AutofillContext ctx) => const [];
   @override
-  List<ValidationError> validate(_StubInputs inputs) =>
-      inputs.name.isEmpty ? const [ValidationError('name', 'required')] : const [];
+  List<ValidationError> validate(_StubInputs inputs) => inputs.name.isEmpty
+      ? const [ValidationError('name', 'required')]
+      : const [];
   @override
   List<Block> build(_StubInputs inputs) => const [];
 }

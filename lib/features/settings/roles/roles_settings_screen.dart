@@ -17,56 +17,64 @@ class RolesSettingsScreen extends ConsumerWidget {
 
     return Padding(
       padding: EdgeInsets.all(isMobile(context) ? 16 : 24),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            Text('Roles & Permissions',
-                style: Theme.of(context).textTheme.headlineSmall),
-            FilledButton.icon(
-              onPressed: () => _openForm(context, ref),
-              icon: const Icon(Icons.add),
-              label: const Text('Add Role'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          'Manage user roles and their permissions. System roles cannot be deleted but their permissions can be customized.',
-          style: TextStyle(color: Colors.grey),
-        ),
-        const SizedBox(height: 12),
-        _InfoBanner(
-          message:
-              'Permissions are informational. Admin access is currently controlled by the app_role JWT claim; this screen will drive enforcement in a future release.',
-        ),
-        const SizedBox(height: 16),
-        Expanded(
-          child: rolesAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(
-                child: Text('Error: $e',
-                    style: const TextStyle(color: Colors.red))),
-            data: (roles) => roles.isEmpty
-                ? const Center(child: Text('No roles defined.'))
-                : ListView.separated(
-                    itemCount: roles.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) => _RoleTile(
-                      role: roles[i],
-                      userCount: countsAsync.asData?.value[roles[i].id] ?? 0,
-                      onEdit: () =>
-                          _openForm(context, ref, existing: roles[i]),
-                      onDelete: roles[i].isSystem
-                          ? null
-                          : () => _confirmDelete(context, ref, roles[i]),
-                    ),
-                  ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                'Roles & Permissions',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              FilledButton.icon(
+                onPressed: () => _openForm(context, ref),
+                icon: const Icon(Icons.add),
+                label: const Text('Add Role'),
+              ),
+            ],
           ),
-        ),
-      ]),
+          const SizedBox(height: 4),
+          const Text(
+            'Manage user roles and their permissions. System roles cannot be deleted but their permissions can be customized.',
+            style: TextStyle(color: Colors.grey),
+          ),
+          const SizedBox(height: 12),
+          _InfoBanner(
+            message:
+                'Permissions are informational. Admin access is currently controlled by the app_role JWT claim; this screen will drive enforcement in a future release.',
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: rolesAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(
+                child: Text(
+                  'Error: $e',
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
+              data: (roles) => roles.isEmpty
+                  ? const Center(child: Text('No roles defined.'))
+                  : ListView.separated(
+                      itemCount: roles.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (_, i) => _RoleTile(
+                        role: roles[i],
+                        userCount: countsAsync.asData?.value[roles[i].id] ?? 0,
+                        onEdit: () =>
+                            _openForm(context, ref, existing: roles[i]),
+                        onDelete: roles[i].isSystem
+                            ? null
+                            : () => _confirmDelete(context, ref, roles[i]),
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -88,21 +96,27 @@ class RolesSettingsScreen extends ConsumerWidget {
   }
 
   Future<void> _confirmDelete(
-      BuildContext context, WidgetRef ref, Role r) async {
+    BuildContext context,
+    WidgetRef ref,
+    Role r,
+  ) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         title: const Text('Delete role?'),
         content: Text(
-            'Remove "${r.name}"? User assignments for this role will also be removed.'),
+          'Remove "${r.name}"? User assignments for this role will also be removed.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(c, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(c, true),
             style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(c).colorScheme.error),
+              backgroundColor: Theme.of(c).colorScheme.error,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -128,14 +142,18 @@ class _InfoBanner extends StatelessWidget {
         color: s.background,
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Row(children: [
-        Icon(Icons.info_outline, size: 18, color: s.foreground),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(message,
-              style: TextStyle(color: s.foreground, fontSize: 13)),
-        ),
-      ]),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, size: 18, color: s.foreground),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(color: s.foreground, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -161,47 +179,63 @@ class _RoleTile extends StatelessWidget {
         border: Border.all(color: Theme.of(context).dividerColor),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Row(children: [
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Text(role.name,
-                  style: const TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w600)),
-              const SizedBox(width: 8),
-              Chip(
-                label: Text(role.code,
-                    style: const TextStyle(
-                        fontFamily: 'monospace', fontSize: 11)),
-                visualDensity: VisualDensity.compact,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              const SizedBox(width: 4),
-              if (role.isSystem)
-                const StatusChip(label: 'System', tone: StatusTone.info),
-            ]),
-            const SizedBox(height: 2),
-            Text(
-              '$userCount user${userCount == 1 ? '' : 's'} assigned • $permCount permission${permCount == '1' ? '' : 's'}',
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      role.name,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Chip(
+                      label: Text(
+                        role.code,
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                        ),
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    const SizedBox(width: 4),
+                    if (role.isSystem)
+                      const StatusChip(label: 'System', tone: StatusTone.info),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$userCount user${userCount == 1 ? '' : 's'} assigned • $permCount permission${permCount == '1' ? '' : 's'}',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+                if (role.description != null && role.description!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      role.description!,
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                  ),
+              ],
             ),
-            if (role.description != null && role.description!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(role.description!,
-                    style:
-                        const TextStyle(color: Colors.grey, fontSize: 12)),
-              ),
-          ]),
-        ),
-        TextButton(onPressed: onEdit, child: const Text('Edit')),
-        if (onDelete != null)
-          TextButton(
-            onPressed: onDelete,
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
           ),
-      ]),
+          TextButton(onPressed: onEdit, child: const Text('Edit')),
+          if (onDelete != null)
+            TextButton(
+              onPressed: onDelete,
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -218,8 +252,9 @@ class _RoleForm extends ConsumerStatefulWidget {
 class _FormState extends ConsumerState<_RoleForm> {
   late final _code = TextEditingController(text: widget.existing?.code ?? '');
   late final _name = TextEditingController(text: widget.existing?.name ?? '');
-  late final _description =
-      TextEditingController(text: widget.existing?.description ?? '');
+  late final _description = TextEditingController(
+    text: widget.existing?.description ?? '',
+  );
   late final Set<String> _selected = {...(widget.existing?.permissions ?? [])};
   bool _saving = false;
   String? _error;
@@ -247,7 +282,9 @@ class _FormState extends ConsumerState<_RoleForm> {
       _error = null;
     });
     try {
-      await ref.read(roleRepositoryProvider).upsert(
+      await ref
+          .read(roleRepositoryProvider)
+          .upsert(
             id: widget.existing?.id,
             code: code,
             name: name,
@@ -274,10 +311,11 @@ class _FormState extends ConsumerState<_RoleForm> {
         constraints: const BoxConstraints(maxWidth: 640, maxHeight: 640),
         child: SingleChildScrollView(
           child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
                   Expanded(
                     child: TextField(
                       controller: _code,
@@ -292,7 +330,8 @@ class _FormState extends ConsumerState<_RoleForm> {
                       style: const TextStyle(fontFamily: 'monospace'),
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(
-                            RegExp(r'[A-Za-z0-9_]')),
+                          RegExp(r'[A-Za-z0-9_]'),
+                        ),
                         LengthLimitingTextInputFormatter(50),
                       ],
                     ),
@@ -308,91 +347,106 @@ class _FormState extends ConsumerState<_RoleForm> {
                       ),
                     ),
                   ),
-                ]),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _description,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  maxLines: 2,
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _description,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  border: OutlineInputBorder(),
+                  isDense: true,
                 ),
-                const SizedBox(height: 16),
-                Row(children: [
-                  Text('Permissions',
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelLarge
-                          ?.copyWith(fontWeight: FontWeight.w600)),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Text(
+                    'Permissions',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   const Spacer(),
                   if (_hasWildcard)
                     const StatusChip(
-                        label: 'Wildcard (*) — all permissions',
-                        tone: StatusTone.warning),
-                ]),
-                const SizedBox(height: 8),
-                if (_hasWildcard)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      'This role has the wildcard permission — individual selections are ignored.',
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                      label: 'Wildcard (*) — all permissions',
+                      tone: StatusTone.warning,
                     ),
-                  ),
-                for (final entry in kPermissionCatalog.entries) ...[
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8, bottom: 4),
-                    child: Text(entry.key,
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelMedium
-                            ?.copyWith(color: Colors.grey)),
-                  ),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: [
-                      for (final p in entry.value)
-                        FilterChip(
-                          label: Text(p,
-                              style: const TextStyle(
-                                  fontFamily: 'monospace', fontSize: 12)),
-                          selected: _selected.contains(p),
-                          onSelected: _hasWildcard
-                              ? null
-                              : (v) => setState(() {
-                                    if (v) {
-                                      _selected.add(p);
-                                    } else {
-                                      _selected.remove(p);
-                                    }
-                                  }),
-                        ),
-                    ],
-                  ),
                 ],
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Text(_error!,
-                        style: const TextStyle(color: Colors.red, fontSize: 13)),
+              ),
+              const SizedBox(height: 8),
+              if (_hasWildcard)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    'This role has the wildcard permission — individual selections are ignored.',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
                   ),
-              ]),
+                ),
+              for (final entry in kPermissionCatalog.entries) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 4),
+                  child: Text(
+                    entry.key,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.labelMedium?.copyWith(color: Colors.grey),
+                  ),
+                ),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    for (final p in entry.value)
+                      FilterChip(
+                        label: Text(
+                          p,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 12,
+                          ),
+                        ),
+                        selected: _selected.contains(p),
+                        onSelected: _hasWildcard
+                            ? null
+                            : (v) => setState(() {
+                                if (v) {
+                                  _selected.add(p);
+                                } else {
+                                  _selected.remove(p);
+                                }
+                              }),
+                      ),
+                  ],
+                ),
+              ],
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
       actions: [
         TextButton(
-            onPressed: _saving ? null : () => Navigator.pop(context),
-            child: const Text('Cancel')),
+          onPressed: _saving ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           onPressed: _saving ? null : _save,
           child: _saving
               ? const SizedBox(
                   width: 14,
                   height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2))
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text('Save'),
         ),
       ],

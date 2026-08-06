@@ -15,8 +15,14 @@ void main() {
   });
 
   test('personLoad uses stored multiplier by default, override when given', () {
-    const p = WpPersonLoad(employeeId: 'e', companyId: 'c',
-      hoursFixed: 2, hoursGrowingBase: 20, capacityHours: 160, growthMultiplier: 2);
+    const p = WpPersonLoad(
+      employeeId: 'e',
+      companyId: 'c',
+      hoursFixed: 2,
+      hoursGrowingBase: 20,
+      capacityHours: 160,
+      growthMultiplier: 2,
+    );
     expect(personLoad(p), (2 + 20 * 2) / 160);
     expect(personLoad(p, multiplier: 1), (2 + 20) / 160);
   });

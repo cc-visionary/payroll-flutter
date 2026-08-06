@@ -55,23 +55,24 @@ Future<void> convertApplicantToEmployee(
                 applicantId: a.id,
                 initiatedById: profile.userId,
               );
-              await ref.read(workflowRepositoryProvider).insertWithSteps(
-                    instance: seed.instance,
-                    steps: seed.steps,
-                  );
+              await ref
+                  .read(workflowRepositoryProvider)
+                  .insertWithSteps(instance: seed.instance, steps: seed.steps);
               ref.invalidate(workflowListProvider);
             }
 
             if (context.mounted) {
-              messenger.showSnackBar(SnackBar(
-                content: Text('Hired — ${a.fullName} converted to employee.'),
-              ));
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text('Hired — ${a.fullName} converted to employee.'),
+                ),
+              );
             }
           } catch (e) {
             if (context.mounted) {
-              messenger.showSnackBar(SnackBar(
-                content: Text('Conversion stamp failed: $e'),
-              ));
+              messenger.showSnackBar(
+                SnackBar(content: Text('Conversion stamp failed: $e')),
+              );
             }
           }
         },

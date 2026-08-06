@@ -31,6 +31,7 @@ class SalaryAdjustmentInputs extends TemplateInputs {
   final String companyName;
   final String companyAddress;
   final String hrManagerName;
+
   /// Working days per month used to estimate monthly pay on DAILY-rate notices.
   /// Defaults to 26 — payroll's `standardWorkDaysPerMonth` (compute_service).
   final int workDaysPerMonth;

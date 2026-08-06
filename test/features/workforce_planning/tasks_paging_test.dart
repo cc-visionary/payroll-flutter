@@ -6,16 +6,27 @@ import 'package:payroll_flutter/features/workforce_planning/task_costing.dart';
 import 'package:payroll_flutter/features/workforce_planning/tasks_paging.dart';
 
 RoleScorecard _card(String id, String title) => RoleScorecard(
-      id: id, companyId: 'c', jobTitle: title, missionStatement: '',
-      responsibilities: const [], kpis: const [], wageType: 'MONTHLY',
-      workHoursPerDay: 8, workDaysPerWeek: 'MON_FRI', isActive: true,
-      effectiveDate: DateTime(2026, 1, 1),
-    );
+  id: id,
+  companyId: 'c',
+  jobTitle: title,
+  missionStatement: '',
+  responsibilities: const [],
+  kpis: const [],
+  wageType: 'MONTHLY',
+  workHoursPerDay: 8,
+  workDaysPerWeek: 'MON_FRI',
+  isActive: true,
+  effectiveDate: DateTime(2026, 1, 1),
+);
 
 WpTask _t(String id, {String? card, String? area, String? ext}) => WpTask(
-      id: id, companyId: 'c', name: id, roleScorecardId: card,
-      responsibilityArea: area, externalRef: ext,
-    );
+  id: id,
+  companyId: 'c',
+  name: id,
+  roleScorecardId: card,
+  responsibilityArea: area,
+  externalRef: ext,
+);
 
 void main() {
   group('pageOfTasks', () {
@@ -90,8 +101,10 @@ void main() {
       final s = buildScopes(tasks, cards);
       expect(s.first.key, TaskScope.allKey);
       expect(s.first.count, 5);
-      expect(s.map((x) => x.label),
-          containsAll(['Ops', 'HR', 'From capacity model', 'Unattributed']));
+      expect(
+        s.map((x) => x.label),
+        containsAll(['Ops', 'HR', 'From capacity model', 'Unattributed']),
+      );
       expect(s.firstWhere((x) => x.label == 'Ops').count, 2);
     });
 
@@ -99,8 +112,11 @@ void main() {
       final s = buildScopes([_t('a1', card: 'rs1', area: 'A')], cards);
       expect(s.map((x) => x.label), isNot(contains('From capacity model')));
       expect(s.map((x) => x.label), isNot(contains('Unattributed')));
-      expect(s.map((x) => x.label), isNot(contains('HR')),
-          reason: 'a card with no tasks has nothing to show');
+      expect(
+        s.map((x) => x.label),
+        isNot(contains('HR')),
+        reason: 'a card with no tasks has nothing to show',
+      );
     });
 
     test('scoping to a card returns only its tasks', () {
@@ -108,9 +124,13 @@ void main() {
     });
 
     test('legacy and unattributed scopes are distinct', () {
-      expect(tasksInScope(tasks, cards, TaskScope.legacyKey).map((t) => t.id), ['leg']);
-      expect(tasksInScope(tasks, cards, TaskScope.unattributedKey).map((t) => t.id),
-          ['orphan']);
+      expect(tasksInScope(tasks, cards, TaskScope.legacyKey).map((t) => t.id), [
+        'leg',
+      ]);
+      expect(
+        tasksInScope(tasks, cards, TaskScope.unattributedKey).map((t) => t.id),
+        ['orphan'],
+      );
     });
 
     test('all-scope covers every task exactly once', () {
@@ -134,14 +154,32 @@ void main() {
     const drivers = <String, WpDriver>{};
     const rates = <String, WpRate>{};
     final tasks = [
-      const WpTask(id: 'a', companyId: 'c', name: 'Pack and label orders',
-          responsibilityArea: 'Fulfilment', ownerEmployeeId: 'e1', nodeId: 'n1',
-          timesSource: 'manual', timesManual: 10,
-          minutesSource: 'manual', minutesManual: 30),
-      const WpTask(id: 'b', companyId: 'c', name: 'Train new staff',
-          responsibilityArea: 'Development', isExpectation: true),
-      const WpTask(id: 'c', companyId: 'c', name: 'Reconcile the bank',
-          responsibilityArea: 'Finance', nodeId: 'n2'),
+      const WpTask(
+        id: 'a',
+        companyId: 'c',
+        name: 'Pack and label orders',
+        responsibilityArea: 'Fulfilment',
+        ownerEmployeeId: 'e1',
+        nodeId: 'n1',
+        timesSource: 'manual',
+        timesManual: 10,
+        minutesSource: 'manual',
+        minutesManual: 30,
+      ),
+      const WpTask(
+        id: 'b',
+        companyId: 'c',
+        name: 'Train new staff',
+        responsibilityArea: 'Development',
+        isExpectation: true,
+      ),
+      const WpTask(
+        id: 'c',
+        companyId: 'c',
+        name: 'Reconcile the bank',
+        responsibilityArea: 'Finance',
+        nodeId: 'n2',
+      ),
     ];
 
     test('an empty filter returns everything untouched', () {
@@ -150,31 +188,48 @@ void main() {
 
     test('search matches the name', () {
       expect(
-          applyTaskFilter(tasks, const TaskFilter(query: 'label'), drivers, rates)
-              .map((t) => t.id),
-          ['a']);
+        applyTaskFilter(
+          tasks,
+          const TaskFilter(query: 'label'),
+          drivers,
+          rates,
+        ).map((t) => t.id),
+        ['a'],
+      );
     });
 
     test('search also matches the responsibility area', () {
       expect(
-          applyTaskFilter(tasks, const TaskFilter(query: 'finance'), drivers, rates)
-              .map((t) => t.id),
-          ['c'],
-          reason: 'area is how you find work you cannot name exactly');
+        applyTaskFilter(
+          tasks,
+          const TaskFilter(query: 'finance'),
+          drivers,
+          rates,
+        ).map((t) => t.id),
+        ['c'],
+        reason: 'area is how you find work you cannot name exactly',
+      );
     });
 
     test('search is case-insensitive and trims', () {
       expect(
-          applyTaskFilter(tasks, const TaskFilter(query: '  PACK '), drivers, rates)
-              .map((t) => t.id),
-          ['a']);
+        applyTaskFilter(
+          tasks,
+          const TaskFilter(query: '  PACK '),
+          drivers,
+          rates,
+        ).map((t) => t.id),
+        ['a'],
+      );
     });
 
     test('status filter separates costed, to-cost and expectation', () {
-      List<String> ids(TaskCostState s) =>
-          applyTaskFilter(tasks, TaskFilter(state: s), drivers, rates)
-              .map((t) => t.id)
-              .toList();
+      List<String> ids(TaskCostState s) => applyTaskFilter(
+        tasks,
+        TaskFilter(state: s),
+        drivers,
+        rates,
+      ).map((t) => t.id).toList();
       expect(ids(TaskCostState.costed), ['a']);
       expect(ids(TaskCostState.expectation), ['b']);
       expect(ids(TaskCostState.toCost), ['c']);
@@ -182,25 +237,42 @@ void main() {
 
     test('node and owner filters, including the unowned sentinel', () {
       expect(
-          applyTaskFilter(tasks, const TaskFilter(nodeId: 'n2'), drivers, rates)
-              .map((t) => t.id),
-          ['c']);
+        applyTaskFilter(
+          tasks,
+          const TaskFilter(nodeId: 'n2'),
+          drivers,
+          rates,
+        ).map((t) => t.id),
+        ['c'],
+      );
       expect(
-          applyTaskFilter(tasks, const TaskFilter(ownerId: 'e1'), drivers, rates)
-              .map((t) => t.id),
-          ['a']);
+        applyTaskFilter(
+          tasks,
+          const TaskFilter(ownerId: 'e1'),
+          drivers,
+          rates,
+        ).map((t) => t.id),
+        ['a'],
+      );
       expect(
-          applyTaskFilter(
-                  tasks, const TaskFilter(ownerId: TaskFilter.unownedKey), drivers, rates)
-              .map((t) => t.id),
-          ['b', 'c']);
+        applyTaskFilter(
+          tasks,
+          const TaskFilter(ownerId: TaskFilter.unownedKey),
+          drivers,
+          rates,
+        ).map((t) => t.id),
+        ['b', 'c'],
+      );
     });
 
     test('filters combine (AND, not OR)', () {
       expect(
-        applyTaskFilter(tasks,
-            const TaskFilter(query: 'the', state: TaskCostState.toCost), drivers, rates)
-            .map((t) => t.id),
+        applyTaskFilter(
+          tasks,
+          const TaskFilter(query: 'the', state: TaskCostState.toCost),
+          drivers,
+          rates,
+        ).map((t) => t.id),
         ['c'],
       );
     });
@@ -211,13 +283,28 @@ void main() {
     const rates = <String, WpRate>{};
 
     test('expectations count as RESOLVED so the queue can finish', () {
-      final p = costingProgress([
-        const WpTask(id: 'a', companyId: 'c', name: 'costed',
-            timesSource: 'manual', timesManual: 2,
-            minutesSource: 'manual', minutesManual: 30),
-        const WpTask(id: 'b', companyId: 'c', name: 'expectation', isExpectation: true),
-        const WpTask(id: 'c', companyId: 'c', name: 'todo'),
-      ], drivers, rates);
+      final p = costingProgress(
+        [
+          const WpTask(
+            id: 'a',
+            companyId: 'c',
+            name: 'costed',
+            timesSource: 'manual',
+            timesManual: 2,
+            minutesSource: 'manual',
+            minutesManual: 30,
+          ),
+          const WpTask(
+            id: 'b',
+            companyId: 'c',
+            name: 'expectation',
+            isExpectation: true,
+          ),
+          const WpTask(id: 'c', companyId: 'c', name: 'todo'),
+        ],
+        drivers,
+        rates,
+      );
       expect(p.costed, 1);
       expect(p.expectation, 1);
       expect(p.toCost, 1);
@@ -225,14 +312,35 @@ void main() {
       expect(p.done, isFalse);
     });
 
-    test('done once nothing is left to cost, even with expectations present', () {
-      final p = costingProgress([
-        const WpTask(id: 'a', companyId: 'c', name: 'e1', isExpectation: true),
-        const WpTask(id: 'b', companyId: 'c', name: 'e2', isExpectation: true),
-      ], drivers, rates);
-      expect(p.done, isTrue, reason: 'otherwise the banner is permanent wallpaper');
-      expect(p.fraction, 1.0);
-    });
+    test(
+      'done once nothing is left to cost, even with expectations present',
+      () {
+        final p = costingProgress(
+          [
+            const WpTask(
+              id: 'a',
+              companyId: 'c',
+              name: 'e1',
+              isExpectation: true,
+            ),
+            const WpTask(
+              id: 'b',
+              companyId: 'c',
+              name: 'e2',
+              isExpectation: true,
+            ),
+          ],
+          drivers,
+          rates,
+        );
+        expect(
+          p.done,
+          isTrue,
+          reason: 'otherwise the banner is permanent wallpaper',
+        );
+        expect(p.fraction, 1.0);
+      },
+    );
 
     test('an empty inventory is complete, not divided by zero', () {
       final p = costingProgress(const [], drivers, rates);
@@ -242,16 +350,31 @@ void main() {
   });
 
   group('assignment tracking', () {
-    Employee emp(String id, String? card, {String status = 'ACTIVE', DateTime? del}) =>
-        Employee(
-          id: id, companyId: 'c', employeeNumber: id, firstName: id, lastName: 'X',
-          roleScorecardId: card, employmentType: 'FULL_TIME',
-          employmentStatus: status, deletedAt: del, hireDate: DateTime(2024, 1, 1),
-          isRankAndFile: true, isOtEligible: false, isNdEligible: false,
-          isHolidayPayEligible: false, sssEligibilityOverride: false,
-          philhealthEligibilityOverride: false, pagibigEligibilityOverride: false,
-          taxOnFullEarnings: false,
-        );
+    Employee emp(
+      String id,
+      String? card, {
+      String status = 'ACTIVE',
+      DateTime? del,
+    }) => Employee(
+      id: id,
+      companyId: 'c',
+      employeeNumber: id,
+      firstName: id,
+      lastName: 'X',
+      roleScorecardId: card,
+      employmentType: 'FULL_TIME',
+      employmentStatus: status,
+      deletedAt: del,
+      hireDate: DateTime(2024, 1, 1),
+      isRankAndFile: true,
+      isOtEligible: false,
+      isNdEligible: false,
+      isHolidayPayEligible: false,
+      sssEligibilityOverride: false,
+      philhealthEligibilityOverride: false,
+      pagibigEligibilityOverride: false,
+      taxOnFullEarnings: false,
+    );
 
     test('only ACTIVE, non-deleted holders make a card count as staffed', () {
       final held = cardsWithActiveHolders([
@@ -267,12 +390,26 @@ void main() {
       const held = {'rs1'};
       expect(
         taskAssignment(
-            const WpTask(id: '1', companyId: 'c', name: 'n', ownerEmployeeId: 'e1'), held),
+          const WpTask(
+            id: '1',
+            companyId: 'c',
+            name: 'n',
+            ownerEmployeeId: 'e1',
+          ),
+          held,
+        ),
         TaskAssignment.explicit,
       );
       expect(
         taskAssignment(
-            const WpTask(id: '2', companyId: 'c', name: 'n', roleScorecardId: 'rs1'), held),
+          const WpTask(
+            id: '2',
+            companyId: 'c',
+            name: 'n',
+            roleScorecardId: 'rs1',
+          ),
+          held,
+        ),
         TaskAssignment.derived,
       );
       expect(
@@ -284,8 +421,14 @@ void main() {
     test('a card with no active holder is UNASSIGNED, not derived', () {
       expect(
         taskAssignment(
-            const WpTask(id: '4', companyId: 'c', name: 'n', roleScorecardId: 'vacant'),
-            const {'rs1'}),
+          const WpTask(
+            id: '4',
+            companyId: 'c',
+            name: 'n',
+            roleScorecardId: 'vacant',
+          ),
+          const {'rs1'},
+        ),
         TaskAssignment.unassigned,
         reason: 'work on a vacant role reaches nobody — that is the gap to see',
       );
@@ -294,9 +437,15 @@ void main() {
     test('an explicit owner wins even on a staffed card', () {
       expect(
         taskAssignment(
-            const WpTask(id: '5', companyId: 'c', name: 'n',
-                roleScorecardId: 'rs1', ownerEmployeeId: 'e9'),
-            const {'rs1'}),
+          const WpTask(
+            id: '5',
+            companyId: 'c',
+            name: 'n',
+            roleScorecardId: 'rs1',
+            ownerEmployeeId: 'e9',
+          ),
+          const {'rs1'},
+        ),
         TaskAssignment.explicit,
       );
     });
@@ -317,20 +466,33 @@ void main() {
     test('filtering by assignment separates derived from truly unassigned', () {
       const held = {'rs1'};
       final tasks = const [
-        WpTask(id: 'd1', companyId: 'c', name: 'derived', roleScorecardId: 'rs1'),
+        WpTask(
+          id: 'd1',
+          companyId: 'c',
+          name: 'derived',
+          roleScorecardId: 'rs1',
+        ),
         WpTask(id: 'u1', companyId: 'c', name: 'orphan'),
       ];
       expect(
-        applyTaskFilter(tasks, const TaskFilter(assignment: TaskAssignment.unassigned),
-                const {}, const {}, cardsWithHolders: held)
-            .map((t) => t.id),
+        applyTaskFilter(
+          tasks,
+          const TaskFilter(assignment: TaskAssignment.unassigned),
+          const {},
+          const {},
+          cardsWithHolders: held,
+        ).map((t) => t.id),
         ['u1'],
         reason: 'the old "no explicit owner" filter returned BOTH of these',
       );
       expect(
-        applyTaskFilter(tasks, const TaskFilter(assignment: TaskAssignment.derived),
-                const {}, const {}, cardsWithHolders: held)
-            .map((t) => t.id),
+        applyTaskFilter(
+          tasks,
+          const TaskFilter(assignment: TaskAssignment.derived),
+          const {},
+          const {},
+          cardsWithHolders: held,
+        ).map((t) => t.id),
         ['d1'],
       );
     });

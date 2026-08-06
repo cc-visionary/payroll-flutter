@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
-Future<String?> showWithdrawDialog(BuildContext context, String applicantName) async {
+Future<String?> showWithdrawDialog(
+  BuildContext context,
+  String applicantName,
+) async {
   final ctl = TextEditingController();
   try {
     return await showDialog<String>(
@@ -11,7 +14,9 @@ Future<String?> showWithdrawDialog(BuildContext context, String applicantName) a
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Capture why the candidate withdrew — declined offer, accepted elsewhere, etc.'),
+            const Text(
+              'Capture why the candidate withdrew — declined offer, accepted elsewhere, etc.',
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: ctl,

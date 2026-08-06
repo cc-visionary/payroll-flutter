@@ -26,12 +26,22 @@ Map<String, dynamic> baseRow(Object? embeddedKpis) => {
 
 void main() {
   test('kpis come from the embedded link, ordered by sort_order', () {
-    final card = RoleScorecard.fromRow(baseRow([
-      {'target': '3%', 'frequency': 'Monthly', 'sort_order': 1,
-       'kpis': {'name': 'Retention', 'measurement_unit': '%'}},
-      {'target': '10/day', 'frequency': 'Weekly', 'sort_order': 0,
-       'kpis': {'name': 'Throughput', 'measurement_unit': 'orders'}},
-    ]));
+    final card = RoleScorecard.fromRow(
+      baseRow([
+        {
+          'target': '3%',
+          'frequency': 'Monthly',
+          'sort_order': 1,
+          'kpis': {'name': 'Retention', 'measurement_unit': '%'},
+        },
+        {
+          'target': '10/day',
+          'frequency': 'Weekly',
+          'sort_order': 0,
+          'kpis': {'name': 'Throughput', 'measurement_unit': 'orders'},
+        },
+      ]),
+    );
     expect(card.kpis.map((k) => k.name), ['Throughput', 'Retention']);
     expect(card.kpis.first.measurement, 'orders');
     expect(card.kpis.first.target, '10/day');
@@ -39,15 +49,24 @@ void main() {
   });
 
   test('falls back to legacy kpis JSON when no embed present', () {
-    final row = baseRow(null)..['kpis'] = [
-      {'name': 'Legacy', 'measurement': 'x', 'target': '1', 'frequency': 'Monthly'},
-    ];
+    final row = baseRow(null)
+      ..['kpis'] = [
+        {
+          'name': 'Legacy',
+          'measurement': 'x',
+          'target': '1',
+          'frequency': 'Monthly',
+        },
+      ];
     final card = RoleScorecard.fromRow(row);
     expect(card.kpis.single.name, 'Legacy');
   });
 
-  test('toUpsertPayload writes kpis as an empty array (NOT NULL column, legacy/unread)', () {
-    final card = RoleScorecard.fromRow(baseRow(const []));
-    expect(card.toUpsertPayload()['kpis'], isEmpty);
-  });
+  test(
+    'toUpsertPayload writes kpis as an empty array (NOT NULL column, legacy/unread)',
+    () {
+      final card = RoleScorecard.fromRow(baseRow(const []));
+      expect(card.toUpsertPayload()['kpis'], isEmpty);
+    },
+  );
 }

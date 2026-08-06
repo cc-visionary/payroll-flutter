@@ -33,39 +33,51 @@ void main() {
 
   test('SignatureBlock renders with and without signature image', () async {
     expect(
-        (await _render(SignatureBlock(
-                name: 'Brixter Del Mundo',
-                role: 'HR Manager',
-                signatureImage: png)))
-            .length,
-        greaterThan(500));
+      (await _render(
+        SignatureBlock(
+          name: 'Brixter Del Mundo',
+          role: 'HR Manager',
+          signatureImage: png,
+        ),
+      )).length,
+      greaterThan(500),
+    );
     expect(
-        (await _render(const SignatureBlock(name: 'Brixter Del Mundo')))
-            .length,
-        greaterThan(500));
+      (await _render(const SignatureBlock(name: 'Brixter Del Mundo'))).length,
+      greaterThan(500),
+    );
   });
 
   test('MultiSignatureBlock renders a signed party', () async {
-    final bytes = await _render(MultiSignatureBlock([
-      SignatoryParty(name: 'Brixter', role: 'HR Manager', signatureImage: png),
-      const SignatoryParty(name: 'Juan', role: 'Employee (Acknowledged)'),
-    ]));
+    final bytes = await _render(
+      MultiSignatureBlock([
+        SignatoryParty(
+          name: 'Brixter',
+          role: 'HR Manager',
+          signatureImage: png,
+        ),
+        const SignatoryParty(name: 'Juan', role: 'Employee (Acknowledged)'),
+      ]),
+    );
     expect(bytes.length, greaterThan(500));
   });
 
   test('SignatureLineBlock renders a signed line', () async {
-    final bytes = await _render(SignatureLineBlock(
-      [
-        SignatoryLine(
+    final bytes = await _render(
+      SignatureLineBlock(
+        [
+          SignatoryLine(
             header: 'For the Company',
             name: 'Clinton Xu',
             role: 'CEO',
-            signatureImage: png),
-        const SignatoryLine(header: 'Recipient', name: 'Juan'),
-      ],
-      row: true,
-      showDate: true,
-    ));
+            signatureImage: png,
+          ),
+          const SignatoryLine(header: 'Recipient', name: 'Juan'),
+        ],
+        row: true,
+        showDate: true,
+      ),
+    );
     expect(bytes.length, greaterThan(500));
   });
 

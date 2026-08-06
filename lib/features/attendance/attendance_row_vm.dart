@@ -146,8 +146,7 @@ class AttendanceRowVm {
         ? schedEnd
         : (tOut.isBefore(schedEnd) ? tOut : schedEnd);
 
-    final schedGross =
-        effectiveOut.difference(effectiveIn).inSeconds / 60.0;
+    final schedGross = effectiveOut.difference(effectiveIn).inSeconds / 60.0;
     if (schedGross <= 0) {
       return (schedWorked: 0, expectedWork: expectedWorkMinutes);
     }
@@ -260,6 +259,7 @@ class AttendanceStats {
   final int regularHoliday;
   final int specialHoliday;
   final int onLeave;
+
   /// Net late/UT after OT absorption (company rule: late minutes are
   /// eaten by OT minutes first, only the remainder is deducted/paid).
   final double lateUndertimeMinutes;
@@ -300,9 +300,10 @@ class AttendanceStats {
       final isRestByDayType = dt.contains('REST');
       final isRestBySchedule = isRestDay(row.date, workDaysPerWeek);
       final isRest = isRestByDayType || isRestBySchedule;
-      final isRegHoliday = dt == 'REGULAR_HOLIDAY' ||
-          row.holiday?.dayType == 'REGULAR_HOLIDAY';
-      final isSpecHoliday = (dt.contains('SPECIAL') && !isRegHoliday) ||
+      final isRegHoliday =
+          dt == 'REGULAR_HOLIDAY' || row.holiday?.dayType == 'REGULAR_HOLIDAY';
+      final isSpecHoliday =
+          (dt.contains('SPECIAL') && !isRegHoliday) ||
           (row.holiday != null &&
               row.holiday!.dayType.contains('SPECIAL') &&
               !isRegHoliday);
@@ -371,18 +372,19 @@ List<AttendanceRowVm> buildAttendanceRows({
     if (skipFutureDays && d.isAfter(cutoff)) break;
     final iso = isoDate(d);
     final rec = byDate[iso];
-    final shift = (rec?.shiftTemplateId != null
-            ? shifts[rec!.shiftTemplateId]
-            : null) ??
+    final shift =
+        (rec?.shiftTemplateId != null ? shifts[rec!.shiftTemplateId] : null) ??
         defaultShift;
     final holiday = holidays[iso];
-    rows.add(AttendanceRowVm(
-      date: d,
-      record: rec,
-      shift: shift,
-      holiday: holiday,
-      workDaysPerWeek: workDaysPerWeek,
-    ));
+    rows.add(
+      AttendanceRowVm(
+        date: d,
+        record: rec,
+        shift: shift,
+        holiday: holiday,
+        workDaysPerWeek: workDaysPerWeek,
+      ),
+    );
   }
   return rows;
 }

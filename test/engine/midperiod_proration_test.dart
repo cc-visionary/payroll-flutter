@@ -41,25 +41,29 @@ EmployeePayrollInput _employee({
 
   final attendance = <AttendanceDayInput>[];
   for (var day = 1; day <= 22; day++) {
-    attendance.add(AttendanceDayInput(
-      id: 'A$day',
-      attendanceDate: DateTime.utc(2026, 7, day),
-      dayType: DayType.WORKDAY,
-      workedMinutes: 480,
-      deductionMinutes: 0,
-      absentMinutes: 0,
-      otMinutes: 0,
-      otEarlyInMinutes: 0,
-      otLateOutMinutes: 0,
-      overtimeRestDayMinutes: 0,
-      overtimeHolidayMinutes: 0,
-      earlyInApproved: false,
-      lateOutApproved: false,
-      nightDiffMinutes: 0,
-      isOnLeave: false,
-      leaveIsPaid: false,
-      dailyRateOverride: (overrideBefore != null && day < switchDay) ? overrideBefore : null,
-    ));
+    attendance.add(
+      AttendanceDayInput(
+        id: 'A$day',
+        attendanceDate: DateTime.utc(2026, 7, day),
+        dayType: DayType.WORKDAY,
+        workedMinutes: 480,
+        deductionMinutes: 0,
+        absentMinutes: 0,
+        otMinutes: 0,
+        otEarlyInMinutes: 0,
+        otLateOutMinutes: 0,
+        overtimeRestDayMinutes: 0,
+        overtimeHolidayMinutes: 0,
+        earlyInApproved: false,
+        lateOutApproved: false,
+        nightDiffMinutes: 0,
+        isOnLeave: false,
+        leaveIsPaid: false,
+        dailyRateOverride: (overrideBefore != null && day < switchDay)
+            ? overrideBefore
+            : null,
+      ),
+    );
   }
 
   return EmployeePayrollInput(
@@ -79,23 +83,23 @@ EmployeePayrollInput _employee({
 }
 
 PayPeriodInput get _july => PayPeriodInput(
-      id: 'PP-7',
-      startDate: DateTime.utc(2026, 7, 1),
-      endDate: DateTime.utc(2026, 7, 31),
-      cutoffDate: DateTime.utc(2026, 7, 31),
-      payDate: DateTime.utc(2026, 8, 5),
-      periodNumber: 7,
-      payFrequency: PayFrequency.MONTHLY,
-    );
+  id: 'PP-7',
+  startDate: DateTime.utc(2026, 7, 1),
+  endDate: DateTime.utc(2026, 7, 31),
+  cutoffDate: DateTime.utc(2026, 7, 31),
+  payDate: DateTime.utc(2026, 8, 5),
+  periodNumber: 7,
+  payFrequency: PayFrequency.MONTHLY,
+);
 
 RulesetInput get _ruleset => RulesetInput(
-      id: 'r',
-      version: 1,
-      sssTable: SSS_TABLE,
-      philhealthTable: PHILHEALTH_TABLE,
-      pagibigTable: PAGIBIG_TABLE,
-      taxTable: TAX_TABLE,
-    );
+  id: 'r',
+  version: 1,
+  sssTable: SSS_TABLE,
+  philhealthTable: PHILHEALTH_TABLE,
+  pagibigTable: PAGIBIG_TABLE,
+  taxTable: TAX_TABLE,
+);
 
 /// Semi-monthly (Jul 16-31) fixture: 14 workdays (16..29). `overrideRate`
 /// (when given) is applied to day 16 only; days 17+ use the standard rate.
@@ -124,25 +128,29 @@ EmployeePayrollInput _semiMonthlyEmployee({
 
   final attendance = <AttendanceDayInput>[];
   for (var day = 16; day <= 29; day++) {
-    attendance.add(AttendanceDayInput(
-      id: 'B$day',
-      attendanceDate: DateTime.utc(2026, 7, day),
-      dayType: DayType.WORKDAY,
-      workedMinutes: 480,
-      deductionMinutes: 0,
-      absentMinutes: 0,
-      otMinutes: 0,
-      otEarlyInMinutes: 0,
-      otLateOutMinutes: 0,
-      overtimeRestDayMinutes: 0,
-      overtimeHolidayMinutes: 0,
-      earlyInApproved: false,
-      lateOutApproved: false,
-      nightDiffMinutes: 0,
-      isOnLeave: false,
-      leaveIsPaid: false,
-      dailyRateOverride: (overrideRate != null && day == 16) ? overrideRate : null,
-    ));
+    attendance.add(
+      AttendanceDayInput(
+        id: 'B$day',
+        attendanceDate: DateTime.utc(2026, 7, day),
+        dayType: DayType.WORKDAY,
+        workedMinutes: 480,
+        deductionMinutes: 0,
+        absentMinutes: 0,
+        otMinutes: 0,
+        otEarlyInMinutes: 0,
+        otLateOutMinutes: 0,
+        overtimeRestDayMinutes: 0,
+        overtimeHolidayMinutes: 0,
+        earlyInApproved: false,
+        lateOutApproved: false,
+        nightDiffMinutes: 0,
+        isOnLeave: false,
+        leaveIsPaid: false,
+        dailyRateOverride: (overrideRate != null && day == 16)
+            ? overrideRate
+            : null,
+      ),
+    );
   }
 
   return EmployeePayrollInput(
@@ -162,69 +170,79 @@ EmployeePayrollInput _semiMonthlyEmployee({
 }
 
 PayPeriodInput get _julySecondHalf => PayPeriodInput(
-      id: 'PP-7B',
-      startDate: DateTime.utc(2026, 7, 16),
-      endDate: DateTime.utc(2026, 7, 31),
-      cutoffDate: DateTime.utc(2026, 7, 31),
-      payDate: DateTime.utc(2026, 8, 5),
-      periodNumber: 14,
-      payFrequency: PayFrequency.SEMI_MONTHLY,
-    );
+  id: 'PP-7B',
+  startDate: DateTime.utc(2026, 7, 16),
+  endDate: DateTime.utc(2026, 7, 31),
+  cutoffDate: DateTime.utc(2026, 7, 31),
+  payDate: DateTime.utc(2026, 8, 5),
+  periodNumber: 14,
+  payFrequency: PayFrequency.SEMI_MONTHLY,
+);
 
 void main() {
-  test('HEADLINE: ₱30k -> ₱38k effective Jul 17 pro-rates a Jul 1-31 monthly run', () {
-    final oldRate =
-        (_d('30000') / Decimal.fromInt(26)).toDecimal(scaleOnInfinitePrecision: 10);
-    final slip = computePayroll(
-      _july,
-      _ruleset,
-      [_employee(baseRate: _d('38000'), overrideBefore: oldRate, switchDay: 17)],
-    ).payslips.single;
+  test(
+    'HEADLINE: ₱30k -> ₱38k effective Jul 17 pro-rates a Jul 1-31 monthly run',
+    () {
+      final oldRate = (_d('30000') / Decimal.fromInt(26)).toDecimal(
+        scaleOnInfinitePrecision: 10,
+      );
+      final slip = computePayroll(_july, _ruleset, [
+        _employee(
+          baseRate: _d('38000'),
+          overrideBefore: oldRate,
+          switchDay: 17,
+        ),
+      ]).payslips.single;
 
-    final basic = slip.lines
-        .where((l) => l.category == PayslipLineCategory.BASIC_PAY)
-        .toList();
+      final basic = slip.lines
+          .where((l) => l.category == PayslipLineCategory.BASIC_PAY)
+          .toList();
 
-    // Two lines: 16 days at the old rate, 6 at the new.
-    expect(basic, hasLength(2));
-    expect(basic[0].quantity, Decimal.fromInt(16));
-    expect(basic[1].quantity, Decimal.fromInt(6));
+      // Two lines: 16 days at the old rate, 6 at the new.
+      expect(basic, hasLength(2));
+      expect(basic[0].quantity, Decimal.fromInt(16));
+      expect(basic[1].quantity, Decimal.fromInt(6));
 
-    // Old rate strictly below the new rate.
-    expect(basic[0].rate! < basic[1].rate!, isTrue);
+      // Old rate strictly below the new rate.
+      expect(basic[0].rate! < basic[1].rate!, isTrue);
 
-    // Total is strictly between "all 22 days at the old rate" and "all 22
-    // days at the new rate".
-    final total = basic.fold<Decimal>(Decimal.zero, (a, l) => a + l.amount);
-    final allOld = _round3ish(oldRate * Decimal.fromInt(22));
-    final newRate =
-        (_d('38000') / Decimal.fromInt(26)).toDecimal(scaleOnInfinitePrecision: 10);
-    final allNew = _round3ish(newRate * Decimal.fromInt(22));
-    expect(total > allOld, isTrue);
-    expect(total < allNew, isTrue);
-  });
+      // Total is strictly between "all 22 days at the old rate" and "all 22
+      // days at the new rate".
+      final total = basic.fold<Decimal>(Decimal.zero, (a, l) => a + l.amount);
+      final allOld = _round3ish(oldRate * Decimal.fromInt(22));
+      final newRate = (_d('38000') / Decimal.fromInt(26)).toDecimal(
+        scaleOnInfinitePrecision: 10,
+      );
+      final allNew = _round3ish(newRate * Decimal.fromInt(22));
+      expect(total > allOld, isTrue);
+      expect(total < allNew, isTrue);
+    },
+  );
 
-  test('INVARIANT 2: no per-day overrides -> basic pay is exactly rate x workDays', () {
-    // Do NOT compare two identical runs — that asserts nothing. Assert the
-    // concrete pre-existing formula still holds for a single build with no
-    // overrides at all.
-    final slip = computePayroll(_july, _ruleset, [_employee(baseRate: _d('30000'))])
-        .payslips
-        .single;
-    final basic = slip.lines
-        .where((l) => l.category == PayslipLineCategory.BASIC_PAY)
-        .toList();
+  test(
+    'INVARIANT 2: no per-day overrides -> basic pay is exactly rate x workDays',
+    () {
+      // Do NOT compare two identical runs — that asserts nothing. Assert the
+      // concrete pre-existing formula still holds for a single build with no
+      // overrides at all.
+      final slip = computePayroll(_july, _ruleset, [
+        _employee(baseRate: _d('30000')),
+      ]).payslips.single;
+      final basic = slip.lines
+          .where((l) => l.category == PayslipLineCategory.BASIC_PAY)
+          .toList();
 
-    expect(basic, hasLength(1));
-    expect(basic.single.description, 'Basic Pay (Monthly)');
-    expect(basic.single.quantity, isNull);
-    expect(basic.single.rate, isNull);
+      expect(basic, hasLength(1));
+      expect(basic.single.description, 'Basic Pay (Monthly)');
+      expect(basic.single.quantity, isNull);
+      expect(basic.single.rate, isNull);
 
-    // wage_calculator _round3's the standard daily rate: 30000/26 -> 1153.846.
-    // The engine sums that rate over 22 workdays.
-    final dailyRate = _d('1153.846');
-    expect(basic.single.amount, dailyRate * Decimal.fromInt(22));
-  });
+      // wage_calculator _round3's the standard daily rate: 30000/26 -> 1153.846.
+      // The engine sums that rate over 22 workdays.
+      final dailyRate = _d('1153.846');
+      expect(basic.single.amount, dailyRate * Decimal.fromInt(22));
+    },
+  );
 
   test('ENGINE honors a per-day override on every day', () {
     // NOTE: manual-vs-compensation PRECEDENCE lives in compute_service's `??=`
@@ -232,11 +250,9 @@ void main() {
     // This test asserts only what the ENGINE guarantees: whatever
     // dailyRateOverride it is handed drives that day's rate.
     final manual = _d('999');
-    final slip = computePayroll(
-      _july,
-      _ruleset,
-      [_employee(baseRate: _d('30000'), overrideBefore: manual, switchDay: 23)],
-    ).payslips.single;
+    final slip = computePayroll(_july, _ruleset, [
+      _employee(baseRate: _d('30000'), overrideBefore: manual, switchDay: 23),
+    ]).payslips.single;
     final basic = slip.lines
         .where((l) => l.category == PayslipLineCategory.BASIC_PAY)
         .toList();
@@ -247,25 +263,27 @@ void main() {
     expect(basic.single.amount, manual * Decimal.fromInt(22));
   });
 
-  test('SEMI-MONTHLY: Jul 16-31 period splits a single-day override from the rest', () {
-    final oldRate =
-        (_d('30000') / Decimal.fromInt(26)).toDecimal(scaleOnInfinitePrecision: 10);
-    final slip = computePayroll(
-      _julySecondHalf,
-      _ruleset,
-      [_semiMonthlyEmployee(baseRate: _d('38000'), overrideRate: oldRate)],
-    ).payslips.single;
+  test(
+    'SEMI-MONTHLY: Jul 16-31 period splits a single-day override from the rest',
+    () {
+      final oldRate = (_d('30000') / Decimal.fromInt(26)).toDecimal(
+        scaleOnInfinitePrecision: 10,
+      );
+      final slip = computePayroll(_julySecondHalf, _ruleset, [
+        _semiMonthlyEmployee(baseRate: _d('38000'), overrideRate: oldRate),
+      ]).payslips.single;
 
-    final basic = slip.lines
-        .where((l) => l.category == PayslipLineCategory.BASIC_PAY)
-        .toList();
+      final basic = slip.lines
+          .where((l) => l.category == PayslipLineCategory.BASIC_PAY)
+          .toList();
 
-    // 14 workdays total (Jul 16-29): 1 at the old rate (day 16), 13 at the
-    // standard/new rate (days 17-29).
-    expect(basic, hasLength(2));
-    expect(basic[0].quantity, Decimal.fromInt(1));
-    expect(basic[0].description, 'Basic Pay (Semi-Monthly) — 1 day');
-    expect(basic[1].quantity, Decimal.fromInt(13));
-    expect(basic[1].description, 'Basic Pay (Semi-Monthly) — 13 days');
-  });
+      // 14 workdays total (Jul 16-29): 1 at the old rate (day 16), 13 at the
+      // standard/new rate (days 17-29).
+      expect(basic, hasLength(2));
+      expect(basic[0].quantity, Decimal.fromInt(1));
+      expect(basic[0].description, 'Basic Pay (Semi-Monthly) — 1 day');
+      expect(basic[1].quantity, Decimal.fromInt(13));
+      expect(basic[1].description, 'Basic Pay (Semi-Monthly) — 13 days');
+    },
+  );
 }

@@ -42,18 +42,28 @@ class _FinancialsTabState extends ConsumerState<FinancialsTab> {
         context,
         label,
         () => _kind == FinancialKind.cashAdvances
-            ? lark.syncCashAdvances(companyId,
-                from: from, to: to, larkUserId: larkUserId)
-            : lark.syncReimbursements(companyId,
-                from: from, to: to, larkUserId: larkUserId),
+            ? lark.syncCashAdvances(
+                companyId,
+                from: from,
+                to: to,
+                larkUserId: larkUserId,
+              )
+            : lark.syncReimbursements(
+                companyId,
+                from: from,
+                to: to,
+                larkUserId: larkUserId,
+              ),
       );
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(
-        content: Text(
-          '$label: ${res.created} created, ${res.updated} updated'
-          '${res.errors.isNotEmpty ? " — ${res.errors.length} error(s)" : ""}',
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            '$label: ${res.created} created, ${res.updated} updated'
+            '${res.errors.isNotEmpty ? " — ${res.errors.length} error(s)" : ""}',
+          ),
         ),
-      ));
+      );
       ref.invalidate(financialsByEmployeeProvider);
     } catch (e) {
       if (!mounted) return;
@@ -65,9 +75,11 @@ class _FinancialsTabState extends ConsumerState<FinancialsTab> {
   Widget build(BuildContext context) {
     final profile = ref.watch(userProfileProvider).asData?.value;
     final canManage = profile?.canManageEmployees ?? false;
-    final async = ref.watch(financialsByEmployeeProvider(
-      FinancialsQuery(employeeId: widget.employee.id, kind: _kind),
-    ));
+    final async = ref.watch(
+      financialsByEmployeeProvider(
+        FinancialsQuery(employeeId: widget.employee.id, kind: _kind),
+      ),
+    );
 
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -89,8 +101,7 @@ class _FinancialsTabState extends ConsumerState<FinancialsTab> {
             _SubTabChip(
               label: 'Reimbursements',
               selected: _kind == FinancialKind.reimbursements,
-              onTap: () =>
-                  setState(() => _kind = FinancialKind.reimbursements),
+              onTap: () => setState(() => _kind = FinancialKind.reimbursements),
             ),
             const Spacer(),
             if (canManage && _kind != FinancialKind.penalties)
@@ -149,15 +160,15 @@ class _FinancialsTabState extends ConsumerState<FinancialsTab> {
 }
 
 String _kindLabel(FinancialKind k) => switch (k) {
-      FinancialKind.penalties => 'Penalty',
-      FinancialKind.cashAdvances => 'Cash Advance',
-      FinancialKind.reimbursements => 'Reimbursement',
-    };
+  FinancialKind.penalties => 'Penalty',
+  FinancialKind.cashAdvances => 'Cash Advance',
+  FinancialKind.reimbursements => 'Reimbursement',
+};
 
 void _showComingSoon(BuildContext context, String action) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text('$action — coming soon.')),
-  );
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text('$action — coming soon.')));
 }
 
 extension on _FinancialsTabState {
@@ -184,7 +195,9 @@ extension on _FinancialsTabState {
   }
 
   Future<void> _onEditPenalty(
-      BuildContext context, Map<String, dynamic> row) async {
+    BuildContext context,
+    Map<String, dynamic> row,
+  ) async {
     final saved = await showAddPenaltyDialog(
       context: context,
       employeeId: widget.employee.id,
@@ -207,11 +220,13 @@ extension on _FinancialsTabState {
   }
 
   Future<void> _onDeletePenalty(
-      BuildContext context, Map<String, dynamic> row) async {
+    BuildContext context,
+    Map<String, dynamic> row,
+  ) async {
     final description =
         (row['custom_description'] as String?)?.trim().isNotEmpty == true
-            ? row['custom_description'] as String
-            : 'this penalty';
+        ? row['custom_description'] as String
+        : 'this penalty';
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
@@ -242,14 +257,14 @@ extension on _FinancialsTabState {
           .eq('id', row['id'] as String);
       ref.invalidate(financialsByEmployeeProvider);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Penalty deleted.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Penalty deleted.')));
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Delete failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
     }
   }
 }
@@ -331,11 +346,7 @@ class _Summary {
         }
       }
     }
-    return _Summary(
-      active: active,
-      completed: completed,
-      remaining: remaining,
-    );
+    return _Summary(active: active, completed: completed, remaining: remaining);
   }
 
   static Decimal _dec(Object? v) {
@@ -361,35 +372,41 @@ class _SummaryRow extends StatelessWidget {
       FinancialKind.cashAdvances => 'OUTSTANDING',
       FinancialKind.reimbursements => 'PENDING PAYOUT',
     };
-    return LayoutBuilder(builder: (ctx, c) {
-      final cols = c.maxWidth >= 700 ? 3 : 1;
-      final spacing = 12.0;
-      final w = (c.maxWidth - spacing * (cols - 1)) / cols;
-      return Wrap(
-        spacing: spacing,
-        runSpacing: spacing,
-        children: [
-          SizedBox(
+    return LayoutBuilder(
+      builder: (ctx, c) {
+        final cols = c.maxWidth >= 700 ? 3 : 1;
+        final spacing = 12.0;
+        final w = (c.maxWidth - spacing * (cols - 1)) / cols;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            SizedBox(
               width: w,
               child: InfoCard(
                 label: activeLabel,
                 value: summary.active.toString(),
-              )),
-          SizedBox(
+              ),
+            ),
+            SizedBox(
               width: w,
               child: InfoCard(
                 label: remainingLabel,
-                value: 'PHP ${Money.fmtPhp(summary.remaining).replaceAll('₱', '')}',
-              )),
-          SizedBox(
+                value:
+                    'PHP ${Money.fmtPhp(summary.remaining).replaceAll('₱', '')}',
+              ),
+            ),
+            SizedBox(
               width: w,
               child: InfoCard(
                 label: 'COMPLETED',
                 value: summary.completed.toString(),
-              )),
-        ],
-      );
-    });
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -433,12 +450,7 @@ class _List extends StatelessWidget {
         for (final r in rows)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: _Row(
-              kind: kind,
-              row: r,
-              onEdit: onEdit,
-              onDelete: onDelete,
-            ),
+            child: _Row(kind: kind, row: r, onEdit: onEdit, onDelete: onDelete),
           ),
       ],
     );
@@ -500,19 +512,22 @@ class _Row extends StatelessWidget {
   /// or the parent row lags behind for any reason.
   Widget _buildPenaltyCard(BuildContext context) {
     final total = _dec(row['total_amount']);
-    final installments = (row['penalty_installments'] as List<dynamic>?)
+    final installments =
+        (row['penalty_installments'] as List<dynamic>?)
             ?.whereType<Map<String, dynamic>>()
             .toList() ??
         const <Map<String, dynamic>>[];
-    final installmentCount =
-        installments.isNotEmpty
-            ? installments.length
-            : (row['installment_count'] as num?)?.toInt() ?? 0;
-    final paidInstallments =
-        installments.where((i) => i['is_deducted'] == true).toList();
+    final installmentCount = installments.isNotEmpty
+        ? installments.length
+        : (row['installment_count'] as num?)?.toInt() ?? 0;
+    final paidInstallments = installments
+        .where((i) => i['is_deducted'] == true)
+        .toList();
     final paidCount = paidInstallments.length;
-    final remainingCount =
-        (installmentCount - paidCount).clamp(0, installmentCount);
+    final remainingCount = (installmentCount - paidCount).clamp(
+      0,
+      installmentCount,
+    );
     final deducted = paidInstallments.fold<Decimal>(
       Decimal.zero,
       (s, i) => s + _dec(i['amount']),
@@ -592,8 +607,9 @@ class _Row extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: progress,
                     minHeight: 8,
-                    backgroundColor:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
                     valueColor: AlwaysStoppedAnimation(
                       progress >= 1.0
                           ? const Color(0xFF16A34A) // completed green
@@ -603,10 +619,7 @@ class _Row extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                '${(progress * 100).round()}%',
-                style: bodyStyle,
-              ),
+              Text('${(progress * 100).round()}%', style: bodyStyle),
             ],
           ),
           const SizedBox(height: 8),
@@ -638,11 +651,11 @@ class _Row extends StatelessWidget {
         : Money.fmtPhp(Decimal.parse(amount.toString()));
 
     final isCashAdvance = kind == FinancialKind.cashAdvances;
-    final settled =
-        isCashAdvance ? row['is_deducted'] == true : row['is_paid'] == true;
-    final settledAtIso = (isCashAdvance
-            ? row['deducted_at']
-            : row['paid_at']) as String?;
+    final settled = isCashAdvance
+        ? row['is_deducted'] == true
+        : row['is_paid'] == true;
+    final settledAtIso =
+        (isCashAdvance ? row['deducted_at'] : row['paid_at']) as String?;
     final rawStatus = (row['status'] as String?)?.toUpperCase() ?? '';
     final String displayStatus;
     if (rawStatus == 'CANCELLED') {
@@ -780,8 +793,18 @@ class _Row extends StatelessWidget {
     try {
       final d = DateTime.parse(iso.substring(0, 10));
       const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
       ];
       return '${months[d.month - 1]} ${d.day}, ${d.year}';
     } catch (_) {

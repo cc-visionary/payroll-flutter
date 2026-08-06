@@ -123,7 +123,8 @@ class EmployeeDocumentRepository {
       if (prior != null) {
         await _client
             .from('employee_documents')
-            .update({'status': 'SUPERSEDED'}).eq('id', prior['id']);
+            .update({'status': 'SUPERSEDED'})
+            .eq('id', prior['id']);
       }
       return SavedDocument(id: documentId);
     } else {
@@ -161,6 +162,6 @@ class EmployeeDocumentRepository {
   }
 }
 
-final employeeDocumentRepositoryProvider =
-    Provider<EmployeeDocumentRepository>(
-        (ref) => EmployeeDocumentRepository(Supabase.instance.client));
+final employeeDocumentRepositoryProvider = Provider<EmployeeDocumentRepository>(
+  (ref) => EmployeeDocumentRepository(Supabase.instance.client),
+);

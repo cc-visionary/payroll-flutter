@@ -31,20 +31,23 @@ void main() {
       expect(result.containsKey('b'), isFalse);
     });
 
-    test('employee with off-role subset {z} -> falls back to full role set {a,b}', () {
-      const assignee = KpiAssignee(employeeId: 'e1', name: 'Alice');
-      final result = employeesByKpi(
-        employees: [(assignee: assignee, roleScorecardId: 'r1')],
-        roleKpiIds: {
-          'r1': {'a', 'b'},
-        },
-        employeeSubsets: {
-          'e1': {'z'},
-        },
-      );
-      expect(result['a']!.map((a) => a.name), ['Alice']);
-      expect(result['b']!.map((a) => a.name), ['Alice']);
-    });
+    test(
+      'employee with off-role subset {z} -> falls back to full role set {a,b}',
+      () {
+        const assignee = KpiAssignee(employeeId: 'e1', name: 'Alice');
+        final result = employeesByKpi(
+          employees: [(assignee: assignee, roleScorecardId: 'r1')],
+          roleKpiIds: {
+            'r1': {'a', 'b'},
+          },
+          employeeSubsets: {
+            'e1': {'z'},
+          },
+        );
+        expect(result['a']!.map((a) => a.name), ['Alice']);
+        expect(result['b']!.map((a) => a.name), ['Alice']);
+      },
+    );
 
     test('employee with null roleScorecardId -> tracked on nothing', () {
       const assignee = KpiAssignee(employeeId: 'e1', name: 'Alice');

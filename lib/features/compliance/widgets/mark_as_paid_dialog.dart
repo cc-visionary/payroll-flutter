@@ -17,7 +17,11 @@ import '../providers.dart';
 class MarkAsPaidDialog extends ConsumerStatefulWidget {
   final StatutoryPayable payable;
   final HiringEntity? brand;
-  const MarkAsPaidDialog({super.key, required this.payable, required this.brand});
+  const MarkAsPaidDialog({
+    super.key,
+    required this.payable,
+    required this.brand,
+  });
 
   @override
   ConsumerState<MarkAsPaidDialog> createState() => _MarkAsPaidDialogState();
@@ -97,8 +101,10 @@ class _MarkAsPaidDialogState extends ConsumerState<MarkAsPaidDialog> {
   Widget build(BuildContext context) {
     final brand = widget.brand;
     final period = _periodLabel(widget.payable);
-    final due = NumberFormat.currency(symbol: '₱', decimalDigits: 2)
-        .format(widget.payable.amountDue.toDouble());
+    final due = NumberFormat.currency(
+      symbol: '₱',
+      decimalDigits: 2,
+    ).format(widget.payable.amountDue.toDouble());
 
     return AlertDialog(
       title: Text('Mark ${widget.payable.agency.shortLabel} as paid'),
@@ -141,8 +147,9 @@ class _MarkAsPaidDialogState extends ConsumerState<MarkAsPaidDialog> {
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                   ],
@@ -187,7 +194,9 @@ class _MarkAsPaidDialogState extends ConsumerState<MarkAsPaidDialog> {
           onPressed: _saving ? null : _save,
           child: _saving
               ? const SizedBox(
-                  width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2),
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Text('Record payment'),
         ),
@@ -198,8 +207,18 @@ class _MarkAsPaidDialogState extends ConsumerState<MarkAsPaidDialog> {
 
 String _periodLabel(StatutoryPayable p) {
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${months[p.periodMonth - 1]} ${p.periodYear}';
 }

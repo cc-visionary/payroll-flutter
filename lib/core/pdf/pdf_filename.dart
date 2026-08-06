@@ -39,8 +39,8 @@ String filenameForSelfEval({
   final date = submittedAt == null
       ? 'undated'
       : '${submittedAt.year.toString().padLeft(4, '0')}-'
-          '${submittedAt.month.toString().padLeft(2, '0')}-'
-          '${submittedAt.day.toString().padLeft(2, '0')}';
+            '${submittedAt.month.toString().padLeft(2, '0')}-'
+            '${submittedAt.day.toString().padLeft(2, '0')}';
   return 'Self-Evaluation - $name - $type - $date.pdf';
 }
 

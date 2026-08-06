@@ -17,12 +17,15 @@ class KpiFormDialog extends StatefulWidget {
 
 class _KpiFormDialogState extends State<KpiFormDialog> {
   late final _name = TextEditingController(text: widget.existing?.name ?? '');
-  late final _category =
-      TextEditingController(text: widget.existing?.category ?? '');
-  late final _measurementUnit =
-      TextEditingController(text: widget.existing?.measurementUnit ?? '');
-  late final _description =
-      TextEditingController(text: widget.existing?.description ?? '');
+  late final _category = TextEditingController(
+    text: widget.existing?.category ?? '',
+  );
+  late final _measurementUnit = TextEditingController(
+    text: widget.existing?.measurementUnit ?? '',
+  );
+  late final _description = TextEditingController(
+    text: widget.existing?.description ?? '',
+  );
   String? _error;
 
   @override
@@ -48,8 +51,9 @@ class _KpiFormDialogState extends State<KpiFormDialog> {
       measurementUnit: _measurementUnit.text.trim().isEmpty
           ? null
           : _measurementUnit.text.trim(),
-      description:
-          _description.text.trim().isEmpty ? null : _description.text.trim(),
+      description: _description.text.trim().isEmpty
+          ? null
+          : _description.text.trim(),
       isActive: widget.existing?.isActive ?? true,
     );
     Navigator.pop(context, kpi);
@@ -116,8 +120,10 @@ class _KpiFormDialogState extends State<KpiFormDialog> {
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
-                  child: Text(_error!,
-                      style: const TextStyle(color: Colors.red, fontSize: 13)),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                  ),
                 ),
             ],
           ),
@@ -128,10 +134,7 @@ class _KpiFormDialogState extends State<KpiFormDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: _save,
-          child: const Text('Save'),
-        ),
+        FilledButton(onPressed: _save, child: const Text('Save')),
       ],
     );
   }

@@ -230,68 +230,86 @@ class _EditDialogState extends ConsumerState<_EditDialog> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text.rich(TextSpan(children: [
-                        const TextSpan(
-                            text: 'Status: ',
-                            style: TextStyle(color: Colors.grey)),
+                      child: Text.rich(
                         TextSpan(
-                            text: r?.attendanceStatus ?? 'NO DATA',
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w700)),
-                      ])),
+                          children: [
+                            const TextSpan(
+                              text: 'Status: ',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                            TextSpan(
+                              text: r?.attendanceStatus ?? 'NO DATA',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                     Expanded(
-                      child: Text.rich(TextSpan(children: [
-                        const TextSpan(
-                            text: 'Day Type: ',
-                            style: TextStyle(color: Colors.grey)),
+                      child: Text.rich(
                         TextSpan(
-                            text: r?.dayType ?? _defaultDayType(widget.date),
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w700)),
-                      ])),
+                          children: [
+                            const TextSpan(
+                              text: 'Day Type: ',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                            TextSpan(
+                              text: r?.dayType ?? _defaultDayType(widget.date),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
               const _Section('Actual Time'),
-              Row(children: [
-                Expanded(
-                  child: _TimeField(
-                    label: 'Clock In',
-                    value: _clockIn,
-                    onPick: () => _pickTime(
-                      _clockIn,
-                      (t) => _clockIn = t,
-                      fallback: _shiftTod(
-                        _effectiveShift?.startTime,
-                        fallback: const TimeOfDay(hour: 9, minute: 0),
+              Row(
+                children: [
+                  Expanded(
+                    child: _TimeField(
+                      label: 'Clock In',
+                      value: _clockIn,
+                      onPick: () => _pickTime(
+                        _clockIn,
+                        (t) => _clockIn = t,
+                        fallback: _shiftTod(
+                          _effectiveShift?.startTime,
+                          fallback: const TimeOfDay(hour: 9, minute: 0),
+                        ),
                       ),
+                      onClear: () => setState(() => _clockIn = null),
                     ),
-                    onClear: () => setState(() => _clockIn = null),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _TimeField(
-                    label: 'Clock Out',
-                    value: _clockOut,
-                    onPick: () => _pickTime(
-                      _clockOut,
-                      (t) => _clockOut = t,
-                      fallback: _shiftTod(
-                        _effectiveShift?.endTime,
-                        fallback: const TimeOfDay(hour: 18, minute: 0),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _TimeField(
+                      label: 'Clock Out',
+                      value: _clockOut,
+                      onPick: () => _pickTime(
+                        _clockOut,
+                        (t) => _clockOut = t,
+                        fallback: _shiftTod(
+                          _effectiveShift?.endTime,
+                          fallback: const TimeOfDay(hour: 18, minute: 0),
+                        ),
                       ),
+                      onClear: () => setState(() => _clockOut = null),
                     ),
-                    onClear: () => setState(() => _clockOut = null),
                   ),
-                ),
-              ]),
+                ],
+              ),
               const SizedBox(height: 16),
-              _Section('Shift Schedule Override',
-                  hint: '(Overwrite imported schedule if incorrect)'),
+              _Section(
+                'Shift Schedule Override',
+                hint: '(Overwrite imported schedule if incorrect)',
+              ),
               if (currentShift != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -300,102 +318,114 @@ class _EditDialogState extends ConsumerState<_EditDialog> {
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ),
-              Row(children: [
-                Expanded(
-                  child: DropdownButtonFormField<String?>(
-                    initialValue: _shiftId,
-                    decoration: const InputDecoration(
-                      labelText: 'Select Shift',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
-                    items: [
-                      const DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text('— Keep current shift —'),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String?>(
+                      initialValue: _shiftId,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Shift',
+                        border: OutlineInputBorder(),
+                        isDense: true,
                       ),
-                      ...widget.shifts.map(
-                        (s) => DropdownMenuItem<String?>(
-                          value: s.id,
-                          child: Text(
-                              '${s.name} (${s.startTime.substring(0, 5)}–${s.endTime.substring(0, 5)})'),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('— Keep current shift —'),
                         ),
-                      ),
-                    ],
-                    onChanged: (v) => setState(() => _shiftId = v),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Break Override (mins)',
-                          style: TextStyle(fontSize: 12)),
-                      Row(children: [
-                        Checkbox(
-                          value: _useBreakDefault,
-                          onChanged: (v) =>
-                              setState(() => _useBreakDefault = v ?? true),
-                        ),
-                        Expanded(
-                          child: Text(
-                            'Use shift default (${_effectiveShift?.breakMinutes ?? 60} mins)',
-                            style: const TextStyle(fontSize: 12),
+                        ...widget.shifts.map(
+                          (s) => DropdownMenuItem<String?>(
+                            value: s.id,
+                            child: Text(
+                              '${s.name} (${s.startTime.substring(0, 5)}–${s.endTime.substring(0, 5)})',
+                            ),
                           ),
                         ),
-                      ]),
-                      TextFormField(
-                        controller: _breakCtrl,
-                        enabled: !_useBreakDefault,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                          hintText: '60',
-                        ),
-                      ),
-                    ],
+                      ],
+                      onChanged: (v) => setState(() => _shiftId = v),
+                    ),
                   ),
-                ),
-              ]),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Break Override (mins)',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _useBreakDefault,
+                              onChanged: (v) =>
+                                  setState(() => _useBreakDefault = v ?? true),
+                            ),
+                            Expanded(
+                              child: Text(
+                                'Use shift default (${_effectiveShift?.breakMinutes ?? 60} mins)',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                        TextFormField(
+                          controller: _breakCtrl,
+                          enabled: !_useBreakDefault,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                            hintText: '60',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
               const _Section('Overtime Approval'),
-              Row(children: [
-                Expanded(
-                  child: _CheckTile(
-                    title: 'Approve Early In OT',
-                    subtitle: 'Clock in before shift start counts as OT',
-                    value: _earlyInApproved,
-                    onChanged: (v) => setState(() => _earlyInApproved = v),
+              Row(
+                children: [
+                  Expanded(
+                    child: _CheckTile(
+                      title: 'Approve Early In OT',
+                      subtitle: 'Clock in before shift start counts as OT',
+                      value: _earlyInApproved,
+                      onChanged: (v) => setState(() => _earlyInApproved = v),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _CheckTile(
-                    title: 'Approve Late Out OT',
-                    subtitle: 'Clock out after shift end counts as OT',
-                    value: _lateOutApproved,
-                    onChanged: (v) => setState(() => _lateOutApproved = v),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _CheckTile(
+                      title: 'Approve Late Out OT',
+                      subtitle: 'Clock out after shift end counts as OT',
+                      value: _lateOutApproved,
+                      onChanged: (v) => setState(() => _lateOutApproved = v),
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
               const SizedBox(height: 16),
-              const _Section('Daily Rate Override',
-                  hint: '(e.g., training rate for this day)'),
+              const _Section(
+                'Daily Rate Override',
+                hint: '(e.g., training rate for this day)',
+              ),
               CheckboxListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
                 title: const Text('Override daily rate for this day'),
                 value: _rateOverrideOn,
-                onChanged: (v) =>
-                    setState(() => _rateOverrideOn = v ?? false),
+                onChanged: (v) => setState(() => _rateOverrideOn = v ?? false),
               ),
               if (_rateOverrideOn)
                 TextFormField(
                   controller: _rateCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: const InputDecoration(
                     labelText: 'Rate (PHP)',
                     border: OutlineInputBorder(),
@@ -437,7 +467,8 @@ class _EditDialogState extends ConsumerState<_EditDialog> {
               ? const SizedBox(
                   height: 16,
                   width: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2))
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text('Save Changes'),
         ),
       ],
@@ -453,8 +484,18 @@ String _defaultDayType(DateTime d) {
 }
 
 const _monthNames = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 class _Section extends StatelessWidget {
@@ -467,8 +508,10 @@ class _Section extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          Text(text,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+          Text(
+            text,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          ),
           if (hint != null) ...[
             const SizedBox(width: 6),
             Expanded(
@@ -502,16 +545,21 @@ class _TimeField extends StatelessWidget {
         : '${value!.hourOfPeriod.toString().padLeft(2, '0')}:${value!.minute.toString().padLeft(2, '0')} ${value!.period == DayPeriod.am ? 'AM' : 'PM'}';
     return InputDecorator(
       decoration: InputDecoration(
-          labelText: label, border: const OutlineInputBorder(), isDense: true),
+        labelText: label,
+        border: const OutlineInputBorder(),
+        isDense: true,
+      ),
       child: Row(
         children: [
           Expanded(
             child: InkWell(
               onTap: onPick,
-              child: Text(fmt,
-                  style: TextStyle(
-                    color: value == null ? Theme.of(context).hintColor : null,
-                  )),
+              child: Text(
+                fmt,
+                style: TextStyle(
+                  color: value == null ? Theme.of(context).hintColor : null,
+                ),
+              ),
             ),
           ),
           if (value != null)
@@ -552,11 +600,17 @@ class _CheckTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600)),
-                Text(subtitle,
-                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
               ],
             ),
           ),

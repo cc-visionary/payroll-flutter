@@ -45,10 +45,9 @@ class FinanceExportRow {
     final emp = r['employees'] as Map<String, dynamic>? ?? const {};
     final firstName = ((emp['first_name'] as String?) ?? '').trim();
     final entity = emp['hiring_entities'] as Map<String, dynamic>?;
-    final brand = ((entity?['name'] as String?) ??
-            (entity?['code'] as String?) ??
-            '')
-        .trim();
+    final brand =
+        ((entity?['name'] as String?) ?? (entity?['code'] as String?) ?? '')
+            .trim();
     final fmt = DateFormat('MMM d');
     final desc =
         '$firstName ${fmt.format(periodStart)} - ${fmt.format(periodEnd)} Cutoff Salary';
@@ -101,16 +100,13 @@ Future<String?> _shareExcel(Excel excel, String fileName) async {
   final named = safe.toLowerCase().endsWith('.xlsx') ? safe : '$safe.xlsx';
   final path = '${dir.path}${Platform.pathSeparator}$named';
   await File(path).writeAsBytes(bytes);
-  final result = await Share.shareXFiles(
-    [
-      XFile(
-        path,
-        mimeType:
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      ),
-    ],
-    subject: fileName,
-  );
+  final result = await Share.shareXFiles([
+    XFile(
+      path,
+      mimeType:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ),
+  ], subject: fileName);
   if (result.status == ShareResultStatus.dismissed) return null;
   return path;
 }
@@ -126,7 +122,8 @@ Future<String?> exportFinanceTrackingXlsx({
   final filename =
       'Finance Tracking ${_dateRangeLabel(periodStart, periodEnd)}.xlsx';
 
-  final sorted = [...rows]..sort((a, b) {
+  final sorted = [...rows]
+    ..sort((a, b) {
       final brandCmp = a.brand.compareTo(b.brand);
       if (brandCmp != 0) return brandCmp;
       return a.description.compareTo(b.description);

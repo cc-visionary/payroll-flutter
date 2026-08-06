@@ -17,13 +17,15 @@ class LarkSyncResult {
     this.note,
   });
   factory LarkSyncResult.fromJson(Map<String, dynamic> j) => LarkSyncResult(
-        total: j['total'] as int? ?? 0,
-        created: j['created'] as int? ?? 0,
-        updated: j['updated'] as int? ?? 0,
-        skipped: j['skipped'] as int? ?? 0,
-        errors: (j['errors'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
-        note: j['note'] as String?,
-      );
+    total: j['total'] as int? ?? 0,
+    created: j['created'] as int? ?? 0,
+    updated: j['updated'] as int? ?? 0,
+    skipped: j['skipped'] as int? ?? 0,
+    errors: (j['errors'] as List<dynamic>? ?? [])
+        .map((e) => e.toString())
+        .toList(),
+    note: j['note'] as String?,
+  );
 }
 
 /// Result of the `sync-lark-master-data` edge function. Unlike the other Lark
@@ -35,21 +37,29 @@ class LarkMasterDataResult {
   /// False when the function reported a handled failure (`{ok:false,error}`).
   final bool ok;
   final String? error;
+
   /// Total Lark rows scanned.
   final int total;
+
   /// Lark rows linked to an existing app employee.
   final int matched;
+
   /// Of [matched], how many got (or, on a dry run, would get) >=1 field filled.
   final int updated;
+
   /// Matched rows that needed no change.
   final int noop;
+
   /// Lark rows with no "Lark Profile" set yet (HR hasn't linked them).
   final int skippedUnlinked;
+
   /// Rows linked to a Lark user that isn't an app employee yet.
   final int skippedUnmatched;
   final List<String> errors;
+
   /// Dry-run only: {fieldKey: count} of fields that would change.
   final Map<String, int> changedFieldCounts;
+
   /// Rows the sync couldn't apply, one entry per skipped person. Returned on
   /// both dry-run and real runs; length == [skippedUnlinked] + [skippedUnmatched].
   /// [LarkUnapplied.reason] is `NO_PROFILE` (link them in Lark) or `NOT_IN_APP`
@@ -79,10 +89,12 @@ class LarkMasterDataResult {
     }
     final unapplied = (j['unapplied'] as List<dynamic>? ?? [])
         .whereType<Map>()
-        .map((e) => LarkUnapplied(
-              name: e['name']?.toString() ?? '—',
-              reason: e['reason']?.toString() ?? '',
-            ))
+        .map(
+          (e) => LarkUnapplied(
+            name: e['name']?.toString() ?? '—',
+            reason: e['reason']?.toString() ?? '',
+          ),
+        )
         .toList();
     return LarkMasterDataResult(
       ok: j['ok'] as bool? ?? false,
@@ -93,7 +105,9 @@ class LarkMasterDataResult {
       noop: j['noop'] as int? ?? 0,
       skippedUnlinked: j['skipped_unlinked'] as int? ?? 0,
       skippedUnmatched: j['skipped_unmatched'] as int? ?? 0,
-      errors: (j['errors'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
+      errors: (j['errors'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
       changedFieldCounts: counts,
       unapplied: unapplied,
     );
@@ -118,16 +132,22 @@ class LarkSelfEvalResult {
   /// False when the function reported a handled failure (`{ok:false,error}`).
   final bool ok;
   final String? error;
+
   /// Total Lark self-eval rows scanned.
   final int total;
+
   /// Responses written (or, on a dry run, that would be written).
   final int synced;
+
   /// Rows whose Base record has no submitter set.
   final int skippedNoRespondent;
+
   /// Rows whose submitter isn't a linked app employee.
   final int skippedUnmatched;
+
   /// Per review type (e.g. `PROBATIONARY_M1`, `QUARTERLY`): matched + synced.
   final Map<String, ({int matched, int synced})> byType;
+
   /// Rows the sync couldn't apply, one per skipped submitter.
   final List<LarkUnapplied> unapplied;
   final List<String> errors;
@@ -149,20 +169,27 @@ class LarkSelfEvalResult {
       rawBy.forEach((k, v) {
         if (v is Map) {
           int pick(Object? x) => x is int ? x : int.tryParse('$x') ?? 0;
-          byType['$k'] = (matched: pick(v['matched']), synced: pick(v['synced']));
+          byType['$k'] = (
+            matched: pick(v['matched']),
+            synced: pick(v['synced']),
+          );
         }
       });
     }
     final unapplied = (j['unapplied'] as List<dynamic>? ?? [])
         .whereType<Map>()
         .map((e) {
-      final rawName = e['name']?.toString();
-      final larkId = e['larkUserId']?.toString();
-      final display = (rawName != null && rawName.trim().isNotEmpty)
-          ? rawName
-          : (larkId != null && larkId.isNotEmpty ? larkId : '—');
-      return LarkUnapplied(name: display, reason: e['reason']?.toString() ?? '');
-    }).toList();
+          final rawName = e['name']?.toString();
+          final larkId = e['larkUserId']?.toString();
+          final display = (rawName != null && rawName.trim().isNotEmpty)
+              ? rawName
+              : (larkId != null && larkId.isNotEmpty ? larkId : '—');
+          return LarkUnapplied(
+            name: display,
+            reason: e['reason']?.toString() ?? '',
+          );
+        })
+        .toList();
     return LarkSelfEvalResult(
       ok: j['ok'] as bool? ?? false,
       error: j['error'] as String?,
@@ -172,7 +199,9 @@ class LarkSelfEvalResult {
       skippedUnmatched: j['skipped_unmatched'] as int? ?? 0,
       byType: byType,
       unapplied: unapplied,
-      errors: (j['errors'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
+      errors: (j['errors'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
     );
   }
 }
@@ -186,7 +215,10 @@ class LarkRepository {
       final res = await _client.functions.invoke('lark-ping');
       final data = res.data;
       if (data is Map && data['ok'] == true) {
-        return (ok: true, detail: data['tenant_access_token_prefix']?.toString());
+        return (
+          ok: true,
+          detail: data['tenant_access_token_prefix']?.toString(),
+        );
       }
       // Could be String (non-JSON response) or an error payload
       return (ok: false, detail: 'status=${res.status} data=$data');
@@ -205,7 +237,9 @@ class LarkRepository {
       throw Exception('Unexpected response from $fn: $data');
     } on FunctionException catch (e) {
       // Surface the actual response body so callers see Lark error codes / stack traces
-      throw Exception('$fn failed (status ${e.status}): ${e.details ?? e.reasonPhrase}');
+      throw Exception(
+        '$fn failed (status ${e.status}): ${e.details ?? e.reasonPhrase}',
+      );
     }
   }
 
@@ -213,38 +247,55 @@ class LarkRepository {
       _invoke('sync-lark-employees', {'company_id': companyId});
   Future<LarkSyncResult> syncShifts(String companyId) =>
       _invoke('sync-lark-shifts', {'company_id': companyId});
-  Future<LarkSyncResult> syncAttendance(String companyId, {DateTime? from, DateTime? to}) =>
-      _invoke('sync-lark-attendance', {
-        'company_id': companyId,
-        if (from != null) 'from': from.toIso8601String().substring(0, 10),
-        if (to != null) 'to': to.toIso8601String().substring(0, 10),
-      });
-  Future<LarkSyncResult> syncLeaves(String companyId, {DateTime? from, DateTime? to}) =>
-      _invoke('sync-lark-leaves', {
-        'company_id': companyId,
-        if (from != null) 'from': from.toIso8601String().substring(0, 10),
-        if (to != null) 'to': to.toIso8601String().substring(0, 10),
-      });
-  Future<LarkSyncResult> syncOvertime(String companyId, {DateTime? from, DateTime? to}) =>
-      _invoke('sync-lark-ot', {
-        'company_id': companyId,
-        if (from != null) 'from': from.toIso8601String().substring(0, 10),
-        if (to != null) 'to': to.toIso8601String().substring(0, 10),
-      });
-  Future<LarkSyncResult> syncCashAdvances(String companyId, {DateTime? from, DateTime? to, String? larkUserId}) =>
-      _invoke('sync-lark-cash-advances', {
-        'company_id': companyId,
-        if (from != null) 'from': from.toIso8601String().substring(0, 10),
-        if (to != null) 'to': to.toIso8601String().substring(0, 10),
-        if (larkUserId != null) 'lark_user_id': larkUserId,
-      });
-  Future<LarkSyncResult> syncReimbursements(String companyId, {DateTime? from, DateTime? to, String? larkUserId}) =>
-      _invoke('sync-lark-reimbursements', {
-        'company_id': companyId,
-        if (from != null) 'from': from.toIso8601String().substring(0, 10),
-        if (to != null) 'to': to.toIso8601String().substring(0, 10),
-        if (larkUserId != null) 'lark_user_id': larkUserId,
-      });
+  Future<LarkSyncResult> syncAttendance(
+    String companyId, {
+    DateTime? from,
+    DateTime? to,
+  }) => _invoke('sync-lark-attendance', {
+    'company_id': companyId,
+    if (from != null) 'from': from.toIso8601String().substring(0, 10),
+    if (to != null) 'to': to.toIso8601String().substring(0, 10),
+  });
+  Future<LarkSyncResult> syncLeaves(
+    String companyId, {
+    DateTime? from,
+    DateTime? to,
+  }) => _invoke('sync-lark-leaves', {
+    'company_id': companyId,
+    if (from != null) 'from': from.toIso8601String().substring(0, 10),
+    if (to != null) 'to': to.toIso8601String().substring(0, 10),
+  });
+  Future<LarkSyncResult> syncOvertime(
+    String companyId, {
+    DateTime? from,
+    DateTime? to,
+  }) => _invoke('sync-lark-ot', {
+    'company_id': companyId,
+    if (from != null) 'from': from.toIso8601String().substring(0, 10),
+    if (to != null) 'to': to.toIso8601String().substring(0, 10),
+  });
+  Future<LarkSyncResult> syncCashAdvances(
+    String companyId, {
+    DateTime? from,
+    DateTime? to,
+    String? larkUserId,
+  }) => _invoke('sync-lark-cash-advances', {
+    'company_id': companyId,
+    if (from != null) 'from': from.toIso8601String().substring(0, 10),
+    if (to != null) 'to': to.toIso8601String().substring(0, 10),
+    if (larkUserId != null) 'lark_user_id': larkUserId,
+  });
+  Future<LarkSyncResult> syncReimbursements(
+    String companyId, {
+    DateTime? from,
+    DateTime? to,
+    String? larkUserId,
+  }) => _invoke('sync-lark-reimbursements', {
+    'company_id': companyId,
+    if (from != null) 'from': from.toIso8601String().substring(0, 10),
+    if (to != null) 'to': to.toIso8601String().substring(0, 10),
+    if (larkUserId != null) 'lark_user_id': larkUserId,
+  });
   Future<LarkSyncResult> syncCalendar(String companyId, int year) =>
       _invoke('sync-lark-calendar', {'company_id': companyId, 'year': year});
 
@@ -257,15 +308,19 @@ class LarkRepository {
     bool dryRun = false,
   }) async {
     try {
-      final res = await _client.functions.invoke('sync-lark-master-data',
-          body: {'company_id': companyId, 'dry_run': dryRun});
+      final res = await _client.functions.invoke(
+        'sync-lark-master-data',
+        body: {'company_id': companyId, 'dry_run': dryRun},
+      );
       final data = res.data;
       if (data is Map<String, dynamic>) {
         return LarkMasterDataResult.fromJson(data);
       }
       throw Exception('Unexpected response from sync-lark-master-data: $data');
     } on FunctionException catch (e) {
-      throw Exception('sync-lark-master-data failed (status ${e.status}): ${e.details ?? e.reasonPhrase}');
+      throw Exception(
+        'sync-lark-master-data failed (status ${e.status}): ${e.details ?? e.reasonPhrase}',
+      );
     }
   }
 
@@ -277,21 +332,26 @@ class LarkRepository {
     bool dryRun = false,
   }) async {
     try {
-      final res = await _client.functions.invoke('sync-lark-self-evals',
-          body: {'company_id': companyId, 'dry_run': dryRun});
+      final res = await _client.functions.invoke(
+        'sync-lark-self-evals',
+        body: {'company_id': companyId, 'dry_run': dryRun},
+      );
       final data = res.data;
       if (data is Map<String, dynamic>) {
         return LarkSelfEvalResult.fromJson(data);
       }
       throw Exception('Unexpected response from sync-lark-self-evals: $data');
     } on FunctionException catch (e) {
-      throw Exception('sync-lark-self-evals failed (status ${e.status}): ${e.details ?? e.reasonPhrase}');
+      throw Exception(
+        'sync-lark-self-evals failed (status ${e.status}): ${e.details ?? e.reasonPhrase}',
+      );
     }
   }
 }
 
-final larkRepositoryProvider =
-    Provider<LarkRepository>((ref) => LarkRepository(Supabase.instance.client));
+final larkRepositoryProvider = Provider<LarkRepository>(
+  (ref) => LarkRepository(Supabase.instance.client),
+);
 
 // Sync history stream
 class SyncLogRow {

@@ -67,18 +67,37 @@ class CompliancePeriod {
   /// to Mar 31, 2026".
   String label() {
     const monthsLong = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     const monthsShort = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     if (mode == PeriodMode.singleMonth) {
       return '${monthsLong[month - 1]} $year';
     }
-    String fmt(DateTime d) =>
-        '${monthsShort[d.month - 1]} ${d.day}, ${d.year}';
+    String fmt(DateTime d) => '${monthsShort[d.month - 1]} ${d.day}, ${d.year}';
     return '${fmt(rangeStart)} to ${fmt(rangeEnd)}';
   }
 
@@ -88,14 +107,13 @@ class CompliancePeriod {
     int? month,
     DateTime? rangeStart,
     DateTime? rangeEnd,
-  }) =>
-      CompliancePeriod(
-        mode: mode ?? this.mode,
-        year: year ?? this.year,
-        month: month ?? this.month,
-        rangeStart: rangeStart ?? this.rangeStart,
-        rangeEnd: rangeEnd ?? this.rangeEnd,
-      );
+  }) => CompliancePeriod(
+    mode: mode ?? this.mode,
+    year: year ?? this.year,
+    month: month ?? this.month,
+    rangeStart: rangeStart ?? this.rangeStart,
+    rangeEnd: rangeEnd ?? this.rangeEnd,
+  );
 }
 
 class CompliancePeriodNotifier extends Notifier<CompliancePeriod> {
@@ -125,7 +143,8 @@ class CompliancePeriodNotifier extends Notifier<CompliancePeriod> {
 
 final compliancePeriodProvider =
     NotifierProvider<CompliancePeriodNotifier, CompliancePeriod>(
-        CompliancePeriodNotifier.new);
+      CompliancePeriodNotifier.new,
+    );
 
 /// Multi-select brand filter. Empty set = "all brands".
 class ComplianceBrandFilterNotifier extends Notifier<Set<String>> {
@@ -144,7 +163,8 @@ class ComplianceBrandFilterNotifier extends Notifier<Set<String>> {
 
 final complianceBrandFilterProvider =
     NotifierProvider<ComplianceBrandFilterNotifier, Set<String>>(
-        ComplianceBrandFilterNotifier.new);
+      ComplianceBrandFilterNotifier.new,
+    );
 
 /// Multi-select agency filter. Empty set = "all agencies".
 class ComplianceAgencyFilterNotifier extends Notifier<Set<StatutoryAgency>> {
@@ -162,14 +182,16 @@ class ComplianceAgencyFilterNotifier extends Notifier<Set<StatutoryAgency>> {
 
 final complianceAgencyFilterProvider =
     NotifierProvider<ComplianceAgencyFilterNotifier, Set<StatutoryAgency>>(
-        ComplianceAgencyFilterNotifier.new);
+      ComplianceAgencyFilterNotifier.new,
+    );
 
 // ---------------------------------------------------------------------------
 // Data providers
 // ---------------------------------------------------------------------------
 
-final compliancePayablesProvider =
-    FutureProvider<List<StatutoryPayable>>((ref) async {
+final compliancePayablesProvider = FutureProvider<List<StatutoryPayable>>((
+  ref,
+) async {
   final repo = ref.watch(statutoryPayablesRepositoryProvider);
   final p = ref.watch(compliancePeriodProvider);
   final b = p.yearMonthBounds();
@@ -183,16 +205,16 @@ final compliancePayablesProvider =
 
 final compliancePaidSummariesProvider =
     FutureProvider<List<StatutoryPaymentSummary>>((ref) async {
-  final repo = ref.watch(statutoryPayablesRepositoryProvider);
-  final p = ref.watch(compliancePeriodProvider);
-  final b = p.yearMonthBounds();
-  return repo.listPaidSummaries(
-    fromYear: b.fromYear,
-    fromMonth: b.fromMonth,
-    toYear: b.toYear,
-    toMonth: b.toMonth,
-  );
-});
+      final repo = ref.watch(statutoryPayablesRepositoryProvider);
+      final p = ref.watch(compliancePeriodProvider);
+      final b = p.yearMonthBounds();
+      return repo.listPaidSummaries(
+        fromYear: b.fromYear,
+        fromMonth: b.fromMonth,
+        toYear: b.toYear,
+        toMonth: b.toMonth,
+      );
+    });
 
 /// Joined payable + paid summary, scoped + filtered ready for the table.
 /// Computed entirely on the client so the SQL views stay simple.
@@ -207,8 +229,9 @@ class CompliancePayableRow {
       '${payable.hiringEntityId}|${payable.periodYear}|${payable.periodMonth}|${payable.agency.dbValue}';
 }
 
-final complianceTableRowsProvider =
-    FutureProvider<List<CompliancePayableRow>>((ref) async {
+final complianceTableRowsProvider = FutureProvider<List<CompliancePayableRow>>((
+  ref,
+) async {
   final payables = await ref.watch(compliancePayablesProvider.future);
   final paid = await ref.watch(compliancePaidSummariesProvider.future);
   final brandFilter = ref.watch(complianceBrandFilterProvider);
@@ -230,15 +253,15 @@ final complianceTableRowsProvider =
       if (brandMatches(p.hiringEntityId) && agencyMatches(p.agency))
         CompliancePayableRow(
           payable: p,
-          paid: paidByKey['${p.hiringEntityId}|${p.periodYear}|${p.periodMonth}|${p.agency.dbValue}'],
+          paid:
+              paidByKey['${p.hiringEntityId}|${p.periodYear}|${p.periodMonth}|${p.agency.dbValue}'],
         ),
   ];
 });
 
 /// Count of employees with NULL hiring_entity_id — surfaces the "Unassigned"
 /// warning chip in the filter bar.
-final complianceUnassignedCountProvider =
-    FutureProvider<int>((ref) async {
+final complianceUnassignedCountProvider = FutureProvider<int>((ref) async {
   final repo = ref.watch(statutoryPayablesRepositoryProvider);
   final profile = await ref.watch(userProfileProvider.future);
   if (profile == null || profile.companyId.isEmpty) return 0;
@@ -273,28 +296,34 @@ class StatutoryPaymentsQuery {
       Object.hash(hiringEntityId, periodYear, periodMonth, agency);
 }
 
-final statutoryPaymentsProvider = FutureProvider.family<List<StatutoryPayment>,
-    StatutoryPaymentsQuery>((ref, q) async {
-  final repo = ref.watch(statutoryPayablesRepositoryProvider);
-  return repo.listPayments(
-    hiringEntityId: q.hiringEntityId,
-    periodYear: q.periodYear,
-    periodMonth: q.periodMonth,
-    agency: q.agency,
-  );
-});
+final statutoryPaymentsProvider =
+    FutureProvider.family<List<StatutoryPayment>, StatutoryPaymentsQuery>((
+      ref,
+      q,
+    ) async {
+      final repo = ref.watch(statutoryPayablesRepositoryProvider);
+      return repo.listPayments(
+        hiringEntityId: q.hiringEntityId,
+        periodYear: q.periodYear,
+        periodMonth: q.periodMonth,
+        agency: q.agency,
+      );
+    });
 
 /// Per-employee breakdown for one (brand × period × agency).
-final statutoryBreakdownProvider = FutureProvider.family<
-    List<StatutoryPayableBreakdownRow>, StatutoryPaymentsQuery>((ref, q) async {
-  final repo = ref.watch(statutoryPayablesRepositoryProvider);
-  return repo.listBreakdown(
-    hiringEntityId: q.hiringEntityId,
-    periodYear: q.periodYear,
-    periodMonth: q.periodMonth,
-    agency: q.agency,
-  );
-});
+final statutoryBreakdownProvider =
+    FutureProvider.family<
+      List<StatutoryPayableBreakdownRow>,
+      StatutoryPaymentsQuery
+    >((ref, q) async {
+      final repo = ref.watch(statutoryPayablesRepositoryProvider);
+      return repo.listBreakdown(
+        hiringEntityId: q.hiringEntityId,
+        periodYear: q.periodYear,
+        periodMonth: q.periodMonth,
+        agency: q.agency,
+      );
+    });
 
 /// Re-export the hiring-entity list provider so widgets in this feature can
 /// import a single file.
@@ -373,4 +402,5 @@ class PendingStatutoryPayablesCountNotifier extends AsyncNotifier<int> {
 
 final pendingStatutoryPayablesCountProvider =
     AsyncNotifierProvider<PendingStatutoryPayablesCountNotifier, int>(
-        PendingStatutoryPayablesCountNotifier.new);
+      PendingStatutoryPayablesCountNotifier.new,
+    );

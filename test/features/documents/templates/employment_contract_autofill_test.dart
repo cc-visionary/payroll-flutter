@@ -30,15 +30,18 @@ void main() {
     expect(t.build(t.emptyInputs()), isNotEmpty);
   });
 
-  testWidgets('autofill with employee + company copies basic fields',
-      (tester) async {
+  testWidgets('autofill with employee + company copies basic fields', (
+    tester,
+  ) async {
     late WidgetRef capturedRef;
     await tester.pumpWidget(
       ProviderScope(
-        child: Consumer(builder: (_, ref, __) {
-          capturedRef = ref;
-          return const SizedBox();
-        }),
+        child: Consumer(
+          builder: (_, ref, __) {
+            capturedRef = ref;
+            return const SizedBox();
+          },
+        ),
       ),
     );
     final emp = _buildEmployee();
@@ -72,15 +75,18 @@ void main() {
     expect(filled.employerSignatoryRole, 'People Manager');
   });
 
-  testWidgets('autofill returns emptyInputs when employee is null',
-      (tester) async {
+  testWidgets('autofill returns emptyInputs when employee is null', (
+    tester,
+  ) async {
     late WidgetRef capturedRef;
     await tester.pumpWidget(
       ProviderScope(
-        child: Consumer(builder: (_, ref, __) {
-          capturedRef = ref;
-          return const SizedBox();
-        }),
+        child: Consumer(
+          builder: (_, ref, __) {
+            capturedRef = ref;
+            return const SizedBox();
+          },
+        ),
       ),
     );
     const t = EmploymentContractTemplate();
@@ -93,33 +99,33 @@ void main() {
 }
 
 Employee _buildEmployee() => Employee(
-      id: 'e1',
-      companyId: 'c1',
-      employeeNumber: 'EMP-001',
-      firstName: 'Jamaica',
-      lastName: 'Vidal',
-      jobTitle: 'Sales Associate',
-      hiringEntityId: 'c1',
-      employmentType: 'PROBATIONARY',
-      employmentStatus: 'ACTIVE',
-      hireDate: DateTime(2020, 1, 1),
-      isRankAndFile: true,
-      isOtEligible: true,
-      isNdEligible: true,
-      isHolidayPayEligible: true,
-      taxOnFullEarnings: false,
-      addressLine1: '123 Mabini St',
-      city: 'Makati',
-      province: 'Metro Manila',
-      zipCode: '1200',
-    );
+  id: 'e1',
+  companyId: 'c1',
+  employeeNumber: 'EMP-001',
+  firstName: 'Jamaica',
+  lastName: 'Vidal',
+  jobTitle: 'Sales Associate',
+  hiringEntityId: 'c1',
+  employmentType: 'PROBATIONARY',
+  employmentStatus: 'ACTIVE',
+  hireDate: DateTime(2020, 1, 1),
+  isRankAndFile: true,
+  isOtEligible: true,
+  isNdEligible: true,
+  isHolidayPayEligible: true,
+  taxOnFullEarnings: false,
+  addressLine1: '123 Mabini St',
+  city: 'Makati',
+  province: 'Metro Manila',
+  zipCode: '1200',
+);
 
 HiringEntity _buildHiringEntity() => const HiringEntity(
-      id: 'c1',
-      companyId: 'c1',
-      code: 'LUX',
-      name: 'LUXIUM TRADING CO.',
-      hrManagerName: 'Brixter Del Mundo',
-      city: 'Makati',
-      province: 'Metro Manila',
-    );
+  id: 'c1',
+  companyId: 'c1',
+  code: 'LUX',
+  name: 'LUXIUM TRADING CO.',
+  hrManagerName: 'Brixter Del Mundo',
+  city: 'Makati',
+  province: 'Metro Manila',
+);

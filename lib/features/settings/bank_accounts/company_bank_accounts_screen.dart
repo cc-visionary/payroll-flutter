@@ -23,8 +23,10 @@ class CompanyBankAccountsScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Company Bank Accounts',
-              style: Theme.of(context).textTheme.headlineSmall),
+          Text(
+            'Company Bank Accounts',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
           const SizedBox(height: 4),
           const Text(
             'Payroll disbursement sources for each hiring entity. Admins add '
@@ -37,16 +39,21 @@ class CompanyBankAccountsScreen extends ConsumerWidget {
             child: entitiesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(
-                  child: Text('Error: $e',
-                      style: const TextStyle(color: Colors.red))),
+                child: Text(
+                  'Error: $e',
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
               data: (entities) => accountsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Center(
-                    child: Text('Error: $e',
-                        style: const TextStyle(color: Colors.red))),
+                  child: Text(
+                    'Error: $e',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
                 data: (accounts) {
-                  final byEntity =
-                      <String, List<HiringEntityBankAccount>>{};
+                  final byEntity = <String, List<HiringEntityBankAccount>>{};
                   for (final a in accounts) {
                     byEntity.putIfAbsent(a.hiringEntityId, () => []).add(a);
                   }
@@ -59,7 +66,8 @@ class CompanyBankAccountsScreen extends ConsumerWidget {
                           onChanged: () {
                             ref.invalidate(companyBankAccountsProvider);
                             ref.invalidate(
-                                hiringEntityBankAccountsProvider(e.id));
+                              hiringEntityBankAccountsProvider(e.id),
+                            );
                           },
                         ),
                     ],
@@ -101,23 +109,32 @@ class _EntitySection extends ConsumerWidget {
                     runSpacing: 4,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Text(entity.name,
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
+                      Text(
+                        entity.name,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: Text(entity.code,
-                            style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                fontFamily: 'monospace')),
+                        child: Text(
+                          entity.code,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -133,22 +150,29 @@ class _EntitySection extends ConsumerWidget {
             if (accounts.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
-                child: Text('No accounts yet. Click "Add account".',
-                    style: TextStyle(color: Colors.grey)),
+                child: Text(
+                  'No accounts yet. Click "Add account".',
+                  style: TextStyle(color: Colors.grey),
+                ),
               )
             else
-              ...accounts.map((a) => _AccountRow(
-                    account: a,
-                    onTogglePrimary: () async {
-                      final repo = ref.read(
-                          hiringEntityBankAccountRepositoryProvider);
-                      await repo.setPrimary(
-                          hiringEntityId: entity.id, accountId: a.id);
-                      onChanged();
-                    },
-                    onEdit: () => _openAccountDialog(context, ref, a),
-                    onDelete: () => _confirmDelete(context, ref, a),
-                  )),
+              ...accounts.map(
+                (a) => _AccountRow(
+                  account: a,
+                  onTogglePrimary: () async {
+                    final repo = ref.read(
+                      hiringEntityBankAccountRepositoryProvider,
+                    );
+                    await repo.setPrimary(
+                      hiringEntityId: entity.id,
+                      accountId: a.id,
+                    );
+                    onChanged();
+                  },
+                  onEdit: () => _openAccountDialog(context, ref, a),
+                  onDelete: () => _confirmDelete(context, ref, a),
+                ),
+              ),
           ],
         ),
       ),
@@ -180,17 +204,20 @@ class _EntitySection extends ConsumerWidget {
       builder: (c) => AlertDialog(
         title: const Text('Delete bank account?'),
         content: Text(
-            'Remove "${a.accountName} · ${a.bankCode}"? This cannot be undone. '
-            'Existing payslips that reference this account keep their link for '
-            'audit purposes.'),
+          'Remove "${a.accountName} · ${a.bankCode}"? This cannot be undone. '
+          'Existing payslips that reference this account keep their link for '
+          'audit purposes.',
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(c, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(c, true),
             style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(c).colorScheme.error),
+              backgroundColor: Theme.of(c).colorScheme.error,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -255,8 +282,11 @@ class _AccountRow extends StatelessWidget {
           ),
           IconButton(
             tooltip: 'Delete',
-            icon: const Icon(Icons.delete_outline,
-                size: 18, color: Colors.redAccent),
+            icon: const Icon(
+              Icons.delete_outline,
+              size: 18,
+              color: Colors.redAccent,
+            ),
             onPressed: onDelete,
           ),
         ],
@@ -291,11 +321,7 @@ class _CompanyBankAccountDialogState
   bool _saving = false;
   String? _error;
 
-  static const _accountTypes = <String>[
-    'SAVINGS',
-    'CHECKING',
-    'EWALLET',
-  ];
+  static const _accountTypes = <String>['SAVINGS', 'CHECKING', 'EWALLET'];
 
   @override
   void initState() {
@@ -361,9 +387,11 @@ class _CompanyBankAccountDialogState
         ? MediaQuery.sizeOf(context).width - 48
         : 420.0;
     return AlertDialog(
-      title: Text(widget.existing == null
-          ? 'Add company bank account'
-          : 'Edit company bank account'),
+      title: Text(
+        widget.existing == null
+            ? 'Add company bank account'
+            : 'Edit company bank account',
+      ),
       content: SizedBox(
         width: dialogWidth,
         child: Form(
@@ -426,11 +454,13 @@ class _CompanyBankAccountDialogState
                   ),
                   items: [
                     const DropdownMenuItem<String?>(
-                        value: null, child: Text('— None —')),
-                    ..._accountTypes.map((t) => DropdownMenuItem<String?>(
-                          value: t,
-                          child: Text(t),
-                        )),
+                      value: null,
+                      child: Text('— None —'),
+                    ),
+                    ..._accountTypes.map(
+                      (t) =>
+                          DropdownMenuItem<String?>(value: t, child: Text(t)),
+                    ),
                   ],
                   onChanged: (v) => setState(() => _accountType = v),
                 ),
@@ -440,8 +470,7 @@ class _CompanyBankAccountDialogState
                   controlAffinity: ListTileControlAffinity.leading,
                   title: const Text('Primary account for this entity'),
                   value: _isPrimary,
-                  onChanged: (v) =>
-                      setState(() => _isPrimary = v ?? false),
+                  onChanged: (v) => setState(() => _isPrimary = v ?? false),
                 ),
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
@@ -470,7 +499,8 @@ class _CompanyBankAccountDialogState
               ? const SizedBox(
                   height: 16,
                   width: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2))
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text('Save'),
         ),
       ],

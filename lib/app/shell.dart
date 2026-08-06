@@ -26,8 +26,8 @@ class CollapsedNavGroupsNotifier extends Notifier<Set<String>> {
 
 final collapsedNavGroupsProvider =
     NotifierProvider<CollapsedNavGroupsNotifier, Set<String>>(
-  CollapsedNavGroupsNotifier.new,
-);
+      CollapsedNavGroupsNotifier.new,
+    );
 
 /// Whether the desktop sidebar is collapsed to icon-only mode.
 class SidebarCollapsedNotifier extends Notifier<bool> {
@@ -38,8 +38,8 @@ class SidebarCollapsedNotifier extends Notifier<bool> {
 
 final sidebarCollapsedProvider =
     NotifierProvider<SidebarCollapsedNotifier, bool>(
-  SidebarCollapsedNotifier.new,
-);
+      SidebarCollapsedNotifier.new,
+    );
 
 const double _kSidebarExpandedWidth = 240;
 const double _kSidebarCollapsedWidth = 64;
@@ -51,6 +51,7 @@ class _NavItem {
   final String route;
   final bool Function(UserProfile? p) visible;
   final bool comingSoon;
+
   /// When non-null, the tile invokes this with the surrounding `WidgetRef`
   /// to subscribe to a count source (typically `ref.watch(provider)` on an
   /// `AsyncNotifierProvider<_, int>` or `FutureProvider<int>`) and renders
@@ -95,12 +96,25 @@ final _groups = <_NavGroup>[
     _NavItem('Hiring', Icons.person_search_outlined, '/hiring', _always),
   ]),
   _NavGroup('Work & Performance', [
-    _NavItem('Responsibility Cards', Icons.badge_outlined,
-        '/responsibility-cards', _hrOrAdmin),
+    _NavItem(
+      'Responsibility Cards',
+      Icons.badge_outlined,
+      '/responsibility-cards',
+      _hrOrAdmin,
+    ),
     _NavItem('KPI Library', Icons.speed_outlined, '/kpi-library', _hrOrAdmin),
-    _NavItem('Workforce Planning', Icons.insights_outlined,
-        '/workforce-planning', _hrOrAdmin),
-    _NavItem('Performance', Icons.stacked_line_chart_outlined, '/performance', _always),
+    _NavItem(
+      'Workforce Planning',
+      Icons.insights_outlined,
+      '/workforce-planning',
+      _hrOrAdmin,
+    ),
+    _NavItem(
+      'Performance',
+      Icons.stacked_line_chart_outlined,
+      '/performance',
+      _always,
+    ),
   ]),
   _NavGroup('Time & Pay', [
     _NavItem('Attendance', Icons.schedule_outlined, '/attendance', _always),
@@ -113,11 +127,20 @@ final _groups = <_NavGroup>[
           ref.watch(payrollRunsAwaitingReleaseCountProvider),
     ),
     _NavItem('Adjuncts', Icons.receipt_long_outlined, '/adjuncts', _always),
-    _NavItem('Compensation', Icons.account_balance_wallet_outlined,
-        '/compensation', _hrOrAdmin,
-        comingSoon: true),
-    _NavItem('Assets', Icons.devices_other_outlined, '/assets', _always,
-        comingSoon: true),
+    _NavItem(
+      'Compensation',
+      Icons.account_balance_wallet_outlined,
+      '/compensation',
+      _hrOrAdmin,
+      comingSoon: true,
+    ),
+    _NavItem(
+      'Assets',
+      Icons.devices_other_outlined,
+      '/assets',
+      _always,
+      comingSoon: true,
+    ),
   ]),
   _NavGroup('Admin', [
     _NavItem(
@@ -179,8 +202,9 @@ class AppShell extends ConsumerWidget {
           AnimatedContainer(
             duration: _kSidebarAnim,
             curve: Curves.easeOut,
-            width:
-                railCollapsed ? _kSidebarCollapsedWidth : _kSidebarExpandedWidth,
+            width: railCollapsed
+                ? _kSidebarCollapsedWidth
+                : _kSidebarExpandedWidth,
             decoration: BoxDecoration(
               color: p.surface,
               border: Border(right: BorderSide(color: p.border, width: 1)),
@@ -190,9 +214,8 @@ class AppShell extends ConsumerWidget {
                 children: [
                   _BrandHeader(
                     railCollapsed: railCollapsed,
-                    onToggleRail: () => ref
-                        .read(sidebarCollapsedProvider.notifier)
-                        .toggle(),
+                    onToggleRail: () =>
+                        ref.read(sidebarCollapsedProvider.notifier).toggle(),
                   ),
                   Expanded(
                     child: ListView(
@@ -212,8 +235,7 @@ class AppShell extends ConsumerWidget {
                             )
                           else
                             const SizedBox(height: LuxiumSpacing.sm),
-                          if (railCollapsed ||
-                              !collapsed.contains(g.label))
+                          if (railCollapsed || !collapsed.contains(g.label))
                             for (final item in g.items)
                               _NavTile(
                                 item: item,
@@ -226,10 +248,7 @@ class AppShell extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  _UserFooter(
-                    profile: profile,
-                    railCollapsed: railCollapsed,
-                  ),
+                  _UserFooter(profile: profile, railCollapsed: railCollapsed),
                 ],
               ),
             ),
@@ -331,10 +350,7 @@ class _BrandHeader extends StatelessWidget {
                 const SizedBox(width: 22, height: 22, child: _LuxiumMark()),
                 if (showToggle) ...[
                   const SizedBox(height: 10),
-                  _RailToggleButton(
-                    collapsed: true,
-                    onPressed: onToggleRail!,
-                  ),
+                  _RailToggleButton(collapsed: true, onPressed: onToggleRail!),
                 ],
               ],
             )
@@ -353,10 +369,7 @@ class _BrandHeader extends StatelessWidget {
                   ),
                 ),
                 if (showToggle)
-                  _RailToggleButton(
-                    collapsed: false,
-                    onPressed: onToggleRail!,
-                  ),
+                  _RailToggleButton(collapsed: false, onPressed: onToggleRail!),
               ],
             ),
     );
@@ -500,8 +513,9 @@ class _NavTile extends ConsumerWidget {
                           item.label,
                           style: TextStyle(
                             fontSize: 13.5,
-                            fontWeight:
-                                selected ? FontWeight.w600 : FontWeight.w500,
+                            fontWeight: selected
+                                ? FontWeight.w600
+                                : FontWeight.w500,
                             color: fg,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -544,17 +558,17 @@ class _NavBadge extends StatelessWidget {
   final Color? _iconFg;
 
   const _NavBadge.expanded({required this.count})
-      : _collapsed = false,
-        _icon = null,
-        _iconFg = null;
+    : _collapsed = false,
+      _icon = null,
+      _iconFg = null;
 
   const _NavBadge.collapsed({
     required IconData icon,
     required Color fg,
     required this.count,
-  })  : _collapsed = true,
-        _icon = icon,
-        _iconFg = fg;
+  }) : _collapsed = true,
+       _icon = icon,
+       _iconFg = fg;
 
   String get _label => count > 99 ? '99+' : '$count';
 
@@ -578,10 +592,7 @@ class _NavBadge extends StatelessWidget {
               top: -2,
               right: -4,
               child: Container(
-                constraints: const BoxConstraints(
-                  minWidth: 12,
-                  minHeight: 12,
-                ),
+                constraints: const BoxConstraints(minWidth: 12, minHeight: 12),
                 padding: EdgeInsets.symmetric(
                   horizontal: showNumber ? 3 : 0,
                   vertical: 0,

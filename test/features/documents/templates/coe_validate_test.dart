@@ -4,18 +4,18 @@ import 'package:payroll_flutter/features/documents/templates/coe_validate.dart';
 
 void main() {
   CoeInputs valid() => CoeInputs(
-        employeeId: 'e1',
-        employeeFullName: 'D',
-        employeeLastName: 'Doe',
-        companyId: 'c1',
-        companyName: 'X',
-        hrManagerName: 'HR',
-        position: 'Engineer',
-        place: 'Makati City',
-        dateStart: DateTime(2024, 1, 1),
-        dateEnd: DateTime(2026, 4, 30),
-        dateIssued: DateTime(2026, 5, 1),
-      );
+    employeeId: 'e1',
+    employeeFullName: 'D',
+    employeeLastName: 'Doe',
+    companyId: 'c1',
+    companyName: 'X',
+    hrManagerName: 'HR',
+    position: 'Engineer',
+    place: 'Makati City',
+    dateStart: DateTime(2024, 1, 1),
+    dateEnd: DateTime(2026, 4, 30),
+    dateIssued: DateTime(2026, 5, 1),
+  );
 
   test('valid inputs produce no errors', () {
     expect(validateCoe(valid()), isEmpty);

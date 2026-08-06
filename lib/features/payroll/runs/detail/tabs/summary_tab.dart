@@ -12,21 +12,23 @@ class PayrollSummaryTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 16),
       children: [
-        LayoutBuilder(builder: (ctx, c) {
-          final cols = c.maxWidth >= 900 ? 2 : 1;
-          const spacing = 16.0;
-          final w = (c.maxWidth - spacing * (cols - 1)) / cols;
-          final cards = <Widget>[
-            _TotalsCard(detail: detail),
-            _StatutoryCard(detail: detail),
-            _WorkflowCard(detail: detail),
-          ];
-          return Wrap(
-            spacing: spacing,
-            runSpacing: spacing,
-            children: [for (final c in cards) SizedBox(width: w, child: c)],
-          );
-        }),
+        LayoutBuilder(
+          builder: (ctx, c) {
+            final cols = c.maxWidth >= 900 ? 2 : 1;
+            const spacing = 16.0;
+            final w = (c.maxWidth - spacing * (cols - 1)) / cols;
+            final cards = <Widget>[
+              _TotalsCard(detail: detail),
+              _StatutoryCard(detail: detail),
+              _WorkflowCard(detail: detail),
+            ];
+            return Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              children: [for (final c in cards) SizedBox(width: w, child: c)],
+            );
+          },
+        ),
       ],
     );
   }
@@ -121,10 +123,7 @@ class _TotalsCard extends StatelessWidget {
       title: 'Payroll Totals',
       child: Column(
         children: [
-          _Row(
-            label: 'Employees',
-            value: Text(run.employeeCount.toString()),
-          ),
+          _Row(label: 'Employees', value: Text(run.employeeCount.toString())),
           _Row(
             label: 'Total Gross Pay',
             value: Text(Money.fmtPhp(run.totalGrossPay)),
@@ -228,11 +227,7 @@ class _WorkflowEntry extends StatelessWidget {
   final String label;
   final DateTime date;
   final String? byEmail;
-  const _WorkflowEntry({
-    required this.label,
-    required this.date,
-    this.byEmail,
-  });
+  const _WorkflowEntry({required this.label, required this.date, this.byEmail});
 
   @override
   Widget build(BuildContext context) {
@@ -243,17 +238,11 @@ class _WorkflowEntry extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(fontSize: 13, color: muted),
-          ),
+          Text(label, style: TextStyle(fontSize: 13, color: muted)),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                _fmtDateTime(date),
-                style: const TextStyle(fontSize: 13),
-              ),
+              Text(_fmtDateTime(date), style: const TextStyle(fontSize: 13)),
               if (byEmail != null && byEmail!.isNotEmpty)
                 Text(
                   'by $byEmail',
@@ -268,8 +257,18 @@ class _WorkflowEntry extends StatelessWidget {
 
   static String _fmtDateTime(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final local = d.toLocal();
     final h = local.hour;

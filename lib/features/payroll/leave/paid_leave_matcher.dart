@@ -87,7 +87,8 @@ PaidLeaveResolution resolvePaidLeaveForDay({
       typeName: null,
     );
   }
-  final half = _sameDate(covering.start, covering.end) &&
+  final half =
+      _sameDate(covering.start, covering.end) &&
       covering.leaveDays <= Decimal.parse('0.5');
   return PaidLeaveResolution(
     covered: true,

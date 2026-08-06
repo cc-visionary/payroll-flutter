@@ -6,7 +6,7 @@ void main() {
   final people = <({String id, String? parentId})>[
     (id: 'ceo', parentId: null),
     (id: 'coo', parentId: 'ceo'),
-    (id: 'gm',  parentId: 'coo'),
+    (id: 'gm', parentId: 'coo'),
     (id: 'ops', parentId: 'ceo'),
   ];
 
@@ -20,12 +20,24 @@ void main() {
   });
 
   test('wouldCreateCycle: self, direct descendant, deep descendant', () {
-    expect(wouldCreateCycle(movingId: 'coo', newParentId: 'coo', people: people), isTrue);
-    expect(wouldCreateCycle(movingId: 'coo', newParentId: 'gm', people: people), isTrue);
-    expect(wouldCreateCycle(movingId: 'ceo', newParentId: 'gm', people: people), isTrue);
+    expect(
+      wouldCreateCycle(movingId: 'coo', newParentId: 'coo', people: people),
+      isTrue,
+    );
+    expect(
+      wouldCreateCycle(movingId: 'coo', newParentId: 'gm', people: people),
+      isTrue,
+    );
+    expect(
+      wouldCreateCycle(movingId: 'ceo', newParentId: 'gm', people: people),
+      isTrue,
+    );
   });
 
   test('wouldCreateCycle false for a valid re-parent', () {
-    expect(wouldCreateCycle(movingId: 'gm', newParentId: 'ops', people: people), isFalse);
+    expect(
+      wouldCreateCycle(movingId: 'gm', newParentId: 'ops', people: people),
+      isFalse,
+    );
   });
 }

@@ -71,12 +71,14 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
       );
       final totalCreated = results.fold<int>(0, (s, r) => s + r.created);
       final totalUpdated = results.fold<int>(0, (s, r) => s + r.updated);
-      messenger.showSnackBar(SnackBar(
-        content: Text(
-          'Synced — leaves, cash advances, reimbursements · '
-          'created $totalCreated, updated $totalUpdated.',
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'Synced — leaves, cash advances, reimbursements · '
+            'created $totalCreated, updated $totalUpdated.',
+          ),
         ),
-      ));
+      );
       ref.invalidate(timelineProvider(widget.employee.id));
       ref.invalidate(financialsByEmployeeProvider);
     } catch (e) {
@@ -121,8 +123,7 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
                   _FilterChip(
                     label: 'Cash Advances',
                     selected: _filter == _Filter.cashAdvances,
-                    onTap: () =>
-                        setState(() => _filter = _Filter.cashAdvances),
+                    onTap: () => setState(() => _filter = _Filter.cashAdvances),
                   ),
                   _FilterChip(
                     label: 'Reimbursements',
@@ -173,15 +174,18 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
                         const Text(
                           'Timeline',
                           style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         const SizedBox(width: 6),
                         Text(
                           '(${filtered.length} entries)',
                           style: TextStyle(
                             fontSize: 12,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -195,9 +199,9 @@ class _TimelineTabState extends ConsumerState<TimelineTab> {
                         child: Text(
                           'No timeline entries.',
                           style: TextStyle(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -320,8 +324,7 @@ class _TimelineRow extends StatelessWidget {
                         entry.subtitle!,
                         style: TextStyle(
                           fontSize: 12,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -368,8 +371,18 @@ class _TimelineRow extends StatelessWidget {
 
 String _fmtDate(DateTime d) {
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${months[d.month - 1]} ${d.day}, ${d.year}';
 }

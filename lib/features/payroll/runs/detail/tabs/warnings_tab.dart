@@ -33,8 +33,14 @@ class PayrollWarningsTab extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.check_circle_outline,
-                      size: 40, color: StatusPalette.of(context, StatusTone.success).foreground),
+                  Icon(
+                    Icons.check_circle_outline,
+                    size: 40,
+                    color: StatusPalette.of(
+                      context,
+                      StatusTone.success,
+                    ).foreground,
+                  ),
                   const SizedBox(height: 12),
                   Text(
                     'No attendance warnings for this period.',
@@ -53,18 +59,18 @@ class PayrollWarningsTab extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
-              children: [
-                Text(
-                  '${warnings.length} warning${warnings.length == 1 ? '' : 's'}',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const Spacer(),
-                IconButton(
-                  tooltip: 'Refresh',
-                  icon: const Icon(Icons.refresh, size: 20),
-                  onPressed: () => ref.invalidate(runWarningsProvider(runId)),
-                ),
-              ],
+                children: [
+                  Text(
+                    '${warnings.length} warning${warnings.length == 1 ? '' : 's'}',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: 'Refresh',
+                    icon: const Icon(Icons.refresh, size: 20),
+                    onPressed: () => ref.invalidate(runWarningsProvider(runId)),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 8),
@@ -101,8 +107,9 @@ class _WarningRow extends StatelessWidget {
     final (icon, tone) = _style(warning.type);
     final palette = StatusPalette.of(context, tone);
     return InkWell(
-      onTap: () => context
-          .go('/attendance/${warning.employeeId}/${isoDate(warning.date)}'),
+      onTap: () => context.go(
+        '/attendance/${warning.employeeId}/${isoDate(warning.date)}',
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
@@ -124,7 +131,9 @@ class _WarningRow extends StatelessWidget {
                   Text(
                     warning.employeeLabel,
                     style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w600),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -137,7 +146,11 @@ class _WarningRow extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, size: 20, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.chevron_right,
+              size: 20,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ],
         ),
       ),
@@ -160,8 +173,18 @@ class _WarningRow extends StatelessWidget {
 
   static String _fmtDate(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }

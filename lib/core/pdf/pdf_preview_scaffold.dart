@@ -58,7 +58,8 @@ class PdfPreviewScaffold extends StatelessWidget {
         ),
       );
     }
-    final canPrint = canPrintOverride ??
+    final canPrint =
+        canPrintOverride ??
         (!kIsWeb &&
             (Platform.isLinux ||
                 Platform.isMacOS ||
@@ -85,8 +86,7 @@ class PdfPreviewScaffold extends StatelessWidget {
                 if (ctx.mounted) {
                   ScaffoldMessenger.of(ctx).showSnackBar(
                     const SnackBar(
-                      content: Text(
-                          "Couldn't open save dialog — try again."),
+                      content: Text("Couldn't open save dialog — try again."),
                     ),
                   );
                 }
@@ -107,8 +107,7 @@ class PdfPreviewScaffold extends StatelessWidget {
                 if (ctx.mounted) {
                   ScaffoldMessenger.of(ctx).showSnackBar(
                     const SnackBar(
-                      content: Text(
-                          "Couldn't open print dialog — try again."),
+                      content: Text("Couldn't open print dialog — try again."),
                     ),
                   );
                 }

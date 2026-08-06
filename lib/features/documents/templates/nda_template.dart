@@ -253,11 +253,11 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
 
   @override
   NdaInputs emptyInputs() => NdaInputs(
-        employeeId: '',
-        employeeFullName: '',
-        companyId: '',
-        companyName: '',
-      );
+    employeeId: '',
+    employeeFullName: '',
+    companyId: '',
+    companyName: '',
+  );
 
   @override
   Future<NdaInputs> autofill(AutofillContext ctx) async {
@@ -266,9 +266,12 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
     final co = ctx.company;
     DateTime? hireDate;
     try {
-      final row = await ctx.ref.read(latestEmploymentEventProvider(
-              (employeeId: emp.id, eventType: 'HIRE'))
-          .future);
+      final row = await ctx.ref.read(
+        latestEmploymentEventProvider((
+          employeeId: emp.id,
+          eventType: 'HIRE',
+        )).future,
+      );
       final v = row?['event_date'] as String?;
       hireDate = v == null ? null : DateTime.parse(v);
     } catch (_) {
@@ -279,20 +282,32 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
       employeeId: emp.id,
       employeeFullName: emp.fullName,
       employeePosition: emp.jobTitle ?? '',
-      employeeHomeAddress: _composeAddress(emp.addressLine1, emp.addressLine2,
-          emp.city, emp.province, emp.zipCode),
+      employeeHomeAddress: _composeAddress(
+        emp.addressLine1,
+        emp.addressLine2,
+        emp.city,
+        emp.province,
+        emp.zipCode,
+      ),
       companyId: co?.id ?? '',
       companyName: co?.name ?? '',
       companyAddress: co == null
           ? ''
-          : _composeAddress(co.addressLine1, co.addressLine2, co.city,
-              co.province, co.zipCode),
+          : _composeAddress(
+              co.addressLine1,
+              co.addressLine2,
+              co.city,
+              co.province,
+              co.zipCode,
+            ),
       effectiveDate: hireDate ?? emp.hireDate,
-      authorizedSignatoryName: ctx.legalSignatory?.name ??
+      authorizedSignatoryName:
+          ctx.legalSignatory?.name ??
           ((co?.legalSignatoryName?.isNotEmpty == true)
               ? co!.legalSignatoryName!
               : (co?.hrManagerName ?? '')),
-      authorizedSignatoryRole: ctx.legalSignatory?.title ??
+      authorizedSignatoryRole:
+          ctx.legalSignatory?.title ??
           ((co?.legalSignatoryRole?.isNotEmpty == true)
               ? co!.legalSignatoryRole!
               : 'Authorized Signatory'),
@@ -308,60 +323,86 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
   @override
   List<Block> build(NdaInputs i) {
     final fmt = DateFormat('MMMM d, yyyy');
-    final effective =
-        i.effectiveDate == null ? '________________' : fmt.format(i.effectiveDate!);
+    final effective = i.effectiveDate == null
+        ? '________________'
+        : fmt.format(i.effectiveDate!);
 
     final blocks = <Block>[];
 
     if (i.logoBytes != null || i.companyName.isNotEmpty) {
-      blocks.add(LetterheadBlock(
-        logoBytes: i.logoBytes,
-        companyName: i.companyName,
-        companyAddress: i.companyAddress.isEmpty ? null : i.companyAddress,
-      ));
+      blocks.add(
+        LetterheadBlock(
+          logoBytes: i.logoBytes,
+          companyName: i.companyName,
+          companyAddress: i.companyAddress.isEmpty ? null : i.companyAddress,
+        ),
+      );
     }
     blocks.add(const SpacerBlock(16));
-    blocks.add(const TitleBlock(
-      'Confidentiality & Non-Disclosure Agreement',
-      centered: true,
-    ));
+    blocks.add(
+      const TitleBlock(
+        'Confidentiality & Non-Disclosure Agreement',
+        centered: true,
+      ),
+    );
     blocks.add(const SpacerBlock(16));
 
     // §1 PARTIES (data-driven).
     blocks.add(SectionHeadingBlock(number: 1, title: _sectionTitles[0]));
     blocks.add(const ParagraphBlock(_s1Intro));
     blocks.add(const SpacerBlock(6));
-    blocks.add(PartyBlock(spans: [
-      const EmphasisSpan('Employer:  ', bold: true),
-      EmphasisSpan(i.companyName, bold: true),
-      EmphasisSpan(
-          ', a corporation duly organized and existing under Philippine laws, '
-          'with principal office at ${i.companyAddress} ('),
-      const EmphasisSpan('"Company"', bold: true),
-      const EmphasisSpan(').'),
-    ]));
+    blocks.add(
+      PartyBlock(
+        spans: [
+          const EmphasisSpan('Employer:  ', bold: true),
+          EmphasisSpan(i.companyName, bold: true),
+          EmphasisSpan(
+            ', a corporation duly organized and existing under Philippine laws, '
+            'with principal office at ${i.companyAddress} (',
+          ),
+          const EmphasisSpan('"Company"', bold: true),
+          const EmphasisSpan(').'),
+        ],
+      ),
+    );
     blocks.add(const SpacerBlock(6));
-    blocks.add(PartyBlock(spans: [
-      const EmphasisSpan('Name: ', bold: true),
-      EmphasisSpan(i.employeeFullName),
-    ]));
-    blocks.add(PartyBlock(spans: [
-      const EmphasisSpan('Position/Role: ', bold: true),
-      EmphasisSpan(i.employeePosition),
-    ]));
-    blocks.add(PartyBlock(spans: [
-      const EmphasisSpan('Home Address: ', bold: true),
-      EmphasisSpan(i.employeeHomeAddress),
-      const EmphasisSpan(' ('),
-      const EmphasisSpan('"Employee"', bold: true),
-      const EmphasisSpan(').'),
-    ]));
+    blocks.add(
+      PartyBlock(
+        spans: [
+          const EmphasisSpan('Name: ', bold: true),
+          EmphasisSpan(i.employeeFullName),
+        ],
+      ),
+    );
+    blocks.add(
+      PartyBlock(
+        spans: [
+          const EmphasisSpan('Position/Role: ', bold: true),
+          EmphasisSpan(i.employeePosition),
+        ],
+      ),
+    );
+    blocks.add(
+      PartyBlock(
+        spans: [
+          const EmphasisSpan('Home Address: ', bold: true),
+          EmphasisSpan(i.employeeHomeAddress),
+          const EmphasisSpan(' ('),
+          const EmphasisSpan('"Employee"', bold: true),
+          const EmphasisSpan(').'),
+        ],
+      ),
+    );
     blocks.add(const SpacerBlock(6));
-    blocks.add(PartyBlock(spans: [
-      const EmphasisSpan('Effective Date: ', bold: true),
-      EmphasisSpan(effective),
-      const EmphasisSpan(' (Start Date of Employment)'),
-    ]));
+    blocks.add(
+      PartyBlock(
+        spans: [
+          const EmphasisSpan('Effective Date: ', bold: true),
+          EmphasisSpan(effective),
+          const EmphasisSpan(' (Start Date of Employment)'),
+        ],
+      ),
+    );
 
     // §2..§16 — numbered sections of canonical text.
     void section(int n, List<Block> body) {
@@ -374,11 +415,13 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
     section(2, const [
       ParagraphBlock(_s2PurposeP1),
       SpacerBlock(6),
-      EmphasisParagraphBlock(spans: [
-        EmphasisSpan(_s2PurposeP2Before),
-        EmphasisSpan(_s2PurposeP2Bold, bold: true),
-        EmphasisSpan(_s2PurposeP2After),
-      ]),
+      EmphasisParagraphBlock(
+        spans: [
+          EmphasisSpan(_s2PurposeP2Before),
+          EmphasisSpan(_s2PurposeP2Bold, bold: true),
+          EmphasisSpan(_s2PurposeP2After),
+        ],
+      ),
     ]);
 
     // §3 DEFINITION OF CONFIDENTIAL INFORMATION.
@@ -392,11 +435,13 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
 
     // §4 EXCLUDED INFORMATION.
     section(4, const [
-      EmphasisParagraphBlock(spans: [
-        EmphasisSpan(_s4IntroBefore),
-        EmphasisSpan(_s4IntroBold, bold: true),
-        EmphasisSpan(_s4IntroAfter),
-      ]),
+      EmphasisParagraphBlock(
+        spans: [
+          EmphasisSpan(_s4IntroBefore),
+          EmphasisSpan(_s4IntroBold, bold: true),
+          EmphasisSpan(_s4IntroAfter),
+        ],
+      ),
       SpacerBlock(4),
       LetteredListBlock(_s4Lettered),
     ]);
@@ -413,11 +458,13 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
       ParagraphBlock(_s53),
       SpacerBlock(6),
       HeadingBlock('5.4 Return or Deletion of Company Property'),
-      EmphasisParagraphBlock(spans: [
-        EmphasisSpan(_s54P1Before),
-        EmphasisSpan(_s54P1Bold, bold: true),
-        EmphasisSpan(_s54P1After),
-      ]),
+      EmphasisParagraphBlock(
+        spans: [
+          EmphasisSpan(_s54P1Before),
+          EmphasisSpan(_s54P1Bold, bold: true),
+          EmphasisSpan(_s54P1After),
+        ],
+      ),
       SpacerBlock(6),
       ParagraphBlock(_s54P2),
       SpacerBlock(6),
@@ -427,11 +474,13 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
 
     // §6 DURATION OF OBLIGATIONS (SURVIVAL).
     section(6, const [
-      EmphasisParagraphBlock(spans: [
-        EmphasisSpan(_s6Before),
-        EmphasisSpan(_s6Bold, bold: true),
-        EmphasisSpan(_s6After),
-      ]),
+      EmphasisParagraphBlock(
+        spans: [
+          EmphasisSpan(_s6Before),
+          EmphasisSpan(_s6Bold, bold: true),
+          EmphasisSpan(_s6After),
+        ],
+      ),
     ]);
 
     // §7 USE OF GENERAL SKILLS AND EXPERIENCE.
@@ -447,11 +496,13 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
     section(10, const [
       ParagraphBlock(_s10P1),
       SpacerBlock(6),
-      EmphasisParagraphBlock(spans: [
-        EmphasisSpan(_s10P2Before),
-        EmphasisSpan(_s10P2Bold, bold: true),
-        EmphasisSpan(_s10P2After),
-      ]),
+      EmphasisParagraphBlock(
+        spans: [
+          EmphasisSpan(_s10P2Before),
+          EmphasisSpan(_s10P2Bold, bold: true),
+          EmphasisSpan(_s10P2After),
+        ],
+      ),
     ]);
 
     // §11 REMEDIES.
@@ -473,11 +524,13 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
 
     // §14 GOVERNING LAW AND VENUE.
     section(14, const [
-      EmphasisParagraphBlock(spans: [
-        EmphasisSpan(_s14Before),
-        EmphasisSpan(_s14Bold, bold: true),
-        EmphasisSpan(_s14After),
-      ]),
+      EmphasisParagraphBlock(
+        spans: [
+          EmphasisSpan(_s14Before),
+          EmphasisSpan(_s14Bold, bold: true),
+          EmphasisSpan(_s14After),
+        ],
+      ),
     ]);
 
     // §15 ENTIRE AGREEMENT.
@@ -491,11 +544,13 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
       // Last acknowledgment item carries an inline-bold phrase, so it renders
       // as its own EmphasisParagraphBlock with a leading bullet glyph rather
       // than inside the plain BulletListBlock above.
-      EmphasisParagraphBlock(spans: const [
-        EmphasisSpan('•  '),
-        EmphasisSpan(_s16LastBulletBefore),
-        EmphasisSpan(_s16LastBulletBold, bold: true),
-      ]),
+      EmphasisParagraphBlock(
+        spans: const [
+          EmphasisSpan('•  '),
+          EmphasisSpan(_s16LastBulletBefore),
+          EmphasisSpan(_s16LastBulletBold, bold: true),
+        ],
+      ),
     ]);
 
     // Witness clause.
@@ -507,33 +562,45 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
     // SignatureLineBlock so each column is one aligned stack — the columns
     // share the same Expanded width and line up exactly.
     blocks.add(const SpacerBlock(24));
-    blocks.add(SignatureLineBlock(
-      [
-        SignatoryLine(
-          header: 'For the Company',
-          name: i.authorizedSignatoryName,
-          role: i.authorizedSignatoryRole,
-          signatureImage: decodeSignaturePngB64(i.companySignaturePngB64),
-        ),
-        SignatoryLine(
-          header: 'Recipient',
-          name: i.employeeFullName,
-          role: 'Signature over Printed Name',
-        ),
-      ],
-      row: true,
-      showDate: true,
-    ));
+    blocks.add(
+      SignatureLineBlock(
+        [
+          SignatoryLine(
+            header: 'For the Company',
+            name: i.authorizedSignatoryName,
+            role: i.authorizedSignatoryRole,
+            signatureImage: decodeSignaturePngB64(i.companySignaturePngB64),
+          ),
+          SignatoryLine(
+            header: 'Recipient',
+            name: i.employeeFullName,
+            role: 'Signature over Printed Name',
+          ),
+        ],
+        row: true,
+        showDate: true,
+      ),
+    );
 
     return blocks;
   }
 }
 
 String _composeAddress(
-    String? l1, String? l2, String? city, String? prov, String? zip) {
-  final tail = [city, prov, zip].where((s) => s != null && s.isNotEmpty).join(', ');
-  return [l1, l2, tail]
-      .where((s) => s != null && s.isNotEmpty)
-      .cast<String>()
-      .join(', ');
+  String? l1,
+  String? l2,
+  String? city,
+  String? prov,
+  String? zip,
+) {
+  final tail = [
+    city,
+    prov,
+    zip,
+  ].where((s) => s != null && s.isNotEmpty).join(', ');
+  return [
+    l1,
+    l2,
+    tail,
+  ].where((s) => s != null && s.isNotEmpty).cast<String>().join(', ');
 }

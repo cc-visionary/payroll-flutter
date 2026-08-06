@@ -23,14 +23,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// used because [saveGenerated] is fully overridden.
 class _FakeDocRepo extends EmployeeDocumentRepository {
   _FakeDocRepo({this.throwOnSave = false})
-      : super(SupabaseClient(
+    : super(
+        SupabaseClient(
           'https://stub.supabase.co',
           'stub-anon-key',
           // Prevent the GoTrue auto-refresh periodic timer, which otherwise
           // leaks past widget disposal and trips flutter_test's
           // "Timer still pending" invariant.
           authOptions: const AuthClientOptions(autoRefreshToken: false),
-        ));
+        ),
+      );
 
   final bool throwOnSave;
   final List<Map<String, dynamic>> calls = [];
@@ -68,28 +70,28 @@ const _empId = 'emp-00000001';
 const _coId = 'co-00000001';
 
 Employee _employee() => Employee(
-      id: _empId,
-      companyId: _coId,
-      employeeNumber: 'EMP-001',
-      firstName: 'Alice',
-      lastName: 'Cruz',
-      jobTitle: 'Sales Associate',
-      hiringEntityId: _coId,
-      gender: 'Female',
-      employmentType: 'REGULAR',
-      employmentStatus: 'RESIGNED',
-      hireDate: DateTime(2020, 1, 1),
-      separationDate: DateTime(2024, 6, 30),
-      isRankAndFile: true,
-      isOtEligible: true,
-      isNdEligible: true,
-      isHolidayPayEligible: true,
-      taxOnFullEarnings: false,
-      addressLine1: '123 Mabini St',
-      city: 'Makati',
-      province: 'Metro Manila',
-      zipCode: '1200',
-    );
+  id: _empId,
+  companyId: _coId,
+  employeeNumber: 'EMP-001',
+  firstName: 'Alice',
+  lastName: 'Cruz',
+  jobTitle: 'Sales Associate',
+  hiringEntityId: _coId,
+  gender: 'Female',
+  employmentType: 'REGULAR',
+  employmentStatus: 'RESIGNED',
+  hireDate: DateTime(2020, 1, 1),
+  separationDate: DateTime(2024, 6, 30),
+  isRankAndFile: true,
+  isOtEligible: true,
+  isNdEligible: true,
+  isHolidayPayEligible: true,
+  taxOnFullEarnings: false,
+  addressLine1: '123 Mabini St',
+  city: 'Makati',
+  province: 'Metro Manila',
+  zipCode: '1200',
+);
 
 const _company = HiringEntity(
   id: _coId,
@@ -136,13 +138,16 @@ Future<void> _pumpCoe(
         employeeDocumentRepositoryProvider.overrideWithValue(repo),
         documentEmployeeProvider(_empId).overrideWith((ref) => _employee()),
         hiringEntityByIdProvider(_coId).overrideWith((ref) => _company),
-        employeeListProvider(const EmployeeListQuery(includeArchived: true))
-            .overrideWith((ref) => [_employee()]),
-        employeeListProvider(const EmployeeListQuery())
-            .overrideWith((ref) => [_employee()]),
+        employeeListProvider(
+          const EmployeeListQuery(includeArchived: true),
+        ).overrideWith((ref) => [_employee()]),
+        employeeListProvider(
+          const EmployeeListQuery(),
+        ).overrideWith((ref) => [_employee()]),
         hiringEntityListProvider.overrideWith((ref) => [_company]),
-        roleScorecardListProvider
-            .overrideWith((ref) => const <RoleScorecard>[]),
+        roleScorecardListProvider.overrideWith(
+          (ref) => const <RoleScorecard>[],
+        ),
       ],
       child: MaterialApp.router(routerConfig: router),
     ),
@@ -166,62 +171,74 @@ Future<void> _tapGenerate(WidgetTester tester) async {
 
 void main() {
   group('GenerateScreen two-stage flow (COE)', () {
-    testWidgets('Generate button is disabled when the form is invalid',
-        (tester) async {
+    testWidgets('Generate button is disabled when the form is invalid', (
+      tester,
+    ) async {
       final repo = _FakeDocRepo();
       await _pumpCoe(tester, employeeId: null, repo: repo);
 
       // Empty COE inputs ⇒ validation errors ⇒ Generate disabled.
       final btn = tester.widget<FilledButton>(_generateButton());
-      expect(btn.onPressed, isNull, reason: 'invalid form must disable Generate');
+      expect(
+        btn.onPressed,
+        isNull,
+        reason: 'invalid form must disable Generate',
+      );
 
       // No Download/Print exposed in the editing stage.
       expect(find.byIcon(Icons.download), findsNothing);
       expect(find.byIcon(Icons.print), findsNothing);
     });
 
-    testWidgets('Generate button is enabled when the form is valid',
-        (tester) async {
+    testWidgets('Generate button is enabled when the form is valid', (
+      tester,
+    ) async {
       final repo = _FakeDocRepo();
       await _pumpCoe(tester, employeeId: _empId, repo: repo);
 
       final btn = tester.widget<FilledButton>(_generateButton());
-      expect(btn.onPressed, isNotNull, reason: 'valid form must enable Generate');
+      expect(
+        btn.onPressed,
+        isNotNull,
+        reason: 'valid form must enable Generate',
+      );
     });
 
     testWidgets(
-        'pressing Generate transitions editing → preview and calls saveGenerated',
-        (tester) async {
-      final repo = _FakeDocRepo();
-      await _pumpCoe(tester, employeeId: _empId, repo: repo);
+      'pressing Generate transitions editing → preview and calls saveGenerated',
+      (tester) async {
+        final repo = _FakeDocRepo();
+        await _pumpCoe(tester, employeeId: _empId, repo: repo);
 
-      // Editing stage: no full export bar yet.
-      expect(find.text('Back to edit'), findsNothing);
+        // Editing stage: no full export bar yet.
+        expect(find.text('Back to edit'), findsNothing);
 
-      await _tapGenerate(tester);
+        await _tapGenerate(tester);
 
-      // Preview stage reached.
-      expect(find.text('Back to edit'), findsOneWidget);
-      expect(find.text('Saved to the employee record.'), findsOneWidget);
-      expect(find.byType(PdfPreviewScaffold), findsOneWidget);
+        // Preview stage reached.
+        expect(find.text('Back to edit'), findsOneWidget);
+        expect(find.text('Saved to the employee record.'), findsOneWidget);
+        expect(find.byType(PdfPreviewScaffold), findsOneWidget);
 
-      // Persistence happened with the right args.
-      expect(repo.calls, hasLength(1));
-      final call = repo.calls.single;
-      expect(call['employeeId'], _empId);
-      expect(call['documentType'], 'COE');
-      expect(call['title'], 'Certificate of Employment');
-      expect(call['templateId'], 'coe');
-      expect(call['sessionRecordId'], isNull, reason: 'first save = insert');
-      // The PDF is never persisted — settings-only. saveGenerated takes no
-      // pdfBytes argument, so nothing PDF-shaped is recorded on the call.
-      expect(call.containsKey('pdfBytes'), isFalse);
-      expect(call.containsKey('pdfBytesLen'), isFalse);
-      expect(call['generationOptions'], containsPair('employeeId', _empId));
-    });
+        // Persistence happened with the right args.
+        expect(repo.calls, hasLength(1));
+        final call = repo.calls.single;
+        expect(call['employeeId'], _empId);
+        expect(call['documentType'], 'COE');
+        expect(call['title'], 'Certificate of Employment');
+        expect(call['templateId'], 'coe');
+        expect(call['sessionRecordId'], isNull, reason: 'first save = insert');
+        // The PDF is never persisted — settings-only. saveGenerated takes no
+        // pdfBytes argument, so nothing PDF-shaped is recorded on the call.
+        expect(call.containsKey('pdfBytes'), isFalse);
+        expect(call.containsKey('pdfBytesLen'), isFalse);
+        expect(call['generationOptions'], containsPair('employeeId', _empId));
+      },
+    );
 
-    testWidgets('Back to edit returns to editing with form state intact',
-        (tester) async {
+    testWidgets('Back to edit returns to editing with form state intact', (
+      tester,
+    ) async {
       final repo = _FakeDocRepo();
       await _pumpCoe(tester, employeeId: _empId, repo: repo);
 
@@ -234,112 +251,131 @@ void main() {
       // Back in the editing stage; the form (and its valid state) is intact.
       expect(find.text('Back to edit'), findsNothing);
       final btn = tester.widget<FilledButton>(_generateButton());
-      expect(btn.onPressed, isNotNull,
-          reason: 'form state preserved ⇒ still valid');
+      expect(
+        btn.onPressed,
+        isNotNull,
+        reason: 'form state preserved ⇒ still valid',
+      );
 
       // Re-generating in the same session UPDATES the same row: the second
       // saveGenerated carries the sessionRecordId returned by the first.
       await _tapGenerate(tester);
       expect(repo.calls, hasLength(2));
-      expect(repo.calls.last['sessionRecordId'], 'saved-doc-1',
-          reason: 'second save reuses the session record id');
-    });
-
-    testWidgets(
-        'settings-save failure still reaches preview and warns (non-blocking)',
-        (tester) async {
-      final repo = _FakeDocRepo(throwOnSave: true);
-      await _pumpCoe(tester, employeeId: _empId, repo: repo);
-
-      await _tapGenerate(tester);
-
-      // The render succeeded, so the preview stage IS reached even though the
-      // settings record failed to save — Download/Print must keep working.
-      expect(find.text('Back to edit'), findsOneWidget);
-      expect(find.byType(PdfPreviewScaffold), findsOneWidget);
-
-      // A non-blocking warning is surfaced (inline banner in the preview),
-      // and the success "Saved to the employee record." line is NOT shown.
-      expect(find.text('Saved to the employee record.'), findsNothing);
       expect(
-        find.textContaining("settings weren't recorded"),
-        findsWidgets,
+        repo.calls.last['sessionRecordId'],
+        'saved-doc-1',
+        reason: 'second save reuses the session record id',
       );
-      // Save was attempted.
-      expect(repo.calls, hasLength(1));
     });
 
     testWidgets(
-        'a successful generate refreshes the employee Documents tab and the '
-        'company hub (no stale empty cache)', (tester) async {
-      var empDocBuilds = 0;
-      var hubBuilds = 0;
-      final container = ProviderContainer(overrides: [
-        employeeDocumentRepositoryProvider.overrideWithValue(_FakeDocRepo()),
-        documentEmployeeProvider(_empId).overrideWith((ref) => _employee()),
-        hiringEntityByIdProvider(_coId).overrideWith((ref) => _company),
-        employeeListProvider(const EmployeeListQuery(includeArchived: true))
-            .overrideWith((ref) => [_employee()]),
-        employeeListProvider(const EmployeeListQuery())
-            .overrideWith((ref) => [_employee()]),
-        hiringEntityListProvider.overrideWith((ref) => [_company]),
-        roleScorecardListProvider
-            .overrideWith((ref) => const <RoleScorecard>[]),
-        employeeDocumentsProvider(_empId).overrideWith((ref) {
-          empDocBuilds++;
-          return const <Map<String, dynamic>>[];
-        }),
-        allDocumentsProvider.overrideWith((ref) {
-          hubBuilds++;
-          return const <DocumentRegistryEntry>[];
-        }),
-      ]);
-      addTearDown(container.dispose);
+      'settings-save failure still reaches preview and warns (non-blocking)',
+      (tester) async {
+        final repo = _FakeDocRepo(throwOnSave: true);
+        await _pumpCoe(tester, employeeId: _empId, repo: repo);
 
-      // Keep both alive so an invalidation triggers a recompute we can observe.
-      container.listen(employeeDocumentsProvider(_empId), (_, _) {});
-      container.listen(allDocumentsProvider, (_, _) {});
-      await container.read(employeeDocumentsProvider(_empId).future);
-      await container.read(allDocumentsProvider.future);
-      expect(empDocBuilds, 1);
-      expect(hubBuilds, 1);
+        await _tapGenerate(tester);
 
-      final router = GoRouter(
-        initialLocation: '/gen',
-        routes: [
-          GoRoute(
-            path: '/gen',
-            builder: (_, _) => GenerateScreen(
-              templateId: 'coe',
-              employeeId: _empId,
-              pdfThemeOverride: PdfTheme.testStub(),
-              showLivePreview: false,
+        // The render succeeded, so the preview stage IS reached even though the
+        // settings record failed to save — Download/Print must keep working.
+        expect(find.text('Back to edit'), findsOneWidget);
+        expect(find.byType(PdfPreviewScaffold), findsOneWidget);
+
+        // A non-blocking warning is surfaced (inline banner in the preview),
+        // and the success "Saved to the employee record." line is NOT shown.
+        expect(find.text('Saved to the employee record.'), findsNothing);
+        expect(find.textContaining("settings weren't recorded"), findsWidgets);
+        // Save was attempted.
+        expect(repo.calls, hasLength(1));
+      },
+    );
+
+    testWidgets(
+      'a successful generate refreshes the employee Documents tab and the '
+      'company hub (no stale empty cache)',
+      (tester) async {
+        var empDocBuilds = 0;
+        var hubBuilds = 0;
+        final container = ProviderContainer(
+          overrides: [
+            employeeDocumentRepositoryProvider.overrideWithValue(
+              _FakeDocRepo(),
             ),
-          ),
-          GoRoute(
-            path: '/documents',
-            builder: (_, _) => const Scaffold(body: Text('Documents hub')),
-          ),
-        ],
-      );
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp.router(routerConfig: router),
-        ),
-      );
-      await tester.pumpAndSettle();
+            documentEmployeeProvider(_empId).overrideWith((ref) => _employee()),
+            hiringEntityByIdProvider(_coId).overrideWith((ref) => _company),
+            employeeListProvider(
+              const EmployeeListQuery(includeArchived: true),
+            ).overrideWith((ref) => [_employee()]),
+            employeeListProvider(
+              const EmployeeListQuery(),
+            ).overrideWith((ref) => [_employee()]),
+            hiringEntityListProvider.overrideWith((ref) => [_company]),
+            roleScorecardListProvider.overrideWith(
+              (ref) => const <RoleScorecard>[],
+            ),
+            employeeDocumentsProvider(_empId).overrideWith((ref) {
+              empDocBuilds++;
+              return const <Map<String, dynamic>>[];
+            }),
+            allDocumentsProvider.overrideWith((ref) {
+              hubBuilds++;
+              return const <DocumentRegistryEntry>[];
+            }),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      await _tapGenerate(tester);
+        // Keep both alive so an invalidation triggers a recompute we can observe.
+        container.listen(employeeDocumentsProvider(_empId), (_, _) {});
+        container.listen(allDocumentsProvider, (_, _) {});
+        await container.read(employeeDocumentsProvider(_empId).future);
+        await container.read(allDocumentsProvider.future);
+        expect(empDocBuilds, 1);
+        expect(hubBuilds, 1);
 
-      // Both providers were invalidated by the save, so a fresh read recomputes.
-      await container.read(employeeDocumentsProvider(_empId).future);
-      await container.read(allDocumentsProvider.future);
-      expect(empDocBuilds, greaterThan(1),
-          reason: 'employee Documents tab must refresh after a generate');
-      expect(hubBuilds, greaterThan(1),
-          reason: 'company documents hub must refresh after a generate');
-    });
+        final router = GoRouter(
+          initialLocation: '/gen',
+          routes: [
+            GoRoute(
+              path: '/gen',
+              builder: (_, _) => GenerateScreen(
+                templateId: 'coe',
+                employeeId: _empId,
+                pdfThemeOverride: PdfTheme.testStub(),
+                showLivePreview: false,
+              ),
+            ),
+            GoRoute(
+              path: '/documents',
+              builder: (_, _) => const Scaffold(body: Text('Documents hub')),
+            ),
+          ],
+        );
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp.router(routerConfig: router),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await _tapGenerate(tester);
+
+        // Both providers were invalidated by the save, so a fresh read recomputes.
+        await container.read(employeeDocumentsProvider(_empId).future);
+        await container.read(allDocumentsProvider.future);
+        expect(
+          empDocBuilds,
+          greaterThan(1),
+          reason: 'employee Documents tab must refresh after a generate',
+        );
+        expect(
+          hubBuilds,
+          greaterThan(1),
+          reason: 'company documents hub must refresh after a generate',
+        );
+      },
+    );
   });
 
   // Applicant-mode (no employee id ⇒ skip persistence) is decided by the pure

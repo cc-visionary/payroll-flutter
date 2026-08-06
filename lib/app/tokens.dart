@@ -40,37 +40,53 @@ class LuxiumPalette {
   });
 
   ColorScheme toColorScheme() => ColorScheme(
-        brightness: brightness,
-        primary: cta,
-        onPrimary: Colors.white,
-        primaryContainer: ctaTint,
-        onPrimaryContainer: cta,
-        secondary: accentGreen,
-        onSecondary: Colors.white,
-        secondaryContainer: accentGreen.withValues(alpha: 0.15),
-        onSecondaryContainer: brightness == Brightness.light ? const Color(0xFF0B7B66) : accentGreen,
-        tertiary: const Color(0xFFFF6118),
-        onTertiary: Colors.white,
-        error: brightness == Brightness.light ? const Color(0xFF991B1B) : const Color(0xFFFF8A8A),
-        onError: brightness == Brightness.light ? Colors.white : const Color(0xFF1A0000),
-        errorContainer: brightness == Brightness.light ? const Color(0xFFFEE2E2) : const Color(0x2EDC2626),
-        onErrorContainer: brightness == Brightness.light ? const Color(0xFF991B1B) : const Color(0xFFFF8A8A),
-        surface: surface,
-        onSurface: foreground,
-        surfaceContainerLowest: background,
-        surfaceContainerLow: background,
-        surfaceContainer: muted,
-        surfaceContainerHigh: muted,
-        surfaceContainerHighest: muted,
-        onSurfaceVariant: subdued,
-        outline: border,
-        outlineVariant: ctaBorder,
-        shadow: Colors.black,
-        scrim: Colors.black54,
-        inverseSurface: brightness == Brightness.light ? LuxiumColors.dark.surface : LuxiumColors.light.surface,
-        onInverseSurface: brightness == Brightness.light ? LuxiumColors.dark.foreground : LuxiumColors.light.foreground,
-        inversePrimary: brightness == Brightness.light ? LuxiumColors.dark.cta : LuxiumColors.light.cta,
-      );
+    brightness: brightness,
+    primary: cta,
+    onPrimary: Colors.white,
+    primaryContainer: ctaTint,
+    onPrimaryContainer: cta,
+    secondary: accentGreen,
+    onSecondary: Colors.white,
+    secondaryContainer: accentGreen.withValues(alpha: 0.15),
+    onSecondaryContainer: brightness == Brightness.light
+        ? const Color(0xFF0B7B66)
+        : accentGreen,
+    tertiary: const Color(0xFFFF6118),
+    onTertiary: Colors.white,
+    error: brightness == Brightness.light
+        ? const Color(0xFF991B1B)
+        : const Color(0xFFFF8A8A),
+    onError: brightness == Brightness.light
+        ? Colors.white
+        : const Color(0xFF1A0000),
+    errorContainer: brightness == Brightness.light
+        ? const Color(0xFFFEE2E2)
+        : const Color(0x2EDC2626),
+    onErrorContainer: brightness == Brightness.light
+        ? const Color(0xFF991B1B)
+        : const Color(0xFFFF8A8A),
+    surface: surface,
+    onSurface: foreground,
+    surfaceContainerLowest: background,
+    surfaceContainerLow: background,
+    surfaceContainer: muted,
+    surfaceContainerHigh: muted,
+    surfaceContainerHighest: muted,
+    onSurfaceVariant: subdued,
+    outline: border,
+    outlineVariant: ctaBorder,
+    shadow: Colors.black,
+    scrim: Colors.black54,
+    inverseSurface: brightness == Brightness.light
+        ? LuxiumColors.dark.surface
+        : LuxiumColors.light.surface,
+    onInverseSurface: brightness == Brightness.light
+        ? LuxiumColors.dark.foreground
+        : LuxiumColors.light.foreground,
+    inversePrimary: brightness == Brightness.light
+        ? LuxiumColors.dark.cta
+        : LuxiumColors.light.cta,
+  );
 }
 
 class LuxiumColors {

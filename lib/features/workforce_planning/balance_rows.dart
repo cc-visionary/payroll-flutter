@@ -1,5 +1,6 @@
 import '../../data/models/workforce_planning.dart';
-import '../../data/repositories/role_scorecard_repository.dart' show KpiAssignee;
+import '../../data/repositories/role_scorecard_repository.dart'
+    show KpiAssignee;
 import 'capacity_math.dart';
 
 class BalanceRow {
@@ -26,7 +27,9 @@ class BalanceRow {
 }
 
 /// employeeId -> number of distinct KPIs they are tracked on.
-Map<String, int> kpiCountByEmployee(Map<String, List<KpiAssignee>> assignedByKpi) {
+Map<String, int> kpiCountByEmployee(
+  Map<String, List<KpiAssignee>> assignedByKpi,
+) {
   final out = <String, int>{};
   for (final assignees in assignedByKpi.values) {
     for (final a in assignees) {
@@ -50,17 +53,19 @@ List<BalanceRow> buildBalanceRows({
     final emp = employeeById[l.employeeId];
     final hours = projectedHours(l.hoursFixed, l.hoursGrowingBase, multiplier);
     final frac = loadFraction(hours, l.capacityHours);
-    rows.add(BalanceRow(
-      employeeId: l.employeeId,
-      name: emp?.name ?? l.employeeId,
-      roleTitle: emp?.title,
-      tasksOwned: l.tasksOwned,
-      capacityHours: l.capacityHours,
-      hoursScaled: hours,
-      loadScaled: frac,
-      status: loadStatus(frac),
-      kpiCount: kpiCounts[l.employeeId] ?? 0,
-    ));
+    rows.add(
+      BalanceRow(
+        employeeId: l.employeeId,
+        name: emp?.name ?? l.employeeId,
+        roleTitle: emp?.title,
+        tasksOwned: l.tasksOwned,
+        capacityHours: l.capacityHours,
+        hoursScaled: hours,
+        loadScaled: frac,
+        status: loadStatus(frac),
+        kpiCount: kpiCounts[l.employeeId] ?? 0,
+      ),
+    );
   }
   rows.sort((a, b) {
     final byLoad = b.loadScaled.compareTo(a.loadScaled);

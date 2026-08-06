@@ -115,5 +115,6 @@ class AuditRepository {
   }
 }
 
-final auditRepositoryProvider =
-    Provider<AuditRepository>((ref) => AuditRepository(Supabase.instance.client));
+final auditRepositoryProvider = Provider<AuditRepository>(
+  (ref) => AuditRepository(Supabase.instance.client),
+);

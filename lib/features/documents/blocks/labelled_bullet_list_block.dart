@@ -39,8 +39,11 @@ class LabelledBulletListBlock extends Block {
     );
   }
 
-  pw.Widget _row(PdfTheme theme, LabelledBulletItem item,
-      {required bool nested}) {
+  pw.Widget _row(
+    PdfTheme theme,
+    LabelledBulletItem item, {
+    required bool nested,
+  }) {
     final glyph = nested ? '○' : '•';
     final indent = nested ? 36.0 : 12.0;
     return pw.Padding(
@@ -68,8 +71,7 @@ class LabelledBulletListBlock extends Block {
                 children: [
                   pw.TextSpan(
                     text: '${item.leadBold}: ',
-                    style:
-                        pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                   ),
                   pw.TextSpan(text: item.body),
                 ],

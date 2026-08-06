@@ -2,7 +2,8 @@ import '../../data/models/employee.dart';
 import '../../data/models/kpi.dart';
 import '../../data/models/role_scorecard.dart';
 import '../../data/models/workforce_planning.dart';
-import '../../data/repositories/role_scorecard_repository.dart' show KpiAssignee;
+import '../../data/repositories/role_scorecard_repository.dart'
+    show KpiAssignee;
 import '../kpi_library/kpi_rows.dart' show kpiIsAssigned;
 import 'allocation.dart';
 import 'capacity_math.dart';
@@ -32,10 +33,13 @@ class AttentionItem {
   });
 }
 
-bool _cardHasActiveHolder(List<Employee> employees, String cardId) => employees.any(
-    (e) => e.employmentStatus == 'ACTIVE' &&
-        e.deletedAt == null &&
-        e.roleScorecardId == cardId);
+bool _cardHasActiveHolder(List<Employee> employees, String cardId) =>
+    employees.any(
+      (e) =>
+          e.employmentStatus == 'ACTIVE' &&
+          e.deletedAt == null &&
+          e.roleScorecardId == cardId,
+    );
 
 String _plural(int n, String one, String many) => '$n ${n == 1 ? one : many}';
 
@@ -52,50 +56,120 @@ List<AttentionItem> buildNeedsAttention({
   Map<String, List<WpTaskAssignment>> assignmentsByTask = const {},
 }) {
   final items = <AttentionItem>[];
-  void add(AttentionCategory c, AttentionSeverity s, int n, String label, AttentionTarget t) {
-    if (n > 0) items.add(AttentionItem(category: c, severity: s, count: n, label: label, target: t));
+  void add(
+    AttentionCategory c,
+    AttentionSeverity s,
+    int n,
+    String label,
+    AttentionTarget t,
+  ) {
+    if (n > 0)
+      items.add(
+        AttentionItem(
+          category: c,
+          severity: s,
+          count: n,
+          label: label,
+          target: t,
+        ),
+      );
   }
 
   // People
   final over = loads
       .where((p) => loadStatus(personLoad(p)) == LoadStatus.over)
       .length;
-  add(AttentionCategory.people, AttentionSeverity.high, over,
-      '${_plural(over, 'person', 'people')} over capacity', AttentionTarget.balance);
+  add(
+    AttentionCategory.people,
+    AttentionSeverity.high,
+    over,
+    '${_plural(over, 'person', 'people')} over capacity',
+    AttentionTarget.balance,
+  );
 
   final orphans = orphanTasks(tasks: tasks, employees: employees);
-  final criticalOrphans = orphans.where((t) => t.criticality == 'CRITICAL').length;
-  add(AttentionCategory.people, AttentionSeverity.high, criticalOrphans,
-      '${_plural(criticalOrphans, 'critical responsibility', 'critical responsibilities')} nobody owns',
-      AttentionTarget.unassigned);
-  add(AttentionCategory.people, AttentionSeverity.medium, orphans.length,
-      '${_plural(orphans.length, 'responsibility', 'responsibilities')} unassigned',
-      AttentionTarget.unassigned);
+  final criticalOrphans = orphans
+      .where((t) => t.criticality == 'CRITICAL')
+      .length;
+  add(
+    AttentionCategory.people,
+    AttentionSeverity.high,
+    criticalOrphans,
+    '${_plural(criticalOrphans, 'critical responsibility', 'critical responsibilities')} nobody owns',
+    AttentionTarget.unassigned,
+  );
+  add(
+    AttentionCategory.people,
+    AttentionSeverity.medium,
+    orphans.length,
+    '${_plural(orphans.length, 'responsibility', 'responsibilities')} unassigned',
+    AttentionTarget.unassigned,
+  );
 
   // Process
   final uncostedEssential = tasks
-      .where((t) => t.status == 'ACTIVE' && t.isEssential && !t.isExpectation && isTaskNotCosted(t))
+      .where(
+        (t) =>
+            t.status == 'ACTIVE' &&
+            t.isEssential &&
+            !t.isExpectation &&
+            isTaskNotCosted(t),
+      )
       .length;
-  add(AttentionCategory.process, AttentionSeverity.medium, uncostedEssential,
-      '${_plural(uncostedEssential, 'essential responsibility', 'essential responsibilities')} uncosted',
-      AttentionTarget.tasks);
+  add(
+    AttentionCategory.process,
+    AttentionSeverity.medium,
+    uncostedEssential,
+    '${_plural(uncostedEssential, 'essential responsibility', 'essential responsibilities')} uncosted',
+    AttentionTarget.tasks,
+  );
 
-  final misallocated = tasks.where((t) =>
-      t.status == 'ACTIVE' && !t.isExpectation &&
-      (assignmentsByTask[t.id] ?? const []).isNotEmpty &&
-      (allocationTotal((assignmentsByTask[t.id] ?? const []).map((a) => a.allocationPct)) - 100).abs() > 0.05).length;
-  add(AttentionCategory.process, AttentionSeverity.medium, misallocated,
-      "${_plural(misallocated, 'responsibility', 'responsibilities')} whose shares don't total 100%",
-      AttentionTarget.tasks);
+  final misallocated = tasks
+      .where(
+        (t) =>
+            t.status == 'ACTIVE' &&
+            !t.isExpectation &&
+            (assignmentsByTask[t.id] ?? const []).isNotEmpty &&
+            (allocationTotal(
+                          (assignmentsByTask[t.id] ?? const []).map(
+                            (a) => a.allocationPct,
+                          ),
+                        ) -
+                        100)
+                    .abs() >
+                0.05,
+      )
+      .length;
+  add(
+    AttentionCategory.process,
+    AttentionSeverity.medium,
+    misallocated,
+    "${_plural(misallocated, 'responsibility', 'responsibilities')} whose shares don't total 100%",
+    AttentionTarget.tasks,
+  );
 
   final activeKpis = kpis.where((k) => k.isActive).toList();
-  final measuringNobody = activeKpis.where((k) => !kpiIsAssigned(k, kpiAssignedByKpi)).length;
-  add(AttentionCategory.process, AttentionSeverity.medium, measuringNobody,
-      '${_plural(measuringNobody, 'KPI', 'KPIs')} measuring nobody', AttentionTarget.kpiLibrary);
+  final measuringNobody = activeKpis
+      .where((k) => !kpiIsAssigned(k, kpiAssignedByKpi))
+      .length;
+  add(
+    AttentionCategory.process,
+    AttentionSeverity.medium,
+    measuringNobody,
+    '${_plural(measuringNobody, 'KPI', 'KPIs')} measuring nobody',
+    AttentionTarget.kpiLibrary,
+  );
 
-  final noMeasurement = activeKpis.where((k) => (k.measurementUnit ?? '').trim().isEmpty).length;
-  add(AttentionCategory.process, AttentionSeverity.medium, noMeasurement,
-      '${_plural(noMeasurement, 'KPI', 'KPIs')} with no measurement', AttentionTarget.kpiLibrary);
+  final noMeasurement = activeKpis
+      .where((k) => (k.measurementUnit ?? '').trim().isEmpty)
+      .length;
+  add(
+    AttentionCategory.process,
+    AttentionSeverity.medium,
+    noMeasurement,
+    '${_plural(noMeasurement, 'KPI', 'KPIs')} with no measurement',
+    AttentionTarget.kpiLibrary,
+  );
 
   // Structure
   final activeCards = cards.where((c) => c.isActive).toList();
@@ -104,20 +178,40 @@ List<AttentionItem> buildNeedsAttention({
     final id = t.roleScorecardId;
     if (id != null && t.status == 'ACTIVE') (tasksByCard[id] ??= []).add(t);
   }
-  final unstaffedCritical = activeCards.where((c) =>
-      !_cardHasActiveHolder(employees, c.id) &&
-      (tasksByCard[c.id] ?? const []).any((t) => t.criticality == 'CRITICAL')).length;
-  add(AttentionCategory.structure, AttentionSeverity.medium, unstaffedCritical,
-      '${_plural(unstaffedCritical, 'unstaffed role carries', 'unstaffed roles carry')} critical work',
-      AttentionTarget.roles);
+  final unstaffedCritical = activeCards
+      .where(
+        (c) =>
+            !_cardHasActiveHolder(employees, c.id) &&
+            (tasksByCard[c.id] ?? const []).any(
+              (t) => t.criticality == 'CRITICAL',
+            ),
+      )
+      .length;
+  add(
+    AttentionCategory.structure,
+    AttentionSeverity.medium,
+    unstaffedCritical,
+    '${_plural(unstaffedCritical, 'unstaffed role carries', 'unstaffed roles carry')} critical work',
+    AttentionTarget.roles,
+  );
 
   final roleNoDept = activeCards.where((c) => c.departmentId == null).length;
-  add(AttentionCategory.structure, AttentionSeverity.medium, roleNoDept,
-      '${_plural(roleNoDept, 'role', 'roles')} with no department', AttentionTarget.roles);
+  add(
+    AttentionCategory.structure,
+    AttentionSeverity.medium,
+    roleNoDept,
+    '${_plural(roleNoDept, 'role', 'roles')} with no department',
+    AttentionTarget.roles,
+  );
 
   final kpiNoDept = activeKpis.where((k) => k.departmentId == null).length;
-  add(AttentionCategory.structure, AttentionSeverity.medium, kpiNoDept,
-      '${_plural(kpiNoDept, 'KPI', 'KPIs')} with no department', AttentionTarget.kpiLibrary);
+  add(
+    AttentionCategory.structure,
+    AttentionSeverity.medium,
+    kpiNoDept,
+    '${_plural(kpiNoDept, 'KPI', 'KPIs')} with no department',
+    AttentionTarget.kpiLibrary,
+  );
 
   // Tools — reserved, no signals today.
 

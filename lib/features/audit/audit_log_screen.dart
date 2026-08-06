@@ -8,12 +8,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../app/breakpoints.dart';
 import '../../app/shell.dart';
 
-final _auditLogsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  final rows = await Supabase.instance.client
-      .from('audit_logs')
-      .select()
-      .order('created_at', ascending: false)
-      .limit(500) as List<dynamic>;
+final _auditLogsProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
+  final rows =
+      await Supabase.instance.client
+              .from('audit_logs')
+              .select()
+              .order('created_at', ascending: false)
+              .limit(500)
+          as List<dynamic>;
   return rows.cast<Map<String, dynamic>>();
 });
 
@@ -38,7 +42,9 @@ class AuditLogScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         child: async.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: Colors.red))),
+          error: (e, _) => Center(
+            child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
+          ),
           data: (rows) => rows.isEmpty
               ? const Center(child: Text('No audit entries.'))
               : Card(
@@ -51,17 +57,24 @@ class AuditLogScreen extends ConsumerWidget {
                       DataColumn2(label: Text('User'), size: ColumnSize.M),
                       DataColumn2(label: Text('Action'), size: ColumnSize.S),
                       DataColumn2(label: Text('Entity'), size: ColumnSize.M),
-                      DataColumn2(label: Text('Description'), size: ColumnSize.L),
+                      DataColumn2(
+                        label: Text('Description'),
+                        size: ColumnSize.L,
+                      ),
                     ],
                     rows: rows.map((r) {
-                      final when = DateTime.parse(r['created_at'] as String).toLocal();
-                      return DataRow2(cells: [
-                        DataCell(Text(when.toString().substring(0, 19))),
-                        DataCell(Text(r['user_email'] as String? ?? '—')),
-                        DataCell(Text(r['action'] as String)),
-                        DataCell(Text(_entityDisplay(r))),
-                        DataCell(Text(r['description'] as String? ?? '')),
-                      ]);
+                      final when = DateTime.parse(
+                        r['created_at'] as String,
+                      ).toLocal();
+                      return DataRow2(
+                        cells: [
+                          DataCell(Text(when.toString().substring(0, 19))),
+                          DataCell(Text(r['user_email'] as String? ?? '—')),
+                          DataCell(Text(r['action'] as String)),
+                          DataCell(Text(_entityDisplay(r))),
+                          DataCell(Text(r['description'] as String? ?? '')),
+                        ],
+                      );
                     }).toList(),
                   ),
                 ),

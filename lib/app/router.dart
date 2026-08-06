@@ -299,8 +299,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/self-evals/:id/pdf',
-            builder: (c, s) =>
-                SelfEvalPdfScreen(id: s.pathParameters['id']!),
+            builder: (c, s) => SelfEvalPdfScreen(id: s.pathParameters['id']!),
           ),
           GoRoute(
             path: '/compensation',

@@ -9,27 +9,33 @@ import 'package:payroll_flutter/features/documents/templates/liability_waiver_te
 
 void main() {
   LiabilityWaiverInputs seed() => LiabilityWaiverInputs(
-        employeeId: 'emp-1',
-        employeeFullName: 'Donald Xu',
-        employeeAddress: '123 Mabini St, Binondo, Manila',
-        companyId: 'co-1',
-        companyName: 'LUXIUM TRADING CO.',
-        dateOfEmployment: DateTime(2024, 1, 15),
-        outingDate: DateTime(2026, 6, 20),
-        outingLocation: 'Tagaytay City, Cavite',
-        dateSigned: DateTime(2026, 5, 23),
-        signingPlace: 'Manila City',
-      );
+    employeeId: 'emp-1',
+    employeeFullName: 'Donald Xu',
+    employeeAddress: '123 Mabini St, Binondo, Manila',
+    companyId: 'co-1',
+    companyName: 'LUXIUM TRADING CO.',
+    dateOfEmployment: DateTime(2024, 1, 15),
+    outingDate: DateTime(2026, 6, 20),
+    outingLocation: 'Tagaytay City, Cavite',
+    dateSigned: DateTime(2026, 5, 23),
+    signingPlace: 'Manila City',
+  );
 
   const t = LiabilityWaiverTemplate();
 
-  test('first block is LetterheadBlock when companyName is set, HeadingBlock title is present', () {
-    final blocks = t.build(seed());
-    expect(blocks.first, isA<LetterheadBlock>());
-    expect(
-        blocks.whereType<HeadingBlock>().any((b) => b.text == 'Travel Release and Waiver'),
-        true);
-  });
+  test(
+    'first block is LetterheadBlock when companyName is set, HeadingBlock title is present',
+    () {
+      final blocks = t.build(seed());
+      expect(blocks.first, isA<LetterheadBlock>());
+      expect(
+        blocks.whereType<HeadingBlock>().any(
+          (b) => b.text == 'Travel Release and Waiver',
+        ),
+        true,
+      );
+    },
+  );
 
   test('two LetteredListBlocks: §2 (5 items) and §3 (3 items)', () {
     final blocks = t.build(seed());
@@ -45,12 +51,13 @@ void main() {
     expect(sigs.length, 1);
     expect(sigs.first.signatories.length, 1);
     expect(sigs.first.signatories.first.name, isNull);
-    expect(sigs.first.signatories.first.role,
-        'Signature over Printed Name / Date');
+    expect(
+      sigs.first.signatories.first.role,
+      'Signature over Printed Name / Date',
+    );
   });
 
-  test('intro + numbered EmphasisParagraphBlocks present with bold values',
-      () {
+  test('intro + numbered EmphasisParagraphBlocks present with bold values', () {
     final blocks = t.build(seed());
     final emphasis = blocks.whereType<EmphasisParagraphBlock>().toList();
     final allTexts = emphasis.expand((b) => b.spans).map((s) => s.text);
@@ -72,17 +79,24 @@ void main() {
     // Numbered item leads.
     expect(allTexts, contains('1.   I am an employee of '));
     expect(
-        allTexts,
-        contains('2.   In connection with the outing (hereafter referred to '
-            'as the "Trip"), I acknowledge and affirm the following:'));
+      allTexts,
+      contains(
+        '2.   In connection with the outing (hereafter referred to '
+        'as the "Trip"), I acknowledge and affirm the following:',
+      ),
+    );
     expect(allTexts, contains('3.   I affirm that:'));
     expect(allTexts, contains('4.   '));
     expect(boldTexts, contains('Medical and Emergency Consent'));
 
     // Witness clause with ordinal date (23rd) + place.
-    final witness = emphasis.any((b) =>
-        b.spans.any((s) => s.text.contains('IN WITNESS WHEREOF') &&
-            s.text.contains('23rd day of May 2026')));
+    final witness = emphasis.any(
+      (b) => b.spans.any(
+        (s) =>
+            s.text.contains('IN WITNESS WHEREOF') &&
+            s.text.contains('23rd day of May 2026'),
+      ),
+    );
     expect(witness, true);
   });
 }

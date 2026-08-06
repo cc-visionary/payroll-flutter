@@ -41,11 +41,13 @@ class CompanySettingsRepository {
         .maybeSingle();
     if (row == null) {
       // Backfill defensively if no settings row exists yet.
-      await _client
-          .from('company_settings')
-          .upsert({'company_id': companyId}, onConflict: 'company_id');
+      await _client.from('company_settings').upsert({
+        'company_id': companyId,
+      }, onConflict: 'company_id');
       return const AttendanceSourceFlags(
-          manualCsvEnabled: true, larkEnabled: true);
+        manualCsvEnabled: true,
+        larkEnabled: true,
+      );
     }
     return AttendanceSourceFlags(
       manualCsvEnabled: (row['manual_csv_enabled'] as bool?) ?? true,
@@ -54,29 +56,32 @@ class CompanySettingsRepository {
   }
 
   Future<void> setAttendanceSourceFlags(
-      String companyId, AttendanceSourceFlags flags) async {
-    await _client.from('company_settings').upsert(
-      {
-        'company_id': companyId,
-        'manual_csv_enabled': flags.manualCsvEnabled,
-        'lark_enabled': flags.larkEnabled,
-      },
-      onConflict: 'company_id',
-    );
+    String companyId,
+    AttendanceSourceFlags flags,
+  ) async {
+    await _client.from('company_settings').upsert({
+      'company_id': companyId,
+      'manual_csv_enabled': flags.manualCsvEnabled,
+      'lark_enabled': flags.larkEnabled,
+    }, onConflict: 'company_id');
   }
 }
 
-final companySettingsRepositoryProvider =
-    Provider<CompanySettingsRepository>((ref) {
+final companySettingsRepositoryProvider = Provider<CompanySettingsRepository>((
+  ref,
+) {
   return CompanySettingsRepository(Supabase.instance.client);
 });
 
-final attendanceSourceFlagsProvider =
-    FutureProvider<AttendanceSourceFlags>((ref) async {
+final attendanceSourceFlagsProvider = FutureProvider<AttendanceSourceFlags>((
+  ref,
+) async {
   final profile = ref.watch(userProfileProvider).asData?.value;
   if (profile == null || profile.companyId.isEmpty) {
     return const AttendanceSourceFlags(
-        manualCsvEnabled: true, larkEnabled: true);
+      manualCsvEnabled: true,
+      larkEnabled: true,
+    );
   }
   return ref
       .watch(companySettingsRepositoryProvider)

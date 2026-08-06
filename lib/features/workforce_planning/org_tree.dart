@@ -5,7 +5,9 @@ class OrgNode {
   OrgNode(this.id, this.parentId) : children = [];
 }
 
-Map<String, List<String>> _childrenOf(List<({String id, String? parentId})> people) {
+Map<String, List<String>> _childrenOf(
+  List<({String id, String? parentId})> people,
+) {
   final ids = {for (final p in people) p.id};
   final map = <String, List<String>>{};
   for (final p in people) {

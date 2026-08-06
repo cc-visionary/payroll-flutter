@@ -81,22 +81,24 @@ Future<Map<String, PayslipPdfBuildResult>> buildPayslipPdfsForIds(
       throw Exception('Payslip $id not found when building PDF');
     }
     final ctx = await loadPayslipPdfContext(ref, ps);
-    final bytes = await buildPayslipPdf(PayslipPdfInput(
-      payslip: ps,
-      employee: ctx.employee,
-      companyName: ctx.companyName,
-      companyTradeName: ctx.companyTradeName,
-      companyAddress: ctx.companyAddress,
-      companyLogoBytes: ctx.companyLogoBytes,
-      companyLogoHeight: ctx.companyLogoHeight,
-      periodStart: ctx.periodStart,
-      periodEnd: ctx.periodEnd,
-      payDate: ctx.payDate,
-      attendanceRows: ctx.attendanceRows,
-      hrSignatoryName: ctx.hrSignatoryName,
-      hrSignatoryTitle: ctx.hrSignatoryTitle,
-      hrSignaturePng: ctx.hrSignaturePng,
-    ));
+    final bytes = await buildPayslipPdf(
+      PayslipPdfInput(
+        payslip: ps,
+        employee: ctx.employee,
+        companyName: ctx.companyName,
+        companyTradeName: ctx.companyTradeName,
+        companyAddress: ctx.companyAddress,
+        companyLogoBytes: ctx.companyLogoBytes,
+        companyLogoHeight: ctx.companyLogoHeight,
+        periodStart: ctx.periodStart,
+        periodEnd: ctx.periodEnd,
+        payDate: ctx.payDate,
+        attendanceRows: ctx.attendanceRows,
+        hrSignatoryName: ctx.hrSignatoryName,
+        hrSignatoryTitle: ctx.hrSignatoryTitle,
+        hrSignaturePng: ctx.hrSignaturePng,
+      ),
+    );
     out[id] = PayslipPdfBuildResult(
       bytes: bytes,
       employee: ctx.employee,
@@ -142,7 +144,9 @@ class PayslipPdfContext {
 /// repos (employee, attendance, holidays, shifts, scorecards, hiring
 /// entity) are read via [ref]. Parallelizable calls are awaited together.
 Future<PayslipPdfContext> loadPayslipPdfContext(
-    WidgetRef ref, Payslip ps) async {
+  WidgetRef ref,
+  Payslip ps,
+) async {
   final empRepo = ref.read(employeeRepositoryProvider);
   final emp = await empRepo.byId(ps.employeeId);
   if (emp == null) {
@@ -163,21 +167,20 @@ Future<PayslipPdfContext> loadPayslipPdfContext(
   final periodEnd = period?.endDate ?? ps.createdAt;
   final payDate = period?.payDate ?? ps.createdAt;
 
-  final attendanceFuture =
-      ref.read(attendanceRepositoryProvider).listByRange(
-            start: periodStart,
-            end: periodEnd,
-            employeeId: emp.id,
-          );
+  final attendanceFuture = ref
+      .read(attendanceRepositoryProvider)
+      .listByRange(start: periodStart, end: periodEnd, employeeId: emp.id);
   // onlyActive:false — a shift or scorecard deactivated AFTER this payslip was
   // released must still resolve, or page 2's attendance recomputes zero
   // late/OT and the PDF silently disagrees with the amounts that were actually
   // paid. ComputeService loads both without an is_active filter for the same
   // reason.
-  final shiftsFuture =
-      ref.read(shiftTemplateRepositoryProvider).list(onlyActive: false);
-  final scorecardsFuture =
-      ref.read(roleScorecardRepositoryProvider).list(onlyActive: false);
+  final shiftsFuture = ref
+      .read(shiftTemplateRepositoryProvider)
+      .list(onlyActive: false);
+  final scorecardsFuture = ref
+      .read(roleScorecardRepositoryProvider)
+      .list(onlyActive: false);
 
   final holidays = await _loadHolidaysForRange(ref, periodStart, periodEnd);
   final records = await attendanceFuture;
@@ -240,17 +243,20 @@ Future<PayslipPdfContext> loadPayslipPdfContext(
       : [
           entity.addressLine1,
           entity.addressLine2,
-          [entity.city, entity.province, entity.zipCode]
-              .where((s) => s != null && s.isNotEmpty)
-              .join(', '),
+          [
+            entity.city,
+            entity.province,
+            entity.zipCode,
+          ].where((s) => s != null && s.isNotEmpty).join(', '),
         ].where((s) => s != null && s.isNotEmpty).join(' · ');
 
   return PayslipPdfContext(
     employee: emp,
     companyName: companyName,
     companyTradeName: companyTradeName,
-    companyAddress:
-        companyAddress == null || companyAddress.isEmpty ? null : companyAddress,
+    companyAddress: companyAddress == null || companyAddress.isEmpty
+        ? null
+        : companyAddress,
     companyLogoBytes: logoBytes,
     companyLogoHeight: logoSpec.height,
     periodStart: periodStart,
@@ -260,8 +266,8 @@ Future<PayslipPdfContext> loadPayslipPdfContext(
     hrSignatoryName: hrSig?.fullName ?? entity?.hrManagerName,
     hrSignatoryTitle: hrSig != null
         ? ((hrSig.signatoryTitle?.isNotEmpty ?? false)
-            ? hrSig.signatoryTitle
-            : 'HR Manager')
+              ? hrSig.signatoryTitle
+              : 'HR Manager')
         : ((entity?.hrManagerName?.isNotEmpty ?? false) ? 'HR Manager' : null),
     hrSignaturePng: decodeSignaturePngB64(hrSig?.signaturePngB64),
   );

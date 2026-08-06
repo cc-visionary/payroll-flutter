@@ -17,7 +17,10 @@ class ShiftTemplateRepository {
     var q = _client.from('shift_templates').select();
     if (onlyActive) q = q.eq('is_active', true);
     final rows = await q.order('code');
-    return rows.cast<Map<String, dynamic>>().map(ShiftTemplate.fromRow).toList();
+    return rows
+        .cast<Map<String, dynamic>>()
+        .map(ShiftTemplate.fromRow)
+        .toList();
   }
 
   /// Permanently delete a shift template. Postgres FKs will throw 23503 when
@@ -39,7 +42,9 @@ class ShiftTemplateRepository {
 }
 
 final shiftTemplateRepositoryProvider = Provider<ShiftTemplateRepository>(
-    (ref) => ShiftTemplateRepository(Supabase.instance.client));
+  (ref) => ShiftTemplateRepository(Supabase.instance.client),
+);
 
 final shiftTemplateListProvider = FutureProvider<List<ShiftTemplate>>(
-    (ref) => ref.watch(shiftTemplateRepositoryProvider).list());
+  (ref) => ref.watch(shiftTemplateRepositoryProvider).list(),
+);

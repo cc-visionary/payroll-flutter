@@ -4,22 +4,49 @@ import 'package:payroll_flutter/data/models/workforce_planning.dart';
 import 'package:payroll_flutter/features/workforce_planning/capacity_math.dart';
 import 'package:payroll_flutter/features/workforce_planning/rebalance.dart';
 
-Employee _e(String id, {String? card, String status = 'ACTIVE', DateTime? deleted}) =>
-    Employee(
-      id: id, companyId: 'c', employeeNumber: id, firstName: id, lastName: 'X',
-      roleScorecardId: card, employmentType: 'FULL_TIME', employmentStatus: status,
-      deletedAt: deleted, hireDate: DateTime(2024, 1, 1), isRankAndFile: true,
-      isOtEligible: false, isNdEligible: false, isHolidayPayEligible: false,
-      sssEligibilityOverride: false, philhealthEligibilityOverride: false,
-      pagibigEligibilityOverride: false, taxOnFullEarnings: false,
+Employee _e(
+  String id, {
+  String? card,
+  String status = 'ACTIVE',
+  DateTime? deleted,
+}) => Employee(
+  id: id,
+  companyId: 'c',
+  employeeNumber: id,
+  firstName: id,
+  lastName: 'X',
+  roleScorecardId: card,
+  employmentType: 'FULL_TIME',
+  employmentStatus: status,
+  deletedAt: deleted,
+  hireDate: DateTime(2024, 1, 1),
+  isRankAndFile: true,
+  isOtEligible: false,
+  isNdEligible: false,
+  isHolidayPayEligible: false,
+  sssEligibilityOverride: false,
+  philhealthEligibilityOverride: false,
+  pagibigEligibilityOverride: false,
+  taxOnFullEarnings: false,
+);
+
+WpTask _t(String id, {String? owner, String? card, String status = 'ACTIVE'}) =>
+    WpTask(
+      id: id,
+      companyId: 'c',
+      name: id,
+      ownerEmployeeId: owner,
+      roleScorecardId: card,
+      status: status,
     );
 
-WpTask _t(String id, {String? owner, String? card, String status = 'ACTIVE'}) => WpTask(
-    id: id, companyId: 'c', name: id, ownerEmployeeId: owner, roleScorecardId: card,
-    status: status);
-
-WpTaskComputed _c(String id, double h, {bool growing = false}) => WpTaskComputed(
-    taskId: id, companyId: 'c', hoursPerMonthBase: h, isGrowing: growing);
+WpTaskComputed _c(String id, double h, {bool growing = false}) =>
+    WpTaskComputed(
+      taskId: id,
+      companyId: 'c',
+      hoursPerMonthBase: h,
+      isGrowing: growing,
+    );
 
 void main() {
   group('attribution mirrors wp_person_load', () {
@@ -38,7 +65,10 @@ void main() {
       final h = hoursByEmployee(
         tasks: [_t('t1', card: 'rs1')],
         computedByTaskId: {'t1': _c('t1', 40)},
-        employees: [_e('a', card: 'rs1'), _e('b', card: 'rs1')],
+        employees: [
+          _e('a', card: 'rs1'),
+          _e('b', card: 'rs1'),
+        ],
         multiplier: 1,
       );
       expect(h['a'], 20);
@@ -62,23 +92,47 @@ void main() {
     test('a task with neither owner nor card reaches nobody', () {
       final tasks = [_t('t1')];
       final computed = {'t1': _c('t1', 40)};
-      expect(hoursByEmployee(
-          tasks: tasks, computedByTaskId: computed,
-          employees: [_e('a')], multiplier: 1), isEmpty);
-      expect(unattributedHours(
-          tasks: tasks, computedByTaskId: computed,
-          employees: [_e('a')], multiplier: 1), 40);
+      expect(
+        hoursByEmployee(
+          tasks: tasks,
+          computedByTaskId: computed,
+          employees: [_e('a')],
+          multiplier: 1,
+        ),
+        isEmpty,
+      );
+      expect(
+        unattributedHours(
+          tasks: tasks,
+          computedByTaskId: computed,
+          employees: [_e('a')],
+          multiplier: 1,
+        ),
+        40,
+      );
     });
 
     test('a vacant role card is unattributed, not spread over everyone', () {
       final tasks = [_t('t1', card: 'empty')];
       final computed = {'t1': _c('t1', 40)};
-      expect(hoursByEmployee(
-          tasks: tasks, computedByTaskId: computed,
-          employees: [_e('a', card: 'other')], multiplier: 1), isEmpty);
-      expect(unattributedHours(
-          tasks: tasks, computedByTaskId: computed,
-          employees: [_e('a', card: 'other')], multiplier: 1), 40);
+      expect(
+        hoursByEmployee(
+          tasks: tasks,
+          computedByTaskId: computed,
+          employees: [_e('a', card: 'other')],
+          multiplier: 1,
+        ),
+        isEmpty,
+      );
+      expect(
+        unattributedHours(
+          tasks: tasks,
+          computedByTaskId: computed,
+          employees: [_e('a', card: 'other')],
+          multiplier: 1,
+        ),
+        40,
+      );
     });
 
     test('hoursByEmployee honors a 60/40 person split via assignments', () {
@@ -90,10 +144,22 @@ void main() {
         multiplier: 1,
         assignmentsByTask: {
           't1': const [
-            WpTaskAssignment(id: 'x', companyId: 'c', taskId: 't1', employeeId: 'a',
-                assignmentRole: 'PRIMARY', allocationPct: 60),
-            WpTaskAssignment(id: 'y', companyId: 'c', taskId: 't1', employeeId: 'b',
-                assignmentRole: 'CONTRIBUTOR', allocationPct: 40),
+            WpTaskAssignment(
+              id: 'x',
+              companyId: 'c',
+              taskId: 't1',
+              employeeId: 'a',
+              assignmentRole: 'PRIMARY',
+              allocationPct: 60,
+            ),
+            WpTaskAssignment(
+              id: 'y',
+              companyId: 'c',
+              taskId: 't1',
+              employeeId: 'b',
+              assignmentRole: 'CONTRIBUTOR',
+              allocationPct: 40,
+            ),
           ],
         },
       );
@@ -108,13 +174,19 @@ void main() {
         employees: [_e('a')],
         multiplier: 1,
       );
-      expect(h.containsKey('a'), isFalse,
-          reason: 'an uncosted task must not leave a zero-valued key behind');
+      expect(
+        h.containsKey('a'),
+        isFalse,
+        reason: 'an uncosted task must not leave a zero-valued key behind',
+      );
     });
 
     test('growing tasks scale, fixed ones do not', () {
       final h = hoursByEmployee(
-        tasks: [_t('g', owner: 'a'), _t('f', owner: 'a')],
+        tasks: [
+          _t('g', owner: 'a'),
+          _t('f', owner: 'a'),
+        ],
         computedByTaskId: {'g': _c('g', 10, growing: true), 'f': _c('f', 10)},
         employees: [_e('a')],
         multiplier: 2,
@@ -125,41 +197,72 @@ void main() {
     test('unattributedHours counts a Σ<100 gap', () {
       const t = WpTask(id: 't1', companyId: 'c', name: 'Pack');
       final u = unattributedHours(
-        tasks: const [t], computedByTaskId: {'t1': _c('t1', 100)},
-        employees: const [], multiplier: 1,
+        tasks: const [t],
+        computedByTaskId: {'t1': _c('t1', 100)},
+        employees: const [],
+        multiplier: 1,
         assignmentsByTask: {
-          't1': const [WpTaskAssignment(id: 'y', companyId: 'c', taskId: 't1', employeeId: 'a',
-              assignmentRole: 'PRIMARY', allocationPct: 70)],
+          't1': const [
+            WpTaskAssignment(
+              id: 'y',
+              companyId: 'c',
+              taskId: 't1',
+              employeeId: 'a',
+              assignmentRole: 'PRIMARY',
+              allocationPct: 70,
+            ),
+          ],
         },
       );
       expect(u, 30); // 30% of 100h reaches nobody
     });
 
-    test('orphanHours ignores float residue from an uneven holder split (I2)', () {
-      // 98.7 / 3 * 3 != 98.7 in IEEE 754 double: per-share is 32.9, and
-      // 32.9 + 32.9 + 32.9 == 98.69999999999999, leaving a residual of
-      // 1.4210854715202004e-14 (positive, non-zero) once attributeTask
-      // subtracts the summed shares from the total. (The no-assignments
-      // fallback hardcodes unattributed: 0, so it can't reproduce this —
-      // a card assignment goes through the `hours - reached` subtraction.)
-      // Pre-fix, orphanHours' `if (u <= 0) continue;` guard let that residual
-      // through as genuine orphan hours — confirmed pre-fix this produced
-      // genuine == 1.4210854715202004e-14, painting a permanent phantom
-      // "0.0h unassigned" chip on a fully-attributed card.
-      const t = WpTask(id: 't1', companyId: 'c', name: 'Pack', roleScorecardId: 'rs1');
-      final computed = {'t1': _c('t1', 98.7)};
-      final employees = [
-        _e('a', card: 'rs1'), _e('b', card: 'rs1'), _e('c', card: 'rs1'),
-      ];
-      final o = orphanHours(
-          tasks: const [t], computedByTaskId: computed,
-          employees: employees, multiplier: 1,
+    test(
+      'orphanHours ignores float residue from an uneven holder split (I2)',
+      () {
+        // 98.7 / 3 * 3 != 98.7 in IEEE 754 double: per-share is 32.9, and
+        // 32.9 + 32.9 + 32.9 == 98.69999999999999, leaving a residual of
+        // 1.4210854715202004e-14 (positive, non-zero) once attributeTask
+        // subtracts the summed shares from the total. (The no-assignments
+        // fallback hardcodes unattributed: 0, so it can't reproduce this —
+        // a card assignment goes through the `hours - reached` subtraction.)
+        // Pre-fix, orphanHours' `if (u <= 0) continue;` guard let that residual
+        // through as genuine orphan hours — confirmed pre-fix this produced
+        // genuine == 1.4210854715202004e-14, painting a permanent phantom
+        // "0.0h unassigned" chip on a fully-attributed card.
+        const t = WpTask(
+          id: 't1',
+          companyId: 'c',
+          name: 'Pack',
+          roleScorecardId: 'rs1',
+        );
+        final computed = {'t1': _c('t1', 98.7)};
+        final employees = [
+          _e('a', card: 'rs1'),
+          _e('b', card: 'rs1'),
+          _e('c', card: 'rs1'),
+        ];
+        final o = orphanHours(
+          tasks: const [t],
+          computedByTaskId: computed,
+          employees: employees,
+          multiplier: 1,
           assignmentsByTask: {
-            't1': const [WpTaskAssignment(id: 'y', companyId: 'c', taskId: 't1',
-                roleScorecardId: 'rs1', assignmentRole: 'PRIMARY', allocationPct: 100)],
-          });
-      expect(o.genuine, 0);
-    });
+            't1': const [
+              WpTaskAssignment(
+                id: 'y',
+                companyId: 'c',
+                taskId: 't1',
+                roleScorecardId: 'rs1',
+                assignmentRole: 'PRIMARY',
+                allocationPct: 100,
+              ),
+            ],
+          },
+        );
+        expect(o.genuine, 0);
+      },
+    );
   });
 
   group('draft moves', () {
@@ -167,43 +270,70 @@ void main() {
     final tasks = [_t('t1', owner: 'over'), _t('t2', owner: 'over')];
     final computed = {'t1': _c('t1', 100), 't2': _c('t2', 40)};
 
-    test('moving shifts hours from one to the other without changing the total', () {
-      final before = hoursByEmployee(
-          tasks: tasks, computedByTaskId: computed,
-          employees: employees, multiplier: 1);
-      final after = hoursByEmployee(
-          tasks: tasks, computedByTaskId: computed, employees: employees,
-          multiplier: 1, moves: {'t2': 'spare'});
-      expect(before['over'], 140);
-      expect(after['over'], 100);
-      expect(after['spare'], 40);
-      expect(after.values.reduce((a, b) => a + b),
+    test(
+      'moving shifts hours from one to the other without changing the total',
+      () {
+        final before = hoursByEmployee(
+          tasks: tasks,
+          computedByTaskId: computed,
+          employees: employees,
+          multiplier: 1,
+        );
+        final after = hoursByEmployee(
+          tasks: tasks,
+          computedByTaskId: computed,
+          employees: employees,
+          multiplier: 1,
+          moves: {'t2': 'spare'},
+        );
+        expect(before['over'], 140);
+        expect(after['over'], 100);
+        expect(after['spare'], 40);
+        expect(
+          after.values.reduce((a, b) => a + b),
           before.values.reduce((a, b) => a + b),
-          reason: 'rebalancing must not create or destroy work');
-    });
+          reason: 'rebalancing must not create or destroy work',
+        );
+      },
+    );
 
     test('moving a SHARED responsibility pins all of it to one person', () {
       final emps = [_e('a', card: 'rs1'), _e('b', card: 'rs1')];
       final shared = [_t('t1', card: 'rs1')];
       final comp = {'t1': _c('t1', 40)};
       final before = hoursByEmployee(
-          tasks: shared, computedByTaskId: comp, employees: emps, multiplier: 1);
+        tasks: shared,
+        computedByTaskId: comp,
+        employees: emps,
+        multiplier: 1,
+      );
       expect(before['a'], 20);
       expect(before['b'], 20);
 
       final after = hoursByEmployee(
-          tasks: shared, computedByTaskId: comp, employees: emps,
-          multiplier: 1, moves: {'t1': 'a'});
+        tasks: shared,
+        computedByTaskId: comp,
+        employees: emps,
+        multiplier: 1,
+        moves: {'t1': 'a'},
+      );
       expect(after['a'], 40);
-      expect(after['b'], isNull,
-          reason: 'an explicit owner removes it from every other holder');
+      expect(
+        after['b'],
+        isNull,
+        reason: 'an explicit owner removes it from every other holder',
+      );
     });
 
     test('projections report current and planned side by side', () {
       final p = buildProjections(
-        employees: employees, tasks: tasks, computedByTaskId: computed,
+        employees: employees,
+        tasks: tasks,
+        computedByTaskId: computed,
         capacityByEmployee: const {'over': 100, 'spare': 100},
-        multiplier: 1, defaultCapacity: 160, moves: {'t2': 'spare'},
+        multiplier: 1,
+        defaultCapacity: 160,
+        moves: {'t2': 'spare'},
       );
       final over = p.firstWhere((x) => x.employeeId == 'over');
       final spare = p.firstWhere((x) => x.employeeId == 'spare');
@@ -218,17 +348,24 @@ void main() {
 
     test('ranked by planned load so whoever needs relief is on top', () {
       final p = buildProjections(
-        employees: employees, tasks: tasks, computedByTaskId: computed,
+        employees: employees,
+        tasks: tasks,
+        computedByTaskId: computed,
         capacityByEmployee: const {'over': 100, 'spare': 100},
-        multiplier: 1, defaultCapacity: 160,
+        multiplier: 1,
+        defaultCapacity: 160,
       );
       expect(p.first.employeeId, 'over');
     });
 
     test('a person with no capacity record falls back to the default', () {
       final p = buildProjections(
-        employees: [_e('a')], tasks: const [], computedByTaskId: const {},
-        capacityByEmployee: const {}, multiplier: 1, defaultCapacity: 160,
+        employees: [_e('a')],
+        tasks: const [],
+        computedByTaskId: const {},
+        capacityByEmployee: const {},
+        multiplier: 1,
+        defaultCapacity: 160,
       );
       expect(p.single.capacityHours, 160);
     });
@@ -240,8 +377,12 @@ void main() {
       final tasks = [_t('own', owner: 'a'), _t('shared', card: 'rs1')];
       final comp = {'own': _c('own', 10), 'shared': _c('shared', 40)};
       final list = plannedTasksFor(
-          employeeId: 'a', employees: emps, tasks: tasks,
-          computedByTaskId: comp, multiplier: 1);
+        employeeId: 'a',
+        employees: emps,
+        tasks: tasks,
+        computedByTaskId: comp,
+        multiplier: 1,
+      );
       expect(list.map((p) => p.task.id), ['shared', 'own']);
       expect(list.first.hours, 20, reason: 'half of a two-holder task');
       expect(list.first.derived, isTrue);
@@ -254,10 +395,25 @@ void main() {
       final tasks = [_t('t1', owner: 'a')];
       final comp = {'t1': _c('t1', 10)};
       final moves = {'t1': 'b'};
-      expect(plannedTasksFor(employeeId: 'a', employees: emps, tasks: tasks,
-          computedByTaskId: comp, multiplier: 1, moves: moves), isEmpty);
-      final dest = plannedTasksFor(employeeId: 'b', employees: emps, tasks: tasks,
-          computedByTaskId: comp, multiplier: 1, moves: moves);
+      expect(
+        plannedTasksFor(
+          employeeId: 'a',
+          employees: emps,
+          tasks: tasks,
+          computedByTaskId: comp,
+          multiplier: 1,
+          moves: moves,
+        ),
+        isEmpty,
+      );
+      final dest = plannedTasksFor(
+        employeeId: 'b',
+        employees: emps,
+        tasks: tasks,
+        computedByTaskId: comp,
+        multiplier: 1,
+        moves: moves,
+      );
       expect(dest.single.task.id, 't1');
       expect(dest.single.moved, isTrue);
     });
@@ -271,8 +427,16 @@ void main() {
         computedByTaskId: {'t1': _c('t1', 100)},
         multiplier: 1,
         assignmentsByTask: {
-          't1': const [WpTaskAssignment(id: 'y', companyId: 'c', taskId: 't1', employeeId: 'b',
-              assignmentRole: 'CONTRIBUTOR', allocationPct: 40)],
+          't1': const [
+            WpTaskAssignment(
+              id: 'y',
+              companyId: 'c',
+              taskId: 't1',
+              employeeId: 'b',
+              assignmentRole: 'CONTRIBUTOR',
+              allocationPct: 40,
+            ),
+          ],
         },
       );
       expect(rows.single.hours, 40);
@@ -284,32 +448,45 @@ void main() {
 
     test('an uncosted task is refused with an explanation', () {
       final err = moveError(
-        task: _t('t1', owner: 'a'), toEmployeeId: 'b',
-        employees: emps, computedByTaskId: {'t1': _c('t1', 0)},
+        task: _t('t1', owner: 'a'),
+        toEmployeeId: 'b',
+        employees: emps,
+        computedByTaskId: {'t1': _c('t1', 0)},
       );
       expect(err, contains('not costed'));
     });
 
     test('dropping on the current owner is a no-op, not an error', () {
       expect(
-        moveError(task: _t('t1', owner: 'a'), toEmployeeId: 'a',
-            employees: emps, computedByTaskId: {'t1': _c('t1', 5)}),
+        moveError(
+          task: _t('t1', owner: 'a'),
+          toEmployeeId: 'a',
+          employees: emps,
+          computedByTaskId: {'t1': _c('t1', 5)},
+        ),
         isNull,
       );
     });
 
     test('an unknown target is refused', () {
       expect(
-        moveError(task: _t('t1', owner: 'a'), toEmployeeId: 'ghost',
-            employees: emps, computedByTaskId: {'t1': _c('t1', 5)}),
+        moveError(
+          task: _t('t1', owner: 'a'),
+          toEmployeeId: 'ghost',
+          employees: emps,
+          computedByTaskId: {'t1': _c('t1', 5)},
+        ),
         contains('no longer active'),
       );
     });
 
     test('dragging back to the original owner clears the draft', () {
       final tasks = [_t('t1', owner: 'a')];
-      expect(prunedMoves({'t1': 'a'}, tasks), isEmpty,
-          reason: 'that is not an unsaved change');
+      expect(
+        prunedMoves({'t1': 'a'}, tasks),
+        isEmpty,
+        reason: 'that is not an unsaved change',
+      );
       expect(prunedMoves({'t1': 'b'}, tasks), {'t1': 'b'});
     });
 
@@ -322,30 +499,51 @@ void main() {
     final emps = [_e('a', card: 'rs1')];
     final tasks = [
       _t('weighted', card: 'rs1'),
-      WpTask(id: 'behaviour', companyId: 'c', name: 'Be professional',
-          roleScorecardId: 'rs1', isExpectation: true),
+      WpTask(
+        id: 'behaviour',
+        companyId: 'c',
+        name: 'Be professional',
+        roleScorecardId: 'rs1',
+        isExpectation: true,
+      ),
     ];
     final comp = {'weighted': _c('weighted', 40)};
 
     test('they are excluded from a person\'s task list', () {
       final list = plannedTasksFor(
-          employeeId: 'a', employees: emps, tasks: tasks,
-          computedByTaskId: comp, multiplier: 1);
-      expect(list.map((p) => p.task.id), ['weighted'],
-          reason: 'a behavioural standard is a role-card concern, not a unit of work');
+        employeeId: 'a',
+        employees: emps,
+        tasks: tasks,
+        computedByTaskId: comp,
+        multiplier: 1,
+      );
+      expect(
+        list.map((p) => p.task.id),
+        ['weighted'],
+        reason:
+            'a behavioural standard is a role-card concern, not a unit of work',
+      );
     });
 
     test('they are excluded from the counts, so coverage can reach 100%', () {
       final p = buildProjections(
-        employees: emps, tasks: tasks, computedByTaskId: comp,
-        capacityByEmployee: const {'a': 160}, multiplier: 1, defaultCapacity: 160,
+        employees: emps,
+        tasks: tasks,
+        computedByTaskId: comp,
+        capacityByEmployee: const {'a': 160},
+        multiplier: 1,
+        defaultCapacity: 160,
       ).single;
       expect(p.taskCount, 1);
       expect(p.costedCount, 1);
       expect(p.uncostedCount, 0);
-      expect(p.understated, isFalse,
-          reason: 'counting a behavioural standard as missing would make the '
-              'warning permanent and therefore ignorable');
+      expect(
+        p.understated,
+        isFalse,
+        reason:
+            'counting a behavioural standard as missing would make the '
+            'warning permanent and therefore ignorable',
+      );
       expect(p.coverage, 1.0);
     });
   });
@@ -360,8 +558,11 @@ void main() {
         multiplier: 1,
         defaultCapacity: 160,
       ).single;
-      expect(p.taskCount, 1,
-          reason: 'an uncosted task still identifies who carries it');
+      expect(
+        p.taskCount,
+        1,
+        reason: 'an uncosted task still identifies who carries it',
+      );
       expect(p.costedCount, 0);
       expect(p.uncostedCount, 1);
       expect(p.understated, isTrue);
@@ -369,19 +570,25 @@ void main() {
   });
 
   group('archived tasks are not workload', () {
-    test('an archived owned task does not add to the tally or costed count', () {
-      final p = buildProjections(
-        employees: [_e('a')],
-        tasks: [_t('t1', owner: 'a', status: 'ARCHIVED')],
-        computedByTaskId: {'t1': _c('t1', 40)},
-        capacityByEmployee: const {'a': 160},
-        multiplier: 1,
-        defaultCapacity: 160,
-      ).single;
-      expect(p.taskCount, 0,
-          reason: 'an archived task must not appear in the assignment tally');
-      expect(p.costedCount, 0);
-    });
+    test(
+      'an archived owned task does not add to the tally or costed count',
+      () {
+        final p = buildProjections(
+          employees: [_e('a')],
+          tasks: [_t('t1', owner: 'a', status: 'ARCHIVED')],
+          computedByTaskId: {'t1': _c('t1', 40)},
+          capacityByEmployee: const {'a': 160},
+          multiplier: 1,
+          defaultCapacity: 160,
+        ).single;
+        expect(
+          p.taskCount,
+          0,
+          reason: 'an archived task must not appear in the assignment tally',
+        );
+        expect(p.costedCount, 0);
+      },
+    );
 
     test('an archived task does not appear in plannedTasksFor', () {
       final emps = [_e('a', card: 'rs1')];
@@ -391,20 +598,38 @@ void main() {
       ];
       final comp = {'weighted': _c('weighted', 40), 'gone': _c('gone', 999)};
       final list = plannedTasksFor(
-          employeeId: 'a', employees: emps, tasks: tasks,
-          computedByTaskId: comp, multiplier: 1);
-      expect(list.map((p) => p.task.id), ['weighted'],
-          reason: 'an archived task must not appear in a person\'s planned tasks');
+        employeeId: 'a',
+        employees: emps,
+        tasks: tasks,
+        computedByTaskId: comp,
+        multiplier: 1,
+      );
+      expect(
+        list.map((p) => p.task.id),
+        ['weighted'],
+        reason: 'an archived task must not appear in a person\'s planned tasks',
+      );
     });
 
-    test('an archived, unowned task does not appear in the unassigned pool', () {
-      final tasks = [_t('gone', status: 'ARCHIVED')];
-      final comp = {'gone': _c('gone', 999)};
-      final list = unassignedTasks(
-          employees: const [], tasks: tasks, computedByTaskId: comp, multiplier: 1);
-      expect(list, isEmpty,
-          reason: 'an archived orphan must not appear in the unassigned drag pool, '
-              'regardless of hours');
-    });
+    test(
+      'an archived, unowned task does not appear in the unassigned pool',
+      () {
+        final tasks = [_t('gone', status: 'ARCHIVED')];
+        final comp = {'gone': _c('gone', 999)};
+        final list = unassignedTasks(
+          employees: const [],
+          tasks: tasks,
+          computedByTaskId: comp,
+          multiplier: 1,
+        );
+        expect(
+          list,
+          isEmpty,
+          reason:
+              'an archived orphan must not appear in the unassigned drag pool, '
+              'regardless of hours',
+        );
+      },
+    );
   });
 }

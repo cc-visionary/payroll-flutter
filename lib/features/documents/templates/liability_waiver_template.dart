@@ -38,8 +38,7 @@ const List<String> _s3Affirmations = <String>[
 const String _s4MedicalConsent =
     'In the event of an emergency, I authorize the Company or its representatives to provide or arrange for emergency medical treatment, if deemed necessary. I understand that any medical expenses incurred will be my responsibility unless otherwise covered by insurance or the Company.';
 
-class LiabilityWaiverTemplate
-    extends DocumentTemplate<LiabilityWaiverInputs> {
+class LiabilityWaiverTemplate extends DocumentTemplate<LiabilityWaiverInputs> {
   const LiabilityWaiverTemplate();
 
   @override
@@ -57,17 +56,17 @@ class LiabilityWaiverTemplate
 
   @override
   LiabilityWaiverInputs emptyInputs() => LiabilityWaiverInputs(
-        employeeId: '',
-        employeeFullName: '',
-        employeeAddress: '',
-        companyId: '',
-        companyName: '',
-        dateOfEmployment: null,
-        outingDate: null,
-        outingLocation: '',
-        dateSigned: DateTime.now(),
-        signingPlace: '',
-      );
+    employeeId: '',
+    employeeFullName: '',
+    employeeAddress: '',
+    companyId: '',
+    companyName: '',
+    dateOfEmployment: null,
+    outingDate: null,
+    outingLocation: '',
+    dateSigned: DateTime.now(),
+    signingPlace: '',
+  );
 
   @override
   Future<LiabilityWaiverInputs> autofill(AutofillContext ctx) async {
@@ -81,9 +80,12 @@ class LiabilityWaiverTemplate
     // degrade gracefully (mirrors the Employment Contract autofill).
     Map<String, dynamic>? hireRow;
     try {
-      hireRow = await ctx.ref.read(latestEmploymentEventProvider(
-              (employeeId: emp.id, eventType: 'HIRE'))
-          .future);
+      hireRow = await ctx.ref.read(
+        latestEmploymentEventProvider((
+          employeeId: emp.id,
+          eventType: 'HIRE',
+        )).future,
+      );
     } catch (_) {
       hireRow = null;
     }
@@ -97,10 +99,10 @@ class LiabilityWaiverTemplate
 
     final signingPlace = co == null
         ? ''
-        : [co.city, co.province]
-            .where((s) => s != null && s.isNotEmpty)
-            .cast<String>()
-            .join(', ');
+        : [
+            co.city,
+            co.province,
+          ].where((s) => s != null && s.isNotEmpty).cast<String>().join(', ');
 
     final logo = await loadCompanyLogoBytes(co);
     return LiabilityWaiverInputs(
@@ -147,84 +149,101 @@ class LiabilityWaiverTemplate
       const SpacerBlock(12),
 
       // 2. Intro.
-      EmphasisParagraphBlock(spans: [
-        const EmphasisSpan('I, '),
-        EmphasisSpan(i.employeeFullName, bold: true),
-        const EmphasisSpan(
-            ', of legal age, Filipino, and a resident of '),
-        EmphasisSpan(i.employeeAddress, bold: true),
-        const EmphasisSpan(
-            ', sworn in accordance with law, do hereby depose and state:'),
-      ]),
+      EmphasisParagraphBlock(
+        spans: [
+          const EmphasisSpan('I, '),
+          EmphasisSpan(i.employeeFullName, bold: true),
+          const EmphasisSpan(', of legal age, Filipino, and a resident of '),
+          EmphasisSpan(i.employeeAddress, bold: true),
+          const EmphasisSpan(
+            ', sworn in accordance with law, do hereby depose and state:',
+          ),
+        ],
+      ),
       const SpacerBlock(8),
 
       // 3. Item 1 — employment + outing details.
-      EmphasisParagraphBlock(spans: [
-        const EmphasisSpan('1.   I am an employee of '),
-        EmphasisSpan(i.companyName, bold: true),
-        const EmphasisSpan(' since '),
-        EmphasisSpan(dateOrDash(i.dateOfEmployment), bold: true),
-        const EmphasisSpan(
-            ', and the Company shall be granting me participation in the '),
-        const EmphasisSpan('Company Outing', bold: true),
-        const EmphasisSpan(' scheduled on '),
-        EmphasisSpan(dateOrDash(i.outingDate), bold: true),
-        const EmphasisSpan(' at '),
-        EmphasisSpan(i.outingLocation, bold: true),
-        const EmphasisSpan('.'),
-      ]),
+      EmphasisParagraphBlock(
+        spans: [
+          const EmphasisSpan('1.   I am an employee of '),
+          EmphasisSpan(i.companyName, bold: true),
+          const EmphasisSpan(' since '),
+          EmphasisSpan(dateOrDash(i.dateOfEmployment), bold: true),
+          const EmphasisSpan(
+            ', and the Company shall be granting me participation in the ',
+          ),
+          const EmphasisSpan('Company Outing', bold: true),
+          const EmphasisSpan(' scheduled on '),
+          EmphasisSpan(dateOrDash(i.outingDate), bold: true),
+          const EmphasisSpan(' at '),
+          EmphasisSpan(i.outingLocation, bold: true),
+          const EmphasisSpan('.'),
+        ],
+      ),
       const SpacerBlock(6),
 
       // 4. Item 2 — acknowledgements (lettered a-e).
-      const EmphasisParagraphBlock(spans: [
-        EmphasisSpan(
+      const EmphasisParagraphBlock(
+        spans: [
+          EmphasisSpan(
             '2.   In connection with the outing (hereafter referred to as '
-            'the "Trip"), I acknowledge and affirm the following:'),
-      ]),
+            'the "Trip"), I acknowledge and affirm the following:',
+          ),
+        ],
+      ),
       const SpacerBlock(4),
       const LetteredListBlock(_s2Acknowledgements),
       const SpacerBlock(4),
 
       // 5. Item 3 — affirmations (lettered a-c).
-      const EmphasisParagraphBlock(spans: [
-        EmphasisSpan('3.   I affirm that:'),
-      ]),
+      const EmphasisParagraphBlock(
+        spans: [EmphasisSpan('3.   I affirm that:')],
+      ),
       const SpacerBlock(4),
       const LetteredListBlock(_s3Affirmations),
       const SpacerBlock(4),
 
       // 6. Item 4 — medical and emergency consent (bold lead).
       const SpacerBlock(6),
-      const EmphasisParagraphBlock(spans: [
-        EmphasisSpan('4.   '),
-        EmphasisSpan('Medical and Emergency Consent', bold: true),
-        EmphasisSpan(': '),
-        EmphasisSpan(_s4MedicalConsent),
-      ]),
+      const EmphasisParagraphBlock(
+        spans: [
+          EmphasisSpan('4.   '),
+          EmphasisSpan('Medical and Emergency Consent', bold: true),
+          EmphasisSpan(': '),
+          EmphasisSpan(_s4MedicalConsent),
+        ],
+      ),
       const SpacerBlock(6),
 
       // 7. Item 5 — voluntary execution.
-      const EmphasisParagraphBlock(spans: [
-        EmphasisSpan(
-            '5.   Finally, I declare that I have read this document entitled '),
-        EmphasisSpan('Travel Release and Waiver', bold: true),
-        EmphasisSpan(
+      const EmphasisParagraphBlock(
+        spans: [
+          EmphasisSpan(
+            '5.   Finally, I declare that I have read this document entitled ',
+          ),
+          EmphasisSpan('Travel Release and Waiver', bold: true),
+          EmphasisSpan(
             ', and I fully understand every word of it and its meaning. I '
             'affix my signature voluntarily and freely, with full and '
             'complete knowledge of the meaning and intent of this document '
-            'under existing laws.'),
-      ]),
+            'under existing laws.',
+          ),
+        ],
+      ),
 
       // 8. Witness clause with ordinal date + place.
       const SpacerBlock(16),
-      EmphasisParagraphBlock(spans: [
-        EmphasisSpan(
+      EmphasisParagraphBlock(
+        spans: [
+          EmphasisSpan(
             'IN WITNESS WHEREOF, I have hereunto set my hand this '
             '${_ordinal(signed.day)} day of '
-            '${DateFormat('MMMM').format(signed)} ${signed.year} at '),
-        EmphasisSpan(i.signingPlace, bold: true),
-        const EmphasisSpan('.'),
-      ]),
+            '${DateFormat('MMMM').format(signed)} ${signed.year} at ',
+          ),
+          EmphasisSpan(i.signingPlace, bold: true),
+          const EmphasisSpan('.'),
+        ],
+      ),
 
       // 9. Signature line — name omitted for hand-signing.
       const SpacerBlock(40),
@@ -243,11 +262,13 @@ String _composeAddress(
   String? city,
   String? province,
   String? zipCode,
-) =>
-    [line1, line2, city, province, zipCode]
-        .where((s) => s != null && s.isNotEmpty)
-        .cast<String>()
-        .join(', ');
+) => [
+  line1,
+  line2,
+  city,
+  province,
+  zipCode,
+].where((s) => s != null && s.isNotEmpty).cast<String>().join(', ');
 
 String _ordinal(int n) {
   if (n >= 11 && n <= 13) return '${n}th';

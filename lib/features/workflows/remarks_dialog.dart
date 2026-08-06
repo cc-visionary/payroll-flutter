@@ -72,11 +72,9 @@ class _RemarksDialogState extends State<_RemarksDialog> {
         ValueListenableBuilder<TextEditingValue>(
           valueListenable: _ctl,
           builder: (context, value, child) {
-            final ok =
-                !widget.requireNonEmpty || value.text.trim().isNotEmpty;
+            final ok = !widget.requireNonEmpty || value.text.trim().isNotEmpty;
             return FilledButton(
-              onPressed:
-                  ok ? () => Navigator.of(context).pop(_ctl.text) : null,
+              onPressed: ok ? () => Navigator.of(context).pop(_ctl.text) : null,
               child: const Text('Confirm'),
             );
           },

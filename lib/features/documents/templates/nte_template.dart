@@ -108,68 +108,69 @@ class NteTemplate extends DocumentTemplate<NteInputs> {
   List<Block> build(NteInputs i) {
     final fmt = DateFormat('MMMM d, yyyy');
     final blocks = <Block>[];
-    blocks.add(MemoHeaderBlock(
-      titleText: 'NOTICE TO EXPLAIN',
-      companyName: i.companyName,
-      companyAddress: i.companyAddress,
-      date: i.dateIssued,
-      to: LetterParty(
-        name: i.employeeFullName,
-        subtitle: [
-          if (i.employeePosition.isNotEmpty) i.employeePosition,
-          if (i.employeeDepartment.isNotEmpty) i.employeeDepartment,
-        ].join(' · '),
+    blocks.add(
+      MemoHeaderBlock(
+        titleText: 'NOTICE TO EXPLAIN',
+        companyName: i.companyName,
+        companyAddress: i.companyAddress,
+        date: i.dateIssued,
+        to: LetterParty(
+          name: i.employeeFullName,
+          subtitle: [
+            if (i.employeePosition.isNotEmpty) i.employeePosition,
+            if (i.employeeDepartment.isNotEmpty) i.employeeDepartment,
+          ].join(' · '),
+        ),
+        from: LetterParty(name: i.hrManagerName ?? '', subtitle: 'HR Manager'),
+        subject: i.finalSubject,
+        salutation: i.employeeLastName.isEmpty
+            ? null
+            : '${i.employeeHonorific.isEmpty ? 'Mr./Ms.' : i.employeeHonorific} ${i.employeeLastName}',
+        logoBytes: i.logoBytes,
       ),
-      from: LetterParty(
-        name: i.hrManagerName ?? '',
-        subtitle: 'HR Manager',
-      ),
-      subject: i.finalSubject,
-      salutation: i.employeeLastName.isEmpty
-          ? null
-          : '${i.employeeHonorific.isEmpty ? 'Mr./Ms.' : i.employeeHonorific} ${i.employeeLastName}',
-      logoBytes: i.logoBytes,
-    ));
+    );
     blocks.add(const SpacerBlock(16));
     blocks.add(const ParagraphBlock(_nteIntroText));
     blocks.add(const SpacerBlock(8));
     for (var idx = 0; idx < i.charges.length; idx++) {
-      blocks.add(SectionHeadingBlock(
-        number: idx + 1,
-        title: i.charges[idx].title,
-      ));
+      blocks.add(
+        SectionHeadingBlock(number: idx + 1, title: i.charges[idx].title),
+      );
       blocks.add(RichTextBlock(i.charges[idx].body));
       blocks.add(const SpacerBlock(8));
     }
-    blocks.add(const ParagraphBlock(
-      'The above acts may constitute violations of the following Company policies:',
-    ));
+    blocks.add(
+      const ParagraphBlock(
+        'The above acts may constitute violations of the following Company policies:',
+      ),
+    );
     blocks.add(BulletListBlock(i.applicableViolations));
     blocks.add(const SpacerBlock(8));
-    blocks.add(ParagraphBlock(
-      interpolate(
-        _nteResponseInstructions,
-        {'responseDeadline': fmt.format(i.responseDeadline)},
-        lenient: true,
+    blocks.add(
+      ParagraphBlock(
+        interpolate(_nteResponseInstructions, {
+          'responseDeadline': fmt.format(i.responseDeadline),
+        }, lenient: true),
       ),
-    ));
+    );
     blocks.add(const SpacerBlock(24));
-    blocks.add(SignatureBlock(
-      name: i.hrManagerName,
-      role: 'HR Manager — ${i.companyName}',
-      date: i.dateIssued,
-      signatureImage: decodeSignaturePngB64(i.companySignaturePngB64),
-    ));
+    blocks.add(
+      SignatureBlock(
+        name: i.hrManagerName,
+        role: 'HR Manager — ${i.companyName}',
+        date: i.dateIssued,
+        signatureImage: decodeSignaturePngB64(i.companySignaturePngB64),
+      ),
+    );
     blocks.add(const SpacerBlock(24));
     blocks.add(const MemoAcknowledgmentBlock());
     if (i.attachmentBytes != null) {
       blocks.add(const PageBreakBlock());
       blocks.add(const HeadingBlock('Annex A'));
       blocks.add(const SpacerBlock(8));
-      blocks.add(ImageAttachmentBlock(
-        i.attachmentBytes!,
-        caption: i.attachmentCaption,
-      ));
+      blocks.add(
+        ImageAttachmentBlock(i.attachmentBytes!, caption: i.attachmentCaption),
+      );
     }
     return blocks;
   }
@@ -179,9 +180,11 @@ String _addressOf(dynamic co) {
   final parts = [
     co.addressLine1,
     co.addressLine2,
-    [co.city, co.province, co.zipCode]
-        .where((s) => s != null && (s as String).isNotEmpty)
-        .join(', '),
+    [
+      co.city,
+      co.province,
+      co.zipCode,
+    ].where((s) => s != null && (s as String).isNotEmpty).join(', '),
   ].where((s) => s != null && (s as String).isNotEmpty).cast<String>().toList();
   return parts.join(' · ');
 }

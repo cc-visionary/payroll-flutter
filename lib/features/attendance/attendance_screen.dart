@@ -40,7 +40,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     _date = DateTime(now.year, now.month, now.day);
   }
 
-  void _setDate(DateTime d) => setState(() => _date = DateTime(d.year, d.month, d.day));
+  void _setDate(DateTime d) =>
+      setState(() => _date = DateTime(d.year, d.month, d.day));
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -93,12 +94,15 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(userProfileProvider).asData?.value;
-    final employeeFilter =
-        (profile != null && !profile.isHrOrAdmin) ? profile.employeeId : null;
+    final employeeFilter = (profile != null && !profile.isHrOrAdmin)
+        ? profile.employeeId
+        : null;
 
-    final attendanceAsync = ref.watch(attendanceListProvider(
-      AttendanceQuery(start: _date, end: _date, employeeId: employeeFilter),
-    ));
+    final attendanceAsync = ref.watch(
+      attendanceListProvider(
+        AttendanceQuery(start: _date, end: _date, employeeId: employeeFilter),
+      ),
+    );
     // Only HR/Admin see all employees; a plain EMPLOYEE only sees themselves
     // (their attendance record, if any). Skip the bulk employees fetch in that
     // case so RLS doesn't return an empty list and nuke the view.
@@ -112,19 +116,24 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       for (final c in cardsAsync.asData?.value ?? const []) c.id: c.jobTitle,
     };
     final workDaysById = <String, String>{
-      for (final c in cardsAsync.asData?.value ?? const []) c.id: c.workDaysPerWeek,
+      for (final c in cardsAsync.asData?.value ?? const [])
+        c.id: c.workDaysPerWeek,
     };
     final shiftById = <String, ShiftTemplate>{
-      for (final s in shiftsAsync.asData?.value ?? const <ShiftTemplate>[]) s.id: s,
+      for (final s in shiftsAsync.asData?.value ?? const <ShiftTemplate>[])
+        s.id: s,
     };
     final shiftByScorecard = <String, ShiftTemplate>{
       for (final c in cardsAsync.asData?.value ?? const [])
-        if (c.id.isNotEmpty && c.shiftTemplateId != null && shiftById[c.shiftTemplateId!] != null)
+        if (c.id.isNotEmpty &&
+            c.shiftTemplateId != null &&
+            shiftById[c.shiftTemplateId!] != null)
           c.id: shiftById[c.shiftTemplateId!]!,
     };
 
     final canSync = profile?.isHrOrAdmin ?? false;
-    final flags = ref.watch(attendanceSourceFlagsProvider).asData?.value ??
+    final flags =
+        ref.watch(attendanceSourceFlagsProvider).asData?.value ??
         const AttendanceSourceFlags(manualCsvEnabled: true, larkEnabled: true);
     final showCsvImport = canSync && flags.manualCsvEnabled;
     final showLarkSync = canSync && flags.larkEnabled;
@@ -169,7 +178,15 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               onRefresh: () => ref.invalidate(attendanceListProvider),
             ),
             const SizedBox(height: 16),
-            _buildBody(attendanceAsync, employeesAsync, roleTitleById, workDaysById, shiftById, shiftByScorecard, canSeeAll),
+            _buildBody(
+              attendanceAsync,
+              employeesAsync,
+              roleTitleById,
+              workDaysById,
+              shiftById,
+              shiftByScorecard,
+              canSeeAll,
+            ),
           ],
         ),
       ),
@@ -192,8 +209,10 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     if (attendanceAsync.hasError) {
       return Expanded(
         child: Center(
-          child: Text('Error: ${attendanceAsync.error}',
-              style: const TextStyle(color: Colors.red)),
+          child: Text(
+            'Error: ${attendanceAsync.error}',
+            style: const TextStyle(color: Colors.red),
+          ),
         ),
       );
     }
@@ -210,16 +229,18 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
     final activeEmployees = canSeeAll
         ? employees
-            .where((e) =>
-                e.deletedAt == null && e.employmentStatus == 'ACTIVE')
-            .toList()
+              .where(
+                (e) => e.deletedAt == null && e.employmentStatus == 'ACTIVE',
+              )
+              .toList()
         : <Employee>[];
 
     TimeOfDay? toTod(String? hhmmss) {
       if (hhmmss == null || hhmmss.isEmpty) return null;
       final parts = hhmmss.split(':');
       if (parts.length < 2) return null;
-      final h = int.tryParse(parts[0]); final m = int.tryParse(parts[1]);
+      final h = int.tryParse(parts[0]);
+      final m = int.tryParse(parts[1]);
       if (h == null || m == null) return null;
       return TimeOfDay(hour: h, minute: m);
     }
@@ -229,7 +250,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     ShiftTemplate? shiftFor(Employee? e, AttendanceDay? rec) {
       final perDay = rec?.shiftTemplateId;
       if (perDay != null && shiftById[perDay] != null) return shiftById[perDay];
-      if (e?.roleScorecardId != null) return shiftByScorecard[e!.roleScorecardId];
+      if (e?.roleScorecardId != null)
+        return shiftByScorecard[e!.roleScorecardId];
       return null;
     }
 
@@ -237,33 +259,41 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     for (final e in activeEmployees) {
       final rec = recordByEmpId[e.id];
       final shift = shiftFor(e, rec);
-      rows.add(_Row(
-        employee: e,
-        record: rec,
-        roleTitle: e.roleScorecardId != null ? roleTitleById[e.roleScorecardId] : null,
-        workDaysPerWeek: e.roleScorecardId != null ? workDaysById[e.roleScorecardId] : null,
-        date: _date,
-        scheduledIn: toTod(shift?.startTime),
-        scheduledOut: toTod(shift?.endTime),
-        graceMinutesLate: shift?.graceMinutesLate ?? 0,
-        graceMinutesEarlyOut: shift?.graceMinutesEarlyOut ?? 0,
-      ));
+      rows.add(
+        _Row(
+          employee: e,
+          record: rec,
+          roleTitle: e.roleScorecardId != null
+              ? roleTitleById[e.roleScorecardId]
+              : null,
+          workDaysPerWeek: e.roleScorecardId != null
+              ? workDaysById[e.roleScorecardId]
+              : null,
+          date: _date,
+          scheduledIn: toTod(shift?.startTime),
+          scheduledOut: toTod(shift?.endTime),
+          graceMinutesLate: shift?.graceMinutesLate ?? 0,
+          graceMinutesEarlyOut: shift?.graceMinutesEarlyOut ?? 0,
+        ),
+      );
       recordByEmpId.remove(e.id);
     }
     // Any leftover records (employee not in our active list — e.g. the current
     // user when they're not HR/Admin) still get rendered.
     for (final leftover in recordByEmpId.values) {
       final shift = shiftFor(null, leftover);
-      rows.add(_Row(
-        employee: null,
-        record: leftover,
-        roleTitle: null,
-        date: _date,
-        scheduledIn: toTod(shift?.startTime),
-        scheduledOut: toTod(shift?.endTime),
-        graceMinutesLate: shift?.graceMinutesLate ?? 0,
-        graceMinutesEarlyOut: shift?.graceMinutesEarlyOut ?? 0,
-      ));
+      rows.add(
+        _Row(
+          employee: null,
+          record: leftover,
+          roleTitle: null,
+          date: _date,
+          scheduledIn: toTod(shift?.startTime),
+          scheduledOut: toTod(shift?.endTime),
+          graceMinutesLate: shift?.graceMinutesLate ?? 0,
+          graceMinutesEarlyOut: shift?.graceMinutesEarlyOut ?? 0,
+        ),
+      );
     }
 
     rows.sort((a, b) {
@@ -308,10 +338,18 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               child: filtered.isEmpty
                   ? const Center(child: Text('No employees match.'))
                   : switch (_mode) {
-                      _ViewMode.cards => _CardsView(rows: filtered, date: _date),
-                      _ViewMode.table => _TableView(rows: filtered, date: _date),
-                      _ViewMode.timeline =>
-                        _TimelineView(rows: filtered, date: _date),
+                      _ViewMode.cards => _CardsView(
+                        rows: filtered,
+                        date: _date,
+                      ),
+                      _ViewMode.table => _TableView(
+                        rows: filtered,
+                        date: _date,
+                      ),
+                      _ViewMode.timeline => _TimelineView(
+                        rows: filtered,
+                        date: _date,
+                      ),
                     },
             ),
           ),
@@ -352,18 +390,22 @@ class _Row {
       employee?.employeeNumber ?? record?.employeeNumber;
   String get displayName {
     if (employee != null) return employee!.fullName;
-    final name = [record?.employeeFirstName, record?.employeeLastName]
-        .whereType<String>()
-        .where((s) => s.isNotEmpty)
-        .join(' ');
+    final name = [
+      record?.employeeFirstName,
+      record?.employeeLastName,
+    ].whereType<String>().where((s) => s.isNotEmpty).join(' ');
     return name.isNotEmpty ? name : (record?.employeeId ?? '—');
   }
 
   String get initials {
-    final parts = displayName.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final parts = displayName
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .toList();
     if (parts.isEmpty) return '—';
     if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
+    return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
+        .toUpperCase();
   }
 
   _Status get status {
@@ -390,19 +432,19 @@ enum _Status { present, absent, onLeave, restDay, noData }
 
 extension on _Status {
   String get label => switch (this) {
-        _Status.present => 'Present',
-        _Status.absent => 'Absent',
-        _Status.onLeave => 'On Leave',
-        _Status.restDay => 'Rest Day',
-        _Status.noData => 'No Data',
-      };
+    _Status.present => 'Present',
+    _Status.absent => 'Absent',
+    _Status.onLeave => 'On Leave',
+    _Status.restDay => 'Rest Day',
+    _Status.noData => 'No Data',
+  };
   Color get color => switch (this) {
-        _Status.present => const Color(0xFF22C55E),
-        _Status.absent => const Color(0xFFEF4444),
-        _Status.onLeave => const Color(0xFFA855F7),
-        _Status.restDay => const Color(0xFF64748B),
-        _Status.noData => const Color(0xFF9CA3AF),
-      };
+    _Status.present => const Color(0xFF22C55E),
+    _Status.absent => const Color(0xFFEF4444),
+    _Status.onLeave => const Color(0xFFA855F7),
+    _Status.restDay => const Color(0xFF64748B),
+    _Status.noData => const Color(0xFF9CA3AF),
+  };
 }
 
 /// Parse free-form workDaysPerWeek like "Monday to Saturday" and decide if
@@ -433,7 +475,9 @@ bool _isRestDay(DateTime date, String? workDaysPerWeek) {
     return dow == DateTime.sunday;
   }
   final s = workDaysPerWeek.toLowerCase();
-  final toMatch = RegExp(r'([a-z]+)\s*(?:to|-|–|—|until)\s*([a-z]+)').firstMatch(s);
+  final toMatch = RegExp(
+    r'([a-z]+)\s*(?:to|-|–|—|until)\s*([a-z]+)',
+  ).firstMatch(s);
   if (toMatch != null) {
     final a = names[toMatch.group(1)!];
     final b = names[toMatch.group(2)!];
@@ -444,7 +488,10 @@ bool _isRestDay(DateTime date, String? workDaysPerWeek) {
     }
   }
   // Comma/space-separated list: "Monday, Tuesday, Wednesday"
-  final tokens = s.split(RegExp(r'[,/;\s]+')).where((t) => t.isNotEmpty).toList();
+  final tokens = s
+      .split(RegExp(r'[,/;\s]+'))
+      .where((t) => t.isNotEmpty)
+      .toList();
   final working = tokens.map((t) => names[t]).whereType<int>().toSet();
   if (working.isNotEmpty) return !working.contains(dow);
   // Unparseable → default to Sunday rest
@@ -474,14 +521,31 @@ class _Stats {
     int p = 0, a = 0, l = 0, r = 0, n = 0;
     for (final row in rows) {
       switch (row.status) {
-        case _Status.present: p++; break;
-        case _Status.absent:  a++; break;
-        case _Status.onLeave: l++; break;
-        case _Status.restDay: r++; break;
-        case _Status.noData:  n++; break;
+        case _Status.present:
+          p++;
+          break;
+        case _Status.absent:
+          a++;
+          break;
+        case _Status.onLeave:
+          l++;
+          break;
+        case _Status.restDay:
+          r++;
+          break;
+        case _Status.noData:
+          n++;
+          break;
       }
     }
-    return _Stats(total: rows.length, present: p, absent: a, onLeave: l, restDay: r, noData: n);
+    return _Stats(
+      total: rows.length,
+      present: p,
+      absent: a,
+      onLeave: l,
+      restDay: r,
+      noData: n,
+    );
   }
 }
 
@@ -524,18 +588,20 @@ class _StatsBar extends StatelessWidget {
     ];
 
     if (isMobile(context)) {
-      return LayoutBuilder(builder: (ctx, c) {
-        const gap = 8.0;
-        final cols = (c.maxWidth / 140).floor().clamp(2, 3);
-        final itemWidth = (c.maxWidth - gap * (cols - 1)) / cols;
-        return Wrap(
-          spacing: gap,
-          runSpacing: gap,
-          children: [
-            for (final card in cards) SizedBox(width: itemWidth, child: card),
-          ],
-        );
-      });
+      return LayoutBuilder(
+        builder: (ctx, c) {
+          const gap = 8.0;
+          final cols = (c.maxWidth / 140).floor().clamp(2, 3);
+          final itemWidth = (c.maxWidth - gap * (cols - 1)) / cols;
+          return Wrap(
+            spacing: gap,
+            runSpacing: gap,
+            children: [
+              for (final card in cards) SizedBox(width: itemWidth, child: card),
+            ],
+          );
+        },
+      );
     }
 
     return Row(
@@ -579,8 +645,10 @@ class _StatCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(label, style: const TextStyle(fontSize: 12)),
             if (subtitle != null)
-              Text(subtitle!,
-                  style: TextStyle(fontSize: 11, color: color ?? Colors.grey)),
+              Text(
+                subtitle!,
+                style: TextStyle(fontSize: 11, color: color ?? Colors.grey),
+              ),
           ],
         ),
       ),
@@ -614,7 +682,8 @@ class _DateBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final weekday = _weekdayName(date.weekday);
-    final long = '$weekday, ${_monthName(date.month)} ${date.day}, ${date.year}';
+    final long =
+        '$weekday, ${_monthName(date.month)} ${date.day}, ${date.year}';
     // Switch to the stacked layout below tablet width — the single-row
     // variant squeezes the long date + segmented button together even on
     // iPad-class screens, so the threshold is higher than the app's global
@@ -632,17 +701,23 @@ class _DateBar extends StatelessWidget {
     required bool compact,
     required String long,
   }) {
-    final prevBtn =
-        IconButton(onPressed: onPrev, icon: const Icon(Icons.chevron_left));
+    final prevBtn = IconButton(
+      onPressed: onPrev,
+      icon: const Icon(Icons.chevron_left),
+    );
     final pickBtn = OutlinedButton.icon(
       onPressed: onPick,
       icon: const Icon(Icons.calendar_today, size: 16),
       label: Text(date.toIso8601String().substring(0, 10)),
     );
-    final nextBtn =
-        IconButton(onPressed: onNext, icon: const Icon(Icons.chevron_right));
-    final todayBtn =
-        OutlinedButton(onPressed: onToday, child: const Text('Today'));
+    final nextBtn = IconButton(
+      onPressed: onNext,
+      icon: const Icon(Icons.chevron_right),
+    );
+    final todayBtn = OutlinedButton(
+      onPressed: onToday,
+      child: const Text('Today'),
+    );
     final refreshBtn = IconButton(
       tooltip: 'Refresh',
       onPressed: onRefresh,
@@ -721,29 +796,29 @@ class _DateBar extends StatelessWidget {
 }
 
 String _weekdayName(int w) => const [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday',
-    ][(w - 1) % 7];
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+][(w - 1) % 7];
 
 String _monthName(int m) => const [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ][(m - 1) % 12];
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+][(m - 1) % 12];
 
 String formatClock(DateTime? t) {
   if (t == null) return '—';
@@ -765,20 +840,22 @@ class _CardsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (ctx, c) {
-      final cols = (c.maxWidth / 280).floor().clamp(1, 6);
-      return GridView.builder(
-        padding: const EdgeInsets.all(12),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: cols,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 2.2,
-        ),
-        itemCount: rows.length,
-        itemBuilder: (_, i) => _EmployeeCard(row: rows[i], date: date),
-      );
-    });
+    return LayoutBuilder(
+      builder: (ctx, c) {
+        final cols = (c.maxWidth / 280).floor().clamp(1, 6);
+        return GridView.builder(
+          padding: const EdgeInsets.all(12),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: cols,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 2.2,
+          ),
+          itemCount: rows.length,
+          itemBuilder: (_, i) => _EmployeeCard(row: rows[i], date: date),
+        );
+      },
+    );
   }
 }
 
@@ -839,8 +916,10 @@ class _EmployeeCard extends StatelessWidget {
                             .join(' • '),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style:
-                            const TextStyle(fontSize: 11, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey,
+                        ),
                       ),
                     ],
                   ),
@@ -859,11 +938,23 @@ class _EmployeeCard extends StatelessWidget {
             else
               Row(
                 children: [
-                  _InOutBlock(label: 'IN', time: row.record!.actualTimeIn, color: status.color),
-                  const Expanded(
-                    child: Icon(Icons.arrow_right_alt, color: Colors.grey, size: 18),
+                  _InOutBlock(
+                    label: 'IN',
+                    time: row.record!.actualTimeIn,
+                    color: status.color,
                   ),
-                  _InOutBlock(label: 'OUT', time: row.record!.actualTimeOut, color: status.color),
+                  const Expanded(
+                    child: Icon(
+                      Icons.arrow_right_alt,
+                      color: Colors.grey,
+                      size: 18,
+                    ),
+                  ),
+                  _InOutBlock(
+                    label: 'OUT',
+                    time: row.record!.actualTimeOut,
+                    color: status.color,
+                  ),
                 ],
               ),
           ],
@@ -877,7 +968,11 @@ class _InOutBlock extends StatelessWidget {
   final String label;
   final DateTime? time;
   final Color color;
-  const _InOutBlock({required this.label, required this.time, required this.color});
+  const _InOutBlock({
+    required this.label,
+    required this.time,
+    required this.color,
+  });
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -921,33 +1016,46 @@ class _TableView extends StatelessWidget {
             '/attendance/${r.employeeId}/${date.toIso8601String().substring(0, 10)}',
           ),
           cells: [
-            DataCell(Row(children: [
-              CircleAvatar(
-                radius: 14,
-                backgroundColor: status.color.withValues(alpha: 0.2),
-                child: Text(r.initials,
-                    style: TextStyle(
+            DataCell(
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 14,
+                    backgroundColor: status.color.withValues(alpha: 0.2),
+                    child: Text(
+                      r.initials,
+                      style: TextStyle(
                         color: status.color,
                         fontSize: 10,
-                        fontWeight: FontWeight.w700)),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          r.displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        Text(
+                          r.employeeNumber ?? '—',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(r.displayName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w500)),
-                    Text(r.employeeNumber ?? '—',
-                        style:
-                            const TextStyle(fontSize: 11, color: Colors.grey)),
-                  ],
-                ),
-              ),
-            ])),
+            ),
             DataCell(Text(r.roleTitle ?? '—')),
             DataCell(Text(formatClock(r.record?.actualTimeIn))),
             DataCell(Text(formatClock(r.record?.actualTimeOut))),
@@ -1008,36 +1116,49 @@ class _TimelineView extends StatelessWidget {
             children: [
               SizedBox(width: nameColWidth(context)),
               Expanded(
-                child: LayoutBuilder(builder: (ctx, c) {
-                  final hours = _endHour - _startHour;
-                  final step = _labelStepHours;
-                  final labelCount = (hours ~/ step) + 1;
-                  const labelWidth = 36.0;
-                  return SizedBox(
-                    height: 20,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: List.generate(labelCount, (i) {
-                        final hour = _startHour + i * step;
-                        final x = ((i * step) / hours) * c.maxWidth;
-                        // Last label anchors to the right edge so "24:00" stays
-                        // inside the timeline bounds. Others center on their tick.
-                        final isLast = i == labelCount - 1;
-                        return Positioned(
-                          left: isLast
-                              ? (c.maxWidth - labelWidth).clamp(0.0, c.maxWidth)
-                              : (x - labelWidth / 2).clamp(0.0, c.maxWidth - labelWidth),
-                          width: labelWidth,
-                          child: Text(
-                            '${hour.toString().padLeft(2, '0')}:00',
-                            textAlign: isLast ? TextAlign.right : TextAlign.left,
-                            style: const TextStyle(fontSize: 11, color: Colors.grey),
-                          ),
-                        );
-                      }),
-                    ),
-                  );
-                }),
+                child: LayoutBuilder(
+                  builder: (ctx, c) {
+                    final hours = _endHour - _startHour;
+                    final step = _labelStepHours;
+                    final labelCount = (hours ~/ step) + 1;
+                    const labelWidth = 36.0;
+                    return SizedBox(
+                      height: 20,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: List.generate(labelCount, (i) {
+                          final hour = _startHour + i * step;
+                          final x = ((i * step) / hours) * c.maxWidth;
+                          // Last label anchors to the right edge so "24:00" stays
+                          // inside the timeline bounds. Others center on their tick.
+                          final isLast = i == labelCount - 1;
+                          return Positioned(
+                            left: isLast
+                                ? (c.maxWidth - labelWidth).clamp(
+                                    0.0,
+                                    c.maxWidth,
+                                  )
+                                : (x - labelWidth / 2).clamp(
+                                    0.0,
+                                    c.maxWidth - labelWidth,
+                                  ),
+                            width: labelWidth,
+                            child: Text(
+                              '${hour.toString().padLeft(2, '0')}:00',
+                              textAlign: isLast
+                                  ? TextAlign.right
+                                  : TextAlign.left,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -1048,8 +1169,7 @@ class _TimelineView extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 4),
             itemCount: rows.length,
             separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (_, i) =>
-                _TimelineRow(row: rows[i], date: date),
+            itemBuilder: (_, i) => _TimelineRow(row: rows[i], date: date),
           ),
         ),
       ],
@@ -1080,27 +1200,35 @@ class _TimelineRow extends StatelessWidget {
                   CircleAvatar(
                     radius: 14,
                     backgroundColor: status.color.withValues(alpha: 0.2),
-                    child: Text(row.initials,
-                        style: TextStyle(
-                            color: status.color,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700)),
+                    child: Text(
+                      row.initials,
+                      style: TextStyle(
+                        color: status.color,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(row.displayName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.w500)),
-                        Text(row.roleTitle ?? (row.employeeNumber ?? '—'),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 11, color: Colors.grey)),
+                        Text(
+                          row.displayName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        Text(
+                          row.roleTitle ?? (row.employeeNumber ?? '—'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1110,24 +1238,26 @@ class _TimelineRow extends StatelessWidget {
             Expanded(
               child: SizedBox(
                 height: 24,
-                child: LayoutBuilder(builder: (ctx, c) {
-                  return Stack(
-                    children: [
-                      // Track
-                      Positioned.fill(
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(4),
+                child: LayoutBuilder(
+                  builder: (ctx, c) {
+                    return Stack(
+                      children: [
+                        // Track
+                        Positioned.fill(
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
                           ),
                         ),
-                      ),
-                      // Bar or label
-                      ..._buildBar(c.maxWidth, status),
-                    ],
-                  );
-                }),
+                        // Bar or label
+                        ..._buildBar(c.maxWidth, status),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ],
@@ -1170,11 +1300,14 @@ class _TimelineRow extends StatelessWidget {
     final actualIn = tIn.hour * 60 + tIn.minute;
     final actualOut = tOut == null ? null : tOut.hour * 60 + tOut.minute;
     final schedIn = sched == null ? null : sched.hour * 60 + sched.minute;
-    final schedOutM = schedOut == null ? null : schedOut.hour * 60 + schedOut.minute;
+    final schedOutM = schedOut == null
+        ? null
+        : schedOut.hour * 60 + schedOut.minute;
 
     // Build segment list: (startMin, endMin, color, tooltip)
     final segments = <(int, int, Color, String)>[];
-    String tip(int s, int e, String desc) => '${_fmtTime(s)} → ${_fmtTime(e)}  •  $desc';
+    String tip(int s, int e, String desc) =>
+        '${_fmtTime(s)} → ${_fmtTime(e)}  •  $desc';
 
     // Fallback: no shift info → just render one green bar from in→out (15m if no out)
     if (schedIn == null || schedOutM == null) {
@@ -1194,7 +1327,12 @@ class _TimelineRow extends StatelessWidget {
       if (actualIn > schedIn + row.graceMinutesLate) {
         final endClamped = actualIn.clamp(schedIn, schedOutM);
         final desc = 'Late in (${actualIn - schedIn} min, undertime)';
-        segments.add((schedIn, endClamped, red, tip(schedIn, endClamped, desc)));
+        segments.add((
+          schedIn,
+          endClamped,
+          red,
+          tip(schedIn, endClamped, desc),
+        ));
       }
       // 3. Normal working segment
       final normStart = actualIn > schedIn ? actualIn : schedIn;
@@ -1202,14 +1340,25 @@ class _TimelineRow extends StatelessWidget {
           ? schedOutM
           : (actualOut < schedOutM ? actualOut : schedOutM);
       if (normEnd > normStart) {
-        segments.add((normStart, normEnd, green, tip(normStart, normEnd, 'Worked')));
+        segments.add((
+          normStart,
+          normEnd,
+          green,
+          tip(normStart, normEnd, 'Worked'),
+        ));
       }
       // 4. Early-out segment: [actualOut, schedOutM] — always yellow
       // (undertime, counted against the employee)
-      if (actualOut != null && actualOut < schedOutM - row.graceMinutesEarlyOut) {
+      if (actualOut != null &&
+          actualOut < schedOutM - row.graceMinutesEarlyOut) {
         final mins = schedOutM - actualOut;
         final desc = 'Early out ($mins min, undertime)';
-        segments.add((actualOut, schedOutM, yellow, tip(actualOut, schedOutM, desc)));
+        segments.add((
+          actualOut,
+          schedOutM,
+          yellow,
+          tip(actualOut, schedOutM, desc),
+        ));
       }
       // 5. Late-out / OT segment: [schedOutM, actualOut]
       // Only render when approved — unapproved late clock-outs don't count as
@@ -1217,7 +1366,12 @@ class _TimelineRow extends StatelessWidget {
       if (actualOut != null && actualOut > schedOutM && rec.lateOutApproved) {
         final mins = actualOut - schedOutM;
         final desc = 'Late out / OT ($mins min, approved)';
-        segments.add((schedOutM, actualOut, green, tip(schedOutM, actualOut, desc)));
+        segments.add((
+          schedOutM,
+          actualOut,
+          green,
+          tip(schedOutM, actualOut, desc),
+        ));
       }
     }
 
@@ -1226,18 +1380,22 @@ class _TimelineRow extends StatelessWidget {
     // at a glance without visual noise. Hover tooltip shows the exact time.
     final ghosts = <Widget>[];
     if (schedIn != null) {
-      ghosts.add(_ScheduledTick(
-        leftPct: schedIn / totalMin,
-        trackWidth: width,
-        tooltip: 'Scheduled start ${_fmtTime(schedIn)}',
-      ));
+      ghosts.add(
+        _ScheduledTick(
+          leftPct: schedIn / totalMin,
+          trackWidth: width,
+          tooltip: 'Scheduled start ${_fmtTime(schedIn)}',
+        ),
+      );
     }
     if (schedOutM != null) {
-      ghosts.add(_ScheduledTick(
-        leftPct: schedOutM / totalMin,
-        trackWidth: width,
-        tooltip: 'Scheduled end ${_fmtTime(schedOutM)}',
-      ));
+      ghosts.add(
+        _ScheduledTick(
+          leftPct: schedOutM / totalMin,
+          trackWidth: width,
+          tooltip: 'Scheduled end ${_fmtTime(schedOutM)}',
+        ),
+      );
     }
 
     return [
@@ -1293,7 +1451,9 @@ class _ScheduledTick extends StatelessWidget {
       child: Tooltip(
         message: tooltip,
         child: CustomPaint(
-          painter: _DashedLinePainter(color: Colors.grey.withValues(alpha: 0.7)),
+          painter: _DashedLinePainter(
+            color: Colors.grey.withValues(alpha: 0.7),
+          ),
         ),
       ),
     );
@@ -1319,6 +1479,7 @@ class _DashedLinePainter extends CustomPainter {
       y += dashH + gap;
     }
   }
+
   @override
   bool shouldRepaint(covariant _DashedLinePainter old) => old.color != color;
 }
@@ -1372,7 +1533,9 @@ class _RangePickerDialogState extends State<_RangePickerDialog> {
     final toMonth = DateTime(today.year, today.month - monthsBack + 1, 0);
     final clampedEnd = toMonth.isAfter(today) ? today : toMonth;
     setState(() {
-      _start = fromMonth.isBefore(widget.firstDate) ? widget.firstDate : fromMonth;
+      _start = fromMonth.isBefore(widget.firstDate)
+          ? widget.firstDate
+          : fromMonth;
       _end = clampedEnd;
     });
   }
@@ -1408,43 +1571,56 @@ class _RangePickerDialogState extends State<_RangePickerDialog> {
               ),
             ),
             const SizedBox(height: 8),
-            Text('$days day${days == 1 ? '' : 's'} selected',
-                style: const TextStyle(color: Colors.grey, fontSize: 12)),
+            Text(
+              '$days day${days == 1 ? '' : 's'} selected',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            ),
             const SizedBox(height: 16),
-            const Text('Quick ranges', style: TextStyle(fontWeight: FontWeight.w600)),
+            const Text(
+              'Quick ranges',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 4),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              _quickChip('This month', () => _quickRange(0)),
-              _quickChip('Last month', () => _quickRange(1)),
-              _quickChip('Last 2 months', () {
-                final today = widget.lastDate;
-                setState(() {
-                  _start = DateTime(today.year, today.month - 2, 1);
-                  _end = today;
-                });
-              }),
-              _quickChip('Last 7 days', () {
-                final today = widget.lastDate;
-                setState(() {
-                  _start = today.subtract(const Duration(days: 6));
-                  _end = today;
-                });
-              }),
-              _quickChip('Year to date', () {
-                final today = widget.lastDate;
-                setState(() {
-                  _start = DateTime(today.year, 1, 1);
-                  _end = today;
-                });
-              }),
-            ]),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _quickChip('This month', () => _quickRange(0)),
+                _quickChip('Last month', () => _quickRange(1)),
+                _quickChip('Last 2 months', () {
+                  final today = widget.lastDate;
+                  setState(() {
+                    _start = DateTime(today.year, today.month - 2, 1);
+                    _end = today;
+                  });
+                }),
+                _quickChip('Last 7 days', () {
+                  final today = widget.lastDate;
+                  setState(() {
+                    _start = today.subtract(const Duration(days: 6));
+                    _end = today;
+                  });
+                }),
+                _quickChip('Year to date', () {
+                  final today = widget.lastDate;
+                  setState(() {
+                    _start = DateTime(today.year, 1, 1);
+                    _end = today;
+                  });
+                }),
+              ],
+            ),
           ],
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
-          onPressed: () => Navigator.pop(context, DateTimeRange(start: _start, end: _end)),
+          onPressed: () =>
+              Navigator.pop(context, DateTimeRange(start: _start, end: _end)),
           child: const Text('Sync'),
         ),
       ],
@@ -1452,7 +1628,7 @@ class _RangePickerDialogState extends State<_RangePickerDialog> {
   }
 
   Widget _quickChip(String label, VoidCallback onTap) => ActionChip(
-        label: Text(label, style: const TextStyle(fontSize: 12)),
-        onPressed: onTap,
-      );
+    label: Text(label, style: const TextStyle(fontSize: 12)),
+    onPressed: onTap,
+  );
 }

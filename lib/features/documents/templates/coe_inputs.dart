@@ -85,51 +85,50 @@ class CoeInputs extends TemplateInputs {
     DateTime? dateIssued,
     Uint8List? logoBytes,
     String? companySignaturePngB64,
-  }) =>
-      CoeInputs(
-        employeeId: employeeId ?? this.employeeId,
-        employeeFullName: employeeFullName ?? this.employeeFullName,
-        employeeLastName: employeeLastName ?? this.employeeLastName,
-        employeeHonorific: employeeHonorific ?? this.employeeHonorific,
-        companyId: companyId ?? this.companyId,
-        companyName: companyName ?? this.companyName,
-        companyAddress: companyAddress ?? this.companyAddress,
-        hrManagerName: hrManagerName ?? this.hrManagerName,
-        position: position ?? this.position,
-        place: place ?? this.place,
-        dateStart: dateStart ?? this.dateStart,
-        dateEnd: dateEnd ?? this.dateEnd,
-        dateIssued: dateIssued ?? this.dateIssued,
-        logoBytes: logoBytes ?? this.logoBytes,
-        companySignaturePngB64:
-            companySignaturePngB64 ?? this.companySignaturePngB64,
-      );
+  }) => CoeInputs(
+    employeeId: employeeId ?? this.employeeId,
+    employeeFullName: employeeFullName ?? this.employeeFullName,
+    employeeLastName: employeeLastName ?? this.employeeLastName,
+    employeeHonorific: employeeHonorific ?? this.employeeHonorific,
+    companyId: companyId ?? this.companyId,
+    companyName: companyName ?? this.companyName,
+    companyAddress: companyAddress ?? this.companyAddress,
+    hrManagerName: hrManagerName ?? this.hrManagerName,
+    position: position ?? this.position,
+    place: place ?? this.place,
+    dateStart: dateStart ?? this.dateStart,
+    dateEnd: dateEnd ?? this.dateEnd,
+    dateIssued: dateIssued ?? this.dateIssued,
+    logoBytes: logoBytes ?? this.logoBytes,
+    companySignaturePngB64:
+        companySignaturePngB64 ?? this.companySignaturePngB64,
+  );
 
   @override
   Map<String, dynamic> toDebugMap() => {
-        'employeeId': employeeId,
-        'companyId': companyId,
-        'position': position,
-        'companySignaturePngB64': companySignaturePngB64 == null
-            ? null
-            : '<png b64, ${companySignaturePngB64!.length} chars>',
-      };
+    'employeeId': employeeId,
+    'companyId': companyId,
+    'position': position,
+    'companySignaturePngB64': companySignaturePngB64 == null
+        ? null
+        : '<png b64, ${companySignaturePngB64!.length} chars>',
+  };
 
   @override
   Map<String, dynamic> toJson() => {
-        'employeeId': employeeId,
-        'employeeFullName': employeeFullName,
-        'employeeLastName': employeeLastName,
-        'employeeHonorific': employeeHonorific,
-        'companyId': companyId,
-        'companyName': companyName,
-        'companyAddress': companyAddress,
-        'hrManagerName': hrManagerName,
-        'position': position,
-        'place': place,
-        'dateStart': dateStart?.toIso8601String(),
-        'dateEnd': dateEnd?.toIso8601String(),
-        'dateIssued': dateIssued.toIso8601String(),
-        'companySignaturePngB64': companySignaturePngB64,
-      };
+    'employeeId': employeeId,
+    'employeeFullName': employeeFullName,
+    'employeeLastName': employeeLastName,
+    'employeeHonorific': employeeHonorific,
+    'companyId': companyId,
+    'companyName': companyName,
+    'companyAddress': companyAddress,
+    'hrManagerName': hrManagerName,
+    'position': position,
+    'place': place,
+    'dateStart': dateStart?.toIso8601String(),
+    'dateEnd': dateEnd?.toIso8601String(),
+    'dateIssued': dateIssued.toIso8601String(),
+    'companySignaturePngB64': companySignaturePngB64,
+  };
 }

@@ -44,8 +44,10 @@ class ViewPaymentsDialog extends ConsumerWidget {
             height: 120,
             child: Center(child: CircularProgressIndicator()),
           ),
-          error: (e, _) => Text('Error: $e',
-              style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          error: (e, _) => Text(
+            'Error: $e',
+            style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
           data: (payments) {
             if (payments.isEmpty) {
               return const Padding(
@@ -89,8 +91,10 @@ class _PaymentTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final money = NumberFormat.currency(symbol: '₱', decimalDigits: 2)
-        .format(payment.amountPaid.toDouble());
+    final money = NumberFormat.currency(
+      symbol: '₱',
+      decimalDigits: 2,
+    ).format(payment.amountPaid.toDouble());
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(
         horizontal: LuxiumSpacing.sm,
@@ -98,7 +102,10 @@ class _PaymentTile extends ConsumerWidget {
       ),
       title: Row(
         children: [
-          Text(money, style: AppTheme.mono(context, fontWeight: FontWeight.w600)),
+          Text(
+            money,
+            style: AppTheme.mono(context, fontWeight: FontWeight.w600),
+          ),
           const SizedBox(width: LuxiumSpacing.sm),
           if (payment.isVoided)
             const StatusChip(label: 'Voided', tone: StatusTone.danger),
@@ -115,8 +122,7 @@ class _PaymentTile extends ConsumerWidget {
           if (payment.notes != null && payment.notes!.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: Text(payment.notes!,
-                  style: const TextStyle(fontSize: 12)),
+              child: Text(payment.notes!, style: const TextStyle(fontSize: 12)),
             ),
           if (payment.isVoided && payment.voidReason != null)
             Padding(
@@ -125,7 +131,10 @@ class _PaymentTile extends ConsumerWidget {
                 'Void reason: ${payment.voidReason}',
                 style: TextStyle(
                   fontSize: 12,
-                  color: StatusPalette.of(context, StatusTone.danger).foreground,
+                  color: StatusPalette.of(
+                    context,
+                    StatusTone.danger,
+                  ).foreground,
                 ),
               ),
             ),
@@ -196,8 +205,18 @@ class _PaymentTile extends ConsumerWidget {
 
 String _periodLabel(StatutoryPayable p) {
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${months[p.periodMonth - 1]} ${p.periodYear}';
 }

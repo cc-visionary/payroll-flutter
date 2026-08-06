@@ -45,13 +45,13 @@ const List<String> kCompensationChangeTypes = [
 const List<String> kWageTypes = ['MONTHLY', 'DAILY', 'HOURLY'];
 
 String compensationChangeTypeLabel(String changeType) => switch (changeType) {
-      'SALARY_INCREASE' => 'Salary Increase',
-      'SALARY_DECREASE' => 'Salary Decrease',
-      'PROMOTION' => 'Promotion',
-      'LATERAL_TRANSFER' => 'Lateral Transfer',
-      'DEMOTION' => 'Demotion',
-      _ => changeType,
-    };
+  'SALARY_INCREASE' => 'Salary Increase',
+  'SALARY_DECREASE' => 'Salary Decrease',
+  'PROMOTION' => 'Promotion',
+  'LATERAL_TRANSFER' => 'Lateral Transfer',
+  'DEMOTION' => 'Demotion',
+  _ => changeType,
+};
 
 /// Maps a dialog change type to the underlying [SalaryAdjustmentType] used by
 /// [validateSalaryAdjustment] and the salary-adjustment document template.
@@ -66,8 +66,7 @@ SalaryAdjustmentType changeTypeToAdjustmentType(String changeType) =>
 
 /// The new-salary field is shown for every type except a lateral transfer,
 /// which by definition carries the current salary unchanged.
-bool showsNewSalaryField(String changeType) =>
-    changeType != 'LATERAL_TRANSFER';
+bool showsNewSalaryField(String changeType) => changeType != 'LATERAL_TRANSFER';
 
 /// The target-role dropdown is shown only for the role-change types.
 bool showsRoleDropdown(String changeType) =>
@@ -124,26 +123,30 @@ List<ValidationError> validateCompensationRequest({
     'newRoleScorecardId',
     'reason',
   };
-  final errors = validateSalaryAdjustment(inputs)
-      .where((e) => dialogFields.contains(e.field))
-      .toList();
+  final errors = validateSalaryAdjustment(
+    inputs,
+  ).where((e) => dialogFields.contains(e.field)).toList();
 
   // Direction rules the shared validator does not enforce.
   switch (changeType) {
     case 'SALARY_INCREASE':
       if (newSalary <= currentSalary) {
-        errors.add(const ValidationError(
-          'newSalary',
-          'A salary increase must be higher than the current salary',
-        ));
+        errors.add(
+          const ValidationError(
+            'newSalary',
+            'A salary increase must be higher than the current salary',
+          ),
+        );
       }
     case 'SALARY_DECREASE':
     case 'DEMOTION':
       if (newSalary >= currentSalary) {
-        errors.add(const ValidationError(
-          'newSalary',
-          'A salary decrease must be lower than the current salary',
-        ));
+        errors.add(
+          const ValidationError(
+            'newSalary',
+            'A salary decrease must be lower than the current salary',
+          ),
+        );
       }
     // LATERAL_TRANSFER equality is already enforced by the shared validator.
   }
@@ -151,13 +154,18 @@ List<ValidationError> validateCompensationRequest({
   // Effective date must not be in the past.
   final now = today ?? DateTime.now();
   final todayDate = DateTime(now.year, now.month, now.day);
-  final effDate =
-      DateTime(effectiveDate.year, effectiveDate.month, effectiveDate.day);
+  final effDate = DateTime(
+    effectiveDate.year,
+    effectiveDate.month,
+    effectiveDate.day,
+  );
   if (effDate.isBefore(todayDate)) {
-    errors.add(const ValidationError(
-      'effectiveDate',
-      'Effective date cannot be in the past',
-    ));
+    errors.add(
+      const ValidationError(
+        'effectiveDate',
+        'Effective date cannot be in the past',
+      ),
+    );
   }
 
   // Rates pro-rate fine for any wage type (the daily rate is the universal
@@ -167,10 +175,12 @@ List<ValidationError> validateCompensationRequest({
   // would apply that rule to the whole period, over-counting leave taken
   // before the switch. Forcing such changes onto the 1st removes that edge.
   if (newWageType != currentWageType && effectiveDate.day != 1) {
-    errors.add(const ValidationError(
-      'effectiveDate',
-      'A wage-type change must take effect on the 1st of a month',
-    ));
+    errors.add(
+      const ValidationError(
+        'effectiveDate',
+        'A wage-type change must take effect on the 1st of a month',
+      ),
+    );
   }
 
   return errors;
@@ -243,8 +253,7 @@ class _CompensationChangeDialogState extends State<_CompensationChangeDialog> {
     super.dispose();
   }
 
-  Decimal get _currentSalary =>
-      widget.currentCard?.baseSalary ?? Decimal.zero;
+  Decimal get _currentSalary => widget.currentCard?.baseSalary ?? Decimal.zero;
 
   Decimal? _tryParseMoney(String raw) {
     final cleaned = raw.replaceAll(RegExp(r'[₱,\s]'), '').trim();
@@ -325,9 +334,8 @@ class _CompensationChangeDialogState extends State<_CompensationChangeDialog> {
     });
   }
 
-  OutlineInputBorder get _fieldBorder => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(LuxiumRadius.lg),
-      );
+  OutlineInputBorder get _fieldBorder =>
+      OutlineInputBorder(borderRadius: BorderRadius.circular(LuxiumRadius.lg));
 
   @override
   Widget build(BuildContext context) {
@@ -358,10 +366,7 @@ class _CompensationChangeDialogState extends State<_CompensationChangeDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                widget.employee.fullName,
-                style: theme.textTheme.titleSmall,
-              ),
+              Text(widget.employee.fullName, style: theme.textTheme.titleSmall),
               const SizedBox(height: 4),
               Text(
                 'Current: ${_currentSalary == Decimal.zero ? '—' : '₱$_currentSalary'} · ${_wageType.toLowerCase()}',
@@ -393,8 +398,9 @@ class _CompensationChangeDialogState extends State<_CompensationChangeDialog> {
                 TextFormField(
                   key: const Key('newSalaryField'),
                   controller: _salaryCtrl,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   style: AppTheme.mono(context),
                   decoration: InputDecoration(
                     labelText: 'New salary',
@@ -436,7 +442,10 @@ class _CompensationChangeDialogState extends State<_CompensationChangeDialog> {
                     for (final c in widget.allCards)
                       DropdownMenuItem(
                         value: c.id,
-                        child: Text(c.jobTitle, overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          c.jobTitle,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                   ],
                   onChanged: (v) => setState(() => _scorecardId = v),
@@ -500,10 +509,7 @@ class _CompensationChangeDialogState extends State<_CompensationChangeDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: _confirm,
-          child: const Text('Confirm'),
-        ),
+        FilledButton(onPressed: _confirm, child: const Text('Confirm')),
       ],
     );
   }

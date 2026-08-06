@@ -13,8 +13,10 @@ void main() {
   testWidgets('fires once after the debounce window elapses', (tester) async {
     await tester.pumpWidget(const SizedBox());
     var fires = 0;
-    final debouncer =
-        RefreshDebouncer(const Duration(milliseconds: 300), () => fires++);
+    final debouncer = RefreshDebouncer(
+      const Duration(milliseconds: 300),
+      () => fires++,
+    );
 
     debouncer.schedule();
     expect(fires, 0, reason: 'must not fire synchronously');
@@ -28,12 +30,15 @@ void main() {
     debouncer.dispose();
   });
 
-  testWidgets('coalesces a burst of schedules into a single fire',
-      (tester) async {
+  testWidgets('coalesces a burst of schedules into a single fire', (
+    tester,
+  ) async {
     await tester.pumpWidget(const SizedBox());
     var fires = 0;
-    final debouncer =
-        RefreshDebouncer(const Duration(milliseconds: 300), () => fires++);
+    final debouncer = RefreshDebouncer(
+      const Duration(milliseconds: 300),
+      () => fires++,
+    );
 
     // A bulk release touches many payslip rows in quick succession; each
     // Realtime message calls schedule(), which must reset the window.
@@ -49,12 +54,15 @@ void main() {
     debouncer.dispose();
   });
 
-  testWidgets('does not fire when disposed before the window elapses',
-      (tester) async {
+  testWidgets('does not fire when disposed before the window elapses', (
+    tester,
+  ) async {
     await tester.pumpWidget(const SizedBox());
     var fires = 0;
-    final debouncer =
-        RefreshDebouncer(const Duration(milliseconds: 300), () => fires++);
+    final debouncer = RefreshDebouncer(
+      const Duration(milliseconds: 300),
+      () => fires++,
+    );
 
     debouncer.schedule();
     debouncer.dispose();
@@ -63,12 +71,15 @@ void main() {
     expect(fires, 0, reason: 'a disposed screen must not be invalidated');
   });
 
-  testWidgets('ignores schedule() after dispose and leaves no pending timer',
-      (tester) async {
+  testWidgets('ignores schedule() after dispose and leaves no pending timer', (
+    tester,
+  ) async {
     await tester.pumpWidget(const SizedBox());
     var fires = 0;
-    final debouncer =
-        RefreshDebouncer(const Duration(milliseconds: 300), () => fires++);
+    final debouncer = RefreshDebouncer(
+      const Duration(milliseconds: 300),
+      () => fires++,
+    );
 
     debouncer.dispose();
     debouncer.schedule();

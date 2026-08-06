@@ -15,9 +15,9 @@ void main() {
   test('renders without throwing', () {
     final theme = PdfTheme.testStub();
     expect(
-      () => const CheckboxListBlock(
-        [CheckboxItem(label: 'A', body: 'b')],
-      ).toPdf(theme),
+      () => const CheckboxListBlock([
+        CheckboxItem(label: 'A', body: 'b'),
+      ]).toPdf(theme),
       returnsNormally,
     );
   });

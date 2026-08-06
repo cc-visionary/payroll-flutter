@@ -96,7 +96,8 @@ DayTypeResolution resolveDayType(
     if (event.dayType == 'REGULAR_HOLIDAY' && isRestDay) {
       return DayTypeResolution(
         dayType: ResolvedDayType.REGULAR_HOLIDAY_REST_DAY,
-        multiplier: DAY_TYPE_MULTIPLIERS[ResolvedDayType.REGULAR_HOLIDAY_REST_DAY]!,
+        multiplier:
+            DAY_TYPE_MULTIPLIERS[ResolvedDayType.REGULAR_HOLIDAY_REST_DAY]!,
         paidIfNotWorked: true,
         holidayName: event.name,
         isRestDay: true,
@@ -105,7 +106,8 @@ DayTypeResolution resolveDayType(
     if (event.dayType == 'SPECIAL_HOLIDAY' && isRestDay) {
       return DayTypeResolution(
         dayType: ResolvedDayType.SPECIAL_HOLIDAY_REST_DAY,
-        multiplier: DAY_TYPE_MULTIPLIERS[ResolvedDayType.SPECIAL_HOLIDAY_REST_DAY]!,
+        multiplier:
+            DAY_TYPE_MULTIPLIERS[ResolvedDayType.SPECIAL_HOLIDAY_REST_DAY]!,
         paidIfNotWorked: false,
         holidayName: event.name,
         isRestDay: true,
@@ -171,7 +173,11 @@ Map<String, DayTypeResolution> resolveDayTypesForRange(
   var current = DateTime.utc(startDate.year, startDate.month, startDate.day);
   final end = DateTime.utc(endDate.year, endDate.month, endDate.day);
   while (!current.isAfter(end)) {
-    results[_dateKey(current)] = resolveDayType(current, restDayNumbers, eventMap);
+    results[_dateKey(current)] = resolveDayType(
+      current,
+      restDayNumbers,
+      eventMap,
+    );
     current = current.add(const Duration(days: 1));
   }
   return results;
@@ -195,7 +201,8 @@ class RestDayPayBreakdown {
   const RestDayPayBreakdown(this.basePay, this.restDayPremium, this.total);
 }
 
-Decimal _div(Decimal a, Decimal b) => (a / b).toDecimal(scaleOnInfinitePrecision: 10);
+Decimal _div(Decimal a, Decimal b) =>
+    (a / b).toDecimal(scaleOnInfinitePrecision: 10);
 
 HolidayPayBreakdown calculateRegularHolidayPay(
   Decimal dailyRate,

@@ -32,10 +32,7 @@ class CheckboxListBlock extends Block {
                   height: 12,
                   margin: const pw.EdgeInsets.only(top: 2, right: 8),
                   decoration: pw.BoxDecoration(
-                    border: pw.Border.all(
-                      color: PdfColors.grey700,
-                      width: 0.7,
-                    ),
+                    border: pw.Border.all(color: PdfColors.grey700, width: 0.7),
                   ),
                 ),
                 pw.Expanded(
@@ -48,9 +45,7 @@ class CheckboxListBlock extends Block {
                       children: [
                         pw.TextSpan(
                           text: '${item.label}: ',
-                          style: pw.TextStyle(
-                            fontWeight: pw.FontWeight.bold,
-                          ),
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                         ),
                         pw.TextSpan(text: item.body),
                       ],

@@ -28,14 +28,17 @@ class ResponsibilityArea {
 /// non-deterministic order between builds, shifting PDF/contract order;
 /// mirrors the same tie-break in tasks_rows.dart's `_groupByArea`).
 /// Rows with no area or no name are not card responsibilities and are skipped.
-List<ResponsibilityArea> responsibilitiesFromTaskRows(List<Map<String, dynamic>> rows) {
+List<ResponsibilityArea> responsibilitiesFromTaskRows(
+  List<Map<String, dynamic>> rows,
+) {
   final areaSort = <String, int>{};
   final byArea = <String, List<({int sort, String name, String id})>>{};
   for (final r in rows) {
     final area = (r['responsibility_area'] as String?)?.trim() ?? '';
     final name = (r['name'] as String?)?.trim() ?? '';
     if (area.isEmpty || name.isEmpty) continue;
-    if ((r['status'] as String?) == 'ARCHIVED') continue; // archived leaves the card's derived list
+    if ((r['status'] as String?) == 'ARCHIVED')
+      continue; // archived leaves the card's derived list
     final aSort = (r['area_sort'] as num?)?.toInt() ?? 0;
     final tSort = (r['task_sort'] as num?)?.toInt() ?? 0;
     final id = (r['id'] as String?) ?? '';
@@ -52,12 +55,13 @@ List<ResponsibilityArea> responsibilitiesFromTaskRows(List<Map<String, dynamic>>
     for (final a in areas)
       ResponsibilityArea(
         area: a,
-        tasks: (byArea[a]!..sort((x, y) {
-          final c = x.sort.compareTo(y.sort);
-          return c != 0 ? c : x.id.compareTo(y.id);
-        }))
-            .map((e) => e.name)
-            .toList(),
+        tasks:
+            (byArea[a]!..sort((x, y) {
+                  final c = x.sort.compareTo(y.sort);
+                  return c != 0 ? c : x.id.compareTo(y.id);
+                }))
+                .map((e) => e.name)
+                .toList(),
       ),
   ];
 }
@@ -90,7 +94,8 @@ List<ResponsibilityArea> responsibilitiesFromAssignedTasks(
   final areaSort = <String, int>{};
   final byArea = <String, List<({int sort, String name, String id})>>{};
   for (final t in assignedToCard) {
-    if (t.roleScorecardId == cardId) continue; // authored here already — not a share
+    if (t.roleScorecardId == cardId)
+      continue; // authored here already — not a share
     final name = t.name.trim();
     if (name.isEmpty) continue;
     final rawArea = t.responsibilityArea?.trim() ?? '';
@@ -108,12 +113,13 @@ List<ResponsibilityArea> responsibilitiesFromAssignedTasks(
     for (final a in areas)
       ResponsibilityArea(
         area: a,
-        tasks: (byArea[a]!..sort((x, y) {
-          final c = x.sort.compareTo(y.sort);
-          return c != 0 ? c : x.id.compareTo(y.id);
-        }))
-            .map((e) => e.name)
-            .toList(),
+        tasks:
+            (byArea[a]!..sort((x, y) {
+                  final c = x.sort.compareTo(y.sort);
+                  return c != 0 ? c : x.id.compareTo(y.id);
+                }))
+                .map((e) => e.name)
+                .toList(),
       ),
   ];
 }
@@ -281,8 +287,9 @@ class RoleScorecard {
       // empty embed means "no responsibilities", NOT "fall back to the JSON
       // column" (PostgREST returns [] for a requested-but-empty embed, it does
       // not omit the key; a deleted-to-zero card must not resurrect stale JSON).
-      responsibilities =
-          responsibilitiesFromTaskRows(rawTasks.cast<Map<String, dynamic>>());
+      responsibilities = responsibilitiesFromTaskRows(
+        rawTasks.cast<Map<String, dynamic>>(),
+      );
     } else if (rawResp is List) {
       // Legacy fallback: the JSON column, for pre-unification rows or any
       // select that doesn't embed wp_tasks.
@@ -299,8 +306,11 @@ class RoleScorecard {
       // Authoritative source post-KPI-library migration: the link table,
       // ordered by sort_order. measurement comes from the library KPI.
       final links = embeddedKpis.whereType<Map>().toList()
-        ..sort((a, b) =>
-            (a['sort_order'] as int? ?? 0).compareTo(b['sort_order'] as int? ?? 0));
+        ..sort(
+          (a, b) => (a['sort_order'] as int? ?? 0).compareTo(
+            b['sort_order'] as int? ?? 0,
+          ),
+        );
       kpis = [
         for (final link in links)
           KpiItem(
@@ -313,7 +323,10 @@ class RoleScorecard {
       ];
     } else if (rawKpis is List) {
       // Back-compat: the upsert-return row and any pre-migration read.
-      kpis = rawKpis.cast<Map<String, dynamic>>().map(KpiItem.fromJson).toList();
+      kpis = rawKpis
+          .cast<Map<String, dynamic>>()
+          .map(KpiItem.fromJson)
+          .toList();
     } else {
       kpis = const [];
     }

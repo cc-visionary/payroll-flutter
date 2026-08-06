@@ -92,9 +92,11 @@ class _GenerateBatchDialogState extends ConsumerState<_GenerateBatchDialog> {
                 for (final q in _quarters)
                   DropdownMenuItem(
                     value: q,
-                    child: Text(q == _currentQuarter
-                        ? '${q.periodName} (current)'
-                        : q.periodName),
+                    child: Text(
+                      q == _currentQuarter
+                          ? '${q.periodName} (current)'
+                          : q.periodName,
+                    ),
                   ),
               ],
               onChanged: _saving

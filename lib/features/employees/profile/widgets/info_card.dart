@@ -74,7 +74,11 @@ class InfoCard extends StatelessWidget {
 class StatusChip extends StatelessWidget {
   final String label;
   final ChipTone tone;
-  const StatusChip({super.key, required this.label, this.tone = ChipTone.neutral});
+  const StatusChip({
+    super.key,
+    required this.label,
+    this.tone = ChipTone.neutral,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -97,12 +101,12 @@ class StatusChip extends StatelessWidget {
   }
 
   static StatusTone _toStatusTone(ChipTone t) => switch (t) {
-        ChipTone.success => StatusTone.success,
-        ChipTone.warning => StatusTone.warning,
-        ChipTone.danger => StatusTone.danger,
-        ChipTone.info => StatusTone.info,
-        ChipTone.neutral => StatusTone.neutral,
-      };
+    ChipTone.success => StatusTone.success,
+    ChipTone.warning => StatusTone.warning,
+    ChipTone.danger => StatusTone.danger,
+    ChipTone.info => StatusTone.info,
+    ChipTone.neutral => StatusTone.neutral,
+  };
 }
 
 enum ChipTone { success, warning, danger, info, neutral }

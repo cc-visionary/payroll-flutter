@@ -45,22 +45,24 @@ List<Block> selfEvalBlocks(SelfEvalDetail detail) {
 
   blocks.add(const TitleBlock('Self-Evaluation'));
   blocks.add(const SpacerBlock(8));
-  blocks.add(KeyValueBlock([
-    KeyValueRow('Employee', detail.fullName.isEmpty ? '—' : detail.fullName),
-    if (detail.employeeNumber.trim().isNotEmpty)
-      KeyValueRow('Employee #', detail.employeeNumber),
-    if ((detail.departmentName ?? '').trim().isNotEmpty)
-      KeyValueRow('Department', detail.departmentName!),
-    if ((detail.jobTitle ?? '').trim().isNotEmpty)
-      KeyValueRow('Position', detail.jobTitle!),
-    KeyValueRow('Review type', reviewTypeLabel(r.reviewType)),
-    KeyValueRow(
-      'Submitted',
-      r.submittedAt == null
-          ? 'Unknown'
-          : r.submittedAt!.toIso8601String().substring(0, 10),
-    ),
-  ]));
+  blocks.add(
+    KeyValueBlock([
+      KeyValueRow('Employee', detail.fullName.isEmpty ? '—' : detail.fullName),
+      if (detail.employeeNumber.trim().isNotEmpty)
+        KeyValueRow('Employee #', detail.employeeNumber),
+      if ((detail.departmentName ?? '').trim().isNotEmpty)
+        KeyValueRow('Department', detail.departmentName!),
+      if ((detail.jobTitle ?? '').trim().isNotEmpty)
+        KeyValueRow('Position', detail.jobTitle!),
+      KeyValueRow('Review type', reviewTypeLabel(r.reviewType)),
+      KeyValueRow(
+        'Submitted',
+        r.submittedAt == null
+            ? 'Unknown'
+            : r.submittedAt!.toIso8601String().substring(0, 10),
+      ),
+    ]),
+  );
 
   var section = 0;
 
@@ -71,12 +73,14 @@ List<Block> selfEvalBlocks(SelfEvalDetail detail) {
     blocks.add(const SpacerBlock(16));
     blocks.add(SectionHeadingBlock(number: ++section, title: 'Ratings'));
     blocks.add(const SpacerBlock(8));
-    blocks.add(TableBlock(
-      headers: const ['Question', 'Score'],
-      rows: [
-        for (final e in ratings) [e.key, '${_scoreText(e.value)} / 5'],
-      ],
-    ));
+    blocks.add(
+      TableBlock(
+        headers: const ['Question', 'Score'],
+        rows: [
+          for (final e in ratings) [e.key, '${_scoreText(e.value)} / 5'],
+        ],
+      ),
+    );
   }
 
   // Text answers, excluding any question already shown as a rating so a
@@ -91,10 +95,12 @@ List<Block> selfEvalBlocks(SelfEvalDetail detail) {
     blocks.add(SectionHeadingBlock(number: ++section, title: 'Responses'));
     for (final e in answers) {
       blocks.add(const SpacerBlock(8));
-      blocks.add(EmphasisParagraphBlock(
-        spans: [EmphasisSpan(e.key, bold: true)],
-        align: pw.TextAlign.left,
-      ));
+      blocks.add(
+        EmphasisParagraphBlock(
+          spans: [EmphasisSpan(e.key, bold: true)],
+          align: pw.TextAlign.left,
+        ),
+      );
       blocks.add(const SpacerBlock(2));
       blocks.add(ParagraphBlock('${e.value}', align: pw.TextAlign.left));
     }

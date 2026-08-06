@@ -43,18 +43,22 @@ class LarkSelfEvalResponse {
 /// Self-eval responses for one employee, newest first. RLS scopes reads to the
 /// caller's company and HR/performance-admin role.
 final selfEvalResponsesForEmployeeProvider =
-    FutureProvider.family<List<LarkSelfEvalResponse>, String>(
-        (ref, employeeId) async {
-  final rows = await Supabase.instance.client
-      .from('lark_self_eval_responses')
-      .select('id, review_type, source_table, submitted_at, answers, ratings')
-      .eq('employee_id', employeeId)
-      .order('submitted_at', ascending: false);
-  return rows
-      .cast<Map<String, dynamic>>()
-      .map(LarkSelfEvalResponse.fromRow)
-      .toList();
-});
+    FutureProvider.family<List<LarkSelfEvalResponse>, String>((
+      ref,
+      employeeId,
+    ) async {
+      final rows = await Supabase.instance.client
+          .from('lark_self_eval_responses')
+          .select(
+            'id, review_type, source_table, submitted_at, answers, ratings',
+          )
+          .eq('employee_id', employeeId)
+          .order('submitted_at', ascending: false);
+      return rows
+          .cast<Map<String, dynamic>>()
+          .map(LarkSelfEvalResponse.fromRow)
+          .toList();
+    });
 
 /// A self-eval response flattened with the employee context needed for the
 /// HR Excel export (name, department, position, employment type).
@@ -83,17 +87,17 @@ class SelfEvalExportRow {
     required this.ratings,
   });
 
-  String get fullName => [firstName, lastName]
-      .where((s) => s.trim().isNotEmpty)
-      .join(' ')
-      .trim();
+  String get fullName =>
+      [firstName, lastName].where((s) => s.trim().isNotEmpty).join(' ').trim();
 }
 
 /// Fetch every self-eval response for [companyId] joined with employee context,
 /// newest first. Two round-trips: responses, then employee meta (with the
 /// department name embedded via the `employees.department_id -> departments` FK).
 /// Mirrors the batch-fetch style of `buildBrandSheetsFromCurrentFilter`.
-Future<List<SelfEvalExportRow>> fetchSelfEvalsForExport(String companyId) async {
+Future<List<SelfEvalExportRow>> fetchSelfEvalsForExport(
+  String companyId,
+) async {
   final client = Supabase.instance.client;
   final respRows = await client
       .from('lark_self_eval_responses')
@@ -111,7 +115,8 @@ Future<List<SelfEvalExportRow>> fetchSelfEvalsForExport(String companyId) async 
   final empRows = await client
       .from('employees')
       .select(
-          'id, employee_number, first_name, last_name, job_title, employment_type, departments(name)')
+        'id, employee_number, first_name, last_name, job_title, employment_type, departments(name)',
+      )
       .inFilter('id', empIds);
   final empById = <String, Map<String, dynamic>>{
     for (final e in empRows.cast<Map<String, dynamic>>()) e['id'] as String: e,
@@ -160,10 +165,8 @@ class SelfEvalDetail {
     this.jobTitle,
   });
 
-  String get fullName => [firstName, lastName]
-      .where((s) => s.trim().isNotEmpty)
-      .join(' ')
-      .trim();
+  String get fullName =>
+      [firstName, lastName].where((s) => s.trim().isNotEmpty).join(' ').trim();
 }
 
 /// Fetch one self-eval response by [responseId], joined with employee context
@@ -172,13 +175,16 @@ class SelfEvalDetail {
 /// FK), mirroring [fetchSelfEvalsForExport]. Returns null when the id is not
 /// found or RLS hides it. Exposed as a family keyed by response id for the
 /// self-eval PDF screen.
-final selfEvalDetailByIdProvider =
-    FutureProvider.family<SelfEvalDetail?, String>((ref, responseId) async {
+final selfEvalDetailByIdProvider = FutureProvider.family<SelfEvalDetail?, String>((
+  ref,
+  responseId,
+) async {
   final client = Supabase.instance.client;
   final row = await client
       .from('lark_self_eval_responses')
       .select(
-          'id, review_type, source_table, submitted_at, answers, ratings, employee_id')
+        'id, review_type, source_table, submitted_at, answers, ratings, employee_id',
+      )
       .eq('id', responseId)
       .maybeSingle();
   if (row == null) return null;
@@ -190,7 +196,8 @@ final selfEvalDetailByIdProvider =
     final empRow = await client
         .from('employees')
         .select(
-            'employee_number, first_name, last_name, job_title, departments(name)')
+          'employee_number, first_name, last_name, job_title, departments(name)',
+        )
         .eq('id', employeeId)
         .maybeSingle();
     if (empRow != null) emp = empRow;

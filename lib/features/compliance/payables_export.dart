@@ -69,12 +69,9 @@ class StatutoryAgencySection {
   final List<StatutoryEmployeeRow> rows;
   const StatutoryAgencySection({required this.agency, required this.rows});
 
-  Decimal get totalEe =>
-      rows.fold(Decimal.zero, (s, r) => s + r.eeShare);
-  Decimal get totalEr =>
-      rows.fold(Decimal.zero, (s, r) => s + r.erShare);
-  Decimal get total =>
-      rows.fold(Decimal.zero, (s, r) => s + r.total);
+  Decimal get totalEe => rows.fold(Decimal.zero, (s, r) => s + r.eeShare);
+  Decimal get totalEr => rows.fold(Decimal.zero, (s, r) => s + r.erShare);
+  Decimal get total => rows.fold(Decimal.zero, (s, r) => s + r.total);
 }
 
 /// Per-brand bundle assembled before the export.
@@ -137,21 +134,22 @@ Future<String?> _shareExcel(Excel excel, String fileName) async {
   final named = safe.toLowerCase().endsWith('.xlsx') ? safe : '$safe.xlsx';
   final path = '${dir.path}${Platform.pathSeparator}$named';
   await File(path).writeAsBytes(bytes);
-  final result = await Share.shareXFiles(
-    [
-      XFile(
-        path,
-        mimeType:
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      ),
-    ],
-    subject: fileName,
-  );
+  final result = await Share.shareXFiles([
+    XFile(
+      path,
+      mimeType:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ),
+  ], subject: fileName);
   if (result.status == ShareResultStatus.dismissed) return null;
   return path;
 }
 
-void _appendBrandSheet(Excel excel, StatutoryBrandSheet bundle, String periodLabel) {
+void _appendBrandSheet(
+  Excel excel,
+  StatutoryBrandSheet bundle,
+  String periodLabel,
+) {
   final sheetName = _clampSheetName(bundle.brand.name);
   final ws = excel[sheetName];
   final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
@@ -159,9 +157,11 @@ void _appendBrandSheet(Excel excel, StatutoryBrandSheet bundle, String periodLab
   // Row 1: header
   ws.appendRow(<CellValue?>[
     TextCellValue('Brand: ${bundle.brand.name}'),
-    null, null,
+    null,
+    null,
     TextCellValue('Period: $periodLabel'),
-    null, null,
+    null,
+    null,
     TextCellValue('Generated: $today'),
   ]);
   // Row 2: blank
@@ -202,7 +202,10 @@ void _appendBrandSheet(Excel excel, StatutoryBrandSheet bundle, String periodLab
     // Section total
     ws.appendRow(<CellValue?>[
       TextCellValue('TOTAL — ${section.agency.fullLabel}'),
-      null, null, null, null,
+      null,
+      null,
+      null,
+      null,
       DoubleCellValue(section.totalEe.toDouble()),
       DoubleCellValue(section.totalEr.toDouble()),
       DoubleCellValue(section.total.toDouble()),
@@ -218,7 +221,10 @@ void _appendBrandSheet(Excel excel, StatutoryBrandSheet bundle, String periodLab
   // Grand total
   ws.appendRow(<CellValue?>[
     TextCellValue('GRAND TOTAL'),
-    null, null, null, null,
+    null,
+    null,
+    null,
+    null,
     DoubleCellValue(grandEe.toDouble()),
     DoubleCellValue(grandEr.toDouble()),
     DoubleCellValue(grandTotal.toDouble()),
@@ -244,8 +250,7 @@ Future<String?> exportPayablesXlsx({
     _appendBrandSheet(excel, s, periodLabel);
   }
   if (defaultSheet != null &&
-      !sheets.any(
-          (s) => _clampSheetName(s.brand.name) == defaultSheet)) {
+      !sheets.any((s) => _clampSheetName(s.brand.name) == defaultSheet)) {
     excel.delete(defaultSheet);
   }
 
@@ -281,17 +286,16 @@ Future<List<StatutoryBrandSheet>> buildBrandSheetsFromCurrentFilter({
   final fromKey = bounds.fromYear * 100 + bounds.fromMonth;
   final toKey = bounds.toYear * 100 + bounds.toMonth;
 
-  final rawBreakdown = await client
-      .from('statutory_payable_breakdown_v')
-      .select() as List<dynamic>;
+  final rawBreakdown =
+      await client.from('statutory_payable_breakdown_v').select()
+          as List<dynamic>;
   final breakdown = rawBreakdown
       .cast<Map<String, dynamic>>()
       .map(StatutoryPayableBreakdownRow.fromRow)
       .where((r) {
         final key = r.periodYear * 100 + r.periodMonth;
         if (key < fromKey || key > toKey) return false;
-        if (brandFilter.isNotEmpty &&
-            !brandFilter.contains(r.hiringEntityId)) {
+        if (brandFilter.isNotEmpty && !brandFilter.contains(r.hiringEntityId)) {
           return false;
         }
         if (agencyFilter.isNotEmpty && !agencyFilter.contains(r.agency)) {
@@ -313,9 +317,7 @@ Future<List<StatutoryBrandSheet>> buildBrandSheetsFromCurrentFilter({
     for (final e in (empRows as List<dynamic>).cast<Map<String, dynamic>>())
       e['id'] as String: e,
   };
-  final brandById = <String, HiringEntity>{
-    for (final b in brands) b.id: b,
-  };
+  final brandById = <String, HiringEntity>{for (final b in brands) b.id: b};
 
   // Group by brand → agency.
   final byBrand = <String, Map<StatutoryAgency, List<StatutoryEmployeeRow>>>{};
@@ -339,8 +341,9 @@ Future<List<StatutoryBrandSheet>> buildBrandSheetsFromCurrentFilter({
 
   // Convert to sorted brand sheets.
   final sortedBrandIds = byBrand.keys.toList()
-    ..sort((a, b) =>
-        (brandById[a]?.name ?? '').compareTo(brandById[b]?.name ?? ''));
+    ..sort(
+      (a, b) => (brandById[a]?.name ?? '').compareTo(brandById[b]?.name ?? ''),
+    );
 
   final out = <StatutoryBrandSheet>[];
   for (final id in sortedBrandIds) {

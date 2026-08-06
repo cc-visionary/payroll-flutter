@@ -4,10 +4,11 @@ class WorkflowStep {
   final String id;
   final String workflowInstanceId;
   final int stepIndex;
-  final String stepType;        // enum: DATA_ENTRY|APPROVAL|DOCUMENT_GENERATION|STATUS_UPDATE|REVIEW
+  final String
+  stepType; // enum: DATA_ENTRY|APPROVAL|DOCUMENT_GENERATION|STATUS_UPDATE|REVIEW
   final String name;
   final String? description;
-  final String status;          // enum: PENDING|IN_PROGRESS|COMPLETED|SKIPPED|REJECTED
+  final String status; // enum: PENDING|IN_PROGRESS|COMPLETED|SKIPPED|REJECTED
   final String? assignedToId;
   final Map<String, dynamic>? inputData;
   final Map<String, dynamic>? outputData;

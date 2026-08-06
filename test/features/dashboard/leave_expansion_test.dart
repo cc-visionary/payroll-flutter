@@ -62,8 +62,7 @@ void main() {
       expect(out.fold<double>(0, (s, a) => s + a.days), 2.0);
     });
 
-    test('a request straddling a month boundary splits across both months',
-        () {
+    test('a request straddling a month boundary splits across both months', () {
       final out = expandLeaveRequest(
         employeeId: 'e1',
         startDate: DateTime(2026, 7, 30),
@@ -77,22 +76,24 @@ void main() {
       expect(august.fold<double>(0, (s, a) => s + a.days), 2.0);
     });
 
-    test('per-day values are scaled to reconcile with a disagreeing leave_days',
-        () {
-      // Stored leave_days says 2.0 but the span is 4 calendar days (e.g. the
-      // source excluded weekends). Scale so the request still contributes
-      // exactly 2.0 — bad data must not inflate the month bucket.
-      final out = expandLeaveRequest(
-        employeeId: 'e1',
-        startDate: DateTime(2026, 7, 6),
-        endDate: DateTime(2026, 7, 9),
-        leaveDays: 2.0,
-        leaveType: 'Vacation Leave',
-      );
-      expect(out.length, 4);
-      expect(out.fold<double>(0, (s, a) => s + a.days), closeTo(2.0, 1e-9));
-      expect(out.every((a) => a.days == 0.5), isTrue);
-    });
+    test(
+      'per-day values are scaled to reconcile with a disagreeing leave_days',
+      () {
+        // Stored leave_days says 2.0 but the span is 4 calendar days (e.g. the
+        // source excluded weekends). Scale so the request still contributes
+        // exactly 2.0 — bad data must not inflate the month bucket.
+        final out = expandLeaveRequest(
+          employeeId: 'e1',
+          startDate: DateTime(2026, 7, 6),
+          endDate: DateTime(2026, 7, 9),
+          leaveDays: 2.0,
+          leaveType: 'Vacation Leave',
+        );
+        expect(out.length, 4);
+        expect(out.fold<double>(0, (s, a) => s + a.days), closeTo(2.0, 1e-9));
+        expect(out.every((a) => a.days == 0.5), isTrue);
+      },
+    );
 
     test('leaveDays of 0 yields no allocations', () {
       final out = expandLeaveRequest(

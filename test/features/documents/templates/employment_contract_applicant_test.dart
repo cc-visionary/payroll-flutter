@@ -36,14 +36,9 @@ void main() {
           area: 'Recruitment',
           tasks: ['Post job openings', 'Screen applicants'],
         ),
-        ContractResponsibility(
-          area: 'Records',
-          tasks: ['Maintain 201 files'],
-        ),
+        ContractResponsibility(area: 'Records', tasks: ['Maintain 201 files']),
       ],
-      kpis: const [
-        ContractKpi(metric: 'Time to fill', frequency: 'Monthly'),
-      ],
+      kpis: const [ContractKpi(metric: 'Time to fill', frequency: 'Monthly')],
     );
     final blocks = tpl.build(inputs);
     expect(blocks, isNotEmpty);

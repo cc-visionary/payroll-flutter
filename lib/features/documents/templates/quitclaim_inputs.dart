@@ -7,13 +7,13 @@ class QuitclaimInputs extends TemplateInputs {
   final String employeeId;
   final String employeeFullName;
   final String employeeAddress;
-  final String civilStatus;      // e.g. 'single', 'married'
+  final String civilStatus; // e.g. 'single', 'married'
   final String companyId;
   final String companyName;
   final Decimal finalPayAmount;
   final DateTime? dateTerminated;
   final DateTime dateSigned;
-  final String placeSigned;      // where the document is signed (company address)
+  final String placeSigned; // where the document is signed (company address)
   // Excluded from toJson — re-resolved from the entity at view time.
   final Uint8List? logoBytes;
 
@@ -65,43 +65,42 @@ class QuitclaimInputs extends TemplateInputs {
     DateTime? dateSigned,
     String? placeSigned,
     Uint8List? logoBytes,
-  }) =>
-      QuitclaimInputs(
-        employeeId: employeeId ?? this.employeeId,
-        employeeFullName: employeeFullName ?? this.employeeFullName,
-        employeeAddress: employeeAddress ?? this.employeeAddress,
-        civilStatus: civilStatus ?? this.civilStatus,
-        companyId: companyId ?? this.companyId,
-        companyName: companyName ?? this.companyName,
-        finalPayAmount: finalPayAmount ?? this.finalPayAmount,
-        dateTerminated: identical(dateTerminated, _undef)
-            ? this.dateTerminated
-            : dateTerminated as DateTime?,
-        dateSigned: dateSigned ?? this.dateSigned,
-        placeSigned: placeSigned ?? this.placeSigned,
-        logoBytes: logoBytes ?? this.logoBytes,
-      );
+  }) => QuitclaimInputs(
+    employeeId: employeeId ?? this.employeeId,
+    employeeFullName: employeeFullName ?? this.employeeFullName,
+    employeeAddress: employeeAddress ?? this.employeeAddress,
+    civilStatus: civilStatus ?? this.civilStatus,
+    companyId: companyId ?? this.companyId,
+    companyName: companyName ?? this.companyName,
+    finalPayAmount: finalPayAmount ?? this.finalPayAmount,
+    dateTerminated: identical(dateTerminated, _undef)
+        ? this.dateTerminated
+        : dateTerminated as DateTime?,
+    dateSigned: dateSigned ?? this.dateSigned,
+    placeSigned: placeSigned ?? this.placeSigned,
+    logoBytes: logoBytes ?? this.logoBytes,
+  );
 
   @override
   Map<String, dynamic> toDebugMap() => {
-        'employeeId': employeeId,
-        'companyId': companyId,
-        'finalPayAmount': finalPayAmount.toString(),
-      };
+    'employeeId': employeeId,
+    'companyId': companyId,
+    'finalPayAmount': finalPayAmount.toString(),
+  };
 
   @override
   Map<String, dynamic> toJson() => {
-        'employeeId': employeeId,
-        'employeeFullName': employeeFullName,
-        'employeeAddress': employeeAddress,
-        'civilStatus': civilStatus,
-        'companyId': companyId,
-        'companyName': companyName,
-        'finalPayAmount': finalPayAmount.toString(),
-        'dateTerminated': dateTerminated?.toIso8601String(),
-        'dateSigned': dateSigned.toIso8601String(),
-        'placeSigned': placeSigned,
-      };
+    'employeeId': employeeId,
+    'employeeFullName': employeeFullName,
+    'employeeAddress': employeeAddress,
+    'civilStatus': civilStatus,
+    'companyId': companyId,
+    'companyName': companyName,
+    'finalPayAmount': finalPayAmount.toString(),
+    'dateTerminated': dateTerminated?.toIso8601String(),
+    'dateSigned': dateSigned.toIso8601String(),
+    'placeSigned': placeSigned,
+  };
 }
 
 const _undef = Object();

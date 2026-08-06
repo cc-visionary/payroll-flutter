@@ -37,7 +37,10 @@ void main() {
 
       // Sanity: attachment renders before the round-trip.
       expect(
-        const NteTemplate().build(inputs).whereType<ImageAttachmentBlock>().length,
+        const NteTemplate()
+            .build(inputs)
+            .whereType<ImageAttachmentBlock>()
+            .length,
         1,
       );
 
@@ -66,7 +69,10 @@ void main() {
 
       // Sanity: attachment renders before the round-trip.
       expect(
-        const NodTemplate().build(inputs).whereType<ImageAttachmentBlock>().length,
+        const NodTemplate()
+            .build(inputs)
+            .whereType<ImageAttachmentBlock>()
+            .length,
         1,
       );
 

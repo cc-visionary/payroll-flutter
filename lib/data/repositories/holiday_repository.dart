@@ -25,7 +25,11 @@ class HolidayRepository {
     if (existing != null) return existing;
     final row = await _client
         .from('holiday_calendars')
-        .insert({'company_id': companyId, 'year': year, 'name': '$year Holidays'})
+        .insert({
+          'company_id': companyId,
+          'year': year,
+          'name': '$year Holidays',
+        })
         .select()
         .single();
     return HolidayCalendar.fromRow(row);
@@ -37,7 +41,10 @@ class HolidayRepository {
         .select()
         .eq('calendar_id', calendarId)
         .order('date');
-    return rows.cast<Map<String, dynamic>>().map(CalendarEvent.fromRow).toList();
+    return rows
+        .cast<Map<String, dynamic>>()
+        .map(CalendarEvent.fromRow)
+        .toList();
   }
 
   Future<void> upsertManual({
@@ -67,9 +74,12 @@ class HolidayRepository {
 }
 
 final holidayRepositoryProvider = Provider<HolidayRepository>(
-    (ref) => HolidayRepository(Supabase.instance.client));
+  (ref) => HolidayRepository(Supabase.instance.client),
+);
 
-final selectedHolidayYearProvider = StateProvider<int>((ref) => DateTime.now().year);
+final selectedHolidayYearProvider = StateProvider<int>(
+  (ref) => DateTime.now().year,
+);
 
 final holidayCalendarProvider = FutureProvider<HolidayCalendar?>((ref) async {
   final profile = ref.watch(userProfileProvider).asData?.value;

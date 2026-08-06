@@ -35,7 +35,9 @@ class DriversScenarioTab extends ConsumerWidget {
     final configAsync = ref.watch(wpConfigProvider);
     final companyId = ref.watch(userProfileProvider).asData?.value?.companyId;
 
-    if (driversAsync.isLoading || ratesAsync.isLoading || configAsync.isLoading) {
+    if (driversAsync.isLoading ||
+        ratesAsync.isLoading ||
+        configAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
     final err = driversAsync.error ?? ratesAsync.error ?? configAsync.error;
@@ -57,23 +59,27 @@ class DriversScenarioTab extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const TabIntro(
-              purpose: 'The volume numbers and per-unit rates the hours are '
+              purpose:
+                  'The volume numbers and per-unit rates the hours are '
                   'calculated from.',
               details: [
                 (
                   term: 'Driver',
-                  meaning: 'A volume the business runs at — orders per month, '
+                  meaning:
+                      'A volume the business runs at — orders per month, '
                       'inquiries per month. A task bound to one is recalculated '
                       'whenever the driver changes.',
                 ),
                 (
                   term: 'Rate',
-                  meaning: 'Minutes one unit of work takes — 8 minutes to pick '
+                  meaning:
+                      'Minutes one unit of work takes — 8 minutes to pick '
                       'and pack an order. Times × minutes ÷ 60 = hours/month.',
                 ),
                 (
                   term: 'Grows',
-                  meaning: 'Marks a driver as demand-sensitive. ONLY tasks bound '
+                  meaning:
+                      'Marks a driver as demand-sensitive. ONLY tasks bound '
                       'to a growing driver respond to the multiplier below; a '
                       'manual hours figure stays flat at any scenario.',
                 ),
@@ -99,12 +105,11 @@ class DriversScenarioTab extends ConsumerWidget {
   }
 
   Widget _sectionHeader(BuildContext context, String title) => Text(
-        title,
-        style: Theme.of(context)
-            .textTheme
-            .titleMedium
-            ?.copyWith(fontWeight: FontWeight.w700),
-      );
+    title,
+    style: Theme.of(
+      context,
+    ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+  );
 
   // ── Scenario ─────────────────────────────────────────────────────────
 
@@ -127,13 +132,18 @@ class DriversScenarioTab extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Growth multiplier',
-                    style: Theme.of(context).textTheme.labelLarge),
+                Text(
+                  'Growth multiplier',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
                 const SizedBox(height: 4),
                 Text(
                   '${multiplier.toStringAsFixed(1)}×',
-                  style: AppTheme.mono(context,
-                      fontSize: 22, fontWeight: FontWeight.w600),
+                  style: AppTheme.mono(
+                    context,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -151,7 +161,12 @@ class DriversScenarioTab extends ConsumerWidget {
           FilledButton(
             onPressed: companyId == null
                 ? null
-                : () => _openMultiplierDialog(context, ref, companyId, multiplier),
+                : () => _openMultiplierDialog(
+                    context,
+                    ref,
+                    companyId,
+                    multiplier,
+                  ),
             child: const Text('Set multiplier'),
           ),
         ],
@@ -218,7 +233,8 @@ class DriversScenarioTab extends ConsumerWidget {
                 driver: d,
                 onEdit: companyId == null
                     ? null
-                    : () => _openDriverForm(context, ref, companyId, existing: d),
+                    : () =>
+                          _openDriverForm(context, ref, companyId, existing: d),
               ),
             ),
       ],
@@ -240,9 +256,9 @@ class DriversScenarioTab extends ConsumerWidget {
       await ref.read(workforcePlanningRepositoryProvider).saveDriver(result);
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save driver: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not save driver: $e')));
       return;
     }
     ref.invalidate(wpDriversProvider);
@@ -304,9 +320,9 @@ class DriversScenarioTab extends ConsumerWidget {
       await ref.read(workforcePlanningRepositoryProvider).saveRate(result);
     } catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save rate: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not save rate: $e')));
       return;
     }
     ref.invalidate(wpRatesProvider);
@@ -427,7 +443,11 @@ class _MultiplierDialogState extends State<_MultiplierDialog> {
           children: [
             Text(
               '${_value.toStringAsFixed(1)}×',
-              style: AppTheme.mono(context, fontSize: 24, fontWeight: FontWeight.w600),
+              style: AppTheme.mono(
+                context,
+                fontSize: 24,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             Slider(
               value: _value,
@@ -476,8 +496,9 @@ class _DriverDialog extends StatefulWidget {
 
 class _DriverDialogState extends State<_DriverDialog> {
   late final _name = TextEditingController(text: widget.existing?.name ?? '');
-  late final _value =
-      TextEditingController(text: (widget.existing?.value ?? 0).toString());
+  late final _value = TextEditingController(
+    text: (widget.existing?.value ?? 0).toString(),
+  );
   late bool _grows = widget.existing?.grows ?? false;
   String? _error;
 
@@ -506,7 +527,10 @@ class _DriverDialogState extends State<_DriverDialog> {
   }
 
   InputDecoration _dec(String label) => InputDecoration(
-      labelText: label, border: const OutlineInputBorder(), isDense: true);
+    labelText: label,
+    border: const OutlineInputBorder(),
+    isDense: true,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -519,11 +543,17 @@ class _DriverDialogState extends State<_DriverDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(controller: _name, autofocus: true, decoration: _dec('Name')),
+              TextField(
+                controller: _name,
+                autofocus: true,
+                decoration: _dec('Name'),
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: _value,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 style: AppTheme.mono(context),
                 decoration: _dec('Value'),
               ),
@@ -540,15 +570,20 @@ class _DriverDialogState extends State<_DriverDialog> {
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child:
-                      Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                  ),
                 ),
             ],
           ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         FilledButton(onPressed: _save, child: const Text('Save')),
       ],
     );
@@ -569,7 +604,8 @@ class _RateDialog extends StatefulWidget {
 class _RateDialogState extends State<_RateDialog> {
   late final _name = TextEditingController(text: widget.existing?.name ?? '');
   late final _minutes = TextEditingController(
-      text: (widget.existing?.minutesEach ?? 0).toString());
+    text: (widget.existing?.minutesEach ?? 0).toString(),
+  );
   String? _error;
 
   @override
@@ -595,7 +631,10 @@ class _RateDialogState extends State<_RateDialog> {
   }
 
   InputDecoration _dec(String label) => InputDecoration(
-      labelText: label, border: const OutlineInputBorder(), isDense: true);
+    labelText: label,
+    border: const OutlineInputBorder(),
+    isDense: true,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -608,26 +647,37 @@ class _RateDialogState extends State<_RateDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(controller: _name, autofocus: true, decoration: _dec('Name')),
+              TextField(
+                controller: _name,
+                autofocus: true,
+                decoration: _dec('Name'),
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: _minutes,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 style: AppTheme.mono(context),
                 decoration: _dec('Minutes each'),
               ),
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child:
-                      Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                  ),
                 ),
             ],
           ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         FilledButton(onPressed: _save, child: const Text('Save')),
       ],
     );

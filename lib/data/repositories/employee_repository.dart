@@ -7,14 +7,19 @@ class EmployeeRepository {
   final SupabaseClient _client;
   EmployeeRepository(this._client);
 
-  Future<List<Employee>> list({String? search, bool includeArchived = false}) async {
+  Future<List<Employee>> list({
+    String? search,
+    bool includeArchived = false,
+  }) async {
     var q = _client.from('employees').select();
     if (!includeArchived) {
       q = q.isFilter('deleted_at', null);
     }
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
-      q = q.or('first_name.ilike.$s,last_name.ilike.$s,employee_number.ilike.$s');
+      q = q.or(
+        'first_name.ilike.$s,last_name.ilike.$s,employee_number.ilike.$s',
+      );
     }
     final rows = await q.order('employee_number');
     final out = <Employee>[];
@@ -74,7 +79,10 @@ class EmployeeRepository {
   /// the Workforce Planning Structure tab's reporting drag. HR/Admin-gated by the
   /// employees table's `employees_admin_write` RLS policy.
   Future<void> updateReportsTo(String employeeId, String? managerId) async {
-    await _client.from('employees').update({'reports_to_id': managerId}).eq('id', employeeId);
+    await _client
+        .from('employees')
+        .update({'reports_to_id': managerId})
+        .eq('id', employeeId);
   }
 
   /// The single employee flagged for a signing capacity, or null when nobody
@@ -210,7 +218,10 @@ class EmployeeRepository {
       'employment_type': employmentType,
       'employment_status': employmentStatus,
       'hire_date': hireDate.toIso8601String().substring(0, 10),
-      'regularization_date': regularizationDate?.toIso8601String().substring(0, 10),
+      'regularization_date': regularizationDate?.toIso8601String().substring(
+        0,
+        10,
+      ),
       'separation_date': separationDate?.toIso8601String().substring(0, 10),
       'is_rank_and_file': isRankAndFile,
       'is_ot_eligible': isOtEligible,
@@ -223,11 +234,13 @@ class EmployeeRepository {
     if (writeDeclaredWage) {
       payload['declared_wage_override'] = declaredWageOverride;
       payload['declared_wage_type'] = declaredWageType;
-      payload['declared_wage_effective_at'] = declaredWageEffectiveAt?.toIso8601String();
+      payload['declared_wage_effective_at'] = declaredWageEffectiveAt
+          ?.toIso8601String();
       payload['declared_wage_reason'] = declaredWageReason;
       payload['declared_wage_set_by_id'] = declaredWageSetById;
-      payload['declared_wage_set_at'] =
-          declaredWageOverride == null ? null : DateTime.now().toIso8601String();
+      payload['declared_wage_set_at'] = declaredWageOverride == null
+          ? null
+          : DateTime.now().toIso8601String();
     }
     if (writePaymentRouting) {
       payload['payment_method'] = paymentMethod;
@@ -240,7 +253,8 @@ class EmployeeRepository {
       payload['sss_eligibility_override'] = sssEligibilityOverride;
     }
     if (philhealthEligibilityOverride != null) {
-      payload['philhealth_eligibility_override'] = philhealthEligibilityOverride;
+      payload['philhealth_eligibility_override'] =
+          philhealthEligibilityOverride;
     }
     if (pagibigEligibilityOverride != null) {
       payload['pagibig_eligibility_override'] = pagibigEligibilityOverride;
@@ -249,7 +263,12 @@ class EmployeeRepository {
     if (id == null) {
       row = await _client.from('employees').insert(payload).select().single();
     } else {
-      row = await _client.from('employees').update(payload).eq('id', id).select().single();
+      row = await _client
+          .from('employees')
+          .update(payload)
+          .eq('id', id)
+          .select()
+          .single();
     }
     return Employee.fromRow(row);
   }
@@ -277,19 +296,23 @@ class EmployeeListQuery {
 
 final employeeListProvider =
     FutureProvider.family<List<Employee>, EmployeeListQuery>((ref, q) async {
-  final repo = ref.watch(employeeRepositoryProvider);
-  return repo.list(search: q.search, includeArchived: q.includeArchived);
-});
+      final repo = ref.watch(employeeRepositoryProvider);
+      return repo.list(search: q.search, includeArchived: q.includeArchived);
+    });
 
 /// Single-employee fetch used by the profile screen.
-final employeeByIdProvider =
-    FutureProvider.family<Employee?, String>((ref, id) async {
+final employeeByIdProvider = FutureProvider.family<Employee?, String>((
+  ref,
+  id,
+) async {
   final repo = ref.watch(employeeRepositoryProvider);
   return repo.byId(id);
 });
 
 /// The employee flagged as HR / Legal signatory (company-scoped via RLS).
 final hrSignatoryProvider = FutureProvider<Employee?>(
-    (ref) => ref.watch(employeeRepositoryProvider).signatoryFor(hr: true));
+  (ref) => ref.watch(employeeRepositoryProvider).signatoryFor(hr: true),
+);
 final legalSignatoryProvider = FutureProvider<Employee?>(
-    (ref) => ref.watch(employeeRepositoryProvider).signatoryFor(hr: false));
+  (ref) => ref.watch(employeeRepositoryProvider).signatoryFor(hr: false),
+);

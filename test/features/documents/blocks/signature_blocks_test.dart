@@ -23,21 +23,28 @@ void main() {
 
   test('MultiSignatureBlock holds multiple signatories', () {
     final b = MultiSignatureBlock([
-      SignatoryParty(name: 'Donald', role: 'Employee', date: DateTime(2026, 5, 5)),
+      SignatoryParty(
+        name: 'Donald',
+        role: 'Employee',
+        date: DateTime(2026, 5, 5),
+      ),
       SignatoryParty(name: 'Clinton', role: 'CEO', date: DateTime(2026, 5, 5)),
     ]);
     expect(b.signatories.length, 2);
   });
 
-  test('MultiSignatureBlock accepts null date and renders without throwing', () {
-    final theme = PdfTheme.testStub();
-    const party = SignatoryParty(name: 'X', role: 'Y', date: null);
-    expect(party.date, isNull);
-    expect(
-      () => const MultiSignatureBlock([party]).toPdf(theme),
-      returnsNormally,
-    );
-  });
+  test(
+    'MultiSignatureBlock accepts null date and renders without throwing',
+    () {
+      final theme = PdfTheme.testStub();
+      const party = SignatoryParty(name: 'X', role: 'Y', date: null);
+      expect(party.date, isNull);
+      expect(
+        () => const MultiSignatureBlock([party]).toPdf(theme),
+        returnsNormally,
+      );
+    },
+  );
 
   test('MultiSignatureBlock renders a mixed signed/unsigned pair', () {
     // A one-sided signature used to shift that party's sign line 40pt down
@@ -74,7 +81,11 @@ void main() {
   test('all blocks render without throwing', () {
     final theme = PdfTheme.testStub();
     expect(
-      () => SignatureBlock(name: 'X', role: 'Y', date: DateTime(2026, 1, 1)).toPdf(theme),
+      () => SignatureBlock(
+        name: 'X',
+        role: 'Y',
+        date: DateTime(2026, 1, 1),
+      ).toPdf(theme),
       returnsNormally,
     );
     expect(

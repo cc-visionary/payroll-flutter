@@ -13,11 +13,11 @@ class SectionHeadingBlock extends Block {
 
   @override
   pw.Widget toPdf(PdfTheme theme) => pw.Text(
-        formatted,
-        style: pw.TextStyle(
-          fontSize: theme.headingSize,
-          fontWeight: pw.FontWeight.bold,
-          color: theme.textColor,
-        ),
-      );
+    formatted,
+    style: pw.TextStyle(
+      fontSize: theme.headingSize,
+      fontWeight: pw.FontWeight.bold,
+      color: theme.textColor,
+    ),
+  );
 }

@@ -45,14 +45,19 @@ class _TabIntroState extends State<TabIntro> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Flexible(
-              child: Text(widget.purpose,
-                  style: TextStyle(color: cs.onSurfaceVariant)),
+              child: Text(
+                widget.purpose,
+                style: TextStyle(color: cs.onSurfaceVariant),
+              ),
             ),
             const SizedBox(width: 6),
             if (widget.details.isNotEmpty)
               TextButton.icon(
                 onPressed: () => setState(() => _open = !_open),
-                icon: Icon(_open ? Icons.expand_less : Icons.help_outline, size: 15),
+                icon: Icon(
+                  _open ? Icons.expand_less : Icons.help_outline,
+                  size: 15,
+                ),
                 label: Text(_open ? 'Hide' : 'How this works'),
                 style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
@@ -80,12 +85,17 @@ class _TabIntroState extends State<TabIntro> {
                     padding: const EdgeInsets.only(bottom: 6),
                     child: RichText(
                       text: TextSpan(
-                        style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurfaceVariant,
+                        ),
                         children: [
                           TextSpan(
                             text: '${d.term}  ',
                             style: TextStyle(
-                                fontWeight: FontWeight.w600, color: cs.onSurface),
+                              fontWeight: FontWeight.w600,
+                              color: cs.onSurface,
+                            ),
                           ),
                           TextSpan(text: d.meaning),
                         ],
@@ -105,50 +115,59 @@ class _TabIntroState extends State<TabIntro> {
 class WpGlossary {
   static const derived = (
     term: 'Derived',
-    meaning: 'The task has no named owner, so it reaches whoever holds its role '
+    meaning:
+        'The task has no named owner, so it reaches whoever holds its role '
         'card — split evenly if the role has more than one holder.',
   );
   static const weighted = (
     term: 'Weighted responsibility',
-    meaning: 'A responsibility with estimated hours. Behavioural standards and '
+    meaning:
+        'A responsibility with estimated hours. Behavioural standards and '
         'required skills live on the role card instead and carry no hours, so '
         'they never appear here.',
   );
   static const load = (
     term: 'Load',
-    meaning: 'Hours of modelled work ÷ that person\'s monthly capacity '
+    meaning:
+        'Hours of modelled work ÷ that person\'s monthly capacity '
         '(160h unless overridden). Over 100% = Over, 80-100% = OK, below = Under.',
   );
   static const notCosted = (
     term: 'Needs costing',
-    meaning: 'Real work nobody has estimated yet. It contributes 0 hours, so '
+    meaning:
+        'Real work nobody has estimated yet. It contributes 0 hours, so '
         'every load figure that includes it is understated.',
   );
   static const unassigned = (
     term: 'Unassigned',
-    meaning: 'Costed work that reaches nobody — no named owner, and either no '
+    meaning:
+        'Costed work that reaches nobody — no named owner, and either no '
         'role card or a card with no active holder. It is missing from every '
         'person\'s load.',
   );
   static const multiplier = (
     term: 'Growth multiplier',
-    meaning: 'Scenario dial in Drivers. Only tasks driven by a volume driver '
+    meaning:
+        'Scenario dial in Drivers. Only tasks driven by a volume driver '
         'flagged "grows" respond to it; a manual hours figure is flat forever.',
   );
   static const node = (
     term: 'Node',
-    meaning: 'The value-chain stage a task belongs to (Source & land, Fulfil, '
+    meaning:
+        'The value-chain stage a task belongs to (Source & land, Fulfil, '
         'After-sales…). Grouping only — it has no effect on the hours.',
   );
   static const proposeRole = (
     term: 'Propose role from these',
-    meaning: 'When several unassigned responsibilities form a coherent job, '
+    meaning:
+        'When several unassigned responsibilities form a coherent job, '
         'draft a new (inactive) role card seeded with them — turning a pile of '
         'unowned work into the role you need to staff, hours already totalled.',
   );
   static const needsAttention = (
     term: 'Needs attention',
-    meaning: 'Gaps derived from the current plan, grouped People / Process / '
+    meaning:
+        'Gaps derived from the current plan, grouped People / Process / '
         'Structure / Tools — over-capacity people, unowned or uncosted work, '
         'unstaffed critical roles, KPIs measuring nobody. Each links to its fix.',
   );

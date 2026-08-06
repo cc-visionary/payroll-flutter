@@ -21,55 +21,63 @@ RoleScorecard buildCard({
   ],
   List<KpiItem> kpis = const [
     KpiItem(
-        name: 'Conversion',
-        measurement: 'CVR %',
-        target: '3%',
-        frequency: 'Monthly'),
+      name: 'Conversion',
+      measurement: 'CVR %',
+      target: '3%',
+      frequency: 'Monthly',
+    ),
   ],
   List<RequiredSkill> skills = const [
     RequiredSkill(name: 'Excel', description: 'Pivot tables'),
   ],
   List<BehavioralExpectation> behaviors = const [
-    BehavioralExpectation(name: 'Ownership', description: 'Sees issues through'),
+    BehavioralExpectation(
+      name: 'Ownership',
+      description: 'Sees issues through',
+    ),
   ],
-}) =>
-    RoleScorecard(
-      id: 'card-1',
-      companyId: 'co-1',
-      jobTitle: 'Brand Associate',
-      missionStatement: mission,
-      responsibilities: responsibilities,
-      kpis: kpis,
-      requiredSkills: skills,
-      behavioralExpectations: behaviors,
-      wageType: 'MONTHLY',
-      workHoursPerDay: 8,
-      workDaysPerWeek: 'MON_FRI',
-      isActive: true,
-      effectiveDate: DateTime(2026, 1, 1),
-    );
+}) => RoleScorecard(
+  id: 'card-1',
+  companyId: 'co-1',
+  jobTitle: 'Brand Associate',
+  missionStatement: mission,
+  responsibilities: responsibilities,
+  kpis: kpis,
+  requiredSkills: skills,
+  behavioralExpectations: behaviors,
+  wageType: 'MONTHLY',
+  workHoursPerDay: 8,
+  workDaysPerWeek: 'MON_FRI',
+  isActive: true,
+  effectiveDate: DateTime(2026, 1, 1),
+);
 
 void main() {
-  test('renders a valid, non-empty PDF through the document pipeline', () async {
-    // Exercises every block's toPdf() end to end. testStub() uses built-in
-    // Helvetica so no fonts are fetched over the network under flutter_test.
-    final bytes = await buildDocumentPdf(
-      blocks: roleCardBlocks(
-        buildCard(),
-        companyName: 'Acme',
-        companyAddress: '1 Main St',
-      ),
-      theme: PdfTheme.testStub(),
-    );
-    expect(bytes.length, greaterThan(1000));
-    expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
-  });
+  test(
+    'renders a valid, non-empty PDF through the document pipeline',
+    () async {
+      // Exercises every block's toPdf() end to end. testStub() uses built-in
+      // Helvetica so no fonts are fetched over the network under flutter_test.
+      final bytes = await buildDocumentPdf(
+        blocks: roleCardBlocks(
+          buildCard(),
+          companyName: 'Acme',
+          companyAddress: '1 Main St',
+        ),
+        theme: PdfTheme.testStub(),
+      );
+      expect(bytes.length, greaterThan(1000));
+      expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
+    },
+  );
 
   test('a populated card renders every section in order', () {
     final blocks = roleCardBlocks(buildCard());
     expect(blocks.whereType<TitleBlock>().length, 1);
-    final headings =
-        blocks.whereType<SectionHeadingBlock>().map((b) => b.title).toList();
+    final headings = blocks
+        .whereType<SectionHeadingBlock>()
+        .map((b) => b.title)
+        .toList();
     expect(headings, [
       'Mission',
       'Key Responsibilities',
@@ -85,14 +93,18 @@ void main() {
   });
 
   test('empty sections are omitted and numbering stays sequential', () {
-    final blocks = roleCardBlocks(buildCard(
-      mission: '',
-      kpis: const [],
-      skills: const [],
-      behaviors: const [],
-    ));
-    final headings =
-        blocks.whereType<SectionHeadingBlock>().map((b) => b.title).toList();
+    final blocks = roleCardBlocks(
+      buildCard(
+        mission: '',
+        kpis: const [],
+        skills: const [],
+        behaviors: const [],
+      ),
+    );
+    final headings = blocks
+        .whereType<SectionHeadingBlock>()
+        .map((b) => b.title)
+        .toList();
     expect(headings, ['Key Responsibilities']);
     expect(blocks.whereType<SectionHeadingBlock>().single.number, 1);
     expect(blocks.whereType<TableBlock>(), isEmpty);
@@ -104,30 +116,38 @@ void main() {
   });
 
   test('responsibilities render as a heading + bullet list per area', () {
-    final blocks = roleCardBlocks(buildCard(
-      responsibilities: const [
-        ResponsibilityArea(
-            area: 'Merchandising', tasks: ['Curate drops', 'Plan calendar']),
-      ],
-    ));
-    expect(blocks.whereType<HeadingBlock>().map((b) => b.text),
-        contains('Merchandising'));
+    final blocks = roleCardBlocks(
+      buildCard(
+        responsibilities: const [
+          ResponsibilityArea(
+            area: 'Merchandising',
+            tasks: ['Curate drops', 'Plan calendar'],
+          ),
+        ],
+      ),
+    );
+    expect(
+      blocks.whereType<HeadingBlock>().map((b) => b.text),
+      contains('Merchandising'),
+    );
     final bullets = blocks.whereType<BulletListBlock>().toList();
     expect(bullets, isNotEmpty);
     expect(bullets.first.items, ['Curate drops', 'Plan calendar']);
   });
 
-  test('labelled items (skills/behaviors) always have a non-empty label and body', () {
-    final items = roleCardBlocks(buildCard())
-        .whereType<LabelledBulletListBlock>()
-        .expand((b) => b.items)
-        .toList();
-    expect(items, isNotEmpty);
-    for (final item in items) {
-      expect(item.leadBold, isNotEmpty);
-      expect(item.body, isNotEmpty);
-    }
-  });
+  test(
+    'labelled items (skills/behaviors) always have a non-empty label and body',
+    () {
+      final items = roleCardBlocks(
+        buildCard(),
+      ).whereType<LabelledBulletListBlock>().expand((b) => b.items).toList();
+      expect(items, isNotEmpty);
+      for (final item in items) {
+        expect(item.leadBold, isNotEmpty);
+        expect(item.body, isNotEmpty);
+      }
+    },
+  );
 
   test('never renders compensation fields', () {
     Iterable<String> textOf(Block b) {
@@ -161,20 +181,26 @@ void main() {
       missionStatement: 'Own the storefront experience.',
       responsibilities: const [
         ResponsibilityArea(
-            area: 'Merchandising', tasks: ['Curate weekly drops']),
+          area: 'Merchandising',
+          tasks: ['Curate weekly drops'],
+        ),
       ],
       kpis: const [
         KpiItem(
-            name: 'Conversion',
-            measurement: 'CVR %',
-            target: '3%',
-            frequency: 'Monthly'),
+          name: 'Conversion',
+          measurement: 'CVR %',
+          target: '3%',
+          frequency: 'Monthly',
+        ),
       ],
       requiredSkills: const [
         RequiredSkill(name: 'Excel', description: 'Pivot tables'),
       ],
       behavioralExpectations: const [
-        BehavioralExpectation(name: 'Ownership', description: 'Sees issues through'),
+        BehavioralExpectation(
+          name: 'Ownership',
+          description: 'Sees issues through',
+        ),
       ],
       salaryRangeMin: Decimal.parse('111222333'),
       salaryRangeMax: Decimal.parse('444555666'),
@@ -199,8 +225,11 @@ void main() {
       '444555666',
       '777888999',
     ]) {
-      expect(rendered.contains(sentinel), isFalse,
-          reason: 'compensation leaked into the role-card PDF: $sentinel');
+      expect(
+        rendered.contains(sentinel),
+        isFalse,
+        reason: 'compensation leaked into the role-card PDF: $sentinel',
+      );
     }
   });
 }

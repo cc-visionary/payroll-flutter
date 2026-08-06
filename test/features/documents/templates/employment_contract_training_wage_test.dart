@@ -88,9 +88,11 @@ void main() {
 
   group('TrainingWage template rendering', () {
     test('renders §5 clause when trainingWage is present', () {
-      final text = renderedText(seed(
-        trainingWage: const TrainingWage(dailyRate: '350', trainingDays: 7),
-      ));
+      final text = renderedText(
+        seed(
+          trainingWage: const TrainingWage(dailyRate: '350', trainingDays: 7),
+        ),
+      );
       expect(text, contains('training allowance of PHP 350 per day'));
       expect(text, contains('first 7 days'));
     });
@@ -108,30 +110,34 @@ void main() {
     });
 
     test('valid trainingWage adds no training errors', () {
-      final errs = validateEmploymentContract(seed(
-        trainingWage: const TrainingWage(dailyRate: '350', trainingDays: 7),
-      ));
+      final errs = validateEmploymentContract(
+        seed(
+          trainingWage: const TrainingWage(dailyRate: '350', trainingDays: 7),
+        ),
+      );
       expect(errs.where((e) => e.field.startsWith('trainingWage')), isEmpty);
     });
 
     test('zero daily rate flagged', () {
-      final errs = validateEmploymentContract(seed(
-        trainingWage: const TrainingWage(dailyRate: '0', trainingDays: 7),
-      ));
+      final errs = validateEmploymentContract(
+        seed(trainingWage: const TrainingWage(dailyRate: '0', trainingDays: 7)),
+      );
       expect(errs.any((e) => e.field == 'trainingWage.dailyRate'), true);
     });
 
     test('empty daily rate flagged', () {
-      final errs = validateEmploymentContract(seed(
-        trainingWage: const TrainingWage(dailyRate: '', trainingDays: 7),
-      ));
+      final errs = validateEmploymentContract(
+        seed(trainingWage: const TrainingWage(dailyRate: '', trainingDays: 7)),
+      );
       expect(errs.any((e) => e.field == 'trainingWage.dailyRate'), true);
     });
 
     test('zero training days flagged', () {
-      final errs = validateEmploymentContract(seed(
-        trainingWage: const TrainingWage(dailyRate: '350', trainingDays: 0),
-      ));
+      final errs = validateEmploymentContract(
+        seed(
+          trainingWage: const TrainingWage(dailyRate: '350', trainingDays: 0),
+        ),
+      );
       expect(errs.any((e) => e.field == 'trainingWage.trainingDays'), true);
     });
   });

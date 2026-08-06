@@ -45,13 +45,13 @@ class QuitclaimTemplate extends DocumentTemplate<QuitclaimInputs> {
 
   @override
   QuitclaimInputs emptyInputs() => QuitclaimInputs(
-        employeeId: '',
-        employeeFullName: '',
-        companyId: '',
-        companyName: '',
-        finalPayAmount: Decimal.zero,
-        dateSigned: DateTime.now(),
-      );
+    employeeId: '',
+    employeeFullName: '',
+    companyId: '',
+    companyName: '',
+    finalPayAmount: Decimal.zero,
+    dateSigned: DateTime.now(),
+  );
 
   @override
   Future<QuitclaimInputs> autofill(AutofillContext ctx) async {
@@ -62,8 +62,13 @@ class QuitclaimTemplate extends DocumentTemplate<QuitclaimInputs> {
     return QuitclaimInputs(
       employeeId: emp.id,
       employeeFullName: emp.fullName,
-      employeeAddress: _composeAddress(emp.addressLine1, emp.addressLine2,
-          emp.city, emp.province, emp.zipCode),
+      employeeAddress: _composeAddress(
+        emp.addressLine1,
+        emp.addressLine2,
+        emp.city,
+        emp.province,
+        emp.zipCode,
+      ),
       civilStatus: 'single',
       companyId: co?.id ?? '',
       companyName: co?.name ?? '',
@@ -72,8 +77,13 @@ class QuitclaimTemplate extends DocumentTemplate<QuitclaimInputs> {
       dateSigned: DateTime.now(),
       placeSigned: co == null
           ? ''
-          : _composeAddress(co.addressLine1, co.addressLine2, co.city,
-              co.province, co.zipCode),
+          : _composeAddress(
+              co.addressLine1,
+              co.addressLine2,
+              co.city,
+              co.province,
+              co.zipCode,
+            ),
       logoBytes: logo,
     );
   }
@@ -94,42 +104,50 @@ class QuitclaimTemplate extends DocumentTemplate<QuitclaimInputs> {
       const SpacerBlock(16),
       const TitleBlock('QUITCLAIM AND RELEASE', centered: true),
       const SpacerBlock(16),
-      EmphasisParagraphBlock(spans: [
-        const EmphasisSpan('I, '),
-        EmphasisSpan(i.employeeFullName, bold: true),
-        EmphasisSpan(', of legal age, ${i.civilStatus} and residing at '),
-        EmphasisSpan(i.employeeAddress, italic: true),
-        const EmphasisSpan(', for and in consideration of the amount of '),
-        EmphasisSpan('₱$amount', bold: true),
-        const EmphasisSpan(' (Sum of Last Pay) paid to me by '),
-        EmphasisSpan(i.companyName, bold: true),
-        const EmphasisSpan(
+      EmphasisParagraphBlock(
+        spans: [
+          const EmphasisSpan('I, '),
+          EmphasisSpan(i.employeeFullName, bold: true),
+          EmphasisSpan(', of legal age, ${i.civilStatus} and residing at '),
+          EmphasisSpan(i.employeeAddress, italic: true),
+          const EmphasisSpan(', for and in consideration of the amount of '),
+          EmphasisSpan('₱$amount', bold: true),
+          const EmphasisSpan(' (Sum of Last Pay) paid to me by '),
+          EmphasisSpan(i.companyName, bold: true),
+          const EmphasisSpan(
             ' and receipt of which is hereby acknowledged to my full and '
             'complete satisfaction, do hereby release and forever discharge '
             'said Company, its officers and stockholders from any and all '
-            'claims arising out of and in connection with my dismissal.'),
-      ]),
+            'claims arising out of and in connection with my dismissal.',
+          ),
+        ],
+      ),
       const SpacerBlock(8),
       const ParagraphBlock(_qcPara2),
       const SpacerBlock(8),
-      EmphasisParagraphBlock(spans: [
-        const EmphasisSpan(
+      EmphasisParagraphBlock(
+        spans: [
+          const EmphasisSpan(
             'I acknowledge that my separation from the Company is due to my '
             'failure to qualify as a regular employee in accordance with the '
             'reasonable standards made known to me at the time of my '
             'engagement. I accept the results of the evaluation and the '
-            'termination of my probationary employment effective '),
-        EmphasisSpan(
+            'termination of my probationary employment effective ',
+          ),
+          EmphasisSpan(
             i.dateTerminated == null ? '—' : fmt.format(i.dateTerminated!),
-            bold: true),
-        const EmphasisSpan('.'),
-      ]),
+            bold: true,
+          ),
+          const EmphasisSpan('.'),
+        ],
+      ),
       const SpacerBlock(8),
       const ParagraphBlock(_qcPara4),
       const SpacerBlock(8),
       ParagraphBlock(
-          'IN WITNESS WHEREOF, I have hereunto signed these presents this '
-          '${fmt.format(i.dateSigned)} at ${i.placeSigned}.'),
+        'IN WITNESS WHEREOF, I have hereunto signed these presents this '
+        '${fmt.format(i.dateSigned)} at ${i.placeSigned}.',
+      ),
       const SpacerBlock(40),
       const CenteredSignatureBlock('Name and signature of Employee'),
       const SpacerBlock(16),
@@ -144,14 +162,22 @@ class QuitclaimTemplate extends DocumentTemplate<QuitclaimInputs> {
 }
 
 String _composeAddress(
-    String? l1, String? l2, String? city, String? prov, String? zip) {
-  final tail = [city, prov, zip]
-      .where((s) => s != null && s.isNotEmpty)
-      .join(', ');
-  return [l1, l2, tail]
-      .where((s) => s != null && s.isNotEmpty)
-      .cast<String>()
-      .join(', ');
+  String? l1,
+  String? l2,
+  String? city,
+  String? prov,
+  String? zip,
+) {
+  final tail = [
+    city,
+    prov,
+    zip,
+  ].where((s) => s != null && s.isNotEmpty).join(', ');
+  return [
+    l1,
+    l2,
+    tail,
+  ].where((s) => s != null && s.isNotEmpty).cast<String>().join(', ');
 }
 
 String _formatPeso(String amount) {

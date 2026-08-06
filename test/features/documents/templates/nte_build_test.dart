@@ -15,26 +15,26 @@ import 'package:payroll_flutter/features/documents/templates/nte_template.dart';
 
 void main() {
   NteInputs valid() => NteInputs(
-        employeeId: 'e1',
-        employeeFullName: 'Orlando Del Prado',
-        employeeFirstName: 'Orlando',
-        employeeLastName: 'Del Prado',
-        employeePosition: 'Sales Associate',
-        employeeDepartment: 'LCT Kiosk',
-        companyId: 'c1',
-        companyName: 'LUXIUM TRADING CO.',
-        hrManagerName: 'Brixter Del Mundo',
-        dateIssued: DateTime(2026, 4, 27),
-        responseDeadline: DateTime(2026, 5, 2),
-        subjectSubtopic: 'Theft Investigation',
-        charges: [
-          NteCharge(
-            title: 'Unauthorized cash withdrawal',
-            body: Delta()..insert('Body of charge.\n'),
-          ),
-        ],
-        applicableViolations: ['Code of Conduct §3.1'],
-      );
+    employeeId: 'e1',
+    employeeFullName: 'Orlando Del Prado',
+    employeeFirstName: 'Orlando',
+    employeeLastName: 'Del Prado',
+    employeePosition: 'Sales Associate',
+    employeeDepartment: 'LCT Kiosk',
+    companyId: 'c1',
+    companyName: 'LUXIUM TRADING CO.',
+    hrManagerName: 'Brixter Del Mundo',
+    dateIssued: DateTime(2026, 4, 27),
+    responseDeadline: DateTime(2026, 5, 2),
+    subjectSubtopic: 'Theft Investigation',
+    charges: [
+      NteCharge(
+        title: 'Unauthorized cash withdrawal',
+        body: Delta()..insert('Body of charge.\n'),
+      ),
+    ],
+    applicableViolations: ['Code of Conduct §3.1'],
+  );
 
   test('build starts with MemoHeaderBlock', () {
     const t = NteTemplate();
@@ -50,12 +50,15 @@ void main() {
 
   test('each charge generates SectionHeadingBlock + RichTextBlock', () {
     const t = NteTemplate();
-    final blocks = t.build(valid().copyWith(charges: [
-      NteCharge(title: 'A', body: Delta()..insert('a\n')),
-      NteCharge(title: 'B', body: Delta()..insert('b\n')),
-    ]));
-    final headings =
-        blocks.whereType<SectionHeadingBlock>().toList();
+    final blocks = t.build(
+      valid().copyWith(
+        charges: [
+          NteCharge(title: 'A', body: Delta()..insert('a\n')),
+          NteCharge(title: 'B', body: Delta()..insert('b\n')),
+        ],
+      ),
+    );
+    final headings = blocks.whereType<SectionHeadingBlock>().toList();
     final richTexts = blocks.whereType<RichTextBlock>().toList();
     expect(headings.length, 2);
     expect(richTexts.length, 2);
@@ -71,9 +74,9 @@ void main() {
   });
 
   test('build: MemoHeaderBlock is first and carries logoBytes when set', () {
-    final blocks = const NteTemplate().build(valid().copyWith(
-      logoBytes: Uint8List.fromList(const [137, 80, 78, 71]),
-    ));
+    final blocks = const NteTemplate().build(
+      valid().copyWith(logoBytes: Uint8List.fromList(const [137, 80, 78, 71])),
+    );
     expect(blocks.first, isA<MemoHeaderBlock>());
     expect((blocks.first as MemoHeaderBlock).logoBytes, isNotNull);
   });
@@ -87,10 +90,12 @@ void main() {
 
   test('appends attachment section when attachmentBytes is set', () {
     const t = NteTemplate();
-    final blocks = t.build(valid().copyWith(
-      attachmentBytes: Uint8List.fromList([1, 2, 3]),
-      attachmentCaption: 'Evidence photo',
-    ));
+    final blocks = t.build(
+      valid().copyWith(
+        attachmentBytes: Uint8List.fromList([1, 2, 3]),
+        attachmentCaption: 'Evidence photo',
+      ),
+    );
     final img = blocks.whereType<ImageAttachmentBlock>().toList();
     expect(img.length, 1);
     expect(img.first.caption, 'Evidence photo');

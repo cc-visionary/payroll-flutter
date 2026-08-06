@@ -14,7 +14,8 @@ class UserManagementRepository {
     final rows = await _client
         .from('user_emails')
         .select(
-            'id, email, status, must_change_password, invited_at, invited_by, last_sign_in_at, app_role')
+          'id, email, status, must_change_password, invited_at, invited_by, last_sign_in_at, app_role',
+        )
         .order('email');
 
     final userIds = rows.map((r) => r['id'] as String).toList();
@@ -57,8 +58,9 @@ class UserManagementRepository {
   /// Employees in the caller's company that aren't linked to any user yet.
   /// `includeUserId` keeps the currently-linked employee in the list when
   /// editing an existing user's link.
-  Future<List<UnlinkedEmployee>> unlinkedEmployees(
-      {String? includeUserId}) async {
+  Future<List<UnlinkedEmployee>> unlinkedEmployees({
+    String? includeUserId,
+  }) async {
     final rows = await _client
         .from('employees')
         .select('id, first_name, last_name, user_id')
@@ -68,18 +70,20 @@ class UserManagementRepository {
           final uid = e['user_id'] as String?;
           return uid == null || uid == includeUserId;
         })
-        .map<UnlinkedEmployee>((e) => UnlinkedEmployee(
-              id: e['id'] as String,
-              name: '${e['first_name'] ?? ''} ${e['last_name'] ?? ''}'.trim(),
-            ))
+        .map<UnlinkedEmployee>(
+          (e) => UnlinkedEmployee(
+            id: e['id'] as String,
+            name: '${e['first_name'] ?? ''} ${e['last_name'] ?? ''}'.trim(),
+          ),
+        )
         .toList();
   }
 
   Future<void> _invoke(String action, Map<String, dynamic> payload) async {
-    final res = await _client.functions.invoke('manage-user', body: {
-      'action': action,
-      ...payload,
-    });
+    final res = await _client.functions.invoke(
+      'manage-user',
+      body: {'action': action, ...payload},
+    );
     final data = (res.data as Map?) ?? const {};
     if (data['ok'] != true) {
       throw UserManagementException(
@@ -94,13 +98,12 @@ class UserManagementRepository {
     required String password,
     required String roleCode,
     String? employeeId,
-  }) =>
-      _invoke('create', {
-        'email': email,
-        'password': password,
-        'role_code': roleCode,
-        if (employeeId != null) 'employee_id': employeeId,
-      });
+  }) => _invoke('create', {
+    'email': email,
+    'password': password,
+    'role_code': roleCode,
+    if (employeeId != null) 'employee_id': employeeId,
+  });
 
   Future<void> setPassword(String userId, String password) =>
       _invoke('set_password', {'user_id': userId, 'password': password});
@@ -136,7 +139,7 @@ final managedUsersProvider = FutureProvider<List<ManagedUser>>((ref) async {
 
 final unlinkedEmployeesProvider =
     FutureProvider.family<List<UnlinkedEmployee>, String?>(
-  (ref, includeUserId) => ref
-      .watch(userManagementRepositoryProvider)
-      .unlinkedEmployees(includeUserId: includeUserId),
-);
+      (ref, includeUserId) => ref
+          .watch(userManagementRepositoryProvider)
+          .unlinkedEmployees(includeUserId: includeUserId),
+    );

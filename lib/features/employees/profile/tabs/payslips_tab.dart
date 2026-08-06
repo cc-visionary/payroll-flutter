@@ -48,13 +48,15 @@ class _PayslipsTabState extends ConsumerState<PayslipsTab> {
 
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(payslipsByEmployeeProvider(
-      PayslipsByEmployeeQuery(
-        employeeId: widget.employee.id,
-        from: _from,
-        to: _to,
+    final async = ref.watch(
+      payslipsByEmployeeProvider(
+        PayslipsByEmployeeQuery(
+          employeeId: widget.employee.id,
+          from: _from,
+          to: _to,
+        ),
       ),
-    ));
+    );
 
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -227,52 +229,56 @@ class _TotalsRow extends StatelessWidget {
             'SSS: ${Money.fmtPhp(totals.sss)} · PhilHealth: ${Money.fmtPhp(totals.philhealth)} · Pag-IBIG: ${Money.fmtPhp(totals.pagibig)}',
       ),
     ];
-    return LayoutBuilder(builder: (ctx, c) {
-      final cols = c.maxWidth >= 1200
-          ? 5
-          : c.maxWidth >= 900
-              ? 3
-              : c.maxWidth >= 600
-                  ? 2
-                  : 1;
-      const spacing = 12.0;
-      // Chunk cards into rows; wrap each row in IntrinsicHeight so every card
-      // in that row shares the tallest card's height, even when one has a
-      // multi-line subtitle (e.g. the benefits breakdown).
-      final rows = <List<Widget>>[];
-      for (int i = 0; i < cards.length; i += cols) {
-        rows.add(cards.sublist(
-          i,
-          (i + cols) > cards.length ? cards.length : i + cols,
-        ));
-      }
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (int r = 0; r < rows.length; r++) ...[
-            if (r > 0) const SizedBox(height: spacing),
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (int i = 0; i < rows[r].length; i++) ...[
-                    if (i > 0) const SizedBox(width: spacing),
-                    Expanded(child: rows[r][i]),
-                  ],
-                  // Fill trailing space in the last row so the cards
-                  // don't stretch across the full width when there are
-                  // fewer than `cols` items left.
-                  for (int i = rows[r].length; i < cols; i++) ...[
-                    const SizedBox(width: spacing),
-                    const Expanded(child: SizedBox.shrink()),
-                  ],
-                ],
-              ),
+    return LayoutBuilder(
+      builder: (ctx, c) {
+        final cols = c.maxWidth >= 1200
+            ? 5
+            : c.maxWidth >= 900
+            ? 3
+            : c.maxWidth >= 600
+            ? 2
+            : 1;
+        const spacing = 12.0;
+        // Chunk cards into rows; wrap each row in IntrinsicHeight so every card
+        // in that row shares the tallest card's height, even when one has a
+        // multi-line subtitle (e.g. the benefits breakdown).
+        final rows = <List<Widget>>[];
+        for (int i = 0; i < cards.length; i += cols) {
+          rows.add(
+            cards.sublist(
+              i,
+              (i + cols) > cards.length ? cards.length : i + cols,
             ),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (int r = 0; r < rows.length; r++) ...[
+              if (r > 0) const SizedBox(height: spacing),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (int i = 0; i < rows[r].length; i++) ...[
+                      if (i > 0) const SizedBox(width: spacing),
+                      Expanded(child: rows[r][i]),
+                    ],
+                    // Fill trailing space in the last row so the cards
+                    // don't stretch across the full width when there are
+                    // fewer than `cols` items left.
+                    for (int i = rows[r].length; i < cols; i++) ...[
+                      const SizedBox(width: spacing),
+                      const Expanded(child: SizedBox.shrink()),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ],
-        ],
-      );
-    });
+        );
+      },
+    );
   }
 }
 
@@ -370,7 +376,8 @@ class _History extends StatelessWidget {
             )
           else
             for (int i = 0; i < items.length; i++) ...[
-              if (i > 0) Divider(height: 1, color: Theme.of(context).dividerColor),
+              if (i > 0)
+                Divider(height: 1, color: Theme.of(context).dividerColor),
               _PayslipRow(item: items[i]),
             ],
         ],
@@ -501,13 +508,15 @@ class _ThirteenthMonthCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(thirteenthMonthBreakdownProvider(
-      ThirteenthMonthBreakdownQuery(
-        employeeId: employee.id,
-        from: from,
-        to: to,
+    final async = ref.watch(
+      thirteenthMonthBreakdownProvider(
+        ThirteenthMonthBreakdownQuery(
+          employeeId: employee.id,
+          from: from,
+          to: to,
+        ),
       ),
-    ));
+    );
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -567,18 +576,19 @@ class _ThirteenthMonthCard extends ConsumerWidget {
               IconButton(
                 tooltip: 'Export 13th-month PDF',
                 icon: const Icon(Icons.download_outlined, color: _fg),
-                onPressed: async.asData?.value == null ||
+                onPressed:
+                    async.asData?.value == null ||
                         async.asData!.value.contributions.isEmpty
                     ? null
                     : () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => ThirteenthMonthPreviewScreen(
-                              employee: employee,
-                              from: from,
-                              to: to,
-                            ),
+                        MaterialPageRoute(
+                          builder: (_) => ThirteenthMonthPreviewScreen(
+                            employee: employee,
+                            from: from,
+                            to: to,
                           ),
                         ),
+                      ),
               ),
             ],
           ),
@@ -619,7 +629,10 @@ class _ThirteenthMonthCard extends ConsumerWidget {
               if (bd.contributions.isEmpty) {
                 return Text(
                   'No released payslips in this date range.',
-                  style: TextStyle(fontSize: 12, color: _fg.withValues(alpha: 0.8)),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _fg.withValues(alpha: 0.8),
+                  ),
                 );
               }
               return _ThirteenthMonthTable(breakdown: bd);
@@ -635,23 +648,32 @@ class _ThirteenthMonthTable extends StatelessWidget {
   final ThirteenthMonthBreakdown breakdown;
   const _ThirteenthMonthTable({required this.breakdown});
 
-  List<ThirteenthMonthContribution> get contributions => breakdown.contributions;
+  List<ThirteenthMonthContribution> get contributions =>
+      breakdown.contributions;
 
   static const _fg = _ThirteenthMonthCard._fg;
   static const _fgSoft = _ThirteenthMonthCard._fgSoft;
 
   static const _monthNames = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   String _periodLabel(ThirteenthMonthContribution c) {
     final s = c.periodStart;
     final e = c.periodEnd;
     if (s == null && e == null) {
-      return c.payDate == null
-          ? '—'
-          : 'Pay ${_fmtDate(c.payDate!)}';
+      return c.payDate == null ? '—' : 'Pay ${_fmtDate(c.payDate!)}';
     }
     if (s != null && e != null) {
       final sameMonth = s.year == e.year && s.month == e.month;
@@ -676,61 +698,68 @@ class _ThirteenthMonthTable extends StatelessWidget {
     final divider = Colors.white.withValues(alpha: 0.7);
 
     TableRow header() => TableRow(
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.45),
-          ),
-          children: [
-            _th('Period'),
-            _th('Basic Pay', end: true),
-            _th('Late/UT', end: true),
-            _th('Net Basic', end: true),
-          ],
-        );
+      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.45)),
+      children: [
+        _th('Period'),
+        _th('Basic Pay', end: true),
+        _th('Late/UT', end: true),
+        _th('Net Basic', end: true),
+      ],
+    );
 
     TableRow rowFor(ThirteenthMonthContribution c) => TableRow(
-          children: [
-            _cell(_periodLabel(c)),
-            _basicPayCell(c),
-            _cell(
-              c.lateDeduction <= Decimal.zero
-                  ? '—'
-                  : '−${Money.fmtPhp(c.lateDeduction)}',
-              end: true,
-              mono: true,
-              color: c.lateDeduction <= Decimal.zero
-                  ? _fgSoft
-                  : const Color(0xFFB91C1C),
-            ),
-            _cell(Money.fmtPhp(c.netBasic),
-                end: true, mono: true, bold: true),
-          ],
-        );
+      children: [
+        _cell(_periodLabel(c)),
+        _basicPayCell(c),
+        _cell(
+          c.lateDeduction <= Decimal.zero
+              ? '—'
+              : '−${Money.fmtPhp(c.lateDeduction)}',
+          end: true,
+          mono: true,
+          color: c.lateDeduction <= Decimal.zero
+              ? _fgSoft
+              : const Color(0xFFB91C1C),
+        ),
+        _cell(Money.fmtPhp(c.netBasic), end: true, mono: true, bold: true),
+      ],
+    );
 
     TableRow totalRow() => TableRow(
-          decoration: BoxDecoration(
-            border: Border(top: BorderSide(color: divider, width: 1)),
-          ),
-          children: [
-            _cell('Total (${contributions.length} '
-                'release${contributions.length == 1 ? "" : "s"})',
-                bold: true),
-            _cell(Money.fmtPhp(breakdown.totalBasic),
-                end: true, mono: true, bold: true),
-            _cell(
-              breakdown.totalLate <= Decimal.zero
-                  ? '—'
-                  : '−${Money.fmtPhp(breakdown.totalLate)}',
-              end: true,
-              mono: true,
-              bold: true,
-              color: breakdown.totalLate <= Decimal.zero
-                  ? _fgSoft
-                  : const Color(0xFFB91C1C),
-            ),
-            _cell(Money.fmtPhp(breakdown.totalNetBasic),
-                end: true, mono: true, bold: true),
-          ],
-        );
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: divider, width: 1)),
+      ),
+      children: [
+        _cell(
+          'Total (${contributions.length} '
+          'release${contributions.length == 1 ? "" : "s"})',
+          bold: true,
+        ),
+        _cell(
+          Money.fmtPhp(breakdown.totalBasic),
+          end: true,
+          mono: true,
+          bold: true,
+        ),
+        _cell(
+          breakdown.totalLate <= Decimal.zero
+              ? '—'
+              : '−${Money.fmtPhp(breakdown.totalLate)}',
+          end: true,
+          mono: true,
+          bold: true,
+          color: breakdown.totalLate <= Decimal.zero
+              ? _fgSoft
+              : const Color(0xFFB91C1C),
+        ),
+        _cell(
+          Money.fmtPhp(breakdown.totalNetBasic),
+          end: true,
+          mono: true,
+          bold: true,
+        ),
+      ],
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -786,18 +815,18 @@ class _ThirteenthMonthTable extends StatelessWidget {
   }
 
   Widget _th(String text, {bool end = false}) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        child: Text(
-          text,
-          textAlign: end ? TextAlign.end : TextAlign.start,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: _fg,
-            letterSpacing: 0.3,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+    child: Text(
+      text,
+      textAlign: end ? TextAlign.end : TextAlign.start,
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        color: _fg,
+        letterSpacing: 0.3,
+      ),
+    ),
+  );
 
   Widget _cell(
     String text, {
@@ -805,20 +834,19 @@ class _ThirteenthMonthTable extends StatelessWidget {
     bool mono = false,
     bool bold = false,
     Color? color,
-  }) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-        child: Text(
-          text,
-          textAlign: end ? TextAlign.end : TextAlign.start,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
-            fontFamily: mono ? 'GeistMono' : null,
-            color: color ?? _fg,
-          ),
-        ),
-      );
+  }) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+    child: Text(
+      text,
+      textAlign: end ? TextAlign.end : TextAlign.start,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+        fontFamily: mono ? 'GeistMono' : null,
+        color: color ?? _fg,
+      ),
+    ),
+  );
 
   /// Renders the Basic Pay cell showing each `days × daily wage` bucket on its
   /// own line, with the payslip's total beneath in bold. Monthly-wage rows
@@ -862,7 +890,8 @@ class _ThirteenthMonthTable extends StatelessWidget {
     final s = d.toString();
     if (!s.contains('.')) return '$s days';
     var trimmed = s.replaceFirst(RegExp(r'0+$'), '');
-    if (trimmed.endsWith('.')) trimmed = trimmed.substring(0, trimmed.length - 1);
+    if (trimmed.endsWith('.'))
+      trimmed = trimmed.substring(0, trimmed.length - 1);
     return '$trimmed ${d == Decimal.one ? "day" : "days"}';
   }
 }

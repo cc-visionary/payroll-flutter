@@ -75,16 +75,13 @@ Future<String?> _shareExcel(Excel excel, String fileName) async {
   final named = safe.toLowerCase().endsWith('.xlsx') ? safe : '$safe.xlsx';
   final path = '${dir.path}${Platform.pathSeparator}$named';
   await File(path).writeAsBytes(bytes);
-  final result = await Share.shareXFiles(
-    [
-      XFile(
-        path,
-        mimeType:
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      ),
-    ],
-    subject: fileName,
-  );
+  final result = await Share.shareXFiles([
+    XFile(
+      path,
+      mimeType:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ),
+  ], subject: fileName);
   if (result.status == ShareResultStatus.dismissed) return null;
   return path;
 }
@@ -253,8 +250,11 @@ Future<String?> exportSelfEvalsXlsx({
 
   for (final t in types) {
     final typeRows = byType[t]!
-      ..sort((a, b) => (b.submittedAt ?? DateTime(0))
-          .compareTo(a.submittedAt ?? DateTime(0)));
+      ..sort(
+        (a, b) => (b.submittedAt ?? DateTime(0)).compareTo(
+          a.submittedAt ?? DateTime(0),
+        ),
+      );
     _appendTypeSheet(excel, t, typeRows);
   }
   _appendTidySheet(excel, rows);

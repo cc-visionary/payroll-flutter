@@ -73,20 +73,24 @@ void main() {
             tasks: ['Maintain 201 files'],
           ),
         ],
-        kpis: const [
-          ContractKpi(metric: 'Time to fill', frequency: 'Monthly'),
-        ],
+        kpis: const [ContractKpi(metric: 'Time to fill', frequency: 'Monthly')],
         logoBytes: logoBytes,
       );
 
   const t = EmploymentContractTemplate();
 
-  test('first block is LetterheadBlock when companyName is set, EMPLOYMENT CONTRACT title is present', () {
-    final blocks = t.build(seed());
-    expect(blocks.first, isA<LetterheadBlock>());
-    final titles = blocks.whereType<TitleBlock>().toList();
-    expect(titles.any((b) => b.text == 'EMPLOYMENT CONTRACT' && b.centered), true);
-  });
+  test(
+    'first block is LetterheadBlock when companyName is set, EMPLOYMENT CONTRACT title is present',
+    () {
+      final blocks = t.build(seed());
+      expect(blocks.first, isA<LetterheadBlock>());
+      final titles = blocks.whereType<TitleBlock>().toList();
+      expect(
+        titles.any((b) => b.text == 'EMPLOYMENT CONTRACT' && b.centered),
+        true,
+      );
+    },
+  );
 
   test('EC prepends LetterheadBlock with logo when logoBytes is set', () {
     final blocks = t.build(seed(logoBytes: Uint8List.fromList([1, 2, 3])));
@@ -94,7 +98,12 @@ void main() {
     expect(heads, isNotEmpty);
     expect(heads.first.logoBytes, isNotNull);
     expect(blocks.first, isA<LetterheadBlock>());
-    expect(blocks.whereType<TitleBlock>().any((b) => b.text == 'EMPLOYMENT CONTRACT'), true);
+    expect(
+      blocks.whereType<TitleBlock>().any(
+        (b) => b.text == 'EMPLOYMENT CONTRACT',
+      ),
+      true,
+    );
   });
 
   test('exactly 17 SectionHeadingBlocks, numbered 1..17 in order with '
@@ -158,8 +167,10 @@ void main() {
   test('Annex A has Training and Development, Work Hours, and Performance '
       'Evaluation headings', () {
     final blocks = t.build(seed());
-    final headings =
-        blocks.whereType<HeadingBlock>().map((b) => b.text).toList();
+    final headings = blocks
+        .whereType<HeadingBlock>()
+        .map((b) => b.text)
+        .toList();
     expect(headings, contains('Duties and Responsibilities'));
     expect(headings, contains('Training and Development'));
     expect(headings, contains('Work Hours'));

@@ -35,17 +35,22 @@ class _SortOrder {
 
 Decimal _round3(Decimal v) {
   final factor = Decimal.fromInt(1000);
-  return ((v * factor).round(scale: 0) / factor).toDecimal(scaleOnInfinitePrecision: 3);
+  return ((v * factor).round(scale: 0) / factor).toDecimal(
+    scaleOnInfinitePrecision: 3,
+  );
 }
 
 Decimal _fromInt(int i) => Decimal.fromInt(i);
 Decimal _fromDouble(double v) => Decimal.parse(v.toString());
-Decimal _div(Decimal a, Decimal b) => (a / b).toDecimal(scaleOnInfinitePrecision: 10);
+Decimal _div(Decimal a, Decimal b) =>
+    (a / b).toDecimal(scaleOnInfinitePrecision: 10);
 
 String _toFixed3(num v) => v.toStringAsFixed(3);
 String _toFixed3d(Decimal v) {
   final f = Decimal.fromInt(1000);
-  final rounded = ((v * f).round(scale: 0) / f).toDecimal(scaleOnInfinitePrecision: 3);
+  final rounded = ((v * f).round(scale: 0) / f).toDecimal(
+    scaleOnInfinitePrecision: 3,
+  );
   final parts = rounded.toString().split('.');
   if (parts.length == 1) return '${parts[0]}.000';
   final frac = parts[1].padRight(3, '0').substring(0, 3);
@@ -91,7 +96,10 @@ ComputedPayslipLine generateBasicPayLine(
 // =============================================================================
 // Deductions
 // =============================================================================
-ComputedPayslipLine? generateLateDeductionLine(int totalLateMinutes, DerivedRates rates) {
+ComputedPayslipLine? generateLateDeductionLine(
+  int totalLateMinutes,
+  DerivedRates rates,
+) {
   if (totalLateMinutes <= 0) return null;
   final amount = calculateLateDeduction(totalLateMinutes, rates);
   final hours = _round3(_div(_fromInt(totalLateMinutes), _fromInt(60)));
@@ -106,7 +114,10 @@ ComputedPayslipLine? generateLateDeductionLine(int totalLateMinutes, DerivedRate
   );
 }
 
-ComputedPayslipLine? generateUndertimeDeductionLine(int totalUndertimeMinutes, DerivedRates rates) {
+ComputedPayslipLine? generateUndertimeDeductionLine(
+  int totalUndertimeMinutes,
+  DerivedRates rates,
+) {
   if (totalUndertimeMinutes <= 0) return null;
   final amount = calculateUndertimeDeduction(totalUndertimeMinutes, rates);
   final hours = _round3(_div(_fromInt(totalUndertimeMinutes), _fromInt(60)));
@@ -146,8 +157,14 @@ ComputedPayslipLine? generateAbsentDeductionLine(
   int standardMinutesPerDay,
 ) {
   if (totalAbsentMinutes <= 0) return null;
-  final amount = calculateAbsentDeduction(totalAbsentMinutes, rates, standardMinutesPerDay);
-  final days = _round3(_div(_fromInt(totalAbsentMinutes), _fromInt(standardMinutesPerDay)));
+  final amount = calculateAbsentDeduction(
+    totalAbsentMinutes,
+    rates,
+    standardMinutesPerDay,
+  );
+  final days = _round3(
+    _div(_fromInt(totalAbsentMinutes), _fromInt(standardMinutesPerDay)),
+  );
   return ComputedPayslipLine(
     category: PayslipLineCategory.ABSENT_DEDUCTION,
     description: 'Absent Deduction (${_toFixed3d(days)} days)',
@@ -168,7 +185,11 @@ ComputedPayslipLine? generateRegularOvertimeLine(
   List<String> attendanceRecordIds,
 ) {
   if (totalOtMinutes <= 0) return null;
-  final amount = calculateOvertimePay(totalOtMinutes, rates, PhMultipliers.OT_REGULAR);
+  final amount = calculateOvertimePay(
+    totalOtMinutes,
+    rates,
+    PhMultipliers.OT_REGULAR,
+  );
   return ComputedPayslipLine(
     category: PayslipLineCategory.OVERTIME_REGULAR,
     description: 'Regular Overtime (${_toFixed3(totalOtMinutes)} mins @ 125%)',
@@ -182,9 +203,16 @@ ComputedPayslipLine? generateRegularOvertimeLine(
   );
 }
 
-ComputedPayslipLine? generateRestDayOvertimeLine(int totalOtMinutes, DerivedRates rates) {
+ComputedPayslipLine? generateRestDayOvertimeLine(
+  int totalOtMinutes,
+  DerivedRates rates,
+) {
   if (totalOtMinutes <= 0) return null;
-  final amount = calculateOvertimePay(totalOtMinutes, rates, PhMultipliers.REST_DAY_OT);
+  final amount = calculateOvertimePay(
+    totalOtMinutes,
+    rates,
+    PhMultipliers.REST_DAY_OT,
+  );
   return ComputedPayslipLine(
     category: PayslipLineCategory.OVERTIME_REST_DAY,
     description: 'Rest Day Overtime (${_toFixed3(totalOtMinutes)} mins @ 169%)',
@@ -208,11 +236,15 @@ ComputedPayslipLine? generateHolidayOvertimeLine(
       ? PhMultipliers.REGULAR_HOLIDAY_OT
       : PhMultipliers.SPECIAL_HOLIDAY_OT;
   final amount = calculateOvertimePay(totalOtMinutes, rates, multiplier);
-  final pct = (multiplier * Decimal.fromInt(100)).round(scale: 0).toBigInt().toInt();
+  final pct = (multiplier * Decimal.fromInt(100))
+      .round(scale: 0)
+      .toBigInt()
+      .toInt();
   final label = holidayType == 'REGULAR' ? 'Regular' : 'Special';
   return ComputedPayslipLine(
     category: PayslipLineCategory.OVERTIME_HOLIDAY,
-    description: '$label Holiday OT (${_toFixed3(totalOtMinutes)} mins @ $pct%)',
+    description:
+        '$label Holiday OT (${_toFixed3(totalOtMinutes)} mins @ $pct%)',
     quantity: _fromInt(totalOtMinutes),
     rate: rates.minuteRate,
     multiplier: multiplier,
@@ -226,9 +258,16 @@ ComputedPayslipLine? generateHolidayOvertimeLine(
 // =============================================================================
 // Night Differential
 // =============================================================================
-ComputedPayslipLine? generateNightDiffLine(int totalNdMinutes, DerivedRates rates) {
+ComputedPayslipLine? generateNightDiffLine(
+  int totalNdMinutes,
+  DerivedRates rates,
+) {
   if (totalNdMinutes <= 0) return null;
-  final amount = calculateNightDiffPay(totalNdMinutes, rates, PhMultipliers.NIGHT_DIFF);
+  final amount = calculateNightDiffPay(
+    totalNdMinutes,
+    rates,
+    PhMultipliers.NIGHT_DIFF,
+  );
   return ComputedPayslipLine(
     category: PayslipLineCategory.NIGHT_DIFFERENTIAL,
     description: 'Night Differential (${_toFixed3(totalNdMinutes)} mins @ 10%)',
@@ -255,38 +294,51 @@ List<ComputedPayslipLine> generateHolidayPremiumLines(
   double _min(double a, double b) => a < b ? a : b;
   final stdMinPerDay = standardMinutesPerDay.toDouble();
 
-  final regularHolidays =
-      attendance.where((a) => a.dayType == DayType.REGULAR_HOLIDAY && a.workedMinutes > 0).toList();
-  final specialHolidays =
-      attendance.where((a) => a.dayType == DayType.SPECIAL_HOLIDAY && a.workedMinutes > 0).toList();
-  final unworkedRegularHolidays =
-      attendance.where((a) => a.dayType == DayType.REGULAR_HOLIDAY && a.workedMinutes == 0).toList();
+  final regularHolidays = attendance
+      .where((a) => a.dayType == DayType.REGULAR_HOLIDAY && a.workedMinutes > 0)
+      .toList();
+  final specialHolidays = attendance
+      .where((a) => a.dayType == DayType.SPECIAL_HOLIDAY && a.workedMinutes > 0)
+      .toList();
+  final unworkedRegularHolidays = attendance
+      .where(
+        (a) => a.dayType == DayType.REGULAR_HOLIDAY && a.workedMinutes == 0,
+      )
+      .toList();
 
   // Regular holiday worked — 200% of regular rate
   if (regularHolidays.isNotEmpty) {
     double totalRegularMinutes = 0;
     Decimal totalAmount = Decimal.zero;
     for (final a in regularHolidays) {
-      final dayRates = getDayRates(rates, standardHoursPerDay, a.dailyRateOverride);
+      final dayRates = getDayRates(
+        rates,
+        standardHoursPerDay,
+        a.dailyRateOverride,
+      );
       final cappedMinutes = _min(a.workedMinutes, stdMinPerDay);
       totalRegularMinutes += cappedMinutes;
-      totalAmount += dayRates.hourlyRate *
+      totalAmount +=
+          dayRates.hourlyRate *
           _div(_fromDouble(cappedMinutes), _fromInt(60)) *
           PhMultipliers.REGULAR_HOLIDAY;
     }
     totalAmount = _round3(totalAmount);
     if (totalAmount > Decimal.zero) {
-      lines.add(ComputedPayslipLine(
-        category: PayslipLineCategory.HOLIDAY_PAY,
-        description: 'Regular Holiday Pay (${_toFixed3(totalRegularMinutes)} mins @ 200%)',
-        quantity: _fromDouble(totalRegularMinutes),
-        rate: rates.minuteRate,
-        multiplier: PhMultipliers.REGULAR_HOLIDAY,
-        amount: totalAmount,
-        sortOrder: _SortOrder.REGULAR_HOLIDAY_PAY,
-        ruleCode: 'REGULAR_HOLIDAY_WORKED',
-        ruleDescription: 'Regular Holiday Pay (200% of regular rate)',
-      ));
+      lines.add(
+        ComputedPayslipLine(
+          category: PayslipLineCategory.HOLIDAY_PAY,
+          description:
+              'Regular Holiday Pay (${_toFixed3(totalRegularMinutes)} mins @ 200%)',
+          quantity: _fromDouble(totalRegularMinutes),
+          rate: rates.minuteRate,
+          multiplier: PhMultipliers.REGULAR_HOLIDAY,
+          amount: totalAmount,
+          sortOrder: _SortOrder.REGULAR_HOLIDAY_PAY,
+          ruleCode: 'REGULAR_HOLIDAY_WORKED',
+          ruleDescription: 'Regular Holiday Pay (200% of regular rate)',
+        ),
+      );
     }
   }
 
@@ -295,26 +347,34 @@ List<ComputedPayslipLine> generateHolidayPremiumLines(
     double totalRegularMinutes = 0;
     Decimal totalAmount = Decimal.zero;
     for (final a in specialHolidays) {
-      final dayRates = getDayRates(rates, standardHoursPerDay, a.dailyRateOverride);
+      final dayRates = getDayRates(
+        rates,
+        standardHoursPerDay,
+        a.dailyRateOverride,
+      );
       final cappedMinutes = _min(a.workedMinutes, stdMinPerDay);
       totalRegularMinutes += cappedMinutes;
-      totalAmount += dayRates.hourlyRate *
+      totalAmount +=
+          dayRates.hourlyRate *
           _div(_fromDouble(cappedMinutes), _fromInt(60)) *
           PhMultipliers.SPECIAL_HOLIDAY;
     }
     totalAmount = _round3(totalAmount);
     if (totalAmount > Decimal.zero) {
-      lines.add(ComputedPayslipLine(
-        category: PayslipLineCategory.HOLIDAY_PAY,
-        description: 'Special Holiday Pay (${_toFixed3(totalRegularMinutes)} mins @ 130%)',
-        quantity: _fromDouble(totalRegularMinutes),
-        rate: rates.minuteRate,
-        multiplier: PhMultipliers.SPECIAL_HOLIDAY,
-        amount: totalAmount,
-        sortOrder: _SortOrder.SPECIAL_HOLIDAY_PAY,
-        ruleCode: 'SPECIAL_HOLIDAY_WORKED',
-        ruleDescription: 'Special Holiday Pay (130% of regular rate)',
-      ));
+      lines.add(
+        ComputedPayslipLine(
+          category: PayslipLineCategory.HOLIDAY_PAY,
+          description:
+              'Special Holiday Pay (${_toFixed3(totalRegularMinutes)} mins @ 130%)',
+          quantity: _fromDouble(totalRegularMinutes),
+          rate: rates.minuteRate,
+          multiplier: PhMultipliers.SPECIAL_HOLIDAY,
+          amount: totalAmount,
+          sortOrder: _SortOrder.SPECIAL_HOLIDAY_PAY,
+          ruleCode: 'SPECIAL_HOLIDAY_WORKED',
+          ruleDescription: 'Special Holiday Pay (130% of regular rate)',
+        ),
+      );
     }
   }
 
@@ -326,26 +386,34 @@ List<ComputedPayslipLine> generateHolidayPremiumLines(
       final cappedMinutes = _min(a.workedMinutes, stdMinPerDay);
       final unworkedMinutes = stdMinPerDay - cappedMinutes;
       if (unworkedMinutes > 0) {
-        final dayRates = getDayRates(rates, standardHoursPerDay, a.dailyRateOverride);
+        final dayRates = getDayRates(
+          rates,
+          standardHoursPerDay,
+          a.dailyRateOverride,
+        );
         totalUnworkedMinutes += unworkedMinutes;
         totalUnworkedAmount +=
-            dayRates.hourlyRate * _div(_fromDouble(unworkedMinutes), _fromInt(60));
+            dayRates.hourlyRate *
+            _div(_fromDouble(unworkedMinutes), _fromInt(60));
       }
     }
     totalUnworkedAmount = _round3(totalUnworkedAmount);
     if (totalUnworkedAmount > Decimal.zero) {
-      lines.add(ComputedPayslipLine(
-        category: PayslipLineCategory.HOLIDAY_PAY,
-        description:
-            'Regular Holiday Base Pay - Unworked Hours (${_toFixed3(totalUnworkedMinutes)} mins @ 100%)',
-        quantity: _fromDouble(totalUnworkedMinutes),
-        rate: rates.minuteRate,
-        multiplier: Decimal.parse('1.0'),
-        amount: totalUnworkedAmount,
-        sortOrder: _SortOrder.REGULAR_HOLIDAY_PAY + 1,
-        ruleCode: 'REGULAR_HOLIDAY_PARTIAL_BASE',
-        ruleDescription: 'Regular Holiday base pay for unworked portion (paid even if not worked)',
-      ));
+      lines.add(
+        ComputedPayslipLine(
+          category: PayslipLineCategory.HOLIDAY_PAY,
+          description:
+              'Regular Holiday Base Pay - Unworked Hours (${_toFixed3(totalUnworkedMinutes)} mins @ 100%)',
+          quantity: _fromDouble(totalUnworkedMinutes),
+          rate: rates.minuteRate,
+          multiplier: Decimal.parse('1.0'),
+          amount: totalUnworkedAmount,
+          sortOrder: _SortOrder.REGULAR_HOLIDAY_PAY + 1,
+          ruleCode: 'REGULAR_HOLIDAY_PARTIAL_BASE',
+          ruleDescription:
+              'Regular Holiday base pay for unworked portion (paid even if not worked)',
+        ),
+      );
     }
   }
 
@@ -354,19 +422,26 @@ List<ComputedPayslipLine> generateHolidayPremiumLines(
     final count = unworkedRegularHolidays.length;
     Decimal totalAmount = Decimal.zero;
     for (final a in unworkedRegularHolidays) {
-      final dayRates = getDayRates(rates, standardHoursPerDay, a.dailyRateOverride);
+      final dayRates = getDayRates(
+        rates,
+        standardHoursPerDay,
+        a.dailyRateOverride,
+      );
       totalAmount += dayRates.dailyRate;
     }
-    lines.add(ComputedPayslipLine(
-      category: PayslipLineCategory.HOLIDAY_PAY,
-      description: 'Regular Holiday Pay - Unworked ($count day${count > 1 ? 's' : ''})',
-      quantity: _fromInt(count),
-      rate: rates.dailyRate,
-      amount: totalAmount,
-      sortOrder: _SortOrder.REGULAR_HOLIDAY_PAY + 2,
-      ruleCode: 'REGULAR_HOLIDAY_UNWORKED',
-      ruleDescription: 'Regular Holiday Pay (paid even if not worked)',
-    ));
+    lines.add(
+      ComputedPayslipLine(
+        category: PayslipLineCategory.HOLIDAY_PAY,
+        description:
+            'Regular Holiday Pay - Unworked ($count day${count > 1 ? 's' : ''})',
+        quantity: _fromInt(count),
+        rate: rates.dailyRate,
+        amount: totalAmount,
+        sortOrder: _SortOrder.REGULAR_HOLIDAY_PAY + 2,
+        ruleCode: 'REGULAR_HOLIDAY_UNWORKED',
+        ruleDescription: 'Regular Holiday Pay (paid even if not worked)',
+      ),
+    );
   }
 
   return lines;
@@ -377,16 +452,22 @@ ComputedPayslipLine? generateRestDayPremiumLine(
   DerivedRates rates, {
   int standardHoursPerDay = 8,
 }) {
-  final restDayRecords =
-      attendance.where((a) => a.dayType == DayType.REST_DAY && a.workedMinutes > 0).toList();
+  final restDayRecords = attendance
+      .where((a) => a.dayType == DayType.REST_DAY && a.workedMinutes > 0)
+      .toList();
   if (restDayRecords.isEmpty) return null;
 
   double totalMinutes = 0;
   Decimal totalAmount = Decimal.zero;
   for (final a in restDayRecords) {
-    final dayRates = getDayRates(rates, standardHoursPerDay, a.dailyRateOverride);
+    final dayRates = getDayRates(
+      rates,
+      standardHoursPerDay,
+      a.dailyRateOverride,
+    );
     totalMinutes += a.workedMinutes;
-    totalAmount += dayRates.hourlyRate *
+    totalAmount +=
+        dayRates.hourlyRate *
         _div(_fromDouble(a.workedMinutes), _fromInt(60)) *
         PhMultipliers.REST_DAY;
   }
@@ -419,13 +500,15 @@ List<ComputedPayslipLine> generateAllowanceLines(
   void add(String name, Decimal monthlyAmount) {
     if (monthlyAmount <= Decimal.zero) return;
     final amount = _round3(_div(monthlyAmount, periodsPerMonth));
-    lines.add(ComputedPayslipLine(
-      category: PayslipLineCategory.ALLOWANCE,
-      description: name,
-      amount: amount,
-      sortOrder: _SortOrder.ALLOWANCE + sortOffset++,
-      ruleCode: 'ALLOWANCE_${name.toUpperCase().replaceAll(' ', '_')}',
-    ));
+    lines.add(
+      ComputedPayslipLine(
+        category: PayslipLineCategory.ALLOWANCE,
+        description: name,
+        amount: amount,
+        sortOrder: _SortOrder.ALLOWANCE + sortOffset++,
+        ruleCode: 'ALLOWANCE_${name.toUpperCase().replaceAll(' ', '_')}',
+      ),
+    );
   }
 
   add('Rice Subsidy', profile.riceSubsidy);
@@ -442,15 +525,23 @@ List<ComputedPayslipLine> generateAllowanceLines(
 // =============================================================================
 // Manual Adjustments
 // =============================================================================
-List<ComputedPayslipLine> generateManualAdjustmentLines(List<ManualAdjustment> adjustments) {
+List<ComputedPayslipLine> generateManualAdjustmentLines(
+  List<ManualAdjustment> adjustments,
+) {
   return List.generate(adjustments.length, (index) {
     final adj = adjustments[index];
     final isEarning = adj.type == 'EARNING';
     return ComputedPayslipLine(
-      category: isEarning ? PayslipLineCategory.ADJUSTMENT_ADD : PayslipLineCategory.ADJUSTMENT_DEDUCT,
+      category: isEarning
+          ? PayslipLineCategory.ADJUSTMENT_ADD
+          : PayslipLineCategory.ADJUSTMENT_DEDUCT,
       description: adj.description,
       amount: adj.amount,
-      sortOrder: (isEarning ? _SortOrder.ADJUSTMENT_ADD : _SortOrder.ADJUSTMENT_DEDUCT) + index,
+      sortOrder:
+          (isEarning
+              ? _SortOrder.ADJUSTMENT_ADD
+              : _SortOrder.ADJUSTMENT_DEDUCT) +
+          index,
       manualAdjustmentId: adj.id,
       ruleCode: 'MANUAL_ADJUSTMENT',
     );

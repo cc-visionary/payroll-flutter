@@ -37,38 +37,34 @@ class LetterMetaBlock extends Block {
         : pw.SizedBox.shrink();
 
     pw.Widget label(String text) => pw.Text(
-          text,
-          style: pw.TextStyle(
-            fontSize: theme.bodySize,
-            fontWeight: pw.FontWeight.bold,
-            color: theme.textColor,
-          ),
-        );
+      text,
+      style: pw.TextStyle(
+        fontSize: theme.bodySize,
+        fontWeight: pw.FontWeight.bold,
+        color: theme.textColor,
+      ),
+    );
     pw.Widget value(String text) => pw.Text(
-          text,
-          style: pw.TextStyle(
-            fontSize: theme.bodySize,
-            color: theme.textColor,
-          ),
-        );
+      text,
+      style: pw.TextStyle(fontSize: theme.bodySize, color: theme.textColor),
+    );
     pw.Widget partyValue(LetterParty p) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            value(p.name),
-            if (p.subtitle != null && p.subtitle!.isNotEmpty)
-              value(p.subtitle!),
-          ],
-        );
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        value(p.name),
+        if (p.subtitle != null && p.subtitle!.isNotEmpty) value(p.subtitle!),
+      ],
+    );
     pw.Widget row(String l, pw.Widget v) => pw.Padding(
-          padding: const pw.EdgeInsets.only(bottom: 8),
-          child: pw.Row(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.SizedBox(width: 70, child: label(l)),
-              pw.Expanded(child: v),
-            ],
-          ),
-        );
+      padding: const pw.EdgeInsets.only(bottom: 8),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(width: 70, child: label(l)),
+          pw.Expanded(child: v),
+        ],
+      ),
+    );
 
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,

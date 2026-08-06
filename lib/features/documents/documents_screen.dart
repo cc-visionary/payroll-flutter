@@ -93,10 +93,7 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
           ),
           error: (e, _) => Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Text(
-              'Error: $e',
-              style: const TextStyle(color: Colors.red),
-            ),
+            child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
           ),
           data: (entries) => _registry(context, entries),
         ),
@@ -126,9 +123,11 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
     final q = _query.trim().toLowerCase();
     if (q.isNotEmpty) {
       filtered = filtered
-          .where((e) =>
-              e.employeeName.toLowerCase().contains(q) ||
-              e.title.toLowerCase().contains(q))
+          .where(
+            (e) =>
+                e.employeeName.toLowerCase().contains(q) ||
+                e.title.toLowerCase().contains(q),
+          )
           .toList();
     }
 
@@ -310,4 +309,3 @@ class _RegistryRow extends ConsumerWidget {
     );
   }
 }
-

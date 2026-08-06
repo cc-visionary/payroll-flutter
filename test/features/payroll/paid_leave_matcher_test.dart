@@ -11,14 +11,13 @@ ApprovedLeaveDay _lv({
   required bool paid,
   String type = 'SIL',
   String days = '1',
-}) =>
-    ApprovedLeaveDay(
-      start: start,
-      end: end,
-      isPaid: paid,
-      typeName: type,
-      leaveDays: _d(days),
-    );
+}) => ApprovedLeaveDay(
+  start: start,
+  end: end,
+  isPaid: paid,
+  typeName: type,
+  leaveDays: _d(days),
+);
 
 void main() {
   test('paid single-day request covering the date → paid, full day', () {
@@ -37,7 +36,14 @@ void main() {
     final r = resolvePaidLeaveForDay(
       date: _u(2026, 1, 6),
       statusIsLeave: true,
-      approved: [_lv(start: _u(2026, 1, 6), end: _u(2026, 1, 6), paid: true, days: '0.5')],
+      approved: [
+        _lv(
+          start: _u(2026, 1, 6),
+          end: _u(2026, 1, 6),
+          paid: true,
+          days: '0.5',
+        ),
+      ],
     );
     expect(r.fraction, _d('0.5'));
     expect(r.isPaid, isTrue);
@@ -47,7 +53,9 @@ void main() {
     final r = resolvePaidLeaveForDay(
       date: _u(2026, 1, 7),
       statusIsLeave: true,
-      approved: [_lv(start: _u(2026, 1, 6), end: _u(2026, 1, 9), paid: true, days: '4')],
+      approved: [
+        _lv(start: _u(2026, 1, 6), end: _u(2026, 1, 9), paid: true, days: '4'),
+      ],
     );
     expect(r.covered, isTrue);
     expect(r.fraction, _d('1.0'));

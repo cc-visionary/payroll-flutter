@@ -33,10 +33,14 @@ void main() {
 
   test('toPdf renders without throwing (with and without caption)', () {
     final theme = PdfTheme.testStub();
-    expect(() => ImageAttachmentBlock(bytes, caption: 'cap').toPdf(theme),
-        returnsNormally);
+    expect(
+      () => ImageAttachmentBlock(bytes, caption: 'cap').toPdf(theme),
+      returnsNormally,
+    );
     expect(() => ImageAttachmentBlock(bytes).toPdf(theme), returnsNormally);
-    expect(() => ImageAttachmentBlock(bytes, caption: '   ').toPdf(theme),
-        returnsNormally);
+    expect(
+      () => ImageAttachmentBlock(bytes, caption: '   ').toPdf(theme),
+      returnsNormally,
+    );
   });
 }

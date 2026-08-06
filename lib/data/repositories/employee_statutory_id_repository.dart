@@ -57,12 +57,12 @@ class EmployeeStatutoryIdRepository {
 
 final employeeStatutoryIdRepositoryProvider =
     Provider<EmployeeStatutoryIdRepository>(
-  (ref) => EmployeeStatutoryIdRepository(Supabase.instance.client),
-);
+      (ref) => EmployeeStatutoryIdRepository(Supabase.instance.client),
+    );
 
 /// `{id_type: id_number}` map for a single employee. Watched by the profile.
 final employeeStatutoryIdsProvider =
     FutureProvider.family<Map<String, String>, String>((ref, employeeId) async {
-  final repo = ref.watch(employeeStatutoryIdRepositoryProvider);
-  return repo.byEmployee(employeeId);
-});
+      final repo = ref.watch(employeeStatutoryIdRepositoryProvider);
+      return repo.byEmployee(employeeId);
+    });

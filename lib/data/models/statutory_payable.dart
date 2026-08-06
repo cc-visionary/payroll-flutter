@@ -6,8 +6,15 @@ import 'package:decimal/decimal.dart';
 enum StatutoryAgency {
   sssContribution('SSS_CONTRIBUTION', 'SSS Contribution', 'SSS'),
   philhealthContribution(
-      'PHILHEALTH_CONTRIBUTION', 'PhilHealth Contribution', 'PhilHealth'),
-  pagibigContribution('PAGIBIG_CONTRIBUTION', 'Pag-IBIG Contribution', 'Pag-IBIG'),
+    'PHILHEALTH_CONTRIBUTION',
+    'PhilHealth Contribution',
+    'PhilHealth',
+  ),
+  pagibigContribution(
+    'PAGIBIG_CONTRIBUTION',
+    'Pag-IBIG Contribution',
+    'Pag-IBIG',
+  ),
   birWithholding('BIR_WITHHOLDING', 'BIR 1601-C Withholding', 'BIR'),
   employeeLoan('EMPLOYEE_LOAN', 'Employee Loan Remittances', 'Loans');
 
@@ -167,11 +174,11 @@ enum PayableStatus {
   overpaid;
 
   String get label => switch (this) {
-        PayableStatus.unpaid => 'Unpaid',
-        PayableStatus.partial => 'Partial',
-        PayableStatus.paid => 'Paid',
-        PayableStatus.overpaid => 'Overpaid',
-      };
+    PayableStatus.unpaid => 'Unpaid',
+    PayableStatus.partial => 'Partial',
+    PayableStatus.paid => 'Paid',
+    PayableStatus.overpaid => 'Overpaid',
+  };
 }
 
 /// Decide a payable's status from the (due, paid) pair. The 0.01 PHP

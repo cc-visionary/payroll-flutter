@@ -20,8 +20,9 @@ void main() {
     });
 
     test('MONTHLY non-exact division keeps precision (scale 10)', () {
-      final expected =
-          (_d('30000') / Decimal.fromInt(26)).toDecimal(scaleOnInfinitePrecision: 10);
+      final expected = (_d('30000') / Decimal.fromInt(26)).toDecimal(
+        scaleOnInfinitePrecision: 10,
+      );
       expect(
         dailyRateFrom(
           baseSalary: _d('30000'),

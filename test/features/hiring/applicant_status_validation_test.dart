@@ -9,25 +9,35 @@ void main() {
     );
   });
 
-  test('validateTransition throws when REJECTED move lacks rejection_reason', () {
-    expect(
-      () => validateTransition(from: 'NEW', to: 'REJECTED', reason: null),
-      throwsA(isA<MissingReason>()),
-    );
-    expect(
-      () => validateTransition(from: 'NEW', to: 'REJECTED', reason: '   '),
-      throwsA(isA<MissingReason>()),
-    );
-  });
+  test(
+    'validateTransition throws when REJECTED move lacks rejection_reason',
+    () {
+      expect(
+        () => validateTransition(from: 'NEW', to: 'REJECTED', reason: null),
+        throwsA(isA<MissingReason>()),
+      );
+      expect(
+        () => validateTransition(from: 'NEW', to: 'REJECTED', reason: '   '),
+        throwsA(isA<MissingReason>()),
+      );
+    },
+  );
 
   test('validateTransition passes when REJECTED move has reason', () {
     expect(
-      () => validateTransition(from: 'NEW', to: 'REJECTED', reason: 'Mismatched experience'),
+      () => validateTransition(
+        from: 'NEW',
+        to: 'REJECTED',
+        reason: 'Mismatched experience',
+      ),
       returnsNormally,
     );
   });
 
   test('validateTransition no-op when status unchanged', () {
-    expect(() => validateTransition(from: 'OFFER', to: 'OFFER', reason: null), returnsNormally);
+    expect(
+      () => validateTransition(from: 'OFFER', to: 'OFFER', reason: null),
+      returnsNormally,
+    );
   });
 }

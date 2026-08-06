@@ -47,18 +47,16 @@ class DashboardYearData {
 
 // OFFER_ACCEPTED is deliberately excluded — an accepted offer isn't hired
 // yet, so it still counts as OPEN.
-const _kClosedApplicantStatuses = {
-  'HIRED',
-  'REJECTED',
-  'WITHDRAWN',
-};
+const _kClosedApplicantStatuses = {'HIRED', 'REJECTED', 'WITHDRAWN'};
 
 /// Fetch + derive one calendar year.
 ///
 /// Keyed on the YEAR only — `.select((p) => p.year)` — so changing the month
 /// re-slices without refetching. Watching the whole period here would refetch
 /// the entire year on every month click.
-final dashboardYearDataProvider = FutureProvider<DashboardYearData>((ref) async {
+final dashboardYearDataProvider = FutureProvider<DashboardYearData>((
+  ref,
+) async {
   // Subscribe to every reactive dependency BEFORE the first await. Riverpod
   // only registers `ref.watch` calls that execute synchronously on the first
   // pass; a watch after an await never subscribes, and the provider silently
@@ -90,7 +88,10 @@ final dashboardYearDataProvider = FutureProvider<DashboardYearData>((ref) async 
     _fetchEmployees(client, companyId),
     // 1: attendance for the whole year (paginated inside the repository).
     attendanceRepo.listByRange(
-        start: yearStart, end: yearEnd, companyId: companyId),
+      start: yearStart,
+      end: yearEnd,
+      companyId: companyId,
+    ),
     // 2: shifts — onlyActive:false, mirroring the scorecard note below: a
     //    deactivated shift must still resolve historically, or the dashboard
     //    silently reads zero late/OT for anyone on that shift while their
@@ -148,8 +149,7 @@ final dashboardYearDataProvider = FutureProvider<DashboardYearData>((ref) async 
 
   final months = computeMonthMetrics(input);
   final openApplicants = applicants
-      .where((a) =>
-          !_kClosedApplicantStatuses.contains(a.status.toUpperCase()))
+      .where((a) => !_kClosedApplicantStatuses.contains(a.status.toUpperCase()))
       .length;
 
   return DashboardYearData(
@@ -188,8 +188,7 @@ final dashboardViewProvider = Provider<AsyncValue<DashboardView>>((ref) {
   final period = ref.watch(dashboardPeriodProvider);
   final async = ref.watch(dashboardYearDataProvider);
   return async.whenData((d) {
-    final metrics =
-        period.isYear ? d.yearTotal : d.months[period.month - 1];
+    final metrics = period.isYear ? d.yearTotal : d.months[period.month - 1];
     final asOf = period.endOn(DateTime.now());
     return DashboardView(
       period: period,
@@ -212,7 +211,9 @@ String _iso(DateTime d) => d.toIso8601String().substring(0, 10);
 Decimal _dec(Object? v) => Decimal.parse((v ?? '0').toString());
 
 Future<List<Employee>> _fetchEmployees(
-    SupabaseClient client, String companyId) async {
+  SupabaseClient client,
+  String companyId,
+) async {
   final rows = await fetchAllPages<Map<String, dynamic>>((from, to) async {
     final page = await client
         .from('employees')
@@ -246,9 +247,10 @@ Future<List<LeaveDayAllocation>> _fetchLeave(
       final page = await client
           .from('leave_requests')
           .select(
-              'employee_id, start_date, end_date, leave_days, start_half, '
-              'end_half, status, leave_types(name, code), '
-              'employees!inner(company_id)')
+            'employee_id, start_date, end_date, leave_days, start_half, '
+            'end_half, status, leave_types(name, code), '
+            'employees!inner(company_id)',
+          )
           .eq('employees.company_id', companyId)
           .eq('status', 'APPROVED')
           .lte('start_date', endIso)
@@ -262,18 +264,19 @@ Future<List<LeaveDayAllocation>> _fetchLeave(
     for (final r in rows) {
       try {
         final t = r['leave_types'] as Map?;
-        final typeName =
-            (t?['name'] ?? t?['code'] ?? 'Leave').toString();
-        out.addAll(expandLeaveRequest(
-          employeeId: r['employee_id'] as String,
-          startDate: DateTime.parse(r['start_date'] as String),
-          endDate: DateTime.parse(r['end_date'] as String),
-          leaveDays:
-              double.tryParse((r['leave_days'] ?? '0').toString()) ?? 0,
-          startHalf: r['start_half'] as String?,
-          endHalf: r['end_half'] as String?,
-          leaveType: typeName,
-        ));
+        final typeName = (t?['name'] ?? t?['code'] ?? 'Leave').toString();
+        out.addAll(
+          expandLeaveRequest(
+            employeeId: r['employee_id'] as String,
+            startDate: DateTime.parse(r['start_date'] as String),
+            endDate: DateTime.parse(r['end_date'] as String),
+            leaveDays:
+                double.tryParse((r['leave_days'] ?? '0').toString()) ?? 0,
+            startHalf: r['start_half'] as String?,
+            endHalf: r['end_half'] as String?,
+            leaveType: typeName,
+          ),
+        );
       } catch (e) {
         // A single unparseable row must not blank all leave for the year.
         debugPrint('dashboard: skipping unparseable leave_requests row: $e');
@@ -297,9 +300,11 @@ Future<List<DashboardPayslip>> _fetchPayslips(
     final rows = await fetchAllPages<Map<String, dynamic>>((from, to) async {
       final page = await client
           .from('payslips')
-          .select('employee_id, gross_pay, sss_ee, philhealth_ee, '
-              'pagibig_ee, withholding_tax, '
-              'payroll_runs!inner(company_id, status, pay_date)')
+          .select(
+            'employee_id, gross_pay, sss_ee, philhealth_ee, '
+            'pagibig_ee, withholding_tax, '
+            'payroll_runs!inner(company_id, status, pay_date)',
+          )
           .eq('payroll_runs.company_id', companyId)
           .eq('payroll_runs.status', 'RELEASED')
           .gte('payroll_runs.pay_date', startIso)
@@ -311,16 +316,19 @@ Future<List<DashboardPayslip>> _fetchPayslips(
     final out = <DashboardPayslip>[];
     for (final r in rows) {
       try {
-        out.add(DashboardPayslip(
-          employeeId: r['employee_id'] as String,
-          payDate: DateTime.parse(
-              (r['payroll_runs'] as Map)['pay_date'] as String),
-          grossPay: _dec(r['gross_pay']),
-          sssEe: _dec(r['sss_ee']),
-          philhealthEe: _dec(r['philhealth_ee']),
-          pagibigEe: _dec(r['pagibig_ee']),
-          withholdingTax: _dec(r['withholding_tax']),
-        ));
+        out.add(
+          DashboardPayslip(
+            employeeId: r['employee_id'] as String,
+            payDate: DateTime.parse(
+              (r['payroll_runs'] as Map)['pay_date'] as String,
+            ),
+            grossPay: _dec(r['gross_pay']),
+            sssEe: _dec(r['sss_ee']),
+            philhealthEe: _dec(r['philhealth_ee']),
+            pagibigEe: _dec(r['pagibig_ee']),
+            withholdingTax: _dec(r['withholding_tax']),
+          ),
+        );
       } catch (e) {
         // A single unparseable row must not blank all payroll for the year.
         debugPrint('dashboard: skipping unparseable payslips row: $e');
@@ -336,7 +344,9 @@ Future<List<DashboardPayslip>> _fetchPayslips(
 }
 
 Future<List<Applicant>> _fetchApplicants(
-    SupabaseClient client, String companyId) async {
+  SupabaseClient client,
+  String companyId,
+) async {
   try {
     final rows = await fetchAllPages<Map<String, dynamic>>((from, to) async {
       final page = await client

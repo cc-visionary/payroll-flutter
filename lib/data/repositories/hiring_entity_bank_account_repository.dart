@@ -24,7 +24,8 @@ class HiringEntityBankAccountRepository {
   }
 
   Future<List<HiringEntityBankAccount>> listByEntity(
-      String hiringEntityId) async {
+    String hiringEntityId,
+  ) async {
     final rows = await _client
         .from('hiring_entity_bank_accounts')
         .select()
@@ -105,20 +106,23 @@ class HiringEntityBankAccountRepository {
 
 final hiringEntityBankAccountRepositoryProvider =
     Provider<HiringEntityBankAccountRepository>(
-        (ref) => HiringEntityBankAccountRepository(Supabase.instance.client));
+      (ref) => HiringEntityBankAccountRepository(Supabase.instance.client),
+    );
 
 /// Company-wide (all hiring entities) bank accounts — Settings screen.
 final companyBankAccountsProvider =
     FutureProvider<List<HiringEntityBankAccount>>((ref) {
-  return ref.watch(hiringEntityBankAccountRepositoryProvider).listAll();
-});
+      return ref.watch(hiringEntityBankAccountRepositoryProvider).listAll();
+    });
 
 /// Bank accounts for a single hiring entity — employee form default-pay-source
 /// dropdown, disbursement tab lookups, per-entity Settings sections.
 final hiringEntityBankAccountsProvider =
-    FutureProvider.family<List<HiringEntityBankAccount>, String>(
-        (ref, hiringEntityId) {
-  return ref
-      .watch(hiringEntityBankAccountRepositoryProvider)
-      .listByEntity(hiringEntityId);
-});
+    FutureProvider.family<List<HiringEntityBankAccount>, String>((
+      ref,
+      hiringEntityId,
+    ) {
+      return ref
+          .watch(hiringEntityBankAccountRepositoryProvider)
+          .listByEntity(hiringEntityId);
+    });

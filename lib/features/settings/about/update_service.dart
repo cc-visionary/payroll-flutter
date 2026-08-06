@@ -59,17 +59,16 @@ enum UpdateChannel {
   }
 
   bool get isDesktop => switch (this) {
-        UpdateChannel.windowsInstaller ||
-        UpdateChannel.macosDirect ||
-        UpdateChannel.linuxDirect =>
-          true,
-        _ => false,
-      };
+    UpdateChannel.windowsInstaller ||
+    UpdateChannel.macosDirect ||
+    UpdateChannel.linuxDirect => true,
+    _ => false,
+  };
 
   bool get isStore => switch (this) {
-        UpdateChannel.appStore || UpdateChannel.playStore => true,
-        _ => false,
-      };
+    UpdateChannel.appStore || UpdateChannel.playStore => true,
+    _ => false,
+  };
 }
 
 /// Shape of the hosted `version.json` manifest.
@@ -214,8 +213,8 @@ class UpdateService {
   final http.Client _http;
   final String manifestUrl;
   UpdateService({http.Client? httpClient, String? manifestUrl})
-      : _http = httpClient ?? http.Client(),
-        manifestUrl = manifestUrl ?? kUpdateManifestUrl;
+    : _http = httpClient ?? http.Client(),
+      manifestUrl = manifestUrl ?? kUpdateManifestUrl;
 
   /// Auto-detect the install channel from the current device + installer
   /// metadata. For Android we distinguish Play-store installs from sideloads
@@ -258,11 +257,11 @@ class UpdateService {
         return UpdateUpToDate(current);
       }
       if (res.statusCode != 200) {
-        return UpdateError(
-            'Update server returned HTTP ${res.statusCode}.');
+        return UpdateError('Update server returned HTTP ${res.statusCode}.');
       }
       final manifest = UpdateManifest.fromJson(
-          jsonDecode(res.body) as Map<String, dynamic>);
+        jsonDecode(res.body) as Map<String, dynamic>,
+      );
       if (!_isNewer(manifest.version, current)) {
         return UpdateUpToDate(current);
       }
@@ -277,8 +276,9 @@ class UpdateService {
       return const UpdateError('No internet connection.');
     } on HandshakeException {
       return const UpdateError(
-          "Couldn't reach the update server (TLS handshake failed). "
-          'Check that the update URL is correct.');
+        "Couldn't reach the update server (TLS handshake failed). "
+        'Check that the update URL is correct.',
+      );
     } on HttpException catch (e) {
       return UpdateError('Update server error: ${e.message}');
     } on FormatException {
@@ -318,8 +318,10 @@ class UpdateService {
   /// - Desktop: download installer, launch it, request app exit.
   /// - iOS/Android store: open store link.
   /// - Sideload Android / Linux direct / Web: open the asset or return false.
-  Future<bool> launchUpdate(UpdateAvailable update,
-      {void Function(double progress)? onProgress}) async {
+  Future<bool> launchUpdate(
+    UpdateAvailable update, {
+    void Function(double progress)? onProgress,
+  }) async {
     switch (update.channel) {
       case UpdateChannel.windowsInstaller:
         return _downloadAndLaunchWindowsInstaller(update, onProgress);
@@ -330,14 +332,15 @@ class UpdateService {
         // Android's package installer takes over once the download lands.
         final asset = update.manifest.assetFor(update.channel);
         if (asset == null || asset.url.isEmpty) return false;
-        return launchUrl(Uri.parse(asset.url),
-            mode: LaunchMode.externalApplication);
+        return launchUrl(
+          Uri.parse(asset.url),
+          mode: LaunchMode.externalApplication,
+        );
       case UpdateChannel.appStore:
       case UpdateChannel.playStore:
         final link = update.manifest.storeLinkFor(update.channel);
         if (link == null || link.isEmpty) return false;
-        return launchUrl(Uri.parse(link),
-            mode: LaunchMode.externalApplication);
+        return launchUrl(Uri.parse(link), mode: LaunchMode.externalApplication);
       case UpdateChannel.web:
         // Hosted web app — a simple reload picks up the new bundle.
         if (kIsWeb) {
@@ -362,8 +365,7 @@ class UpdateService {
     if (asset == null || asset.url.isEmpty) return false;
     try {
       final tempDir = await getTemporaryDirectory();
-      final fileName =
-          'PayrollFlutter-Setup-v${update.manifest.version}.exe';
+      final fileName = 'PayrollFlutter-Setup-v${update.manifest.version}.exe';
       final file = File('${tempDir.path}${Platform.pathSeparator}$fileName');
 
       final req = http.Request('GET', Uri.parse(asset.url));
@@ -373,26 +375,31 @@ class UpdateService {
       final total = streamed.contentLength ?? 0;
       final sink = file.openWrite();
       var received = 0;
-      await streamed.stream.listen(
-        (chunk) {
-          sink.add(chunk);
-          received += chunk.length;
-          if (onProgress != null && total > 0) {
-            onProgress(received / total);
-          }
-        },
-        onDone: () {},
-        onError: (_) {},
-        cancelOnError: true,
-      ).asFuture();
+      await streamed.stream
+          .listen(
+            (chunk) {
+              sink.add(chunk);
+              received += chunk.length;
+              if (onProgress != null && total > 0) {
+                onProgress(received / total);
+              }
+            },
+            onDone: () {},
+            onError: (_) {},
+            cancelOnError: true,
+          )
+          .asFuture();
       await sink.flush();
       await sink.close();
 
       // Fire-and-forget the installer; the user is prompted by Inno Setup to
       // close the running app. The caller should request a graceful exit
       // after this returns.
-      await Process.start(file.path, const <String>[],
-          mode: ProcessStartMode.detached);
+      await Process.start(
+        file.path,
+        const <String>[],
+        mode: ProcessStartMode.detached,
+      );
       return true;
     } catch (_) {
       return false;
@@ -405,4 +412,5 @@ class UpdateService {
 final updateServiceProvider = Provider<UpdateService>((ref) => UpdateService());
 
 final updateChannelProvider = FutureProvider<UpdateChannel>(
-    (ref) => UpdateService.detectChannel());
+  (ref) => UpdateService.detectChannel(),
+);

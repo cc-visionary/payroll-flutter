@@ -28,8 +28,9 @@ class RoleTitleField extends ConsumerStatefulWidget {
 }
 
 class _RoleTitleFieldState extends ConsumerState<RoleTitleField> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.value);
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.value,
+  );
   late final FocusNode _focusNode = FocusNode();
 
   @override
@@ -50,7 +51,8 @@ class _RoleTitleFieldState extends ConsumerState<RoleTitleField> {
   @override
   Widget build(BuildContext context) {
     final async = ref.watch(roleScorecardListProvider);
-    final titles = async.asData?.value
+    final titles =
+        async.asData?.value
             .map((c) => c.jobTitle)
             .where((t) => t.isNotEmpty)
             .toSet()
@@ -65,8 +67,7 @@ class _RoleTitleFieldState extends ConsumerState<RoleTitleField> {
         if (q.isEmpty) return titles.take(8);
         return titles.where((t) => t.toLowerCase().contains(q)).take(8);
       },
-      fieldViewBuilder:
-          (context, controller, focusNode, onFieldSubmitted) {
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
         return TextFormField(
           controller: controller,
           focusNode: focusNode,
@@ -97,7 +98,9 @@ class _RoleTitleFieldState extends ConsumerState<RoleTitleField> {
                     onTap: () => onSelected(option),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                       child: Text(option),
                     ),
                   );

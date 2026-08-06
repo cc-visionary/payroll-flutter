@@ -52,24 +52,26 @@ void main() {
       final date = DateTime.utc(2026, 1, day);
       final weekday = date.weekday; // 1..7
       final isWeekend = weekday == 6 || weekday == 7;
-      attendance.add(AttendanceDayInput(
-        id: 'ATT-$day',
-        attendanceDate: date,
-        dayType: isWeekend ? DayType.REST_DAY : DayType.WORKDAY,
-        workedMinutes: isWeekend ? 0 : 480,
-        deductionMinutes: 0,
-        absentMinutes: 0,
-        otMinutes: 0,
-        otEarlyInMinutes: 0,
-        otLateOutMinutes: 0,
-        overtimeRestDayMinutes: 0,
-        overtimeHolidayMinutes: 0,
-        earlyInApproved: false,
-        lateOutApproved: false,
-        nightDiffMinutes: 0,
-        isOnLeave: false,
-        leaveIsPaid: false,
-      ));
+      attendance.add(
+        AttendanceDayInput(
+          id: 'ATT-$day',
+          attendanceDate: date,
+          dayType: isWeekend ? DayType.REST_DAY : DayType.WORKDAY,
+          workedMinutes: isWeekend ? 0 : 480,
+          deductionMinutes: 0,
+          absentMinutes: 0,
+          otMinutes: 0,
+          otEarlyInMinutes: 0,
+          otLateOutMinutes: 0,
+          overtimeRestDayMinutes: 0,
+          overtimeHolidayMinutes: 0,
+          earlyInApproved: false,
+          lateOutApproved: false,
+          nightDiffMinutes: 0,
+          isOnLeave: false,
+          leaveIsPaid: false,
+        ),
+      );
     }
 
     final employee = EmployeePayrollInput(
@@ -94,7 +96,9 @@ void main() {
     final ps = result.payslips.first;
 
     // Basic pay: 11 workdays × 1153.846 (30000/26 rounded to 3dp) = 12,692.306
-    final basic = ps.lines.firstWhere((l) => l.category == PayslipLineCategory.BASIC_PAY);
+    final basic = ps.lines.firstWhere(
+      (l) => l.category == PayslipLineCategory.BASIC_PAY,
+    );
     expect(basic.amount, _d('12692.306'));
 
     // SSS, PhilHealth, Pag-IBIG should be present
@@ -103,11 +107,15 @@ void main() {
       1,
     );
     expect(
-      ps.lines.where((l) => l.category == PayslipLineCategory.PHILHEALTH_EE).length,
+      ps.lines
+          .where((l) => l.category == PayslipLineCategory.PHILHEALTH_EE)
+          .length,
       1,
     );
     expect(
-      ps.lines.where((l) => l.category == PayslipLineCategory.PAGIBIG_EE).length,
+      ps.lines
+          .where((l) => l.category == PayslipLineCategory.PAGIBIG_EE)
+          .length,
       1,
     );
 

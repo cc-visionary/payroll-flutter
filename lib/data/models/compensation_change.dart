@@ -9,8 +9,9 @@ class CompensationChange {
   final String id;
   final String companyId;
   final String employeeId;
-  final String changeType; // SALARY_INCREASE|SALARY_DECREASE|PROMOTION|LATERAL_TRANSFER|DEMOTION
-  final String status;     // SCHEDULED|APPLIED|CANCELLED
+  final String
+  changeType; // SALARY_INCREASE|SALARY_DECREASE|PROMOTION|LATERAL_TRANSFER|DEMOTION
+  final String status; // SCHEDULED|APPLIED|CANCELLED
   final DateTime effectiveDate;
   final Decimal? prevBaseSalary;
   final Decimal? newBaseSalary;

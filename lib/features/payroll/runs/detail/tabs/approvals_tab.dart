@@ -17,8 +17,8 @@ String? _deptFor(Map<String, dynamic>? emp) {
       (emp?['departments'] as Map<String, dynamic>?)?['name'] as String?;
   if (direct != null && direct.trim().isNotEmpty) return direct;
   final scorecard = emp?['role_scorecards'] as Map<String, dynamic>?;
-  final scDept = (scorecard?['departments'] as Map<String, dynamic>?)
-      ?['name'] as String?;
+  final scDept =
+      (scorecard?['departments'] as Map<String, dynamic>?)?['name'] as String?;
   if (scDept != null && scDept.trim().isNotEmpty) return scDept;
   return null;
 }
@@ -93,9 +93,11 @@ class _PayrollApprovalsTabState extends ConsumerState<PayrollApprovalsTab> {
           final id = r['id'] as String;
           final approvalStatus = r['approval_status'] as String?;
           final instanceCode = r['lark_approval_instance_code'] as String?;
-          final isSendable = approvalStatus == 'DRAFT_IN_REVIEW' ||
+          final isSendable =
+              approvalStatus == 'DRAFT_IN_REVIEW' ||
               approvalStatus == 'RECALLED';
-          final isSyncable = instanceCode != null &&
+          final isSyncable =
+              instanceCode != null &&
               instanceCode.isNotEmpty &&
               approvalStatus != 'RECALLED';
           if (isSendable) sendableAll++;
@@ -143,28 +145,35 @@ class _PayrollApprovalsTabState extends ConsumerState<PayrollApprovalsTab> {
                                     payslipIds: ids,
                                   );
                               ref.invalidate(
-                                  payslipListForRunProvider(widget.runId));
+                                payslipListForRunProvider(widget.runId),
+                              );
                               ref.invalidate(
-                                  larkApprovalCountsProvider(widget.runId));
+                                larkApprovalCountsProvider(widget.runId),
+                              );
                               final synced =
                                   (res['synced'] as num?)?.toInt() ?? 0;
                               final failed =
                                   (res['failed'] as num?)?.toInt() ?? 0;
-                              final errs =
-                                  (res['errors'] as List?) ?? const [];
+                              final errs = (res['errors'] as List?) ?? const [];
                               if (!context.mounted) return;
-                              messenger.showSnackBar(SnackBar(
-                                content: Text(failed == 0
-                                    ? 'Synced $synced status${synced == 1 ? '' : 'es'} from Lark.'
-                                    : 'Synced $synced, $failed failed'
-                                        '${errs.isNotEmpty ? ": ${(errs.first as Map)['error']}" : ''}.'),
-                              ));
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    failed == 0
+                                        ? 'Synced $synced status${synced == 1 ? '' : 'es'} from Lark.'
+                                        : 'Synced $synced, $failed failed'
+                                              '${errs.isNotEmpty ? ": ${(errs.first as Map)['error']}" : ''}.',
+                                  ),
+                                ),
+                              );
                             } catch (e) {
                               if (!context.mounted) return;
-                              messenger.showSnackBar(SnackBar(
-                                backgroundColor: Colors.red.shade600,
-                                content: Text('Sync failed: $e'),
-                              ));
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  backgroundColor: Colors.red.shade600,
+                                  content: Text('Sync failed: $e'),
+                                ),
+                              );
                             }
                           },
                     onSend: sendCount == 0
@@ -177,14 +186,19 @@ class _PayrollApprovalsTabState extends ConsumerState<PayrollApprovalsTab> {
                             final ids = hasSelection
                                 ? _sendableSelectedIds(rows)
                                 : _allSendableIds(rows);
-                            messenger.showSnackBar(SnackBar(
-                              content: Text(
-                                  'Generating ${ids.length} payslip PDF${ids.length == 1 ? '' : 's'}…'),
-                              duration: const Duration(seconds: 3),
-                            ));
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Generating ${ids.length} payslip PDF${ids.length == 1 ? '' : 's'}…',
+                                ),
+                                duration: const Duration(seconds: 3),
+                              ),
+                            );
                             try {
-                              final pdfs =
-                                  await buildPayslipPdfsBase64ForIds(ref, ids);
+                              final pdfs = await buildPayslipPdfsBase64ForIds(
+                                ref,
+                                ids,
+                              );
                               final res = await ref
                                   .read(payrollRepositoryProvider)
                                   .sendPayslipApprovals(
@@ -193,32 +207,39 @@ class _PayrollApprovalsTabState extends ConsumerState<PayrollApprovalsTab> {
                                     pdfsByPayslipId: pdfs,
                                   );
                               ref.invalidate(
-                                  payslipListForRunProvider(widget.runId));
+                                payslipListForRunProvider(widget.runId),
+                              );
                               ref.invalidate(
-                                  larkApprovalCountsProvider(widget.runId));
+                                larkApprovalCountsProvider(widget.runId),
+                              );
                               ref.invalidate(
-                                  payslipApprovalCountsProvider(widget.runId));
-                              final sent =
-                                  (res['sent'] as num?)?.toInt() ?? 0;
+                                payslipApprovalCountsProvider(widget.runId),
+                              );
+                              final sent = (res['sent'] as num?)?.toInt() ?? 0;
                               final failed =
                                   (res['failed'] as num?)?.toInt() ?? 0;
-                              final errs =
-                                  (res['errors'] as List?) ?? const [];
+                              final errs = (res['errors'] as List?) ?? const [];
                               if (!context.mounted) return;
                               messenger.hideCurrentSnackBar();
-                              messenger.showSnackBar(SnackBar(
-                                content: Text(failed == 0
-                                    ? 'Sent $sent Lark approval${sent == 1 ? '' : 's'}.'
-                                    : 'Sent $sent, $failed failed'
-                                        '${errs.isNotEmpty ? ": ${(errs.first as Map)['error']}" : ''}.'),
-                              ));
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    failed == 0
+                                        ? 'Sent $sent Lark approval${sent == 1 ? '' : 's'}.'
+                                        : 'Sent $sent, $failed failed'
+                                              '${errs.isNotEmpty ? ": ${(errs.first as Map)['error']}" : ''}.',
+                                  ),
+                                ),
+                              );
                             } catch (e) {
                               if (!context.mounted) return;
                               messenger.hideCurrentSnackBar();
-                              messenger.showSnackBar(SnackBar(
-                                backgroundColor: Colors.red.shade600,
-                                content: Text('Send failed: $e'),
-                              ));
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  backgroundColor: Colors.red.shade600,
+                                  content: Text('Send failed: $e'),
+                                ),
+                              );
                             }
                           },
                   ),
@@ -238,9 +259,9 @@ class _PayrollApprovalsTabState extends ConsumerState<PayrollApprovalsTab> {
                         child: Text(
                           'No payslips yet',
                           style: TextStyle(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -262,8 +283,9 @@ class _PayrollApprovalsTabState extends ConsumerState<PayrollApprovalsTab> {
                           final verb = r['approval_status'] == 'APPROVED'
                               ? 'Revoke'
                               : 'Recall';
-                          final verbed =
-                              verb == 'Revoke' ? 'Revoked' : 'Recalled';
+                          final verbed = verb == 'Revoke'
+                              ? 'Revoked'
+                              : 'Recalled';
                           try {
                             final res = await ref
                                 .read(payrollRepositoryProvider)
@@ -272,36 +294,42 @@ class _PayrollApprovalsTabState extends ConsumerState<PayrollApprovalsTab> {
                                   payslipIds: [payslipId],
                                 );
                             ref.invalidate(
-                                payslipListForRunProvider(widget.runId));
+                              payslipListForRunProvider(widget.runId),
+                            );
                             ref.invalidate(
-                                larkApprovalCountsProvider(widget.runId));
-                            ref.invalidate(payslipApprovalCountsProvider(
-                                widget.runId));
+                              larkApprovalCountsProvider(widget.runId),
+                            );
+                            ref.invalidate(
+                              payslipApprovalCountsProvider(widget.runId),
+                            );
                             final recalled =
                                 (res['recalled'] as num?)?.toInt() ?? 0;
                             final failed =
                                 (res['failed'] as num?)?.toInt() ?? 0;
-                            final errs =
-                                (res['errors'] as List?) ?? const [];
+                            final errs = (res['errors'] as List?) ?? const [];
                             if (!context.mounted) return;
-                            messenger.showSnackBar(SnackBar(
-                              content: Text(failed == 0
-                                  ? '$verbed $recalled approval${recalled == 1 ? '' : 's'}.'
-                                  : '$verbed $recalled, $failed failed'
-                                      '${errs.isNotEmpty ? ": ${(errs.first as Map)['error']}" : ''}.'),
-                            ));
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  failed == 0
+                                      ? '$verbed $recalled approval${recalled == 1 ? '' : 's'}.'
+                                      : '$verbed $recalled, $failed failed'
+                                            '${errs.isNotEmpty ? ": ${(errs.first as Map)['error']}" : ''}.',
+                                ),
+                              ),
+                            );
                           } catch (e) {
                             if (!context.mounted) return;
-                            messenger.showSnackBar(SnackBar(
-                              backgroundColor: Colors.red.shade600,
-                              content: Text('$verb failed: $e'),
-                            ));
+                            messenger.showSnackBar(
+                              SnackBar(
+                                backgroundColor: Colors.red.shade600,
+                                content: Text('$verb failed: $e'),
+                              ),
+                            );
                           }
                         },
                       ),
-                      Divider(
-                          height: 1,
-                          color: Theme.of(context).dividerColor),
+                      Divider(height: 1, color: Theme.of(context).dividerColor),
                     ],
                 ],
               ),
@@ -549,9 +577,11 @@ class _ApprovalRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final emp = row['employees'] as Map<String, dynamic>?;
-    final name = [emp?['first_name'], emp?['middle_name'], emp?['last_name']]
-        .where((s) => s != null && (s as String).isNotEmpty)
-        .join(' ');
+    final name = [
+      emp?['first_name'],
+      emp?['middle_name'],
+      emp?['last_name'],
+    ].where((s) => s != null && (s as String).isNotEmpty).join(' ');
     final number = emp?['employee_number'] as String? ?? '—';
     // Falls back to role_scorecards.departments.name when the employee has
     // no direct department_id (department is carried by the role card).
@@ -564,10 +594,9 @@ class _ApprovalRow extends StatelessWidget {
     // approval; Lark requires "Allow post-approval cancellation" to be
     // enabled on the template). Both call the same edge function.
     final approvalStatus = row['approval_status'] as String?;
-    final canRecallOrRevoke = approvalStatus == 'PENDING_APPROVAL' ||
-        approvalStatus == 'APPROVED';
-    final actionLabel =
-        approvalStatus == 'APPROVED' ? 'Revoke' : 'Recall';
+    final canRecallOrRevoke =
+        approvalStatus == 'PENDING_APPROVAL' || approvalStatus == 'APPROVED';
+    final actionLabel = approvalStatus == 'APPROVED' ? 'Revoke' : 'Recall';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -669,8 +698,18 @@ class _ApprovalRow extends StatelessWidget {
 
   static String _fmtDateTime(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final local = d.toLocal();
     final h = local.hour;
@@ -690,10 +729,7 @@ class _StatusPill extends StatelessWidget {
   // "Not sent" which misrepresents history.
   final String? approvalStatus;
   final String? larkStatus;
-  const _StatusPill({
-    required this.approvalStatus,
-    required this.larkStatus,
-  });
+  const _StatusPill({required this.approvalStatus, required this.larkStatus});
 
   @override
   Widget build(BuildContext context) {
@@ -732,7 +768,11 @@ class _StatusPill extends StatelessWidget {
   (String, Color?, Color?) _labelFor(String? approval, String? lark) {
     switch (approval) {
       case 'APPROVED':
-        return ('Acknowledged', const Color(0xFFDCFCE7), const Color(0xFF166534));
+        return (
+          'Acknowledged',
+          const Color(0xFFDCFCE7),
+          const Color(0xFF166534),
+        );
       case 'PENDING_APPROVAL':
         return ('Pending', const Color(0xFFFEF3C7), const Color(0xFF92400E));
       case 'REJECTED':
@@ -747,7 +787,11 @@ class _StatusPill extends StatelessWidget {
     // with a default) but cheap to preserve.
     switch (lark) {
       case 'APPROVED':
-        return ('Acknowledged', const Color(0xFFDCFCE7), const Color(0xFF166534));
+        return (
+          'Acknowledged',
+          const Color(0xFFDCFCE7),
+          const Color(0xFF166534),
+        );
       case 'PENDING':
         return ('Pending', const Color(0xFFFEF3C7), const Color(0xFF92400E));
       case 'REJECTED':
@@ -774,9 +818,11 @@ class _ApprovalDetailDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final emp = row['employees'] as Map<String, dynamic>?;
-    final name = [emp?['first_name'], emp?['middle_name'], emp?['last_name']]
-        .where((s) => s != null && (s as String).isNotEmpty)
-        .join(' ');
+    final name = [
+      emp?['first_name'],
+      emp?['middle_name'],
+      emp?['last_name'],
+    ].where((s) => s != null && (s as String).isNotEmpty).join(' ');
     final number = emp?['employee_number'] as String? ?? '—';
     final dept = _deptFor(emp);
     final payslipId = row['id'] as String?;
@@ -788,8 +834,8 @@ class _ApprovalDetailDialog extends StatelessWidget {
     final pdfFilename = payslipNumber != null
         ? 'Payslip-$payslipNumber.pdf'
         : payslipId != null
-            ? 'Payslip-${payslipId.substring(0, 8)}.pdf'
-            : 'Payslip.pdf';
+        ? 'Payslip-${payslipId.substring(0, 8)}.pdf'
+        : 'Payslip.pdf';
 
     DateTime? sentAt;
     if (sentAtRaw != null) sentAt = DateTime.tryParse(sentAtRaw)?.toLocal();
@@ -817,11 +863,14 @@ class _ApprovalDetailDialog extends StatelessWidget {
             const SizedBox(height: 12),
             // The PDF card is the focal point of the dialog — matches the
             // "Payslip PDF" row in the Lark approval detail page.
-            Text('Payslip PDF sent',
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: muted)),
+            Text(
+              'Payslip PDF sent',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: muted,
+              ),
+            ),
             const SizedBox(height: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -839,25 +888,34 @@ class _ApprovalDetailDialog extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     alignment: Alignment.center,
-                    child: const Icon(Icons.picture_as_pdf_outlined,
-                        size: 16, color: Color(0xFFB91C1C)),
+                    child: const Icon(
+                      Icons.picture_as_pdf_outlined,
+                      size: 16,
+                      color: Color(0xFFB91C1C),
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(pdfFilename,
-                            style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                fontFamily: 'GeistMono')),
+                        Text(
+                          pdfFilename,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'GeistMono',
+                          ),
+                        ),
                         if (payslipNumber != null)
-                          Text(payslipNumber,
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: muted,
-                                  fontFamily: 'GeistMono')),
+                          Text(
+                            payslipNumber,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: muted,
+                              fontFamily: 'GeistMono',
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -884,8 +942,10 @@ class _ApprovalDetailDialog extends StatelessWidget {
             _DetailRow(
               label: 'Status',
               valueWidget: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 3,
+                ),
                 decoration: BoxDecoration(
                   color: pillColors.bg,
                   borderRadius: BorderRadius.circular(10),
@@ -942,25 +1002,26 @@ class _ApprovalDetailDialog extends StatelessWidget {
   }
 
   static ({String label, Color bg, Color fg}) _statusPillColors(
-      String? status) {
+    String? status,
+  ) {
     switch (status) {
       case 'PENDING':
         return (
           label: 'Pending',
           bg: const Color(0xFFFEF3C7),
-          fg: const Color(0xFF92400E)
+          fg: const Color(0xFF92400E),
         );
       case 'APPROVED':
         return (
           label: 'Approved',
           bg: const Color(0xFFD1FADF),
-          fg: const Color(0xFF12B76A)
+          fg: const Color(0xFF12B76A),
         );
       case 'REJECTED':
         return (
           label: 'Rejected',
           bg: const Color(0xFFFEE2E2),
-          fg: const Color(0xFFB91C1C)
+          fg: const Color(0xFFB91C1C),
         );
       case 'CANCELED':
       case 'CANCELLED':
@@ -968,21 +1029,31 @@ class _ApprovalDetailDialog extends StatelessWidget {
         return (
           label: 'Recalled',
           bg: const Color(0xFFF3F4F6),
-          fg: const Color(0xFF4B5563)
+          fg: const Color(0xFF4B5563),
         );
       default:
         return (
           label: 'Not sent',
           bg: const Color(0xFFF3F4F6),
-          fg: const Color(0xFF6B7280)
+          fg: const Color(0xFF6B7280),
         );
     }
   }
 
   static String _fmtFullDateTime(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
     final m = d.minute.toString().padLeft(2, '0');
@@ -1015,13 +1086,11 @@ class _DetailRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 120,
-            child: Text(
-              label,
-              style: TextStyle(fontSize: 12, color: muted),
-            ),
+            child: Text(label, style: TextStyle(fontSize: 12, color: muted)),
           ),
           Expanded(
-            child: valueWidget ??
+            child:
+                valueWidget ??
                 Text(
                   value ?? '—',
                   style: TextStyle(

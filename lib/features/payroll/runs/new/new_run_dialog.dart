@@ -14,16 +14,17 @@ import 'default_pay_period.dart';
 /// period is no longer supported (each run gets its own period). On confirm,
 /// creates a DRAFT payroll_run scoped to the employees the user selected and
 /// navigates to `/payroll/:id`.
-Future<void> showNewPayrollRunDialog(BuildContext context, WidgetRef ref) async {
+Future<void> showNewPayrollRunDialog(
+  BuildContext context,
+  WidgetRef ref,
+) async {
   final profile = ref.read(userProfileProvider).asData?.value;
   final companyId = profile?.companyId;
   if (companyId == null || companyId.isEmpty) return;
   await showDialog(
     context: context,
-    builder: (_) => _NewRunDialog(
-      companyId: companyId,
-      createdById: profile?.userId,
-    ),
+    builder: (_) =>
+        _NewRunDialog(companyId: companyId, createdById: profile?.userId),
   );
 }
 
@@ -97,8 +98,11 @@ class _NewRunDialogState extends ConsumerState<_NewRunDialog> {
     final runs = _priorRuns;
     final anchor = runs == null
         ? null
-        : lastReleasedPeriodEnd(runs,
-            companyId: widget.companyId, frequency: _frequency);
+        : lastReleasedPeriodEnd(
+            runs,
+            companyId: widget.companyId,
+            frequency: _frequency,
+          );
     final p = defaultPayPeriod(today: DateTime.now(), lastReleasedEnd: anchor);
     setState(() {
       _startDate = p.start;
@@ -159,8 +163,7 @@ class _NewRunDialogState extends ConsumerState<_NewRunDialog> {
     if (ok && mounted) _reloadEmployees();
   }
 
-  String get _derivedCode =>
-      '${_isoDate(_startDate)} - ${_isoDate(_endDate)}';
+  String get _derivedCode => '${_isoDate(_startDate)} - ${_isoDate(_endDate)}';
 
   String? _validateCreateMode() {
     if (_endDate.isBefore(_startDate)) {
@@ -197,16 +200,18 @@ class _NewRunDialogState extends ConsumerState<_NewRunDialog> {
         periodStart: _startDate,
         periodEnd: _endDate,
       );
-      final conflictIds =
-          _selectedEmployeeIds.where(covered.contains).toList();
+      final conflictIds = _selectedEmployeeIds.where(covered.contains).toList();
       if (conflictIds.isNotEmpty) {
         final rows = await repo.employeesByIds(conflictIds);
-        final names = rows
-            .map((e) =>
-                '${e['last_name'] ?? ''}, ${e['first_name'] ?? ''}'.trim())
-            .where((s) => s.isNotEmpty && s != ',')
-            .toList()
-          ..sort();
+        final names =
+            rows
+                .map(
+                  (e) => '${e['last_name'] ?? ''}, ${e['first_name'] ?? ''}'
+                      .trim(),
+                )
+                .where((s) => s.isNotEmpty && s != ',')
+                .toList()
+              ..sort();
         final preview = names.take(5).join('; ');
         final suffix = names.length > 5 ? ' (+${names.length - 5} more)' : '';
         throw Exception(
@@ -246,10 +251,12 @@ class _NewRunDialogState extends ConsumerState<_NewRunDialog> {
       final messenger = ScaffoldMessenger.of(context);
       Navigator.of(context).pop();
       if (computeWarning != null) {
-        messenger.showSnackBar(SnackBar(
-          content: Text(computeWarning),
-          duration: const Duration(seconds: 6),
-        ));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(computeWarning),
+            duration: const Duration(seconds: 6),
+          ),
+        );
       }
       context.go('/payroll/$newRunId');
     } catch (err) {
@@ -344,8 +351,7 @@ class _NewRunDialogState extends ConsumerState<_NewRunDialog> {
                         (_employees ?? const []).map((e) => e['id'] as String),
                       );
                   }),
-                  onDeselectAll: () =>
-                      setState(_selectedEmployeeIds.clear),
+                  onDeselectAll: () => setState(_selectedEmployeeIds.clear),
                 ),
               ),
               if (_validationError != null) ...[
@@ -394,15 +400,19 @@ class _NewRunDialogState extends ConsumerState<_NewRunDialog> {
                               const SizedBox(
                                 height: 14,
                                 width: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               ),
                               const SizedBox(width: 8),
                               Text(_busyLabel ?? 'Working…'),
                             ],
                           )
-                        : Text(_selectedEmployeeIds.isEmpty
-                            ? 'Create Run'
-                            : 'Create Run (${_selectedEmployeeIds.length} employee${_selectedEmployeeIds.length == 1 ? '' : 's'})'),
+                        : Text(
+                            _selectedEmployeeIds.isEmpty
+                                ? 'Create Run'
+                                : 'Create Run (${_selectedEmployeeIds.length} employee${_selectedEmployeeIds.length == 1 ? '' : 's'})',
+                          ),
                   ),
                 ],
               ),
@@ -452,14 +462,14 @@ class _CreateBody extends StatelessWidget {
             border: OutlineInputBorder(),
             isDense: true,
           ),
-          onChanged: enabled
-              ? (v) => v == null ? null : onFrequency(v)
-              : null,
+          onChanged: enabled ? (v) => v == null ? null : onFrequency(v) : null,
           items: const [
             DropdownMenuItem(value: 'WEEKLY', child: Text('Weekly')),
             DropdownMenuItem(value: 'BI_WEEKLY', child: Text('Bi-weekly')),
             DropdownMenuItem(
-                value: 'SEMI_MONTHLY', child: Text('Semi-monthly')),
+              value: 'SEMI_MONTHLY',
+              child: Text('Semi-monthly'),
+            ),
             DropdownMenuItem(value: 'MONTHLY', child: Text('Monthly')),
           ],
         ),
@@ -566,10 +576,7 @@ class _DateField extends StatelessWidget {
           isDense: true,
           suffixIcon: const Icon(Icons.calendar_today, size: 16),
         ),
-        child: Text(
-          _isoDate(value),
-          style: const TextStyle(fontSize: 13),
-        ),
+        child: Text(_isoDate(value), style: const TextStyle(fontSize: 13)),
       ),
     );
   }
@@ -594,6 +601,7 @@ class _EmployeesSection extends StatelessWidget {
   final String? error;
   final List<Map<String, dynamic>>? employees;
   final Set<String> selectedIds;
+
   /// Null while the dialog is busy creating the run (sync disabled).
   final VoidCallback? onSync;
   final ValueChanged<String> onToggle;
@@ -626,9 +634,9 @@ class _EmployeesSection extends StatelessWidget {
           children: [
             Text(
               'Employees${employees == null ? '' : ' ($total found)'}',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
             ),
             const Spacer(),
             if (total > 0) ...[
@@ -654,13 +662,8 @@ class _EmployeesSection extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          total == 0
-              ? ''
-              : '$selected of $total employees selected',
-          style: TextStyle(
-            fontSize: 11,
-            color: scheme.onSurfaceVariant,
-          ),
+          total == 0 ? '' : '$selected of $total employees selected',
+          style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
         ),
       ],
     );
@@ -790,7 +793,10 @@ class _EmployeesSection extends StatelessWidget {
                 children: [
                   Text(
                     last.isEmpty ? first : '$last, $first',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                   if (number.isNotEmpty)
                     Text(

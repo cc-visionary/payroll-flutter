@@ -20,23 +20,33 @@ class DocumentTypeInfo {
 /// Template id → [DocumentTypeInfo]. Covers every id in [kTemplates].
 const Map<String, DocumentTypeInfo> kDocumentTypeByTemplateId = {
   'coe': DocumentTypeInfo('COE', 'Certificate of Employment'),
-  'employment_contract':
-      DocumentTypeInfo('EMPLOYMENT_CONTRACT', 'Employment Contract'),
+  'employment_contract': DocumentTypeInfo(
+    'EMPLOYMENT_CONTRACT',
+    'Employment Contract',
+  ),
   'final_pay': DocumentTypeInfo('FINAL_PAY', 'Final Pay Computation'),
   'liability_waiver': DocumentTypeInfo('LIABILITY_WAIVER', 'Liability Waiver'),
   'nda': DocumentTypeInfo('NDA', 'Non-Disclosure Agreement'),
   'nod': DocumentTypeInfo('NOD', 'Notice of Decision'),
-  'non_reg':
-      DocumentTypeInfo('NON_REGULARIZATION', 'Notice of Non-Regularization'),
+  'non_reg': DocumentTypeInfo(
+    'NON_REGULARIZATION',
+    'Notice of Non-Regularization',
+  ),
   'nte': DocumentTypeInfo('NTE', 'Notice to Explain'),
-  'penalty_agreement':
-      DocumentTypeInfo('PENALTY_AGREEMENT', 'Penalty Repayment Agreement'),
+  'penalty_agreement': DocumentTypeInfo(
+    'PENALTY_AGREEMENT',
+    'Penalty Repayment Agreement',
+  ),
   'quitclaim': DocumentTypeInfo('QUITCLAIM', 'Quitclaim'),
   'regularization': DocumentTypeInfo('REGULARIZATION', 'Regularization'),
-  'resignation_acceptance':
-      DocumentTypeInfo('RESIGNATION_ACCEPTANCE', 'Resignation Acceptance'),
-  'salary_adjustment':
-      DocumentTypeInfo('SALARY_ADJUSTMENT', 'Salary Adjustment'),
+  'resignation_acceptance': DocumentTypeInfo(
+    'RESIGNATION_ACCEPTANCE',
+    'Resignation Acceptance',
+  ),
+  'salary_adjustment': DocumentTypeInfo(
+    'SALARY_ADJUSTMENT',
+    'Salary Adjustment',
+  ),
 };
 
 /// Returns the [DocumentTypeInfo] for [templateId], or null if unknown.

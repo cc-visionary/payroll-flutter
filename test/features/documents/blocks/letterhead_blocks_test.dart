@@ -16,8 +16,14 @@ void main() {
   test('LetterMetaBlock stores all sections', () {
     final block = LetterMetaBlock(
       date: DateTime(2026, 4, 27),
-      to: const LetterParty(name: 'Orlando Del Prado', subtitle: 'Sales Associate'),
-      from: const LetterParty(name: 'Brixter Del Mundo', subtitle: 'HR Manager'),
+      to: const LetterParty(
+        name: 'Orlando Del Prado',
+        subtitle: 'Sales Associate',
+      ),
+      from: const LetterParty(
+        name: 'Brixter Del Mundo',
+        subtitle: 'HR Manager',
+      ),
       subject: 'Preventive Suspension Pending Investigation',
     );
     expect(block.subject, 'Preventive Suspension Pending Investigation');

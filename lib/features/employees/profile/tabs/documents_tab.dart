@@ -66,9 +66,11 @@ class _DocumentsTabState extends ConsumerState<DocumentsTab> {
                           if (tpl != null &&
                               widget.employee.hiringEntityId != null) {
                             final hiringEntity = await ref
-                                .read(hiringEntityByIdProvider(
-                                        widget.employee.hiringEntityId!)
-                                    .future)
+                                .read(
+                                  hiringEntityByIdProvider(
+                                    widget.employee.hiringEntityId!,
+                                  ).future,
+                                )
                                 .catchError((_) => null);
                             final ctx = AutofillContext(
                               employee: widget.employee,
@@ -79,9 +81,7 @@ class _DocumentsTabState extends ConsumerState<DocumentsTab> {
                             if (gates.isNotEmpty) {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(gates.first.reason),
-                                  ),
+                                  SnackBar(content: Text(gates.first.reason)),
                                 );
                               }
                               return;
@@ -105,16 +105,16 @@ class _DocumentsTabState extends ConsumerState<DocumentsTab> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               async.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Text('Error: $e',
-                    style: const TextStyle(color: Colors.red)),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Text(
+                  'Error: $e',
+                  style: const TextStyle(color: Colors.red),
+                ),
                 data: (rows) => rows.isEmpty
                     ? Text(
                         'No documents on file',
                         style: TextStyle(
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       )
                     : Column(
@@ -132,9 +132,8 @@ class _DocumentsTabState extends ConsumerState<DocumentsTab> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
-                  onPressed: () => context.go(
-                    '/documents?employeeId=${widget.employee.id}',
-                  ),
+                  onPressed: () =>
+                      context.go('/documents?employeeId=${widget.employee.id}'),
                   icon: const Icon(Icons.open_in_new, size: 16),
                   label: const Text('View in Documents hub'),
                 ),
@@ -167,17 +166,11 @@ class _Card extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
             child: Text(
               title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
           ),
           Divider(height: 1, color: Theme.of(context).dividerColor),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: child,
-          ),
+          Padding(padding: const EdgeInsets.all(16), child: child),
         ],
       ),
     );
@@ -221,9 +214,9 @@ class _DocRowState extends State<DocRow> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to open document: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to open document: $e')));
       }
     } finally {
       if (mounted) setState(() => _opening = false);
@@ -233,7 +226,8 @@ class _DocRowState extends State<DocRow> {
   @override
   Widget build(BuildContext context) {
     final title =
-        (row['title'] as String?) ?? (row['file_name'] as String? ?? 'Document');
+        (row['title'] as String?) ??
+        (row['file_name'] as String? ?? 'Document');
     final type = (row['document_type'] as String?) ?? '';
     final status = (row['status'] as String?) ?? 'ISSUED';
     final created = row['created_at'] as String?;
@@ -248,69 +242,71 @@ class _DocRowState extends State<DocRow> {
             ? null
             : () => context.go('/documents/view/$id'),
         child: Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).dividerColor),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.description_outlined, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  [type, if (created != null) 'Added ${created.substring(0, 10)}']
-                      .where((s) => s.isNotEmpty)
-                      .join(' • '),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            border: Border.all(color: Theme.of(context).dividerColor),
+            borderRadius: BorderRadius.circular(8),
           ),
-          StatusChip(
-            label: documentStatusLabel(status),
-            tone: documentStatusTone(status),
-          ),
-          if (hasFile) ...[
-            const SizedBox(width: 8),
-            _opening
-                ? const Padding(
-                    padding: EdgeInsets.all(8),
-                    child: SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+          child: Row(
+            children: [
+              const Icon(Icons.description_outlined, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  )
-                : IconButton(
-                    onPressed: _openDocument,
-                    icon: const Icon(Icons.open_in_new, size: 18),
-                    tooltip: 'View / download',
-                    visualDensity: VisualDensity.compact,
-                  ),
-          ],
-          const SizedBox(width: 8),
-          Icon(
-            Icons.chevron_right,
-            size: 18,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    const SizedBox(height: 2),
+                    Text(
+                      [
+                        type,
+                        if (created != null)
+                          'Added ${created.substring(0, 10)}',
+                      ].where((s) => s.isNotEmpty).join(' • '),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              StatusChip(
+                label: documentStatusLabel(status),
+                tone: documentStatusTone(status),
+              ),
+              if (hasFile) ...[
+                const SizedBox(width: 8),
+                _opening
+                    ? const Padding(
+                        padding: EdgeInsets.all(8),
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : IconButton(
+                        onPressed: _openDocument,
+                        icon: const Icon(Icons.open_in_new, size: 18),
+                        tooltip: 'View / download',
+                        visualDensity: VisualDensity.compact,
+                      ),
+              ],
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ],
           ),
-        ],
-      ),
         ),
       ),
     );

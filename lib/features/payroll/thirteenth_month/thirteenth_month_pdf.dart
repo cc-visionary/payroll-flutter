@@ -37,8 +37,18 @@ class ThirteenthMonthPdfInput {
 }
 
 const _monthNames = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 String _date(DateTime d) => '${_monthNames[d.month - 1]} ${d.day}, ${d.year}';
@@ -157,25 +167,39 @@ pw.Widget _header(ThirteenthMonthPdfInput i, PdfColor primary) {
               ),
               if (i.companyTradeName != null &&
                   i.companyTradeName != i.companyName)
-                pw.Text(i.companyName,
-                    style: const pw.TextStyle(
-                        fontSize: 9, color: PdfColors.grey700)),
+                pw.Text(
+                  i.companyName,
+                  style: const pw.TextStyle(
+                    fontSize: 9,
+                    color: PdfColors.grey700,
+                  ),
+                ),
               if (i.companyAddress != null)
-                pw.Text(i.companyAddress!,
-                    style: const pw.TextStyle(
-                        fontSize: 9, color: PdfColors.grey700)),
+                pw.Text(
+                  i.companyAddress!,
+                  style: const pw.TextStyle(
+                    fontSize: 9,
+                    color: PdfColors.grey700,
+                  ),
+                ),
             ],
           ),
         ),
       pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.end,
         children: [
-          pw.Text('13TH MONTH',
-              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-          pw.Text('Accrual Breakdown',
-              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
-          pw.Text('Range: ${_date(i.from)} – ${_date(i.to)}',
-              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+          pw.Text(
+            '13TH MONTH',
+            style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.Text(
+            'Accrual Breakdown',
+            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+          ),
+          pw.Text(
+            'Range: ${_date(i.from)} – ${_date(i.to)}',
+            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+          ),
         ],
       ),
     ],
@@ -206,8 +230,7 @@ pw.Widget _employeeBlock(ThirteenthMonthPdfInput i) {
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              _kv('Employment',
-                  '${e.employmentType} · ${e.employmentStatus}'),
+              _kv('Employment', '${e.employmentType} · ${e.employmentStatus}'),
               _kv('Hire Date', _date(e.hireDate)),
               if (e.separationDate != null)
                 _kv('Separation Date', _date(e.separationDate!)),
@@ -222,17 +245,23 @@ pw.Widget _employeeBlock(ThirteenthMonthPdfInput i) {
 pw.Widget _kv(String label, String value) {
   return pw.Padding(
     padding: const pw.EdgeInsets.symmetric(vertical: 2),
-    child: pw.Row(children: [
-      pw.SizedBox(
-        width: 80,
-        child: pw.Text(label,
-            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
-      ),
-      pw.Expanded(
-        child: pw.Text(value,
-            style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-      ),
-    ]),
+    child: pw.Row(
+      children: [
+        pw.SizedBox(
+          width: 80,
+          child: pw.Text(
+            label,
+            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+          ),
+        ),
+        pw.Expanded(
+          child: pw.Text(
+            value,
+            style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+          ),
+        ),
+      ],
+    ),
   );
 }
 
@@ -249,15 +278,20 @@ pw.Widget _summaryBox(ThirteenthMonthPdfInput i, PdfColor primary) {
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text('13th Month Accrued',
-                  style: pw.TextStyle(
-                      fontSize: 11,
-                      fontWeight: pw.FontWeight.bold,
-                      color: primary)),
+              pw.Text(
+                '13th Month Accrued',
+                style: pw.TextStyle(
+                  fontSize: 11,
+                  fontWeight: pw.FontWeight.bold,
+                  color: primary,
+                ),
+              ),
               pw.Text(
                 'Payout at year-end or separation · Scoped to selected date range',
                 style: pw.TextStyle(
-                    fontSize: 9, color: PdfColor.fromHex('#6366F1')),
+                  fontSize: 9,
+                  color: PdfColor.fromHex('#6366F1'),
+                ),
               ),
             ],
           ),
@@ -265,7 +299,10 @@ pw.Widget _summaryBox(ThirteenthMonthPdfInput i, PdfColor primary) {
         pw.Text(
           Money.fmtPhp(i.breakdown.thirteenthMonthPayout),
           style: pw.TextStyle(
-              fontSize: 20, fontWeight: pw.FontWeight.bold, color: primary),
+            fontSize: 20,
+            fontWeight: pw.FontWeight.bold,
+            color: primary,
+          ),
         ),
       ],
     ),
@@ -273,26 +310,33 @@ pw.Widget _summaryBox(ThirteenthMonthPdfInput i, PdfColor primary) {
 }
 
 pw.Widget _breakdownTable(
-    ThirteenthMonthPdfInput i, PdfColor primary, PdfColor headBg) {
+  ThirteenthMonthPdfInput i,
+  PdfColor primary,
+  PdfColor headBg,
+) {
   final rows = i.breakdown.contributions;
 
   pw.Widget th(String label, {bool end = false}) => pw.Padding(
-        padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        child: pw.Text(label,
-            textAlign: end ? pw.TextAlign.right : pw.TextAlign.left,
-            style: pw.TextStyle(
-                fontSize: 9,
-                fontWeight: pw.FontWeight.bold,
-                color: primary)),
-      );
+    padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+    child: pw.Text(
+      label,
+      textAlign: end ? pw.TextAlign.right : pw.TextAlign.left,
+      style: pw.TextStyle(
+        fontSize: 9,
+        fontWeight: pw.FontWeight.bold,
+        color: primary,
+      ),
+    ),
+  );
 
   pw.Widget td(String text, {bool end = false, PdfColor? color}) => pw.Padding(
-        padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: pw.Text(text,
-            textAlign: end ? pw.TextAlign.right : pw.TextAlign.left,
-            style: pw.TextStyle(
-                fontSize: 9, color: color ?? PdfColors.grey800)),
-      );
+    padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+    child: pw.Text(
+      text,
+      textAlign: end ? pw.TextAlign.right : pw.TextAlign.left,
+      style: pw.TextStyle(fontSize: 9, color: color ?? PdfColors.grey800),
+    ),
+  );
 
   pw.Widget basicCell(ThirteenthMonthContribution c) {
     final items = c.basicItems
@@ -306,13 +350,11 @@ pw.Widget _breakdownTable(
           for (final item in items)
             pw.Text(
               '${_fmtDays(item.days)} × ${Money.fmtPhp(item.rate)}',
-              style: const pw.TextStyle(
-                  fontSize: 8, color: PdfColors.grey700),
+              style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
             ),
           pw.Text(
             Money.fmtPhp(c.basicPay),
-            style: pw.TextStyle(
-                fontSize: 9, fontWeight: pw.FontWeight.bold),
+            style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
           ),
         ],
       ),
@@ -338,56 +380,67 @@ pw.Widget _breakdownTable(
         ],
       ),
       for (final c in rows)
-        pw.TableRow(children: [
-          td(_periodLabel(c)),
-          basicCell(c),
-          td(
-            c.lateDeduction <= Decimal.zero
-                ? '—'
-                : '−${Money.fmtPhp(c.lateDeduction)}',
-            end: true,
-            color: c.lateDeduction <= Decimal.zero
-                ? PdfColors.grey500
-                : PdfColor.fromHex('#B91C1C'),
-          ),
-          td(Money.fmtPhp(c.netBasic), end: true),
-        ]),
+        pw.TableRow(
+          children: [
+            td(_periodLabel(c)),
+            basicCell(c),
+            td(
+              c.lateDeduction <= Decimal.zero
+                  ? '—'
+                  : '−${Money.fmtPhp(c.lateDeduction)}',
+              end: true,
+              color: c.lateDeduction <= Decimal.zero
+                  ? PdfColors.grey500
+                  : PdfColor.fromHex('#B91C1C'),
+            ),
+            td(Money.fmtPhp(c.netBasic), end: true),
+          ],
+        ),
       pw.TableRow(
         decoration: pw.BoxDecoration(color: PdfColor.fromHex('#F5F3FF')),
         children: [
           pw.Padding(
             padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: pw.Text('Total (${rows.length} release${rows.length == 1 ? '' : 's'})',
-                style: pw.TextStyle(
-                    fontSize: 9, fontWeight: pw.FontWeight.bold, color: primary)),
-          ),
-          pw.Padding(
-            padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: pw.Text(Money.fmtPhp(i.breakdown.totalBasic),
-                textAlign: pw.TextAlign.right,
-                style: pw.TextStyle(
-                    fontSize: 9, fontWeight: pw.FontWeight.bold)),
+            child: pw.Text(
+              'Total (${rows.length} release${rows.length == 1 ? '' : 's'})',
+              style: pw.TextStyle(
+                fontSize: 9,
+                fontWeight: pw.FontWeight.bold,
+                color: primary,
+              ),
+            ),
           ),
           pw.Padding(
             padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: pw.Text(
-                i.breakdown.totalLate <= Decimal.zero
-                    ? '—'
-                    : '−${Money.fmtPhp(i.breakdown.totalLate)}',
-                textAlign: pw.TextAlign.right,
-                style: pw.TextStyle(
-                    fontSize: 9,
-                    fontWeight: pw.FontWeight.bold,
-                    color: i.breakdown.totalLate <= Decimal.zero
-                        ? PdfColors.grey500
-                        : PdfColor.fromHex('#B91C1C'))),
+              Money.fmtPhp(i.breakdown.totalBasic),
+              textAlign: pw.TextAlign.right,
+              style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+            ),
           ),
           pw.Padding(
             padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: pw.Text(Money.fmtPhp(i.breakdown.totalNetBasic),
-                textAlign: pw.TextAlign.right,
-                style: pw.TextStyle(
-                    fontSize: 9, fontWeight: pw.FontWeight.bold)),
+            child: pw.Text(
+              i.breakdown.totalLate <= Decimal.zero
+                  ? '—'
+                  : '−${Money.fmtPhp(i.breakdown.totalLate)}',
+              textAlign: pw.TextAlign.right,
+              style: pw.TextStyle(
+                fontSize: 9,
+                fontWeight: pw.FontWeight.bold,
+                color: i.breakdown.totalLate <= Decimal.zero
+                    ? PdfColors.grey500
+                    : PdfColor.fromHex('#B91C1C'),
+              ),
+            ),
+          ),
+          pw.Padding(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: pw.Text(
+              Money.fmtPhp(i.breakdown.totalNetBasic),
+              textAlign: pw.TextAlign.right,
+              style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -408,13 +461,19 @@ pw.Widget _formulaFooter(ThirteenthMonthPdfInput i, PdfColor primary) {
           child: pw.Text(
             '13th Month = ${Money.fmtPhp(i.breakdown.totalNetBasic)} ÷ 12',
             style: pw.TextStyle(
-                fontSize: 10, fontWeight: pw.FontWeight.bold, color: primary),
+              fontSize: 10,
+              fontWeight: pw.FontWeight.bold,
+              color: primary,
+            ),
           ),
         ),
         pw.Text(
           Money.fmtPhp(i.breakdown.thirteenthMonthPayout),
           style: pw.TextStyle(
-              fontSize: 14, fontWeight: pw.FontWeight.bold, color: primary),
+            fontSize: 14,
+            fontWeight: pw.FontWeight.bold,
+            color: primary,
+          ),
         ),
       ],
     ),

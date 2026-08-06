@@ -84,8 +84,7 @@ Decimal? proratedDailyRateOverride({
     // the scorecard defensively if none is found.
     final earliest = _earliestQualifyingChange(comp);
     return dailyRateFrom(
-      baseSalary:
-          earliest?.prevBaseSalary ?? scorecardBaseSalary,
+      baseSalary: earliest?.prevBaseSalary ?? scorecardBaseSalary,
       wageType: earliest?.prevWageType ?? scorecardWageType,
       workDaysPerMonth: workDaysPerMonth,
       hoursPerDay: hoursPerDay,
@@ -98,7 +97,8 @@ Decimal? proratedDailyRateOverride({
   // the original role-scorecard values, which would silently discard any
   // raise applied by an earlier change in the history.
   return dailyRateFrom(
-    baseSalary: dayEff.newBaseSalary ?? dayEff.prevBaseSalary ?? scorecardBaseSalary,
+    baseSalary:
+        dayEff.newBaseSalary ?? dayEff.prevBaseSalary ?? scorecardBaseSalary,
     wageType: dayEff.newWageType ?? dayEff.prevWageType ?? scorecardWageType,
     workDaysPerMonth: workDaysPerMonth,
     hoursPerDay: hoursPerDay,

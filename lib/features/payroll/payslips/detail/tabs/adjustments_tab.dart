@@ -69,15 +69,15 @@ class _AdjustmentsTabState extends ConsumerState<AdjustmentsTab> {
     // Strip formatting commas (e.g. `1,782.00` → `1782.00`) before parsing.
     final amountStr = amountText.replaceAll(',', '').trim();
     if (desc.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Description is required.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Description is required.')));
       return;
     }
     if (amountStr.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Amount is required.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Amount is required.')));
       return;
     }
     final amountDec = Decimal.tryParse(amountStr);
@@ -90,8 +90,9 @@ class _AdjustmentsTabState extends ConsumerState<AdjustmentsTab> {
     setState(() => _saving = true);
     try {
       final repo = ref.read(payrollRepositoryProvider);
-      final category =
-          type == 'EARNING' ? 'ADJUSTMENT_ADD' : 'ADJUSTMENT_DEDUCT';
+      final category = type == 'EARNING'
+          ? 'ADJUSTMENT_ADD'
+          : 'ADJUSTMENT_DEDUCT';
       if (_editingId == null) {
         await repo.insertManualAdjustment(
           runId: widget.runId,
@@ -120,9 +121,9 @@ class _AdjustmentsTabState extends ConsumerState<AdjustmentsTab> {
       if (mounted) _closeForm();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Save failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Save failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -130,7 +131,8 @@ class _AdjustmentsTabState extends ConsumerState<AdjustmentsTab> {
   }
 
   Future<void> _confirmDelete(Map<String, dynamic> row) async {
-    final ok = await showDialog<bool>(
+    final ok =
+        await showDialog<bool>(
           context: context,
           builder: (c) => AlertDialog(
             title: const Text('Delete adjustment?'),
@@ -189,9 +191,7 @@ class _AdjustmentsTabState extends ConsumerState<AdjustmentsTab> {
       ),
       data: (rows) => ListView(
         padding: const EdgeInsets.symmetric(vertical: 16),
-        children: [
-          _Card(rows: rows, child: _body(rows)),
-        ],
+        children: [_Card(rows: rows, child: _body(rows))],
       ),
     );
   }
@@ -333,7 +333,8 @@ class _Form extends StatefulWidget {
     required String type,
     required String description,
     required String amountText,
-  }) onSave;
+  })
+  onSave;
 
   const _Form({
     super.key,
@@ -471,10 +472,10 @@ class _FormState extends State<_Form> {
                 onPressed: widget.saving
                     ? null
                     : () => widget.onSave(
-                          type: _type,
-                          description: _descCtrl.text,
-                          amountText: _amountCtrl.text,
-                        ),
+                        type: _type,
+                        description: _descCtrl.text,
+                        amountText: _amountCtrl.text,
+                      ),
                 child: Text(widget.isEditing ? 'Update' : 'Add'),
               ),
             ],
@@ -503,11 +504,12 @@ class _TableHeader extends StatelessWidget {
           SizedBox(width: 100, child: Text('TYPE', style: style)),
           Expanded(child: Text('DESCRIPTION', style: style)),
           SizedBox(
-              width: 140,
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Text('AMOUNT', style: style),
-              )),
+            width: 140,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text('AMOUNT', style: style),
+            ),
+          ),
           SizedBox(width: 120, child: Text('DATE ADDED', style: style)),
           SizedBox(width: 80, child: Text('ACTIONS', style: style)),
         ],
@@ -543,8 +545,10 @@ class _Row extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 3,
+                ),
                 decoration: BoxDecoration(
                   color: isEarning
                       ? const Color(0xFFDCFCE7)
@@ -622,8 +626,18 @@ class _Row extends StatelessWidget {
 
   static String _fmtShort(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
@@ -649,10 +663,7 @@ class _TotalRow extends StatelessWidget {
           const Expanded(
             child: Text(
               'Total',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
             ),
           ),
           Text(
@@ -767,8 +778,7 @@ class _AmountFieldState extends State<_AmountField> {
   Widget build(BuildContext context) {
     return TextField(
       controller: widget.controller,
-      keyboardType:
-          const TextInputType.numberWithOptions(decimal: true),
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [_ThousandsInputFormatter()],
       // Same IME-hardening as the Description field — keeps backspace +
       // paste routed directly to the field instead of the IBus/fcitx
@@ -796,7 +806,9 @@ class _AmountFieldState extends State<_AmountField> {
 class _ThousandsInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
     final text = newValue.text;
     if (text.isEmpty) return newValue;
 

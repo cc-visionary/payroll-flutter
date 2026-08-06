@@ -63,7 +63,8 @@ class PayrollComputeService {
     final periodStart = DateTime.parse(runRow['period_start'] as String);
     final periodEnd = DateTime.parse(runRow['period_end'] as String);
     final payFreq = _parsePayFreq(
-        (runRow['pay_frequency'] as String?) ?? 'SEMI_MONTHLY');
+      (runRow['pay_frequency'] as String?) ?? 'SEMI_MONTHLY',
+    );
     final payPeriodInput = e.PayPeriodInput(
       id: runRow['id'] as String,
       startDate: periodStart,
@@ -79,7 +80,10 @@ class PayrollComputeService {
     onStep?.call('Loading employees…');
     // Active non-archived employees hired on or before the pay period end date.
     // When `included_employee_ids` is set on the run, restrict to that subset.
-    final periodEndIso = payPeriodInput.endDate.toIso8601String().substring(0, 10);
+    final periodEndIso = payPeriodInput.endDate.toIso8601String().substring(
+      0,
+      10,
+    );
     // Materialize any SCHEDULED compensation changes now due (no cron). Must run
     // before the employees select so joined role_scorecards reflect role moves.
     // Clamp asOf to TODAY: an ahead-dated run (period_end in the future) must
@@ -120,11 +124,14 @@ class PayrollComputeService {
         .eq('company_id', companyId)
         .isFilter('deleted_at', null)
         .inFilter(
-            'employee_id', employees.map((e) => e['id'] as String).toList());
+          'employee_id',
+          employees.map((e) => e['id'] as String).toList(),
+        );
     final compByEmp = <String, List<CompensationChange>>{};
     for (final r in (compRows as List).cast<Map<String, dynamic>>()) {
-      (compByEmp[r['employee_id'] as String] ??= [])
-          .add(CompensationChange.fromRow(r));
+      (compByEmp[r['employee_id'] as String] ??= []).add(
+        CompensationChange.fromRow(r),
+      );
     }
 
     onStep?.call('Loading attendance + adjunct data…');
@@ -157,19 +164,36 @@ class PayrollComputeService {
 
     // Do these in parallel for speed.
     final results = await Future.wait([
-      _loadAttendance(employees.map((e) => e['id'] as String).toList(),
-          payPeriodInput.startDate, payPeriodInput.endDate),
+      _loadAttendance(
+        employees.map((e) => e['id'] as String).toList(),
+        payPeriodInput.startDate,
+        payPeriodInput.endDate,
+      ),
       _loadManualAdjustments(runId),
-      _loadCashAdvances(companyId, payPeriodInput.startDate, payPeriodInput.endDate, runId),
-      _loadReimbursements(companyId, payPeriodInput.startDate, payPeriodInput.endDate, runId),
+      _loadCashAdvances(
+        companyId,
+        payPeriodInput.startDate,
+        payPeriodInput.endDate,
+        runId,
+      ),
+      _loadReimbursements(
+        companyId,
+        payPeriodInput.startDate,
+        payPeriodInput.endDate,
+        runId,
+      ),
       _loadActivePenaltyInstallments(
-          employees.map((e) => e['id'] as String).toList(),
-          payPeriodInput.endDate,
-          runId),
+        employees.map((e) => e['id'] as String).toList(),
+        payPeriodInput.endDate,
+        runId,
+      ),
       _loadPreviousYtd(
-          employees.map((e) => e['id'] as String).toList(), payPeriodInput.endDate.year),
+        employees.map((e) => e['id'] as String).toList(),
+        payPeriodInput.endDate.year,
+      ),
     ]);
-    final attendanceByEmp = results[0] as Map<String, List<Map<String, dynamic>>>;
+    final attendanceByEmp =
+        results[0] as Map<String, List<Map<String, dynamic>>>;
     final adjustmentsByEmp =
         results[1] as Map<String, List<Map<String, dynamic>>>;
     final cashAdvancesByEmp =
@@ -201,8 +225,10 @@ class PayrollComputeService {
     // holiday's day_type per PH law.
     for (final emp in employees) {
       final empId = emp['id'] as String;
-      final rows =
-          attendanceByEmp.putIfAbsent(empId, () => <Map<String, dynamic>>[]);
+      final rows = attendanceByEmp.putIfAbsent(
+        empId,
+        () => <Map<String, dynamic>>[],
+      );
       final existingDates = {
         for (final r in rows) (r['attendance_date'] as String).substring(0, 10),
       };
@@ -228,23 +254,26 @@ class PayrollComputeService {
     final warnings = <String>[];
     for (final row in employees) {
       try {
-        engineInputs.add(await _buildEmployeeInput(
-          row: row,
-          payPeriod: payPeriodInput,
-          comp: compByEmp[row['id']] ?? const [],
-          attendance: attendanceByEmp[row['id']] ?? const [],
-          adjustments: adjustmentsByEmp[row['id']] ?? const [],
-          cashAdvances: cashAdvancesByEmp[row['id']] ?? const [],
-          reimbursements: reimbursementsByEmp[row['id']] ?? const [],
-          penalties: penaltiesByEmp[row['id']] ?? const [],
-          shifts: shiftById,
-          previousYtd: previousYtdByEmp[row['id']] ??
-              e.PreviousYtd(
-                grossPay: Decimal.zero,
-                taxableIncome: Decimal.zero,
-                taxWithheld: Decimal.zero,
-              ),
-        ));
+        engineInputs.add(
+          await _buildEmployeeInput(
+            row: row,
+            payPeriod: payPeriodInput,
+            comp: compByEmp[row['id']] ?? const [],
+            attendance: attendanceByEmp[row['id']] ?? const [],
+            adjustments: adjustmentsByEmp[row['id']] ?? const [],
+            cashAdvances: cashAdvancesByEmp[row['id']] ?? const [],
+            reimbursements: reimbursementsByEmp[row['id']] ?? const [],
+            penalties: penaltiesByEmp[row['id']] ?? const [],
+            shifts: shiftById,
+            previousYtd:
+                previousYtdByEmp[row['id']] ??
+                e.PreviousYtd(
+                  grossPay: Decimal.zero,
+                  taxableIncome: Decimal.zero,
+                  taxWithheld: Decimal.zero,
+                ),
+          ),
+        );
       } catch (err) {
         warnings.add('${row['employee_number']}: $err');
       }
@@ -274,15 +303,18 @@ class PayrollComputeService {
     // lark_approval_status to NULL) before the next Recompute will touch it.
     final existingRows = await _client
         .from('payslips')
-        .select('id, employee_id, lark_approval_status, gross_pay, '
-            'total_deductions, net_pay')
+        .select(
+          'id, employee_id, lark_approval_status, gross_pay, '
+          'total_deductions, net_pay',
+        )
         .eq('payroll_run_id', runId);
     final lockedEmployeeIds = <String>{};
     Decimal lockedGross = Decimal.zero;
     Decimal lockedDeductions = Decimal.zero;
     Decimal lockedNet = Decimal.zero;
     int lockedCount = 0;
-    for (final r in (existingRows as List<dynamic>).cast<Map<String, dynamic>>()) {
+    for (final r
+        in (existingRows as List<dynamic>).cast<Map<String, dynamic>>()) {
       if (r['lark_approval_status'] != null) {
         lockedEmployeeIds.add(r['employee_id'] as String);
         lockedGross += _decOr(r['gross_pay']);
@@ -344,23 +376,25 @@ class PayrollComputeService {
       final payslipId = payslipRow['id'] as String;
       if (ps.lines.isNotEmpty) {
         final lineInserts = ps.lines
-            .map((l) => {
-                  'payslip_id': payslipId,
-                  'category': l.category.name,
-                  'description': l.description,
-                  'quantity': ?l.quantity?.toString(),
-                  'rate': ?l.rate?.toString(),
-                  'multiplier': ?l.multiplier?.toString(),
-                  'amount': l.amount.toString(),
-                  'attendance_day_record_id': ?l.attendanceDayRecordId,
-                  'manual_adjustment_id': ?l.manualAdjustmentId,
-                  'penalty_installment_id': ?l.penaltyInstallmentId,
-                  'cash_advance_id': ?l.cashAdvanceId,
-                  'reimbursement_id': ?l.reimbursementId,
-                  'rule_code': ?l.ruleCode,
-                  'rule_description': ?l.ruleDescription,
-                  'sort_order': l.sortOrder,
-                })
+            .map(
+              (l) => {
+                'payslip_id': payslipId,
+                'category': l.category.name,
+                'description': l.description,
+                'quantity': ?l.quantity?.toString(),
+                'rate': ?l.rate?.toString(),
+                'multiplier': ?l.multiplier?.toString(),
+                'amount': l.amount.toString(),
+                'attendance_day_record_id': ?l.attendanceDayRecordId,
+                'manual_adjustment_id': ?l.manualAdjustmentId,
+                'penalty_installment_id': ?l.penaltyInstallmentId,
+                'cash_advance_id': ?l.cashAdvanceId,
+                'reimbursement_id': ?l.reimbursementId,
+                'rule_code': ?l.ruleCode,
+                'rule_description': ?l.ruleDescription,
+                'sort_order': l.sortOrder,
+              },
+            )
             .toList();
         await _client.from('payslip_lines').insert(lineInserts);
       }
@@ -374,14 +408,17 @@ class PayrollComputeService {
     final totalDeductions = unlockedDeductions + lockedDeductions;
     final totalNet = unlockedNet + lockedNet;
     final totalCount = unlockedCount + lockedCount;
-    await _client.from('payroll_runs').update({
-      'status': 'REVIEW',
-      'total_gross_pay': totalGross.toString(),
-      'total_deductions': totalDeductions.toString(),
-      'total_net_pay': totalNet.toString(),
-      'employee_count': totalCount,
-      'payslip_count': totalCount,
-    }).eq('id', runId);
+    await _client
+        .from('payroll_runs')
+        .update({
+          'status': 'REVIEW',
+          'total_gross_pay': totalGross.toString(),
+          'total_deductions': totalDeductions.toString(),
+          'total_net_pay': totalNet.toString(),
+          'employee_count': totalCount,
+          'payslip_count': totalCount,
+        })
+        .eq('id', runId);
 
     onStep?.call('Done.');
     return ComputeOutcome(
@@ -400,10 +437,11 @@ class PayrollComputeService {
   /// Pulls `calendar_events` across every holiday_calendars row that the
   /// company owns whose year touches the range (handles Dec→Jan spans).
   Future<Map<String, Map<String, String>>> _loadHolidaysByDate(
-      String companyId, DateTime start, DateTime end) async {
-    final years = <int>{
-      for (var y = start.year; y <= end.year; y++) y,
-    };
+    String companyId,
+    DateTime start,
+    DateTime end,
+  ) async {
+    final years = <int>{for (var y = start.year; y <= end.year; y++) y};
     final calRows = await _client
         .from('holiday_calendars')
         .select('id, year')
@@ -423,8 +461,7 @@ class PayrollComputeService {
         .gte('date', startIso)
         .lte('date', endIso);
     final out = <String, Map<String, String>>{};
-    for (final r
-        in (eventRows as List<dynamic>).cast<Map<String, dynamic>>()) {
+    for (final r in (eventRows as List<dynamic>).cast<Map<String, dynamic>>()) {
       final d = (r['date'] as String);
       final iso = d.length >= 10 ? d.substring(0, 10) : d;
       final dayType = (r['day_type'] as String?) ?? 'WORKDAY';
@@ -438,7 +475,10 @@ class PayrollComputeService {
   }
 
   Future<Map<String, List<Map<String, dynamic>>>> _loadAttendance(
-      List<String> employeeIds, DateTime start, DateTime end) async {
+    List<String> employeeIds,
+    DateTime start,
+    DateTime end,
+  ) async {
     final rows = await fetchAllPages<Map<String, dynamic>>((from, to) async {
       final page = await _client
           .from('attendance_day_records')
@@ -454,7 +494,8 @@ class PayrollComputeService {
   }
 
   Future<Map<String, List<Map<String, dynamic>>>> _loadManualAdjustments(
-      String runId) async {
+    String runId,
+  ) async {
     final rows = await _client
         .from('manual_adjustment_lines')
         .select()
@@ -463,10 +504,11 @@ class PayrollComputeService {
   }
 
   Future<Map<String, List<Map<String, dynamic>>>> _loadCashAdvances(
-      String companyId,
-      DateTime periodStart,
-      DateTime periodEnd,
-      String runId) async {
+    String companyId,
+    DateTime periodStart,
+    DateTime periodEnd,
+    String runId,
+  ) async {
     // Local `status` is cash_advance_status enum: PENDING / DEDUCTED / CANCELLED.
     // "Approved in Lark, not yet deducted by payroll" = status == PENDING AND
     // lark_approval_status == 'APPROVED' AND is_deducted == false.
@@ -491,20 +533,21 @@ class PayrollComputeService {
     // Skip-list filter — mirrors the penalty installment pattern. If HR has
     // deferred this advance for the current run, drop it; the record is
     // untouched (`is_deducted` stays false) so the next run still sees it.
-    final filtered = (rows as List<dynamic>)
-        .cast<Map<String, dynamic>>()
-        .where((r) {
-      final skipped = r['skipped_payroll_run_ids'];
-      return !(skipped is List && skipped.contains(runId));
-    }).toList();
+    final filtered = (rows as List<dynamic>).cast<Map<String, dynamic>>().where(
+      (r) {
+        final skipped = r['skipped_payroll_run_ids'];
+        return !(skipped is List && skipped.contains(runId));
+      },
+    ).toList();
     return _groupBy(filtered, 'employee_id');
   }
 
   Future<Map<String, List<Map<String, dynamic>>>> _loadReimbursements(
-      String companyId,
-      DateTime periodStart,
-      DateTime periodEnd,
-      String runId) async {
+    String companyId,
+    DateTime periodStart,
+    DateTime periodEnd,
+    String runId,
+  ) async {
     // Same pattern as cash advances — local status is reimbursement_status enum
     // (PENDING / PAID / CANCELLED). The "ready to pay" filter is PENDING +
     // Lark-approved + not yet paid.
@@ -522,18 +565,21 @@ class PayrollComputeService {
         .eq('is_paid', false)
         .gte('transaction_date', startIso)
         .lte('transaction_date', endIso);
-    final filtered = (rows as List<dynamic>)
-        .cast<Map<String, dynamic>>()
-        .where((r) {
-      final skipped = r['skipped_payroll_run_ids'];
-      return !(skipped is List && skipped.contains(runId));
-    }).toList();
+    final filtered = (rows as List<dynamic>).cast<Map<String, dynamic>>().where(
+      (r) {
+        final skipped = r['skipped_payroll_run_ids'];
+        return !(skipped is List && skipped.contains(runId));
+      },
+    ).toList();
     return _groupBy(filtered, 'employee_id');
   }
 
   Future<Map<String, List<Map<String, dynamic>>>>
-      _loadActivePenaltyInstallments(
-          List<String> employeeIds, DateTime periodEnd, String runId) async {
+  _loadActivePenaltyInstallments(
+    List<String> employeeIds,
+    DateTime periodEnd,
+    String runId,
+  ) async {
     // `penalty_installments` tracks per-row lifecycle via `is_deducted`.
     // The `status` filter belongs on the parent `penalties` row
     // (enum penalty_status: ACTIVE / COMPLETED / CANCELLED) — we only pull
@@ -557,7 +603,8 @@ class PayrollComputeService {
     final rows = await _client
         .from('penalty_installments')
         .select(
-            '*, penalties!inner(employee_id, custom_description, status, effective_date)')
+          '*, penalties!inner(employee_id, custom_description, status, effective_date)',
+        )
         .eq('is_deducted', false)
         .eq('penalties.status', 'ACTIVE')
         .lte('penalties.effective_date', periodEndIso)
@@ -586,7 +633,9 @@ class PayrollComputeService {
   }
 
   Future<Map<String, e.PreviousYtd>> _loadPreviousYtd(
-      List<String> employeeIds, int year) async {
+    List<String> employeeIds,
+    int year,
+  ) async {
     // Use the latest payslip for the employee in the same calendar year
     // whose run is RELEASED. The count of prior released payslips determines
     // the tax period number — this is robust to company-specific pay-period
@@ -613,18 +662,17 @@ class PayrollComputeService {
       final r = newestRow[id]!;
       out[id] = e.PreviousYtd(
         grossPay: Decimal.parse((r['ytd_gross_pay'] ?? '0').toString()),
-        taxableIncome:
-            Decimal.parse((r['ytd_taxable_income'] ?? '0').toString()),
-        taxWithheld:
-            Decimal.parse((r['ytd_tax_withheld'] ?? '0').toString()),
+        taxableIncome: Decimal.parse(
+          (r['ytd_taxable_income'] ?? '0').toString(),
+        ),
+        taxWithheld: Decimal.parse((r['ytd_tax_withheld'] ?? '0').toString()),
         priorPeriodCount: priorCounts[id] ?? 0,
       );
     }
     return out;
   }
 
-  Map<String, List<Map<String, dynamic>>> _groupBy(
-      dynamic rows, String key) {
+  Map<String, List<Map<String, dynamic>>> _groupBy(dynamic rows, String key) {
     final out = <String, List<Map<String, dynamic>>>{};
     for (final r in (rows as List<dynamic>).cast<Map<String, dynamic>>()) {
       final id = r[key] as String?;
@@ -677,10 +725,10 @@ class PayrollComputeService {
     // (an unreleased prior run recomputed after a later change lands).
     // Follow-up: period-aware historical pay resolution.
     final effective = effectiveCompensation(comp, payPeriod.endDate);
-    final wageTypeStr = effective?.newWageType ??
-        (roleCard['wage_type'] as String?) ??
-        'DAILY';
-    final baseRate = effective?.newBaseSalary ??
+    final wageTypeStr =
+        effective?.newWageType ?? (roleCard['wage_type'] as String?) ?? 'DAILY';
+    final baseRate =
+        effective?.newBaseSalary ??
         Decimal.tryParse((roleCard['base_salary'] ?? '0').toString()) ??
         Decimal.zero;
     final wageType = _parseWageType(wageTypeStr);
@@ -690,7 +738,8 @@ class PayrollComputeService {
     final overrideAmount = overrideRaw == null
         ? null
         : Decimal.tryParse(overrideRaw.toString());
-    final statutoryOverride = (overrideTypeRaw != null &&
+    final statutoryOverride =
+        (overrideTypeRaw != null &&
             overrideAmount != null &&
             overrideAmount > Decimal.zero)
         ? e.StatutoryOverride(
@@ -739,8 +788,7 @@ class PayrollComputeService {
     // for Lark-synced attendance without a specific per-day shift link).
     // Mirrors the UI behaviour in attendance_tab.dart _buildRows.
     final defaultShiftId = roleCard['shift_template_id'] as String?;
-    final defaultShift =
-        defaultShiftId == null ? null : shifts[defaultShiftId];
+    final defaultShift = defaultShiftId == null ? null : shifts[defaultShiftId];
 
     // Per-day compensation regime -> pro-rated daily rate. Returns null when
     // the day shares the period-end regime (the engine's standard rate is then
@@ -748,47 +796,66 @@ class PayrollComputeService {
     // compensation_changes rows.
     final scorecardBase =
         Decimal.tryParse((roleCard['base_salary'] ?? '0').toString()) ??
-            Decimal.zero;
+        Decimal.zero;
     final scorecardWageType = (roleCard['wage_type'] as String?) ?? 'DAILY';
     Decimal? compRateFor(DateTime day) => proratedDailyRateOverride(
-          comp: comp,
-          attendanceDate: day,
-          periodEnd: payPeriod.endDate,
-          scorecardBaseSalary: scorecardBase,
-          scorecardWageType: scorecardWageType,
-          workDaysPerMonth: 26,
-          hoursPerDay: hoursPerDay,
-        );
+      comp: comp,
+      attendanceDate: day,
+      periodEnd: payPeriod.endDate,
+      scorecardBaseSalary: scorecardBase,
+      scorecardWageType: scorecardWageType,
+      workDaysPerMonth: 26,
+      hoursPerDay: hoursPerDay,
+    );
 
     // Approved paid/unpaid leaves overlapping the period — drives the
     // PAID_LEAVE line + the unmatched-leave warning.
     final leaveRows = await _client
         .from('leave_requests')
-        .select('start_date, end_date, leave_days, '
-            'leave_types!inner(is_paid, name, code)')
+        .select(
+          'start_date, end_date, leave_days, '
+          'leave_types!inner(is_paid, name, code)',
+        )
         .eq('employee_id', employeeId)
         .eq('status', 'APPROVED')
         .lte('start_date', payPeriod.endDate.toIso8601String().substring(0, 10))
-        .gte('end_date', payPeriod.startDate.toIso8601String().substring(0, 10));
+        .gte(
+          'end_date',
+          payPeriod.startDate.toIso8601String().substring(0, 10),
+        );
     final approvedLeaves = <ApprovedLeaveDay>[
       for (final r in (leaveRows as List).cast<Map<String, dynamic>>())
         ApprovedLeaveDay(
           start: DateTime.parse(r['start_date'] as String),
           end: DateTime.parse(r['end_date'] as String),
-          isPaid: (r['leave_types'] as Map<String, dynamic>?)?['is_paid'] as bool? ?? false,
-          typeName: ((r['leave_types'] as Map<String, dynamic>?)?['name'] as String?) ??
-              ((r['leave_types'] as Map<String, dynamic>?)?['code'] as String?) ??
+          isPaid:
+              (r['leave_types'] as Map<String, dynamic>?)?['is_paid']
+                  as bool? ??
+              false,
+          typeName:
+              ((r['leave_types'] as Map<String, dynamic>?)?['name']
+                  as String?) ??
+              ((r['leave_types'] as Map<String, dynamic>?)?['code']
+                  as String?) ??
               'Leave',
-          leaveDays: Decimal.tryParse((r['leave_days'] ?? '1').toString()) ?? Decimal.one,
+          leaveDays:
+              Decimal.tryParse((r['leave_days'] ?? '1').toString()) ??
+              Decimal.one,
         ),
     ];
 
-    final attendanceInputs =
-        attendance
-            .map((r) => _attendanceFromRow(
-                r, shifts, defaultShift, compRateFor, approvedLeaves))
-            .whereType<e.AttendanceDayInput>()
-            .toList();
+    final attendanceInputs = attendance
+        .map(
+          (r) => _attendanceFromRow(
+            r,
+            shifts,
+            defaultShift,
+            compRateFor,
+            approvedLeaves,
+          ),
+        )
+        .whereType<e.AttendanceDayInput>()
+        .toList();
 
     final manualAdjustments = adjustments.map((a) {
       final cat = a['category'] as String;
@@ -806,26 +873,41 @@ class PayrollComputeService {
       );
     }).toList();
 
-    final reimbursementInputs = reimbursements.map((r) => e.ReimbursementInput(
-          id: r['id'] as String,
-          amount: Decimal.parse((r['amount'] ?? '0').toString()),
-          description: (r['reason'] as String?) ??
-              (r['reimbursement_type'] as String?) ??
-              'Reimbursement',
-        )).toList();
+    final reimbursementInputs = reimbursements
+        .map(
+          (r) => e.ReimbursementInput(
+            id: r['id'] as String,
+            amount: Decimal.parse((r['amount'] ?? '0').toString()),
+            description:
+                (r['reason'] as String?) ??
+                (r['reimbursement_type'] as String?) ??
+                'Reimbursement',
+          ),
+        )
+        .toList();
 
-    final cashAdvanceLines = cashAdvances.map((c) => e.CashAdvanceDeductionLine(
-          cashAdvanceId: c['id'] as String,
-          description: (c['reason'] as String?) ?? 'Cash Advance',
-          amount: Decimal.parse((c['amount'] ?? '0').toString()),
-        )).toList();
+    final cashAdvanceLines = cashAdvances
+        .map(
+          (c) => e.CashAdvanceDeductionLine(
+            cashAdvanceId: c['id'] as String,
+            description: (c['reason'] as String?) ?? 'Cash Advance',
+            amount: Decimal.parse((c['amount'] ?? '0').toString()),
+          ),
+        )
+        .toList();
 
-    final penaltyLines = penalties.map((p) => e.PenaltyDeduction(
-          installmentId: p['id'] as String,
-          penaltyId: p['penalty_id'] as String,
-          description: (p['description'] as String?) ?? 'Penalty',
-          amount: Decimal.parse((p['amount'] ?? p['installment_amount'] ?? '0').toString()),
-        )).toList();
+    final penaltyLines = penalties
+        .map(
+          (p) => e.PenaltyDeduction(
+            installmentId: p['id'] as String,
+            penaltyId: p['penalty_id'] as String,
+            description: (p['description'] as String?) ?? 'Penalty',
+            amount: Decimal.parse(
+              (p['amount'] ?? p['installment_amount'] ?? '0').toString(),
+            ),
+          ),
+        )
+        .toList();
 
     return e.EmployeePayrollInput(
       profile: profile,
@@ -860,7 +942,8 @@ class PayrollComputeService {
     //   and prevents premium-pay drift when the columns disagree.
     final rawDayType = _parseDayType(r['day_type'] as String);
     final hasShiftAssigned = (r['shift_template_id'] as String?) != null;
-    final dayType = (rawDayType == e.DayType.REGULAR_HOLIDAY ||
+    final dayType =
+        (rawDayType == e.DayType.REGULAR_HOLIDAY ||
             rawDayType == e.DayType.SPECIAL_HOLIDAY ||
             rawDayType == e.DayType.SPECIAL_WORKING)
         ? rawDayType
@@ -884,15 +967,14 @@ class PayrollComputeService {
       final shiftId0 = r['shift_template_id'] as String?;
       final s0 = (shiftId0 == null ? null : shifts[shiftId0]) ?? defaultShift;
       final breakApplied = (r['break_minutes_applied'] as int?)?.toDouble();
-      final breakMin = breakApplied ??
-          (s0?['break_minutes'] as int?)?.toDouble() ??
-          60.0;
+      final breakMin =
+          breakApplied ?? (s0?['break_minutes'] as int?)?.toDouble() ?? 60.0;
       worked = (worked - breakMin).clamp(0.0, worked);
     }
     final status = (r['attendance_status'] as String? ?? '').toUpperCase();
     final isAbsent = status == 'ABSENT';
-    final approvedOtMinutes =
-        ((r['approved_ot_minutes'] as int?) ?? 0).toDouble();
+    final approvedOtMinutes = ((r['approved_ot_minutes'] as int?) ?? 0)
+        .toDouble();
 
     // Late/Undertime deduction — deficit model ported from payrollos
     // (`lib/utils/timezone.ts:425-453`). Collapses late-in + early-out +
@@ -919,17 +1001,16 @@ class PayrollComputeService {
     // attendance record doesn't have its own shift linked. This matches the
     // UI stats — without the fallback, Lark-synced rows (which never carry
     // a shift_template_id) would compute zero late/UT minutes.
-    final shift =
-        (shiftId == null ? null : shifts[shiftId]) ?? defaultShift;
+    final shift = (shiftId == null ? null : shifts[shiftId]) ?? defaultShift;
     if (shift != null && dayType == e.DayType.WORKDAY) {
       final date = DateTime.parse(r['attendance_date'] as String);
       final startTime = shift['start_time'] as String?;
       final endTime = shift['end_time'] as String?;
       final isOvernight = shift['is_overnight'] as bool? ?? false;
-      final shiftBreakMinutes =
-          ((shift['break_minutes'] as int?) ?? 60).toDouble();
-      final breakMinutesApplied =
-          (r['break_minutes_applied'] as int?)?.toDouble();
+      final shiftBreakMinutes = ((shift['break_minutes'] as int?) ?? 60)
+          .toDouble();
+      final breakMinutesApplied = (r['break_minutes_applied'] as int?)
+          ?.toDouble();
       final lateInApproved = r['late_in_approved'] as bool? ?? false;
       final earlyOutApproved = r['early_out_approved'] as bool? ?? false;
       final earlyInApproved = r['early_in_approved'] as bool? ?? false;
@@ -956,8 +1037,7 @@ class PayrollComputeService {
           outAt != null &&
           schedStart != null &&
           schedEnd != null) {
-        final shiftMins =
-            schedEnd.difference(schedStart).inSeconds / 60.0;
+        final shiftMins = schedEnd.difference(schedStart).inSeconds / 60.0;
         if (shiftMins > 0) {
           final expectedWorkMinutes = shiftMins - shiftBreakMinutes;
           final actualBreak = breakMinutesApplied ?? shiftBreakMinutes;
@@ -989,13 +1069,11 @@ class PayrollComputeService {
       // Manual OT via approval flags (admin toggled "Approve Early In OT" /
       // "Approve Late Out OT" in the edit dialog).
       if (inAt != null && earlyInApproved && schedStart != null) {
-        final diff =
-            schedStart.difference(inAt.toLocal()).inSeconds / 60.0;
+        final diff = schedStart.difference(inAt.toLocal()).inSeconds / 60.0;
         if (diff > 0) derivedOtMinutes += diff;
       }
       if (outAt != null && lateOutApproved && schedEnd != null) {
-        final diff =
-            outAt.toLocal().difference(schedEnd).inSeconds / 60.0;
+        final diff = outAt.toLocal().difference(schedEnd).inSeconds / 60.0;
         if (diff > 0) derivedOtMinutes += diff;
       }
     }
@@ -1085,9 +1163,9 @@ class PayrollComputeService {
       overtimeRestDayMinutes: dayType == e.DayType.REST_DAY ? ot : 0.0,
       overtimeHolidayMinutes:
           dayType == e.DayType.REGULAR_HOLIDAY ||
-                  dayType == e.DayType.SPECIAL_HOLIDAY
-              ? ot
-              : 0.0,
+              dayType == e.DayType.SPECIAL_HOLIDAY
+          ? ot
+          : 0.0,
       earlyInApproved: r['early_in_approved'] as bool? ?? false,
       lateOutApproved: r['late_out_approved'] as bool? ?? false,
       nightDiffMinutes: ndMinutes,
@@ -1110,8 +1188,11 @@ class PayrollComputeService {
     // Iterate every calendar day the [start, end] span overlaps so we
     // catch ND segments that begin the previous day (e.g. 22:00 yesterday
     // → 06:00 today still contributes when `start` is 05:00 today).
-    final stop = DateTime(end.year, end.month, end.day)
-        .add(const Duration(days: 2));
+    final stop = DateTime(
+      end.year,
+      end.month,
+      end.day,
+    ).add(const Duration(days: 2));
     while (cursor.isBefore(stop)) {
       final ndStart = DateTime(cursor.year, cursor.month, cursor.day, 22);
       final ndEnd = ndStart.add(const Duration(hours: 8));
@@ -1148,12 +1229,12 @@ class PayrollComputeService {
   // ----- enum parsing -----------------------------------------------------
 
   e.PayFrequency _parsePayFreq(String s) => switch (s.toUpperCase()) {
-        'MONTHLY' => e.PayFrequency.MONTHLY,
-        'SEMI_MONTHLY' || 'SEMI-MONTHLY' => e.PayFrequency.SEMI_MONTHLY,
-        'BI_WEEKLY' || 'BI-WEEKLY' || 'BIWEEKLY' => e.PayFrequency.BI_WEEKLY,
-        'WEEKLY' => e.PayFrequency.WEEKLY,
-        _ => e.PayFrequency.SEMI_MONTHLY,
-      };
+    'MONTHLY' => e.PayFrequency.MONTHLY,
+    'SEMI_MONTHLY' || 'SEMI-MONTHLY' => e.PayFrequency.SEMI_MONTHLY,
+    'BI_WEEKLY' || 'BI-WEEKLY' || 'BIWEEKLY' => e.PayFrequency.BI_WEEKLY,
+    'WEEKLY' => e.PayFrequency.WEEKLY,
+    _ => e.PayFrequency.SEMI_MONTHLY,
+  };
 
   /// Which period of the year `periodStart` falls into, 1-based. Used by
   /// the BIR withholding-tax annualisation math in `statutory_calculator`
@@ -1170,57 +1251,52 @@ class PayrollComputeService {
       case e.PayFrequency.SEMI_MONTHLY:
         return (periodStart.month - 1) * 2 + (periodStart.day <= 15 ? 1 : 2);
       case e.PayFrequency.BI_WEEKLY:
-        final doy = periodStart
-                .difference(DateTime(periodStart.year, 1, 1))
-                .inDays +
-            1;
+        final doy =
+            periodStart.difference(DateTime(periodStart.year, 1, 1)).inDays + 1;
         return ((doy - 1) ~/ 14) + 1;
       case e.PayFrequency.WEEKLY:
-        final doy = periodStart
-                .difference(DateTime(periodStart.year, 1, 1))
-                .inDays +
-            1;
+        final doy =
+            periodStart.difference(DateTime(periodStart.year, 1, 1)).inDays + 1;
         return ((doy - 1) ~/ 7) + 1;
     }
   }
 
   e.WageType _parseWageType(String s) => switch (s.toUpperCase()) {
-        'MONTHLY' => e.WageType.MONTHLY,
-        'DAILY' => e.WageType.DAILY,
-        'HOURLY' => e.WageType.HOURLY,
-        _ => e.WageType.DAILY,
-      };
+    'MONTHLY' => e.WageType.MONTHLY,
+    'DAILY' => e.WageType.DAILY,
+    'HOURLY' => e.WageType.HOURLY,
+    _ => e.WageType.DAILY,
+  };
 
   e.EmploymentType _parseEmploymentType(String s) => switch (s.toUpperCase()) {
-        'REGULAR' => e.EmploymentType.REGULAR,
-        'PROBATIONARY' => e.EmploymentType.PROBATIONARY,
-        'CONTRACTUAL' => e.EmploymentType.CONTRACTUAL,
-        'CONSULTANT' => e.EmploymentType.CONSULTANT,
-        'INTERN' => e.EmploymentType.INTERN,
-        _ => e.EmploymentType.PROBATIONARY,
-      };
+    'REGULAR' => e.EmploymentType.REGULAR,
+    'PROBATIONARY' => e.EmploymentType.PROBATIONARY,
+    'CONTRACTUAL' => e.EmploymentType.CONTRACTUAL,
+    'CONSULTANT' => e.EmploymentType.CONSULTANT,
+    'INTERN' => e.EmploymentType.INTERN,
+    _ => e.EmploymentType.PROBATIONARY,
+  };
 
   e.DayType _parseDayType(String s) => switch (s.toUpperCase()) {
-        'WORKDAY' => e.DayType.WORKDAY,
-        'REST_DAY' => e.DayType.REST_DAY,
-        'REGULAR_HOLIDAY' => e.DayType.REGULAR_HOLIDAY,
-        'SPECIAL_HOLIDAY' => e.DayType.SPECIAL_HOLIDAY,
-        'SPECIAL_WORKING' || 'SPECIAL_WORKING_DAY' =>
-          e.DayType.SPECIAL_WORKING,
-        _ => e.DayType.WORKDAY,
-      };
+    'WORKDAY' => e.DayType.WORKDAY,
+    'REST_DAY' => e.DayType.REST_DAY,
+    'REGULAR_HOLIDAY' => e.DayType.REGULAR_HOLIDAY,
+    'SPECIAL_HOLIDAY' => e.DayType.SPECIAL_HOLIDAY,
+    'SPECIAL_WORKING' || 'SPECIAL_WORKING_DAY' => e.DayType.SPECIAL_WORKING,
+    _ => e.DayType.WORKDAY,
+  };
 
   Map<String, dynamic> _snapshotToJson(e.PayProfileInput p) => {
-        'employeeId': p.employeeId,
-        'wageType': p.wageType.name,
-        'baseRate': p.baseRate.toString(),
-        'payFrequency': p.payFrequency.name,
-        'standardWorkDaysPerMonth': p.standardWorkDaysPerMonth,
-        'standardHoursPerDay': p.standardHoursPerDay,
-        'isBenefitsEligible': p.isBenefitsEligible,
-        'isOtEligible': p.isOtEligible,
-        'isNdEligible': p.isNdEligible,
-      };
+    'employeeId': p.employeeId,
+    'wageType': p.wageType.name,
+    'baseRate': p.baseRate.toString(),
+    'payFrequency': p.payFrequency.name,
+    'standardWorkDaysPerMonth': p.standardWorkDaysPerMonth,
+    'standardHoursPerDay': p.standardHoursPerDay,
+    'isBenefitsEligible': p.isBenefitsEligible,
+    'isOtEligible': p.isOtEligible,
+    'isNdEligible': p.isNdEligible,
+  };
 }
 
 /// Outcome of a compute run — used by the UI to show success / warnings / errors.
