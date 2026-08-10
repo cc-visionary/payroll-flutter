@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/repositories/payroll_repository.dart';
 import '../features/auth/profile_provider.dart';
 import '../features/compliance/providers.dart';
+import '../widgets/update_banner.dart';
 import 'breakpoints.dart';
 import 'tokens.dart';
 
@@ -253,7 +254,14 @@ class AppShell extends ConsumerWidget {
               ),
             ),
           ),
-          Expanded(child: child),
+          Expanded(
+            child: Column(
+              children: [
+                const UpdateBanner(),
+                Expanded(child: child),
+              ],
+            ),
+          ),
         ],
       ),
     );
