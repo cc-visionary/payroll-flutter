@@ -118,6 +118,7 @@ Shows only when all hold:
 |---|---|
 | `channel` is `windowsInstaller`, `macosDirect`, `linuxDirect` or `sideloadAndroid` | The channels where the app itself must deliver the update |
 | `result is UpdateAvailable` | Nothing to announce otherwise |
+| `manifest.assetFor(channel) != null` | **Load-bearing.** The live manifest ships `windows` and `android` only. Without this gate a macOS or Linux build would raise a banner leading to a dialog with nothing to download |
 | Dismissal has loaded | Otherwise the banner flashes and disappears |
 | `UpdateService.isNewer(manifest.version, dismissed)` | Per-version dismissal |
 
@@ -171,6 +172,7 @@ radius. No new accent colour.
 | `shared_preferences` read fails | The `AsyncValue` settles in its error state, which the predicate treats as loaded-with-no-dismissal — the banner shows. Worst case is one redundant banner, never a swallowed update |
 | Dismissal write fails | Banner stays up; no dismissal is recorded |
 | Store or web channel | Banner never constructed |
+| Channel is desktop but the manifest has no asset for it (macOS, Linux today) | No banner. The About tab still reports the update, so the information is not lost — only the dead-end call to action is |
 
 ## Testing
 
