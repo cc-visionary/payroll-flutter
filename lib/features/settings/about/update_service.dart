@@ -262,7 +262,7 @@ class UpdateService {
       final manifest = UpdateManifest.fromJson(
         jsonDecode(res.body) as Map<String, dynamic>,
       );
-      if (!_isNewer(manifest.version, current)) {
+      if (!isNewer(manifest.version, current)) {
         return UpdateUpToDate(current);
       }
       return UpdateAvailable(
@@ -289,7 +289,10 @@ class UpdateService {
   }
 
   /// Compares semver-ish strings. Handles `1.0.0`, `1.0`, `1.0.0+5`.
-  static bool _isNewer(String remote, String local) {
+  ///
+  /// Public because the startup banner's dismissal gate compares a manifest
+  /// version against the version the user last dismissed.
+  static bool isNewer(String remote, String local) {
     List<int> parts(String s) {
       final trimmed = s.split('+').first.split('-').first;
       return trimmed
