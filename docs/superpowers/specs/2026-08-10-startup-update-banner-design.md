@@ -74,9 +74,22 @@ the goal — ordinary employees keep running stale builds.
 
 `showUpdateDialog(BuildContext, WidgetRef, UpdateAvailable)` moves out of
 `_AboutSettingsScreenState` into
-`lib/features/settings/about/update_dialog.dart`. Behaviour is unchanged; the
-About tab calls the extracted function. This is a pure refactor and lands before
-anything new is written.
+`lib/features/settings/about/update_dialog.dart`. The About tab calls the
+extracted function. This lands before anything new is written.
+
+**It is not a pure refactor, and pretending otherwise would hide a real change.**
+Today the download progress bar renders *inline in the About card*
+(`about_settings_screen.dart:279-287`), driven by `_launching` and `_progress` on
+that screen's state. The banner has no card to render into. So the extracted
+dialog becomes self-contained: it owns `launchUpdate`, its own progress
+indicator, the failure message and the Windows "Installer started" follow-up.
+
+The consequence is deliberate: About's inline progress bar is retired, and
+progress is shown in the dialog for both entry points. The alternative — a
+callback-based dialog that leaves `_launch` on the About screen — would force a
+second progress implementation for the banner, which is exactly the duplication
+this extraction exists to prevent. `_checking` and `_status` stay on the About
+screen; they belong to its manual check button, which the banner does not use.
 
 ### `startupUpdateCheckProvider`
 
