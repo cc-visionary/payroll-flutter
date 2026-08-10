@@ -184,7 +184,11 @@ class AppShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (isMobile(context)) {
-      return child;
+      // Desktop mounts the banner via the Expanded/Column below; mobile has
+      // no such wrapper, so it must be mounted here instead. This is also
+      // the only mount point sideloaded Android ever reaches — narrowing a
+      // desktop window below the breakpoint must not silently drop it.
+      return Column(children: [const UpdateBanner(), Expanded(child: child)]);
     }
 
     final location = GoRouterState.of(context).matchedLocation;

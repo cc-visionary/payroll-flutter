@@ -93,9 +93,12 @@ screen; they belong to its manual check button, which the banner does not use.
 
 ### `startupUpdateCheckProvider`
 
-Runs `UpdateService.check()` once per launch, deferred past first paint so it
-cannot delay startup. **Launch-only** — no polling timer. A user who wants a
-newer version restarts, which they must do to install one anyway.
+Runs `UpdateService.check()` once per launch, kicked off from the banner's
+first build via `FutureProvider`. This does not delay startup: `check()`
+yields at its first `await` (fetching `PackageInfo` / the manifest) before
+doing any work, so the first frame paints before the check does anything.
+**Launch-only** — no polling timer. A user who wants a newer version
+restarts, which they must do to install one anyway.
 
 It is separate from the About tab's manual check, which keeps its own state so a
 user pressing "Check for updates" still gets an immediate, visible result.

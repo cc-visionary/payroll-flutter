@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'update_service.dart';
@@ -17,7 +18,8 @@ final startupUpdateCheckProvider = FutureProvider<UpdateCheckResult?>((
 ) async {
   try {
     return await ref.read(updateServiceProvider).check();
-  } catch (_) {
+  } catch (e, st) {
+    debugPrint('startupUpdateCheckProvider failed: $e\n$st');
     return null;
   }
 });

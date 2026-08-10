@@ -76,7 +76,7 @@ class _VersionCardState extends ConsumerState<_VersionCard> {
       case UpdateError(:final message):
         setState(() => _status = message);
       case UpdateAvailable():
-        showUpdateDialog(context, ref, result);
+        showUpdateDialog(context, result);
     }
   }
 

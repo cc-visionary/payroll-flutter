@@ -21,10 +21,10 @@ Future<void> _pump(WidgetTester tester, UpdateAvailable update) async {
   await tester.pumpWidget(
     ProviderScope(
       child: MaterialApp(
-        home: Consumer(
-          builder: (context, ref, _) => Scaffold(
+        home: Builder(
+          builder: (context) => Scaffold(
             body: ElevatedButton(
-              onPressed: () => showUpdateDialog(context, ref, update),
+              onPressed: () => showUpdateDialog(context, update),
               child: const Text('open'),
             ),
           ),

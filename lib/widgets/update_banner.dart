@@ -48,7 +48,7 @@ class UpdateBanner extends ConsumerWidget {
           child: const Text('Later'),
         ),
         TextButton(
-          onPressed: () => showUpdateDialog(context, ref, update),
+          onPressed: () => showUpdateDialog(context, update),
           child: const Text('Update'),
         ),
       ],

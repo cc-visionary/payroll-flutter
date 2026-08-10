@@ -7,13 +7,10 @@ import 'update_service.dart';
 /// The one update dialog. Shown from Settings → About and from the startup
 /// banner, so both entry points render identical UI and there is only one
 /// implementation of download progress.
-Future<void> showUpdateDialog(
-  BuildContext context,
-  WidgetRef ref,
-  UpdateAvailable update,
-) {
+Future<void> showUpdateDialog(BuildContext context, UpdateAvailable update) {
   return showDialog<void>(
     context: context,
+    barrierDismissible: false,
     builder: (ctx) => _UpdateDialog(update: update),
   );
 }
