@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../app/theme_mode_provider.dart';
 import '../../../app/tokens.dart';
+import 'update_dialog.dart';
 import 'update_service.dart';
 
 final _packageInfoProvider = FutureProvider<PackageInfo>((ref) async {
@@ -55,8 +56,6 @@ class _VersionCard extends ConsumerStatefulWidget {
 
 class _VersionCardState extends ConsumerState<_VersionCard> {
   bool _checking = false;
-  bool _launching = false;
-  double _progress = 0;
   String? _status;
 
   Future<void> _check() async {
@@ -77,132 +76,7 @@ class _VersionCardState extends ConsumerState<_VersionCard> {
       case UpdateError(:final message):
         setState(() => _status = message);
       case UpdateAvailable():
-        _showUpdateDialog(result);
-    }
-  }
-
-  Future<void> _showUpdateDialog(UpdateAvailable update) async {
-    final theme = Theme.of(context);
-    final channel = update.channel;
-    final asset = update.manifest.assetFor(channel);
-    final storeLink = update.manifest.storeLinkFor(channel);
-    final canLaunch = channel == UpdateChannel.windowsInstaller
-        ? (asset != null && asset.url.isNotEmpty)
-        : channel.isStore
-        ? (storeLink != null && storeLink.isNotEmpty)
-        : (asset != null && asset.url.isNotEmpty);
-
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Update available — v${update.manifest.version}'),
-        content: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 440),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Current: v${update.currentVersion}',
-                style: theme.textTheme.bodySmall,
-              ),
-              const SizedBox(height: LuxiumSpacing.sm),
-              if (update.manifest.releaseNotes != null &&
-                  update.manifest.releaseNotes!.trim().isNotEmpty) ...[
-                Text(
-                  'Release notes',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: LuxiumSpacing.xs),
-                Text(
-                  update.manifest.releaseNotes!,
-                  style: theme.textTheme.bodySmall,
-                ),
-                const SizedBox(height: LuxiumSpacing.md),
-              ],
-              Text(
-                'Channel: ${channel.label}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Later'),
-          ),
-          FilledButton.icon(
-            onPressed: !canLaunch
-                ? null
-                : () async {
-                    Navigator.pop(ctx);
-                    await _launch(update);
-                  },
-            icon: Icon(
-              channel.isStore
-                  ? Icons.open_in_new
-                  : channel == UpdateChannel.windowsInstaller
-                  ? Icons.download
-                  : Icons.open_in_browser,
-              size: 16,
-            ),
-            label: Text(
-              channel.isStore
-                  ? 'Open Store'
-                  : channel == UpdateChannel.windowsInstaller
-                  ? 'Download & Install'
-                  : 'Download',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _launch(UpdateAvailable update) async {
-    setState(() {
-      _launching = true;
-      _progress = 0;
-      _status = null;
-    });
-    final ok = await ref
-        .read(updateServiceProvider)
-        .launchUpdate(
-          update,
-          onProgress: (p) {
-            if (!mounted) return;
-            setState(() => _progress = p.clamp(0.0, 1.0));
-          },
-        );
-    if (!mounted) return;
-    setState(() => _launching = false);
-    if (!ok) {
-      setState(() => _status = 'Could not launch the update.');
-      return;
-    }
-    if (update.channel == UpdateChannel.windowsInstaller) {
-      // Installer is running detached. Prompt the user to close the app so
-      // Inno Setup can replace files.
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Installer started'),
-          content: const Text(
-            'The installer is now running. Close Payroll Flutter when prompted so the update can complete.',
-          ),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Got it'),
-            ),
-          ],
-        ),
-      );
+        showUpdateDialog(context, result);
     }
   }
 
@@ -266,7 +140,7 @@ class _VersionCardState extends ConsumerState<_VersionCard> {
             ),
             const SizedBox(height: LuxiumSpacing.md),
             FilledButton.icon(
-              onPressed: (_checking || _launching) ? null : _check,
+              onPressed: _checking ? null : _check,
               icon: _checking
                   ? const SizedBox(
                       width: 14,
@@ -276,17 +150,6 @@ class _VersionCardState extends ConsumerState<_VersionCard> {
                   : const Icon(Icons.refresh, size: 16),
               label: Text(_checking ? 'Checking…' : 'Check for Updates'),
             ),
-            if (_launching) ...[
-              const SizedBox(height: LuxiumSpacing.md),
-              LinearProgressIndicator(value: _progress == 0 ? null : _progress),
-              const SizedBox(height: LuxiumSpacing.xs),
-              Text(
-                _progress == 0
-                    ? 'Starting download…'
-                    : 'Downloading installer… ${(_progress * 100).round()}%',
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
             const SizedBox(height: LuxiumSpacing.sm),
             Text(
               _updateSubtitle(channelAsync.asData?.value),
