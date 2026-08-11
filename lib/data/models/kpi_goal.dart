@@ -36,7 +36,7 @@ class KpiGoal {
     required this.direction,
     required this.value,
     this.valueMax,
-  });
+  }) : assert(direction != GoalDirection.between || valueMax != null);
 
   /// Null when the row has no goal — that is a legitimate state (a KPI can be
   /// defined in the library before any role sets a bar for it).
@@ -84,9 +84,9 @@ String formatGoal(KpiGoal goal, String? unit) => switch (goal.direction) {
     '${_trimNumber(goal.value)} to ${_withUnit(goal.valueMax ?? goal.value, unit)}',
 };
 
-final _gte = RegExp(r'(at\s*least|minimum|min\.?|no\s*less\s*than|≥|>=)', caseSensitive: false);
+final _gte = RegExp(r'(at\s*least|\bminimum\b|\bmin\.?\b|(no|not)\s*less\s*than|≥|>=)', caseSensitive: false);
 final _lte = RegExp(
-  r'(at\s*most|maximum|max\.?|no\s*more\s*than|less\s*than|under|below|within|≤|<=)',
+  r'(at\s*most|\bmaximum\b|\bmax\.?\b|no\s*more\s*than|less\s*than|under|below|within|≤|<=)',
   caseSensitive: false,
 );
 final _zero = RegExp(r'\b(zero|none|no)\b', caseSensitive: false);
@@ -101,11 +101,11 @@ KpiGoal? parseLegacyTarget(String? text) {
   if (s.isEmpty) return null;
   final m = _number.firstMatch(s);
   final value = m == null ? null : double.tryParse(m.group(0)!);
-  if (_lte.hasMatch(s) && value != null) {
-    return KpiGoal(direction: GoalDirection.lte, value: value);
-  }
   if (_gte.hasMatch(s) && value != null) {
     return KpiGoal(direction: GoalDirection.gte, value: value);
+  }
+  if (_lte.hasMatch(s) && value != null) {
+    return KpiGoal(direction: GoalDirection.lte, value: value);
   }
   // "Zero defects", "No preventable errors" — a ceiling of nothing.
   if (value == null && _zero.hasMatch(s)) {

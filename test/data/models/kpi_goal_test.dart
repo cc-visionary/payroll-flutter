@@ -95,6 +95,21 @@ void main() {
       expect(parseLegacyTarget(''), isNull);
       expect(parseLegacyTarget(null), isNull);
     });
+
+    test('reads an explicitly-stated floor as GTE, never as LTE', () {
+      // "no less than" contains "less than"; a substring match against the
+      // at-most family would invert the goal.
+      for (final s in ['No less than 98%', 'Not less than 98']) {
+        final g = parseLegacyTarget(s);
+        expect(g?.direction, GoalDirection.gte, reason: s);
+        expect(g?.value, 98, reason: s);
+      }
+    });
+
+    test('does not fire on words that merely contain min or max', () {
+      expect(parseLegacyTarget('Minimal downtime: 5'), isNull);
+      expect(parseLegacyTarget('Maximal uptime 5'), isNull);
+    });
   });
 
   group('goalColumns', () {
@@ -115,6 +130,33 @@ void main() {
       expect(cols['goal_value'], isNull);
       expect(cols['goal_value_max'], isNull);
       expect(cols['target'], isNull);
+    });
+
+    test('goalColumns round-trips a BETWEEN goal', () {
+      final cols = goalColumns(
+        const KpiGoal(
+          direction: GoalDirection.between,
+          value: 5,
+          valueMax: 10,
+        ),
+        'days',
+      );
+      expect(cols['goal_direction'], 'BETWEEN');
+      expect(cols['goal_value'], 5);
+      expect(cols['goal_value_max'], 10);
+      expect(cols['target'], '5 to 10 days');
+    });
+  });
+
+  group('KpiGoal constructor', () {
+    test('a BETWEEN goal without an upper bound is rejected, not rendered', () {
+      expect(
+        () => KpiGoal(
+          direction: GoalDirection.between,
+          value: 5,
+        ),
+        throwsA(isA<AssertionError>()),
+      );
     });
   });
 
