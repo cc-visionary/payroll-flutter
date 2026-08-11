@@ -484,7 +484,7 @@ git commit -m "feat(wp): role workbench route and Roles-tab drill-in"
 - Test: `test/features/workforce_planning/role/role_details_pane_test.dart`
 
 **Interfaces:**
-- Consumes: `RoleScorecard` (`lib/data/models/role_scorecard.dart`); `RoleScorecardRepository.upsert` via `roleScorecardRepositoryProvider`; `hiringEntitiesProvider` (`lib/data/repositories/hiring_entity_repository.dart`); `resolveScorecardBaseSalaryOnSave` (`lib/features/responsibility_cards/scorecard_base_salary.dart`).
+- Consumes: `RoleScorecard` (`lib/data/models/role_scorecard.dart`); `RoleScorecardRepository.upsert` via `roleScorecardRepositoryProvider`; `hiringEntityListProvider` (`lib/data/repositories/hiring_entity_repository.dart:154`); `resolveScorecardBaseSalaryOnSave` (`lib/features/responsibility_cards/scorecard_base_salary.dart`).
 - Produces: `class RoleDetailsPane extends ConsumerStatefulWidget { const RoleDetailsPane({super.key, required this.card}); final RoleScorecard card; }`.
 
 **Field set, taken from the card editor** (`role_scorecard_form_screen.dart`): job title, department, hiring entity, mission statement, required skills (name + description, repeating), behavioural expectations (name + observable standard, repeating), wage type, base salary, salary range min/max, hours per day, days per week, effective date, active.
