@@ -421,7 +421,10 @@ void main() {
 
   test('names every missing piece, not just the first', () {
     final gaps = gapsFor(numeratorSource: null, denominatorLabel: '  ');
-    expect(gaps, containsAll(['numerator source', 'denominator']));
+    // 'source', not 'numerator source' — these labels are read by a manager as
+    // "missing: unit, what is counted, source", and the numerator side
+    // deliberately avoids jargon. Only the denominator keeps the word.
+    expect(gaps, containsAll(['source', 'denominator']));
     expect(gaps.length, 2);
   });
 
