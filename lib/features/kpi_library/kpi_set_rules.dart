@@ -44,7 +44,9 @@ KpiSetVerdict validateKpiSet({
         'or add them to the role first.',
       );
     }
-    final unmeasurable = selectedKpiIds.difference(measurableKpiIds);
+    final unmeasurable = selectedKpiIds
+        .intersection(roleKpiIds)
+        .difference(measurableKpiIds);
     if (unmeasurable.isNotEmpty) {
       problems.add(
         '${unmeasurable.length} selected KPI(s) are not measurable yet — give '
