@@ -7,30 +7,25 @@ import '../models/role_kpi.dart';
 import '../models/role_scorecard.dart';
 import '../models/workforce_planning.dart';
 
-/// The checkbox state to show when the assignment section opens: if the employee
-/// has no assignment, all role KPIs are checked (they're tracked on the full
-/// set by default); otherwise only the assigned KPIs that are still on the role.
+/// Which boxes to tick for an employee whose stored set is [assigned].
+///
+/// The stored set IS the set. An empty result means nobody has chosen yet —
+/// a gap to close, not "tracks everything". That changed in 20260811000002,
+/// which backfilled an explicit set for everyone who had an effective one.
+/// Ids no longer on the role are dropped: an employee can be moved to a
+/// different card, leaving rows that point at the old role's KPIs.
 Set<String> initialCheckedKpiIds(
   Set<String> assigned,
   List<String> roleKpiIds,
-) {
-  if (assigned.isEmpty) return roleKpiIds.toSet();
-  final inter = roleKpiIds.where(assigned.contains).toSet();
-  // A role change can leave assigned rows that no longer match the role; treat
-  // that like "no assignment" so the UI mirrors the migration's full-set fallback.
-  return inter.isEmpty ? roleKpiIds.toSet() : inter;
-}
+) => roleKpiIds.where(assigned.contains).toSet();
 
-/// What to persist for [checked] out of [roleKpiIds]: only KPIs that are
-/// actually on the role are considered (a concurrent role edit can leave a stale
-/// checked id). Persist nothing when none-on-role or all-on-role are checked —
-/// both mean "default: full role set" — otherwise the on-role subset in role
-/// order.
-List<String> kpiIdsToPersist(Set<String> checked, List<String> roleKpiIds) {
-  final onRole = roleKpiIds.where(checked.contains).toList();
-  if (onRole.isEmpty || onRole.length == roleKpiIds.length) return const [];
-  return onRole;
-}
+/// What to store for [checked], in role order so the rows read predictably.
+///
+/// Unlike the pre-20260811000002 rule this never collapses a full selection to
+/// the empty list — "tracks all three" and "nobody has chosen" are different
+/// states and scoring has to tell them apart.
+List<String> kpiIdsToPersist(Set<String> checked, List<String> roleKpiIds) =>
+    roleKpiIds.where(checked.contains).toList();
 
 class KpiAssignee {
   final String employeeId;

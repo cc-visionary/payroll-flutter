@@ -6,7 +6,7 @@ import 'package:payroll_flutter/data/repositories/role_scorecard_repository.dart
 import 'package:payroll_flutter/features/employees/profile/tabs/role_tab.dart';
 
 void main() {
-  testWidgets('shows the role KPIs, all checked when un-curated', (
+  testWidgets('shows the role KPIs, none checked when un-curated', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -36,11 +36,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Order Accuracy'), findsOneWidget);
     expect(find.text('On-Time Dispatch'), findsOneWidget);
-    // Un-curated: both boxes checked (default = full role set).
+    // Un-curated (empty stored set): neither box checked — nobody has chosen
+    // yet, which is the gap this task now lets the app flag.
     final boxes = tester.widgetList<CheckboxListTile>(
       find.byType(CheckboxListTile),
     );
     expect(boxes.length, 2);
-    expect(boxes.every((b) => b.value == true), isTrue);
+    expect(boxes.every((b) => b.value == false), isTrue);
   });
 }

@@ -3,12 +3,8 @@ import 'package:payroll_flutter/data/repositories/role_scorecard_repository.dart
 
 void main() {
   group('initialCheckedKpiIds', () {
-    test('no assignment -> all role KPIs checked (default all)', () {
-      expect(initialCheckedKpiIds(<String>{}, ['a', 'b', 'c']), {
-        'a',
-        'b',
-        'c',
-      });
+    test('no assignment -> nothing checked (nobody has chosen)', () {
+      expect(initialCheckedKpiIds(<String>{}, ['a', 'b', 'c']), isEmpty);
     });
     test('with assignment -> only assigned that are on the role', () {
       expect(
@@ -17,16 +13,20 @@ void main() {
       );
     });
     test(
-      'assignment with no on-role ids -> all checked (matches migration fallback)',
+      'assignment with no on-role ids -> nothing checked (reads as absent)',
       () {
-        expect(initialCheckedKpiIds({'z'}, ['a', 'b', 'c']), {'a', 'b', 'c'});
+        expect(initialCheckedKpiIds({'z'}, ['a', 'b', 'c']), isEmpty);
       },
     );
   });
 
   group('kpiIdsToPersist', () {
-    test('all role KPIs checked -> persist none (default all)', () {
-      expect(kpiIdsToPersist({'a', 'b', 'c'}, ['a', 'b', 'c']), isEmpty);
+    test('all role KPIs checked -> persist all (no longer collapsed)', () {
+      expect(kpiIdsToPersist({'a', 'b', 'c'}, ['a', 'b', 'c']), [
+        'a',
+        'b',
+        'c',
+      ]);
     });
     test('a subset checked -> persist that subset', () {
       expect(kpiIdsToPersist({'a', 'c'}, ['a', 'b', 'c']), ['a', 'c']);
