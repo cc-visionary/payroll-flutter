@@ -175,6 +175,7 @@ class _KpiDefinitionFormState extends State<KpiDefinitionForm> {
             Expanded(
               child: DropdownButtonFormField<String>(
                 initialValue: _valueType,
+                isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Value type',
                   border: OutlineInputBorder(),
@@ -191,6 +192,7 @@ class _KpiDefinitionFormState extends State<KpiDefinitionForm> {
             Expanded(
               child: DropdownButtonFormField<String>(
                 initialValue: _cadence,
+                isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Cadence',
                   border: OutlineInputBorder(),
@@ -283,6 +285,7 @@ class _KpiDefinitionFormState extends State<KpiDefinitionForm> {
             Expanded(
               child: DropdownButtonFormField<String?>(
                 initialValue: _proofType,
+                isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Proof type',
                   border: OutlineInputBorder(),

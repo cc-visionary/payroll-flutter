@@ -220,7 +220,17 @@ void main() {
       'proof_type',
     ];
 
-    Future<Map> patchBody({required bool writeDefinition}) async {
+    Future<Map> patchBody({
+      required bool writeDefinition,
+      String valueType = 'COUNT',
+      String? numeratorLabel,
+      String? numeratorSource,
+      String? denominatorLabel,
+      String? denominatorSource,
+      String? unit,
+      String cadence = 'WEEKLY',
+      String? proofType,
+    }) async {
       final recorded = <_RecordedRequest>[];
       final mock = MockClient((request) async {
         Object? body;
@@ -255,6 +265,14 @@ void main() {
         id: 'kpi-1',
         companyId: 'co-1',
         name: 'Return Rate',
+        valueType: valueType,
+        numeratorLabel: numeratorLabel,
+        numeratorSource: numeratorSource,
+        denominatorLabel: denominatorLabel,
+        denominatorSource: denominatorSource,
+        unit: unit,
+        cadence: cadence,
+        proofType: proofType,
         writeDefinition: writeDefinition,
       );
 
@@ -299,6 +317,44 @@ void main() {
         expect(body['denominator_source'], isNull);
         expect(body['unit'], isNull);
         expect(body['proof_type'], isNull);
+      },
+    );
+
+    test(
+      'writeDefinition: true carries every passed value through, including '
+      'a source outside the autocomplete suggestion list — this is the path '
+      'KpiFormDialog._save() and KpiLibraryScreen._openForm wire the '
+      'measurable-definition form through, so a real (non-default) value in '
+      'every column is what protects that wiring',
+      () async {
+        final body = await patchBody(
+          writeDefinition: true,
+          valueType: 'RATIO',
+          numeratorLabel: 'Returns',
+          // The suggestion list (kpiSourcesProvider) would only ever have
+          // offered names already in use elsewhere — Temu is deliberately
+          // NOT one of them, proving free text survives untouched.
+          numeratorSource: 'Temu',
+          denominatorLabel: 'Orders',
+          denominatorSource: 'BigSeller',
+          unit: '%',
+          cadence: 'MONTHLY',
+          proofType: 'SCREENSHOT',
+        );
+        expect(body['value_type'], 'RATIO');
+        expect(body['numerator_label'], 'Returns');
+        expect(
+          body['numerator_source'],
+          'Temu',
+          reason:
+              'a free-text source outside the suggestion list must still '
+              'reach Postgrest untouched',
+        );
+        expect(body['denominator_label'], 'Orders');
+        expect(body['denominator_source'], 'BigSeller');
+        expect(body['unit'], '%');
+        expect(body['cadence'], 'MONTHLY');
+        expect(body['proof_type'], 'SCREENSHOT');
       },
     );
   });
