@@ -359,6 +359,24 @@ class RoleScorecardRepository {
     return Kpi.fromRow(row);
   }
 
+  /// Source systems already named on some KPI, for the definition form's
+  /// autocomplete. Suggestions only — the columns are free text so a new
+  /// channel (Shopee, Shopify, Temu) needs neither a migration nor a release.
+  Future<List<String>> distinctKpiSources() async {
+    final rows = await _client
+        .from('kpis')
+        .select('numerator_source, denominator_source');
+    final out = <String>{};
+    for (final r in (rows as List).cast<Map<String, dynamic>>()) {
+      for (final key in ['numerator_source', 'denominator_source']) {
+        final v = (r[key] as String?)?.trim();
+        if (v != null && v.isNotEmpty) out.add(v);
+      }
+    }
+    final list = out.toList()..sort();
+    return list;
+  }
+
   /// Replaces a role card's KPI links with [links]. Creates library KPIs for
   /// entries with a null kpiId (find-or-create by name), then reconciles the
   /// link rows (insert new, update target/frequency/order, delete removed).
@@ -610,6 +628,10 @@ final scorecardEmployeeCountProvider = FutureProvider<Map<String, int>>((ref) {
 
 final kpiLibraryProvider = FutureProvider<List<Kpi>>((ref) {
   return ref.watch(roleScorecardRepositoryProvider).listKpis();
+});
+
+final kpiSourcesProvider = FutureProvider<List<String>>((ref) {
+  return ref.watch(roleScorecardRepositoryProvider).distinctKpiSources();
 });
 
 final kpiAssignedEmployeesProvider =

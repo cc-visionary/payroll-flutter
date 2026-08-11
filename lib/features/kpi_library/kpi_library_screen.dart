@@ -443,6 +443,18 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
             category: result.category,
             description: result.description,
             measurementUnit: result.measurementUnit,
+            valueType: result.valueType,
+            numeratorLabel: result.numeratorLabel,
+            numeratorSource: result.numeratorSource,
+            denominatorLabel: result.denominatorLabel,
+            denominatorSource: result.denominatorSource,
+            unit: result.unit,
+            cadence: result.cadence,
+            proofType: result.proofType,
+            // The dialog now renders and submits the definition fields via
+            // KpiDefinitionForm, so it finally has an opinion on them — see
+            // saveLibraryKpi's doc comment for why this stayed false before.
+            writeDefinition: true,
           );
     } catch (e) {
       if (!context.mounted) return;

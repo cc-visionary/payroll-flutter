@@ -1,21 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/kpi.dart';
+import '../../data/repositories/role_scorecard_repository.dart';
+import 'kpi_definition_form.dart';
 
 /// Create/edit dialog for a KPI library entry. Mirrors the layout of
 /// `RolesSettingsScreen`'s `_RoleForm` — an `AlertDialog` with a small set of
 /// text fields, an inline error, and Cancel/Save actions. Returns the built
 /// [Kpi] via `Navigator.pop`; the caller persists it through
-/// `RoleScorecardRepository.upsertKpi` and invalidates `kpiLibraryProvider`.
-class KpiFormDialog extends StatefulWidget {
+/// `RoleScorecardRepository.saveLibraryKpi` and invalidates
+/// `kpiLibraryProvider`.
+///
+/// Below the name/category/description fields sits a [KpiDefinitionForm] so
+/// this dialog is where a KPI actually becomes measurable — how it's
+/// counted, from which source, at what rhythm.
+class KpiFormDialog extends ConsumerStatefulWidget {
   final Kpi? existing;
   const KpiFormDialog({super.key, this.existing});
 
   @override
-  State<KpiFormDialog> createState() => _KpiFormDialogState();
+  ConsumerState<KpiFormDialog> createState() => _KpiFormDialogState();
 }
 
-class _KpiFormDialogState extends State<KpiFormDialog> {
+class _KpiFormDialogState extends ConsumerState<KpiFormDialog> {
   late final _name = TextEditingController(text: widget.existing?.name ?? '');
   late final _category = TextEditingController(
     text: widget.existing?.category ?? '',
@@ -27,6 +35,17 @@ class _KpiFormDialogState extends State<KpiFormDialog> {
     text: widget.existing?.description ?? '',
   );
   String? _error;
+
+  late KpiDefinitionDraft _definition = KpiDefinitionDraft(
+    valueType: widget.existing?.valueType ?? 'COUNT',
+    numeratorLabel: widget.existing?.numeratorLabel,
+    numeratorSource: widget.existing?.numeratorSource,
+    denominatorLabel: widget.existing?.denominatorLabel,
+    denominatorSource: widget.existing?.denominatorSource,
+    unit: widget.existing?.unit,
+    proofType: widget.existing?.proofType,
+    cadence: widget.existing?.cadence ?? 'WEEKLY',
+  );
 
   @override
   void dispose() {
@@ -55,12 +74,22 @@ class _KpiFormDialogState extends State<KpiFormDialog> {
           ? null
           : _description.text.trim(),
       isActive: widget.existing?.isActive ?? true,
+      valueType: _definition.valueType,
+      numeratorLabel: _definition.numeratorLabel,
+      numeratorSource: _definition.numeratorSource,
+      denominatorLabel: _definition.denominatorLabel,
+      denominatorSource: _definition.denominatorSource,
+      unit: _definition.unit,
+      cadence: _definition.cadence,
+      proofType: _definition.proofType,
     );
     Navigator.pop(context, kpi);
   }
 
   @override
   Widget build(BuildContext context) {
+    final knownSources =
+        ref.watch(kpiSourcesProvider).asData?.value ?? const <String>[];
     return AlertDialog(
       title: Text(widget.existing == null ? 'New KPI' : 'Edit KPI'),
       content: ConstrainedBox(
@@ -116,6 +145,14 @@ class _KpiFormDialogState extends State<KpiFormDialog> {
                   isDense: true,
                 ),
                 maxLines: 3,
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              KpiDefinitionForm(
+                initial: _definition,
+                knownSources: knownSources,
+                onChanged: (draft) => _definition = draft,
               ),
               if (_error != null)
                 Padding(
