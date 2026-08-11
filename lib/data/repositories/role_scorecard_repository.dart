@@ -381,7 +381,13 @@ class RoleScorecardRepository {
           ),
         );
         kpiId = kpi.id;
-        cadence ??= kpi.cadence;
+        // Do NOT `cadence ??= kpi.cadence` here: the caller supplies the
+        // cadence for an existing library KPI, and when it doesn't (e.g. the
+        // form screen's `_KpiDraft` never threading `kpiId`/`cadence` back
+        // for an existing card's KPIs), adopting the library row's cadence
+        // would silently overwrite whatever frequency text the user typed —
+        // frequencyLabelFromCadence(null) below correctly falls back to it
+        // instead.
       }
       resolved.add((kpiId: kpiId, link: link, cadence: cadence));
     }

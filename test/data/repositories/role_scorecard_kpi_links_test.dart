@@ -109,4 +109,102 @@ void main() {
       expect(freeTextRow['sort_order'], 1);
     },
   );
+
+  test(
+    'a name-matched existing KPI (kpiId null) does not overwrite the '
+    'link\'s typed frequency with the library row\'s cadence',
+    () async {
+      // Reproduces the live form-screen bug: `_KpiDraft` never carries the
+      // library `kpiId` back from an existing card (see
+      // role_scorecard_form_screen.dart's `_KpiDraft` and its load path), so
+      // every KPI on an existing card round-trips through saveRoleScorecardKpis
+      // with kpiId == null, cadence == null and goal == null — only the
+      // name-match branch of upsertKpi ties it back to its library row.
+      final recorded = <_RecordedRequest>[];
+      final mock = MockClient((request) async {
+        Object? body;
+        if (request.body.isNotEmpty) {
+          try {
+            body = jsonDecode(request.body);
+          } catch (_) {
+            body = request.body;
+          }
+        }
+        recorded.add(_RecordedRequest(request.method, request.url.path, body));
+        // The library already holds this KPI at the migration's default
+        // cadence (WEEKLY) — upsertKpi's GET-then-name-match finds it here.
+        if (request.method == 'GET' && request.url.path.endsWith('/kpis')) {
+          return http.Response(
+            jsonEncode([
+              {
+                'id': 'kpi-existing',
+                'company_id': 'co-1',
+                'name': 'On-Time Delivery',
+                'category': null,
+                'description': null,
+                'measurement_unit': null,
+                'is_active': true,
+                'department_id': null,
+                'value_type': 'PERCENT',
+                'numerator_label': null,
+                'numerator_source': null,
+                'denominator_label': null,
+                'denominator_source': null,
+                'unit': '%',
+                'cadence': 'WEEKLY',
+                'proof_type': null,
+              },
+            ]),
+            200,
+            request: request,
+          );
+        }
+        return http.Response('[]', 200, request: request);
+      });
+
+      final client = SupabaseClient(
+        'https://stub.supabase.co',
+        'stub-anon-key',
+        httpClient: mock,
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+      );
+      final repo = RoleScorecardRepository(client);
+
+      // Mirrors what the buggy _KpiDraft actually sends today: no kpiId, no
+      // cadence, no goal — just whatever free text HR had typed in that
+      // session for an existing, already-Monthly KPI.
+      const link = KpiLinkInput(
+        name: 'On-Time Delivery',
+        target: 'At least 98%',
+        frequency: 'Monthly',
+      );
+
+      await repo.saveRoleScorecardKpis('card-1', 'co-1', [link]);
+
+      final upsertRequests = recorded
+          .where(
+            (r) => r.method == 'POST' && r.path.endsWith('/role_scorecard_kpis'),
+          )
+          .toList();
+      expect(
+        upsertRequests,
+        hasLength(1),
+        reason: 'expected exactly one upsert POST to role_scorecard_kpis',
+      );
+      final rows = (upsertRequests.single.body as List).cast<Map>();
+      final row = rows.single;
+
+      expect(
+        row['frequency'],
+        'Monthly',
+        reason:
+            'must keep the free text the user typed, not silently adopt the '
+            "library row's WEEKLY default cadence",
+      );
+      expect(row['target'], 'At least 98%');
+      expect(row['goal_direction'], isNull);
+      expect(row['goal_value'], isNull);
+      expect(row['goal_value_max'], isNull);
+    },
+  );
 }
