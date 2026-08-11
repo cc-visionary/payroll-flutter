@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/kpi.dart';
+import '../models/kpi_goal.dart';
 import '../models/role_kpi.dart';
 import '../models/role_scorecard.dart';
 import '../models/workforce_planning.dart';
@@ -292,17 +293,31 @@ class RoleScorecardRepository {
     String? category,
     String? description,
     String? measurementUnit,
+    String valueType = 'COUNT',
+    String? numeratorLabel,
+    String? numeratorSource,
+    String? denominatorLabel,
+    String? denominatorSource,
+    String? unit,
+    String cadence = 'WEEKLY',
+    String? proofType,
   }) async {
+    String? blank(String? v) =>
+        (v == null || v.trim().isEmpty) ? null : v.trim();
     final fields = <String, dynamic>{
       'name': name.trim(),
-      'category': (category?.trim().isEmpty ?? true) ? null : category!.trim(),
-      'description': (description?.trim().isEmpty ?? true)
-          ? null
-          : description!.trim(),
-      'measurement_unit': (measurementUnit?.trim().isEmpty ?? true)
-          ? null
-          : measurementUnit!.trim(),
+      'category': blank(category),
+      'description': blank(description),
+      'measurement_unit': blank(measurementUnit),
       'is_active': true,
+      'value_type': valueType,
+      'numerator_label': blank(numeratorLabel),
+      'numerator_source': blank(numeratorSource),
+      'denominator_label': blank(denominatorLabel),
+      'denominator_source': blank(denominatorSource),
+      'unit': blank(unit),
+      'cadence': cadence,
+      'proof_type': blank(proofType),
     };
     if (id != null && id.isNotEmpty) {
       final row = await _client
@@ -346,9 +361,12 @@ class RoleScorecardRepository {
     List<KpiLinkInput> links,
   ) async {
     // 1. Resolve every link to a kpi_id (create library rows for new names).
-    final resolved = <({String kpiId, String target, String frequency})>[];
+    final resolved = <({String kpiId, KpiLinkInput link, String? cadence})>[];
     for (final link in links) {
       var kpiId = link.kpiId;
+      // The caller supplies the cadence for an existing library KPI; only a
+      // brand-new one has to be read back off the row we just created.
+      var cadence = link.cadence;
       if (kpiId == null) {
         final kpi = await upsertKpi(
           companyId,
@@ -358,15 +376,14 @@ class RoleScorecardRepository {
             name: link.name,
             category: link.category,
             measurementUnit: link.measurementUnit,
+            unit: link.unit,
+            cadence: link.cadence ?? 'WEEKLY',
           ),
         );
         kpiId = kpi.id;
+        cadence ??= kpi.cadence;
       }
-      resolved.add((
-        kpiId: kpiId,
-        target: link.target,
-        frequency: link.frequency,
-      ));
+      resolved.add((kpiId: kpiId, link: link, cadence: cadence));
     }
     // Collapse duplicate library KPIs (same kpi_id attached twice) to the first
     // occurrence — matches the (role_scorecard_id, kpi_id) uniqueness and avoids
@@ -386,20 +403,32 @@ class RoleScorecardRepository {
       del = del.not('kpi_id', 'in', '(${keepIds.join(',')})');
     }
     await del;
-    // 3. Upsert the current links with their order.
+    // 3. Upsert the current links with their order. target and frequency are
+    //    DERIVED — from the goal and the KPI's cadence — so the free-text
+    //    columns the PDF and contract templates read can never drift from the
+    //    structured values. A link with no goal keeps whatever text it had.
     if (deduped.isNotEmpty) {
       await _client.from('role_scorecard_kpis').upsert([
         for (var i = 0; i < deduped.length; i++)
           {
             'role_scorecard_id': roleScorecardId,
             'kpi_id': deduped[i].kpiId,
-            'target': deduped[i].target.trim().isEmpty
-                ? null
-                : deduped[i].target.trim(),
-            'frequency': deduped[i].frequency.trim().isEmpty
-                ? null
-                : deduped[i].frequency.trim(),
             'sort_order': i,
+            'frequency':
+                frequencyLabelFromCadence(deduped[i].cadence) ??
+                (deduped[i].link.frequency.trim().isEmpty
+                    ? null
+                    : deduped[i].link.frequency.trim()),
+            ...deduped[i].link.goal == null
+                ? {
+                    'target': deduped[i].link.target.trim().isEmpty
+                        ? null
+                        : deduped[i].link.target.trim(),
+                    'goal_direction': null,
+                    'goal_value': null,
+                    'goal_value_max': null,
+                  }
+                : goalColumns(deduped[i].link.goal, deduped[i].link.unit),
           },
       ], onConflict: 'role_scorecard_id,kpi_id');
     }
@@ -433,7 +462,9 @@ class RoleScorecardRepository {
   Future<List<RoleKpi>> roleKpis(String roleScorecardId) async {
     final rows = await _client
         .from('role_scorecard_kpis')
-        .select('kpi_id, target, frequency, sort_order, kpis(name)')
+        .select(
+          'kpi_id, target, frequency, goal_direction, goal_value, goal_value_max, kpis(name, unit, cadence)',
+        )
         .eq('role_scorecard_id', roleScorecardId)
         .order('sort_order');
     return (rows as List)
