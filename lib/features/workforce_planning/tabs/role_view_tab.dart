@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../app/theme.dart';
@@ -192,6 +193,10 @@ class _RoleLens extends ConsumerWidget {
         rows: [
           for (final r in rows)
             DataRow(
+              // The Roles table is now the front door to the workbench: this
+              // row is the only place that knows the card id.
+              onSelectChanged: (_) =>
+                  context.push('/workforce-planning/roles/${r.cardId}'),
               cells: [
                 DataCell(
                   ConstrainedBox(

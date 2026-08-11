@@ -50,6 +50,7 @@ import '../features/performance/review_cycles_screen.dart';
 import '../features/performance/self_eval_pdf_screen.dart';
 import '../features/workflows/workflows_screen.dart';
 import '../features/workflows/workflow_detail_screen.dart';
+import '../features/workforce_planning/role/role_workbench_screen.dart';
 import '../features/workforce_planning/workforce_planning_screen.dart';
 import '../features/auth/session_provider.dart';
 import 'shell.dart';
@@ -253,6 +254,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/workforce-planning',
             builder: (c, s) => const WorkforcePlanningScreen(),
+          ),
+          GoRoute(
+            path: '/workforce-planning/roles/:id',
+            builder: (c, s) =>
+                RoleWorkbenchScreen(cardId: s.pathParameters['id']!),
           ),
           GoRoute(
             path: '/performance',
