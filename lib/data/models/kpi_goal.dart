@@ -36,7 +36,13 @@ class KpiGoal {
     required this.direction,
     required this.value,
     this.valueMax,
-  }) : assert(direction != GoalDirection.between || valueMax != null);
+  }) : assert(
+         direction != GoalDirection.between ||
+             (valueMax != null && valueMax > value),
+         'a BETWEEN goal requires valueMax, and valueMax must be greater '
+         'than value — otherwise formatGoal renders an inverted range '
+         '("10 to 5 days") and isOnTrack evaluates an empty one',
+       );
 
   /// Null when the row has no goal — that is a legitimate state (a KPI can be
   /// defined in the library before any role sets a bar for it).
@@ -74,19 +80,30 @@ String _withUnit(double v, String? unit) {
   return _unitIsWord(u) ? '$n $u' : '$n$u';
 }
 
+/// A BETWEEN goal's rendering: a symbol unit (`₱`, `$`) hugs both bounds
+/// (`₱5 to ₱10`) since neither reads as a bare number in a currency range; a
+/// word unit (`days`) reads naturally on the upper bound alone (`5 to 10
+/// days`, not `5 days to 10 days`).
+String _formatBetween(KpiGoal goal, String? unit) {
+  final upper = _withUnit(goal.valueMax ?? goal.value, unit);
+  final symbolUnit =
+      unit != null && unit.trim().isNotEmpty && !_unitIsWord(unit.trim());
+  final lower = symbolUnit ? _withUnit(goal.value, unit) : _trimNumber(goal.value);
+  return '$lower to $upper';
+}
+
 /// The human rendering of a goal, and the value written to the legacy
 /// `target` column.
 String formatGoal(KpiGoal goal, String? unit) => switch (goal.direction) {
   GoalDirection.gte => '≥ ${_withUnit(goal.value, unit)}',
   GoalDirection.lte => '≤ ${_withUnit(goal.value, unit)}',
   GoalDirection.eq => '= ${_withUnit(goal.value, unit)}',
-  GoalDirection.between =>
-    '${_trimNumber(goal.value)} to ${_withUnit(goal.valueMax ?? goal.value, unit)}',
+  GoalDirection.between => _formatBetween(goal, unit),
 };
 
 final _gte = RegExp(r'(at\s*least|\bminimum\b|\bmin\.?\b|(no|not)\s*less\s*than|≥|>=)', caseSensitive: false);
 final _lte = RegExp(
-  r'(at\s*most|\bmaximum\b|\bmax\.?\b|no\s*more\s*than|less\s*than|under|below|within|≤|<=)',
+  r'(at\s*most|\bmaximum\b|\bmax\.?\b|no\s*more\s*than|less\s*than|\bunder\b|\bbelow\b|\bwithin\b|≤|<=)',
   caseSensitive: false,
 );
 final _zero = RegExp(r'\b(zero|none|no)\b', caseSensitive: false);

@@ -50,11 +50,49 @@ void main() {
         '≥ ₱20',
       );
     });
+
+    test('a currency BETWEEN goal carries the unit on both bounds', () {
+      expect(
+        formatGoal(
+          const KpiGoal(direction: GoalDirection.between, value: 5, valueMax: 10),
+          '₱',
+        ),
+        '₱5 to ₱10',
+      );
+    });
+
+    test('a word-unit BETWEEN goal carries the unit on the upper bound only', () {
+      expect(
+        formatGoal(
+          const KpiGoal(direction: GoalDirection.between, value: 5, valueMax: 10),
+          'days',
+        ),
+        '5 to 10 days',
+      );
+    });
+
+    test('a unitless BETWEEN goal renders as plain numbers', () {
+      expect(
+        formatGoal(
+          const KpiGoal(direction: GoalDirection.between, value: 5, valueMax: 10),
+          null,
+        ),
+        '5 to 10',
+      );
+    });
   });
 
   group('parseLegacyTarget', () {
     test('reads the at-least family as GTE', () {
-      for (final s in ['At least 98%', '≥ 98%', '>= 98', 'minimum 98', 'Min 98%']) {
+      for (final s in [
+        'At least 98%',
+        '≥ 98%',
+        '>= 98',
+        'minimum 98',
+        'Min 98%',
+        // Dotted abbreviation — Dart's regex backtracks off the literal ".".
+        'Min. 98%',
+      ]) {
         final g = parseLegacyTarget(s);
         expect(g?.direction, GoalDirection.gte, reason: s);
         expect(g?.value, 98, reason: s);
@@ -70,11 +108,20 @@ void main() {
         'No more than 3%',
         'Under 3',
         'Within 3 days',
+        // Dotted abbreviation — Dart's regex backtracks off the literal ".".
+        'Max. 3',
       ]) {
         final g = parseLegacyTarget(s);
         expect(g?.direction, GoalDirection.lte, reason: s);
         expect(g?.value, 3, reason: s);
       }
+    });
+
+    test('does not fire on words that merely contain under/below/within', () {
+      // "Thunder" contains "under"; "Undercut" starts with it. Without word
+      // boundaries either would misparse as an LTE goal.
+      expect(parseLegacyTarget('Thunder 3'), isNull);
+      expect(parseLegacyTarget('Undercut 3'), isNull);
     });
 
     test('reads zero-defect wording as LTE 0', () {
@@ -154,6 +201,19 @@ void main() {
         () => KpiGoal(
           direction: GoalDirection.between,
           value: 5,
+        ),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('a BETWEEN goal whose upper bound is not above the lower bound is rejected', () {
+      // valueMax <= value would render an inverted or empty range
+      // ("10 to 5 days") and isOnTrack would evaluate an empty interval.
+      expect(
+        () => KpiGoal(
+          direction: GoalDirection.between,
+          value: 10,
+          valueMax: 5,
         ),
         throwsA(isA<AssertionError>()),
       );
