@@ -59,14 +59,47 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
   bool _captured = false;
   final List<_KpiLinkDraft> _links = [];
 
+  /// The editable state of [_links] as of the last successful capture —
+  /// compared structurally against the CURRENT state to decide whether
+  /// [_resync] needs to ask before discarding anything (see [_isDirty]).
+  /// Never sent anywhere; this is UI-only bookkeeping.
+  List<_DraftSnapshot> _baseline = const [];
+
   bool _saving = false;
   String? _error;
 
+  @override
+  void dispose() {
+    for (final d in _links) {
+      d.dispose();
+    }
+    super.dispose();
+  }
+
   void _captureFrom(List<RoleKpi> kpis) {
+    // Recapturing replaces every draft wholesale (initial load, post-save,
+    // or an explicit resync) — the outgoing drafts' controllers are not
+    // referenced anywhere else, so they must be disposed here rather than
+    // leaked.
+    for (final d in _links) {
+      d.dispose();
+    }
     _links
       ..clear()
       ..addAll(kpis.map(_KpiLinkDraft.fromRoleKpi));
+    _baseline = _links.map(_DraftSnapshot.of).toList();
     _captured = true;
+  }
+
+  /// Whether anything in [_links] has changed since [_baseline] was taken —
+  /// an added/removed row, a different KPI, or an edited goal. Used only to
+  /// decide whether [_resync] needs to confirm before discarding.
+  bool get _isDirty {
+    if (_links.length != _baseline.length) return true;
+    for (var i = 0; i < _links.length; i++) {
+      if (_DraftSnapshot.of(_links[i]) != _baseline[i]) return true;
+    }
+    return false;
   }
 
   void _invalidateAfterSave() {
@@ -150,6 +183,7 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
 
   void _remove(_KpiLinkDraft draft) {
     setState(() => _links.remove(draft));
+    draft.dispose();
   }
 
   /// Explicit resync: `roleKpisProvider` is watched, but [_captured] only
@@ -158,10 +192,38 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
   /// dialog editing this KPI's unit, or a different workbench tab touching
   /// the card — would otherwise leave [_links] silently stale beside a
   /// provider that has already moved on (the exact gap Task 4's
-  /// `ResponsibilitiesPane` was flagged for and never closed). This discards
-  /// any unsaved local edits, same trade-off `_invalidateAfterSave` already
-  /// makes after a successful save.
-  void _resync() {
+  /// `ResponsibilitiesPane` was flagged for and never closed).
+  ///
+  /// This discards unsaved local edits, same trade-off `_invalidateAfterSave`
+  /// already makes after a successful save — but unlike that path, nothing
+  /// here has actually been saved, so a dirty draft is confirmed first. A
+  /// pristine one reloads silently.
+  Future<void> _resync() async {
+    if (_isDirty) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Discard unsaved KPI changes?'),
+          content: const Text(
+            'Reloading replaces this pane with what is saved on the server. '
+            'Anything you have typed here that has not been saved will be '
+            'lost.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Discard and reload'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+      if (!mounted) return;
+    }
     ref.invalidate(roleKpisProvider(widget.cardId));
     setState(() => _captured = false);
   }
@@ -382,8 +444,14 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
                   key: ValueKey('kpi-accept-suggestion-$key'),
                   onPressed: () => setState(() {
                     draft.direction = suggestion.direction;
-                    draft.value = suggestion.value.toString();
-                    draft.valueMax = suggestion.valueMax?.toString() ?? '';
+                    // Written to the controllers, not the plain-string
+                    // getters — the Value/To fields bind these controllers
+                    // directly, so this is what actually makes the accepted
+                    // suggestion visible on screen (a stable row key means
+                    // TextFormField.initialValue would never be re-read).
+                    draft.valueController.text = suggestion.value.toString();
+                    draft.valueMaxController.text =
+                        suggestion.valueMax?.toString() ?? '';
                   }),
                   child: const Text('Use suggestion'),
                 ),
@@ -443,7 +511,7 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
           width: 100,
           child: TextFormField(
             key: ValueKey('kpi-value-$key'),
-            initialValue: draft.value,
+            controller: draft.valueController,
             keyboardType: const TextInputType.numberWithOptions(
               decimal: true,
             ),
@@ -452,7 +520,10 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
               border: const OutlineInputBorder(),
               isDense: true,
             ),
-            onChanged: (v) => setState(() => draft.value = v),
+            // The controller already holds the latest text; this only needs
+            // to trigger a rebuild so the derived goal/preview text below
+            // catches up.
+            onChanged: (_) => setState(() {}),
           ),
         ),
         if (isBetween) ...[
@@ -461,7 +532,7 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
             width: 100,
             child: TextFormField(
               key: ValueKey('kpi-value-max-$key'),
-              initialValue: draft.valueMax,
+              controller: draft.valueMaxController,
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
@@ -470,7 +541,7 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
                 border: OutlineInputBorder(),
                 isDense: true,
               ),
-              onChanged: (v) => setState(() => draft.valueMax = v),
+              onChanged: (_) => setState(() {}),
             ),
           ),
         ],
@@ -539,8 +610,18 @@ class _KpiLinkDraft {
   String? legacyFrequency;
 
   GoalDirection? direction;
-  String value;
-  String valueMax;
+
+  /// Backed by controllers, not plain strings: `TextFormField.initialValue`
+  /// is read once and never revisited by `didUpdateWidget`, so a programmatic
+  /// change (e.g. "Use suggestion") that only wrote a new string into a
+  /// stable-keyed row would update [goal] and the derived preview text but
+  /// leave the on-screen field showing the OLD number — the exact bug this
+  /// was built to prevent. `_goalEditor` binds these directly.
+  final TextEditingController valueController;
+  final TextEditingController valueMaxController;
+
+  String get value => valueController.text;
+  String get valueMax => valueMaxController.text;
 
   _KpiLinkDraft({
     required this.kpiId,
@@ -557,8 +638,16 @@ class _KpiLinkDraft {
     this.direction,
     String? initialValue,
     String? initialValueMax,
-  }) : value = initialValue ?? '',
-       valueMax = initialValueMax ?? '';
+  }) : valueController = TextEditingController(text: initialValue ?? ''),
+       valueMaxController = TextEditingController(text: initialValueMax ?? '');
+
+  /// Must be called once this draft is no longer displayed (removed, or
+  /// replaced wholesale by a recapture) — `TextFormField` never disposes a
+  /// controller it did not create itself.
+  void dispose() {
+    valueController.dispose();
+    valueMaxController.dispose();
+  }
 
   factory _KpiLinkDraft.fromRoleKpi(RoleKpi kpi) => _KpiLinkDraft(
     kpiId: kpi.kpiId,
@@ -593,6 +682,46 @@ class _KpiLinkDraft {
   }
 }
 
+/// A structural fingerprint of one draft's editable fields — kpiId, name,
+/// goal direction and both value texts. Used only to detect whether
+/// [_KpisPaneState] has anything unsaved before [_KpisPaneState._resync]
+/// discards it; never sent anywhere.
+class _DraftSnapshot {
+  final String? kpiId;
+  final String name;
+  final GoalDirection? direction;
+  final String value;
+  final String valueMax;
+
+  const _DraftSnapshot({
+    required this.kpiId,
+    required this.name,
+    required this.direction,
+    required this.value,
+    required this.valueMax,
+  });
+
+  factory _DraftSnapshot.of(_KpiLinkDraft d) => _DraftSnapshot(
+    kpiId: d.kpiId,
+    name: d.name,
+    direction: d.direction,
+    value: d.value,
+    valueMax: d.valueMax,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is _DraftSnapshot &&
+      other.kpiId == kpiId &&
+      other.name == name &&
+      other.direction == direction &&
+      other.value == value &&
+      other.valueMax == valueMax;
+
+  @override
+  int get hashCode => Object.hash(kpiId, name, direction, value, valueMax);
+}
+
 class _AddKpiResult {
   final Kpi? existing;
   final String? newName;
@@ -625,6 +754,21 @@ class _AddKpiDialogState extends ConsumerState<_AddKpiDialog> {
   void dispose() {
     _nameCtl.dispose();
     super.dispose();
+  }
+
+  /// Case-insensitive exact match against the library. Typing a KPI's exact
+  /// name must resolve to that KPI just as reliably as clicking its
+  /// Autocomplete suggestion does — a manager who types the full correct
+  /// name and presses Save without clicking the row must never fall into
+  /// the "define a new KPI" branch, which would seed the link's cadence from
+  /// [KpiDefinitionForm]'s bare default instead of this KPI's real one.
+  Kpi? _matchByName(String name) {
+    final target = name.trim().toLowerCase();
+    if (target.isEmpty) return null;
+    for (final k in widget.library) {
+      if (k.name.trim().toLowerCase() == target) return k;
+    }
+    return null;
   }
 
   @override
@@ -671,7 +815,10 @@ class _AddKpiDialogState extends ConsumerState<_AddKpiDialog> {
                     ),
                     onChanged: (v) => setState(() {
                       _nameCtl.text = v;
-                      _picked = null;
+                      // Re-resolve on every keystroke rather than only on a
+                      // suggestion tap: a name that now exactly matches a
+                      // library KPI (however it got typed) IS that KPI.
+                      _picked = _matchByName(v);
                     }),
                   );
                 },
@@ -703,8 +850,12 @@ class _AddKpiDialogState extends ConsumerState<_AddKpiDialog> {
                     onPressed: () {
                       final name = _nameCtl.text.trim();
                       if (name.isEmpty) return;
-                      if (_picked != null) {
-                        Navigator.pop(context, _AddKpiResult.existing(_picked));
+                      // Re-check by name here too, belt-and-braces: whatever
+                      // got the field into its current text, an exact match
+                      // against the library must never be treated as new.
+                      final matched = _picked ?? _matchByName(name);
+                      if (matched != null) {
+                        Navigator.pop(context, _AddKpiResult.existing(matched));
                       } else {
                         Navigator.pop(
                           context,
