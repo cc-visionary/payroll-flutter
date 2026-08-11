@@ -209,7 +209,7 @@ void main() {
   );
 
   group('saveLibraryKpi writeDefinition', () {
-    const _definitionKeys = [
+    const definitionKeys = [
       'value_type',
       'numerator_label',
       'numerator_source',
@@ -220,7 +220,7 @@ void main() {
       'proof_type',
     ];
 
-    Future<Map> _patchBody({required bool writeDefinition}) async {
+    Future<Map> patchBody({required bool writeDefinition}) async {
       final recorded = <_RecordedRequest>[];
       final mock = MockClient((request) async {
         Object? body;
@@ -268,8 +268,8 @@ void main() {
       'writeDefinition: false (the default) leaves the measurable '
       'definition columns untouched — a rename must not null them',
       () async {
-        final body = await _patchBody(writeDefinition: false);
-        for (final key in _definitionKeys) {
+        final body = await patchBody(writeDefinition: false);
+        for (final key in definitionKeys) {
           expect(
             body.containsKey(key),
             isFalse,
@@ -287,8 +287,8 @@ void main() {
       'writeDefinition: true writes all eight definition columns, '
       'including explicit nulls for the ones left unset',
       () async {
-        final body = await _patchBody(writeDefinition: true);
-        for (final key in _definitionKeys) {
+        final body = await patchBody(writeDefinition: true);
+        for (final key in definitionKeys) {
           expect(body.containsKey(key), isTrue, reason: '$key must be present');
         }
         expect(body['value_type'], 'COUNT');
