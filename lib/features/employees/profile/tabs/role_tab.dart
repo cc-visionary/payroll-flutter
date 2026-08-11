@@ -578,8 +578,9 @@ class _EmptyCard extends StatelessWidget {
 }
 
 /// HR-facing checklist of the role's KPIs; ticked ones are the KPIs this
-/// employee is tracked/reviewed on. Un-curated (no rows) shows all ticked —
-/// "tracking the full role set." Saving all (or none) clears to the default.
+/// employee is tracked/reviewed on. Un-curated (no rows) shows none ticked —
+/// nobody has chosen yet, and scoring skips an employee with no set. See
+/// `initialCheckedKpiIds`/`kpiIdsToPersist` (20260811000002).
 class EmployeeKpiAssignmentSection extends ConsumerStatefulWidget {
   final String employeeId;
   final String roleScorecardId;
@@ -646,8 +647,9 @@ class _EmployeeKpiAssignmentSectionState
                 const Padding(
                   padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: Text(
-                    'Tracking all role KPIs (default). Untick any that '
-                    "can't be realistically measured for this person.",
+                    'No KPIs selected yet. Pick the 3-5 this person is '
+                    "measured on — an employee with no selection isn't "
+                    'scored.',
                   ),
                 ),
               for (final k in kpis)

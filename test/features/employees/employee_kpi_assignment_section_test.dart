@@ -43,5 +43,9 @@ void main() {
     );
     expect(boxes.length, 2);
     expect(boxes.every((b) => b.value == false), isTrue);
+    // The un-curated copy must not claim everything is tracked — that would
+    // contradict the zero ticked boxes right below it.
+    expect(find.textContaining('Tracking all role KPIs'), findsNothing);
+    expect(find.textContaining('No KPIs selected yet'), findsOneWidget);
   });
 }
