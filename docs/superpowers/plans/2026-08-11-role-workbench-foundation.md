@@ -576,7 +576,10 @@ git commit -m "feat(kpi): definition completeness for EOS measurables"
 - Consumes: `KpiGoal`, `GoalDirection` from Task 1.
 - Produces: `double? computeReadingValue({required String? valueType, required String? unit, required double? numerator, double? denominator})`; `bool? isOnTrack(double? value, KpiGoal? goal)`.
 
-Note: only the binary on-track verdict is built here. EOS judges a measurable as hit or missed; any finer attainment curve belongs to Spec B's scoring, and is not built until B needs it.
+Consumed by Plan 2's KPI pane, which shows a live goal preview as you type
+("returns 3 / orders 100 = 3.0% ✓ on-track"). Only the binary verdict is built:
+EOS judges a measurable as hit or missed, and any finer attainment curve belongs
+to Spec B's scoring, so it is not built until B needs it.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1839,3 +1842,9 @@ git commit -m "test: extract the Supabase widget-test harness for reuse"
 - **Plan 2 — the workbench.** `/workforce-planning/roles/:id` with the four panes; Roles tab drill-in. Depends on every module here.
 - **Plan 3 — retire the card editor.** Delete `role_scorecard_form_screen.dart` and its two routes; "New role" moves to the Roles tab.
 - **Plan 4 — Needs attention.** The two new chips and click-through on the existing ones.
+
+Two spec requirements deliberately deferred rather than dropped: the **source
+autocomplete** (a repository method returning the distinct
+`numerator_source`/`denominator_source` values already in use) lands with the KPI
+pane in Plan 2, and the KPI Library's **roles count** beside its people count
+lands in Plan 4 with the rest of the cross-linking.
