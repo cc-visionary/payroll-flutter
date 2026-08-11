@@ -852,9 +852,19 @@ void main() {
   });
 
   test('reports every problem at once rather than one per save', () {
-    final v = verdict({'z'}, role: {'a'}, measurable: const {});
+    // Two different KPIs with two different problems: 'z' is off-role, 'a' is
+    // on-role but not measurable. A single bad id must NOT raise two
+    // overlapping complaints about itself — hence the intersection in
+    // validateKpiSet's unmeasurable check.
+    final v = verdict({'a', 'z'}, role: {'a'}, measurable: const {});
     expect(v.problems.length, 2);
     expect(v.blocked, isTrue);
+  });
+
+  test('an off-role KPI raises one complaint, not also an unmeasurable one', () {
+    final v = verdict({'z'}, role: {'a'}, measurable: const {});
+    expect(v.problems.length, 1);
+    expect(v.problems.single, contains('not on this role'));
   });
 
   test('employeeNeedsKpiSet flags only an empty set', () {
