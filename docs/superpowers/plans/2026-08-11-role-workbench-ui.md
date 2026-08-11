@@ -436,7 +436,27 @@ In `lib/features/workforce_planning/tabs/role_view_tab.dart`, the `DataRow` buil
 
 Add `import 'package:go_router/go_router.dart';` to that file if it is not already imported.
 
-`onSelectChanged` gives keyboard and screen-reader affordance for free, which a bare `InkWell` around the first cell would not. It also renders the row as selectable, which is the intended affordance.
+`onSelectChanged` gives keyboard and screen-reader affordance for free, which a bare `InkWell` around the first cell would not.
+
+**It also requires `showCheckboxColumn: false` on the `DataTable` at ~line 182.**
+`showCheckboxColumn` defaults to `true`, and Flutter computes
+`displayCheckboxColumn = showCheckboxColumn && anyRowSelectable` — so setting
+`onSelectChanged` on any row silently materialises a checkbox column, a
+select-all header checkbox, and disabled styling on the unselectable `Total`
+row. The select-all then calls every row's `onSelectChanged` in one pass, which
+with a navigating callback means one click pushes a workbench screen per role.
+Suppressing the column keeps the tap, keyboard and screen-reader semantics and
+drops the rest:
+
+```dart
+      child: DataTable(
+        showCheckboxColumn: false,
+        columnSpacing: 24,
+```
+
+Add a test asserting `find.byType(Checkbox)` finds nothing in this table —
+`test/features/workforce_planning/role_lens_test.dart` already stands the tab
+up with the provider overrides needed.
 
 - [ ] **Step 7: Run the suite and the analyzer**
 
