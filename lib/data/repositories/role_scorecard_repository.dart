@@ -301,6 +301,16 @@ class RoleScorecardRepository {
     String? unit,
     String cadence = 'WEEKLY',
     String? proofType,
+    // Defaults false: the only caller today (the KPI library screen's name
+    // editor) never shows the measurable-definition fields, so it never has
+    // an opinion on them. A plain `update(fields)` is a partial update in
+    // intent but not in effect — Postgrest writes every key present in the
+    // map — so including value_type/cadence/numerator_*/denominator_*/unit/
+    // proof_type unconditionally would NULL (or reset to their defaults) a
+    // definition the caller never saw, the moment a future KPI-pane caller
+    // renames a KPI without also resending its formula. Only flip this to
+    // true from a caller that actually renders and submits those fields.
+    bool writeDefinition = false,
   }) async {
     String? blank(String? v) =>
         (v == null || v.trim().isEmpty) ? null : v.trim();
@@ -310,14 +320,16 @@ class RoleScorecardRepository {
       'description': blank(description),
       'measurement_unit': blank(measurementUnit),
       'is_active': true,
-      'value_type': valueType,
-      'numerator_label': blank(numeratorLabel),
-      'numerator_source': blank(numeratorSource),
-      'denominator_label': blank(denominatorLabel),
-      'denominator_source': blank(denominatorSource),
-      'unit': blank(unit),
-      'cadence': cadence,
-      'proof_type': blank(proofType),
+      if (writeDefinition) ...{
+        'value_type': valueType,
+        'numerator_label': blank(numeratorLabel),
+        'numerator_source': blank(numeratorSource),
+        'denominator_label': blank(denominatorLabel),
+        'denominator_source': blank(denominatorSource),
+        'unit': blank(unit),
+        'cadence': cadence,
+        'proof_type': blank(proofType),
+      },
     };
     if (id != null && id.isNotEmpty) {
       final row = await _client

@@ -207,4 +207,99 @@ void main() {
       expect(row['goal_value_max'], isNull);
     },
   );
+
+  group('saveLibraryKpi writeDefinition', () {
+    const _definitionKeys = [
+      'value_type',
+      'numerator_label',
+      'numerator_source',
+      'denominator_label',
+      'denominator_source',
+      'unit',
+      'cadence',
+      'proof_type',
+    ];
+
+    Future<Map> _patchBody({required bool writeDefinition}) async {
+      final recorded = <_RecordedRequest>[];
+      final mock = MockClient((request) async {
+        Object? body;
+        if (request.body.isNotEmpty) {
+          try {
+            body = jsonDecode(request.body);
+          } catch (_) {
+            body = request.body;
+          }
+        }
+        recorded.add(_RecordedRequest(request.method, request.url.path, body));
+        return http.Response(
+          jsonEncode({
+            'id': 'kpi-1',
+            'company_id': 'co-1',
+            'name': 'Return Rate',
+            'is_active': true,
+          }),
+          200,
+          request: request,
+        );
+      });
+      final client = SupabaseClient(
+        'https://stub.supabase.co',
+        'stub-anon-key',
+        httpClient: mock,
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+      );
+      final repo = RoleScorecardRepository(client);
+
+      await repo.saveLibraryKpi(
+        id: 'kpi-1',
+        companyId: 'co-1',
+        name: 'Return Rate',
+        writeDefinition: writeDefinition,
+      );
+
+      final patch = recorded.singleWhere(
+        (r) => r.method == 'PATCH' && r.path.endsWith('/kpis'),
+      );
+      return patch.body as Map;
+    }
+
+    test(
+      'writeDefinition: false (the default) leaves the measurable '
+      'definition columns untouched — a rename must not null them',
+      () async {
+        final body = await _patchBody(writeDefinition: false);
+        for (final key in _definitionKeys) {
+          expect(
+            body.containsKey(key),
+            isFalse,
+            reason: '$key must be absent, not present-and-null',
+          );
+        }
+        // The name/category/description/measurement_unit/is_active fields a
+        // rename actually intends to change are still written.
+        expect(body['name'], 'Return Rate');
+        expect(body['is_active'], true);
+      },
+    );
+
+    test(
+      'writeDefinition: true writes all eight definition columns, '
+      'including explicit nulls for the ones left unset',
+      () async {
+        final body = await _patchBody(writeDefinition: true);
+        for (final key in _definitionKeys) {
+          expect(body.containsKey(key), isTrue, reason: '$key must be present');
+        }
+        expect(body['value_type'], 'COUNT');
+        expect(body['cadence'], 'WEEKLY');
+        expect(body['numerator_label'], isNull);
+        expect(body['numerator_source'], isNull);
+        expect(body['denominator_label'], isNull);
+        expect(body['denominator_source'], isNull);
+        expect(body['unit'], isNull);
+        expect(body['proof_type'], isNull);
+      },
+    );
+  });
 }
