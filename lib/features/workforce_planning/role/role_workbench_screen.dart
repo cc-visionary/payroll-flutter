@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/breakpoints.dart';
 import '../../documents/providers.dart';
+import 'responsibilities_pane.dart';
 import 'role_details_pane.dart';
 
 /// The one place a role is authored: details, responsibilities, KPIs and the
@@ -58,9 +59,14 @@ class RoleWorkbenchScreen extends ConsumerWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 24),
-              RoleDetailsPane(card: card),
-              // Later tasks append below, in this order: responsibilities,
-              // KPIs, people.
+              RoleDetailsPane(key: ValueKey(cardId), card: card),
+              const SizedBox(height: 16),
+              ResponsibilitiesPane(
+                key: ValueKey(cardId),
+                cardId: card.id,
+                companyId: card.companyId,
+              ),
+              // Later tasks append below, in this order: KPIs, people.
             ],
           );
         },
