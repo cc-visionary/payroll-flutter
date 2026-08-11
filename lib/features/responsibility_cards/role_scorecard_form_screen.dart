@@ -680,6 +680,15 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 4),
                         child: _responsiveRow([
                           TextFormField(
+                            // Keyed by draft identity, not list position:
+                            // unkeyed fields are matched positionally, so
+                            // removing row i left every surviving field
+                            // showing the text of the row before it — on
+                            // screen the LAST row looked deleted. Same
+                            // reasoning as the Area field below.
+                            key: ValueKey(
+                              'skill-name-${identityHashCode(_skills[i])}',
+                            ),
                             initialValue: _skills[i].name,
                             decoration: const InputDecoration(
                               labelText: 'Skill name',
@@ -689,6 +698,9 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                             onChanged: (v) => _skills[i].name = v,
                           ),
                           TextFormField(
+                            key: ValueKey(
+                              'skill-desc-${identityHashCode(_skills[i])}',
+                            ),
                             initialValue: _skills[i].description,
                             maxLines: 2,
                             decoration: const InputDecoration(
@@ -734,6 +746,9 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                               child: Column(
                                 children: [
                                   TextFormField(
+                                    key: ValueKey(
+                                      'exp-name-${identityHashCode(_expectations[i])}',
+                                    ),
                                     initialValue: _expectations[i].name,
                                     decoration: const InputDecoration(
                                       labelText: 'Expectation name',
@@ -744,6 +759,9 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
                                   ),
                                   const SizedBox(height: 8),
                                   TextFormField(
+                                    key: ValueKey(
+                                      'exp-desc-${identityHashCode(_expectations[i])}',
+                                    ),
                                     initialValue: _expectations[i].description,
                                     maxLines: 2,
                                     decoration: const InputDecoration(
@@ -998,6 +1016,7 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
   Widget _kpiEditor(int index, List<Kpi> kpiLibrary) {
     final fields = [
       Autocomplete<Kpi>(
+        key: ValueKey('kpi-name-${identityHashCode(_kpis[index])}'),
         initialValue: TextEditingValue(text: _kpis[index].name),
         optionsBuilder: (v) => v.text.isEmpty
             ? kpiLibrary
@@ -1045,7 +1064,9 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
       TextFormField(
         // Keyed on the value so a programmatic auto-fill (onSelected) re-inits
         // the field; unchanged during typing (onChanged doesn't setState).
-        key: ValueKey('kpi-measure-$index-${_kpis[index].measurement}'),
+        key: ValueKey(
+          'kpi-measure-${identityHashCode(_kpis[index])}-${_kpis[index].measurement}',
+        ),
         initialValue: _kpis[index].measurement,
         enabled: _kpis[index].kpiId == null,
         decoration: const InputDecoration(
@@ -1057,7 +1078,9 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
         onChanged: (value) => _kpis[index].measurement = value,
       ),
       TextFormField(
-        key: ValueKey('kpi-target-$index-${_kpis[index].target}'),
+        key: ValueKey(
+          'kpi-target-${identityHashCode(_kpis[index])}-${_kpis[index].target}',
+        ),
         initialValue: _kpis[index].target,
         decoration: const InputDecoration(
           labelText: 'Target',
@@ -1068,7 +1091,9 @@ class _State extends ConsumerState<RoleScorecardFormScreen> {
         onChanged: (value) => _kpis[index].target = value,
       ),
       TextFormField(
-        key: ValueKey('kpi-freq-$index-${_kpis[index].frequency}'),
+        key: ValueKey(
+          'kpi-freq-${identityHashCode(_kpis[index])}-${_kpis[index].frequency}',
+        ),
         initialValue: _kpis[index].frequency,
         decoration: const InputDecoration(
           labelText: 'Check frequency',
