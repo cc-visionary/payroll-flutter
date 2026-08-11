@@ -232,4 +232,26 @@ void main() {
     // 26,000 + 13,000
     expect(find.text('₱39,000'), findsOneWidget);
   });
+
+  testWidgets(
+    'the drill-in tap target does not surface a checkbox column',
+    (tester) async {
+      // DataTable auto-shows a checkbox column whenever any row is
+      // selectable. onSelectChanged makes every role row selectable so the
+      // rows stay tappable/keyboard/screen-reader accessible, but the table
+      // must not grow a checkbox column (and the header "select all"
+      // checkbox must not exist) as a side effect.
+      await tester.pumpWidget(
+        _host(
+          cards: [_card('rs1', 'Operations Manager', base: '1000')],
+          employees: [_emp('e1', 'Jeremy', 'rs1')],
+          tasks: const [],
+          computed: const [],
+        ),
+      );
+      await _toRoleLens(tester);
+
+      expect(find.byType(Checkbox), findsNothing);
+    },
+  );
 }

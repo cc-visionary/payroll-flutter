@@ -180,6 +180,7 @@ class _RoleLens extends ConsumerWidget {
     return ResponsiveTable(
       fullWidth: true,
       child: DataTable(
+        showCheckboxColumn: false,
         columnSpacing: 24,
         columns: const [
           DataColumn(label: Text('Role')),
