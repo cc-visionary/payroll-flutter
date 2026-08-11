@@ -33,6 +33,36 @@ comment on column kpis.cadence is
   'The measurable rhythm. Lives here, not on role_scorecard_kpis: an EOS '
   'measurable has ONE cadence regardless of which role carries it.';
 
+-- Backfill cadence from history rather than leaving every legacy KPI at the
+-- column default. Without this, the first time a later plan re-saves a
+-- genuinely monthly or quarterly KPI, the Dart repository derives frequency
+-- back OUT of this column (frequencyLabelFromCadence) and writes "Weekly"
+-- into the card, the PDF and the next generated contract — converting real
+-- history into a default and then treating the default as authoritative.
+-- Deliberately conservative: only a link whose frequency text unambiguously
+-- names one of the three cadences (case-insensitively, once trimmed) is
+-- trusted; anything else, or a KPI with no link at all, stays at WEEKLY.
+do $$
+declare
+  v_backfilled int;
+begin
+  with latest_frequency as (
+    select distinct on (l.kpi_id)
+      l.kpi_id,
+      lower(trim(l.frequency)) as frequency
+    from role_scorecard_kpis l
+    where l.frequency is not null
+    order by l.kpi_id, l.updated_at desc
+  )
+  update kpis k
+  set cadence = upper(lf.frequency)
+  from latest_frequency lf
+  where lf.kpi_id = k.id
+    and lf.frequency in ('weekly', 'monthly', 'quarterly');
+  get diagnostics v_backfilled = row_count;
+  raise notice 'backfilled cadence for % KPI(s) from their most recent role_scorecard_kpis.frequency', v_backfilled;
+end $$;
+
 -- 2. The goal lives on the LINK — the same measurable can carry a different bar
 --    on a different role.
 alter table role_scorecard_kpis
@@ -51,7 +81,8 @@ begin
       add constraint role_scorecard_kpis_goal_complete check (
         goal_direction is null
         or (goal_value is not null
-            and (goal_direction <> 'BETWEEN' or goal_value_max is not null))
+            and (goal_direction <> 'BETWEEN'
+                 or (goal_value_max is not null and goal_value_max > goal_value)))
       );
   end if;
 end $$;
@@ -92,6 +123,10 @@ begin
         where l.kpi_id = k.id
           and e.deleted_at is null
       )
+      -- Belt-and-braces, not a mirror of live reachability: deliberately does
+      -- not join employees or check deleted_at, so it can only SAVE a KPI
+      -- from cleanup (a false positive here), never cause one to be deleted
+      -- or deactivated that should have survived.
       and not exists (
         select 1 from employee_kpis ek where ek.kpi_id = k.id
       )
