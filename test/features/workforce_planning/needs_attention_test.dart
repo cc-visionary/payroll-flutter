@@ -103,8 +103,8 @@ List<AttentionItem> _run({
   List<Kpi> kpis = const [],
   Map<String, List<KpiAssignee>> assigned = const {},
   Map<String, List<WpTaskAssignment>> assignmentsByTask = const {},
-  Map<String, Set<String>> roleKpiIdsByCard = const {},
-  Map<String, Set<String>> assignedKpiIdsByEmployee = const {},
+  Map<String, Set<String>>? roleKpiIdsByCard,
+  Map<String, Set<String>>? assignedKpiIdsByEmployee,
 }) => buildNeedsAttention(
   loads: loads,
   tasks: tasks,
@@ -309,6 +309,31 @@ void main() {
     final item = items.singleWhere((i) => i.label.contains('no KPI set'));
     expect(item.count, 2);
     expect(item.target, AttentionTarget.roles);
+  });
+
+  test('says nothing while the assignment maps are still absent', () {
+    // Absent is not empty. Empty maps make every holder's on-role set empty,
+    // so defaulting an unresolved provider to {} would flag EVERY active
+    // holder — the maximum, not zero.
+    final absent = _run(
+      employees: [_emp('e1', 'One', 'card-1'), _emp('e2', 'Two', 'card-1')],
+      cards: [_card('card-1')],
+    );
+    expect(absent.where((i) => i.label.contains('no KPI set')), isEmpty);
+
+    // Same inputs, maps now loaded and genuinely empty -> both are flagged.
+    final loaded = _run(
+      employees: [_emp('e1', 'One', 'card-1'), _emp('e2', 'Two', 'card-1')],
+      cards: [_card('card-1')],
+      roleKpiIdsByCard: const {
+        'card-1': {'k1'},
+      },
+      assignedKpiIdsByEmployee: const {},
+    );
+    expect(
+      loaded.singleWhere((i) => i.label.contains('no KPI set')).count,
+      2,
+    );
   });
 
   test('says nothing when every holder has an on-role set', () {

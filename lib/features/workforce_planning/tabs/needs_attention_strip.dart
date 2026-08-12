@@ -53,18 +53,19 @@ class NeedsAttentionStrip extends ConsumerWidget {
         .asData
         ?.value;
     // Read defensively — this signal must never block first paint on the
-    // strip's other, already-required providers.
+    // strip's other, already-required providers. Safe here because an empty
+    // assignment map yields ZERO misallocated responsibilities.
     final assignmentsByTask =
         ref.watch(wpAssignmentsByTaskProvider).asData?.value ?? const {};
+    // Deliberately NOT given the same empty-map default. `asData` is null
+    // while this FutureProvider re-resolves (every invalidation) and forever
+    // if it throws, and empty maps here would read as "every ACTIVE holder in
+    // the company has no KPI set" — the maximum, not zero. Passed through as
+    // null so buildNeedsAttention skips the signal until it really knows.
     final kpiAssignmentMaps = ref
         .watch(wpKpiAssignmentMapsProvider)
         .asData
         ?.value;
-    final roleKpiIdsByCard =
-        kpiAssignmentMaps?.roleKpiIdsByCard ?? const <String, Set<String>>{};
-    final assignedKpiIdsByEmployee =
-        kpiAssignmentMaps?.assignedKpiIdsByEmployee ??
-        const <String, Set<String>>{};
 
     if (loads == null ||
         tasks == null ||
@@ -83,8 +84,8 @@ class NeedsAttentionStrip extends ConsumerWidget {
       kpis: kpis,
       kpiAssignedByKpi: kpiAssignedByKpi,
       assignmentsByTask: assignmentsByTask,
-      roleKpiIdsByCard: roleKpiIdsByCard,
-      assignedKpiIdsByEmployee: assignedKpiIdsByEmployee,
+      roleKpiIdsByCard: kpiAssignmentMaps?.roleKpiIdsByCard,
+      assignedKpiIdsByEmployee: kpiAssignmentMaps?.assignedKpiIdsByEmployee,
     );
     if (items.isEmpty) return const SizedBox.shrink();
 

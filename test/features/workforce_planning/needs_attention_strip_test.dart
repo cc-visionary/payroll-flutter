@@ -200,4 +200,51 @@ void main() {
       );
     },
   );
+
+  // Absent maps are NOT empty maps. Empty roleKpiIdsByCard makes every
+  // holder's on-role intersection empty, so treating an unresolved provider
+  // as empty reads the MAXIMUM — every ACTIVE holder in the company — rather
+  // than zero. A spinner or an RLS denial upstream must not be able to tell
+  // HR that nobody in the company has a KPI set.
+  testWidgets(
+    'no-KPI-set chip stays silent while the assignment maps are unresolved',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            // One unrelated gap so the strip itself renders and the absence
+            // of the KPI chip is a real assertion, not a blank widget.
+            wpPersonLoadsProvider.overrideWith((ref) async => const [_over]),
+            wpTasksProvider.overrideWith((ref) async => const []),
+            wpActiveEmployeesProvider.overrideWith(
+              (ref) async => [noKpiSetHolder],
+            ),
+            roleScorecardListProvider.overrideWith(
+              (ref) async => [noKpiSetCard],
+            ),
+            kpiLibraryProvider.overrideWith((ref) async => const []),
+            kpiAssignedEmployeesProvider.overrideWith((ref) async => const {}),
+            wpKpiAssignmentMapsProvider.overrideWith(
+              (ref) async => throw Exception('RLS denied'),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: DefaultTabController(
+                length: 5,
+                child: NeedsAttentionStrip(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Needs attention'),
+        findsOneWidget,
+        reason: 'the strip still renders its other signals',
+      );
+      expect(find.textContaining('no KPI set'), findsNothing);
+    },
+  );
 }

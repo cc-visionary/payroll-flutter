@@ -56,8 +56,13 @@ List<AttentionItem> buildNeedsAttention({
   required List<Kpi> kpis,
   required Map<String, List<KpiAssignee>> kpiAssignedByKpi,
   Map<String, List<WpTaskAssignment>> assignmentsByTask = const {},
-  Map<String, Set<String>> roleKpiIdsByCard = const {},
-  Map<String, Set<String>> assignedKpiIdsByEmployee = const {},
+  // Null means NOT LOADED, and is not the same as an empty map. Empty
+  // roleKpiIdsByCard makes every holder's on-role intersection empty, so
+  // reading an unresolved provider as empty would report the MAXIMUM — every
+  // ACTIVE holder in the company has no KPI set — rather than zero. The
+  // signal is therefore skipped entirely while either map is absent.
+  Map<String, Set<String>>? roleKpiIdsByCard,
+  Map<String, Set<String>>? assignedKpiIdsByEmployee,
 }) {
   final items = <AttentionItem>[];
   void add(
@@ -114,14 +119,19 @@ List<AttentionItem> buildNeedsAttention({
   // their own role come to nothing. Testing the raw stored set instead is a
   // real bug we already shipped once: a holder whose only tracked KPI was
   // later removed from the role read as fully tracked.
-  final noKpiSet = employees.where((e) {
-    if (e.employmentStatus != 'ACTIVE' || e.deletedAt != null) return false;
-    final cardId = e.roleScorecardId;
-    if (cardId == null) return false;
-    final onRole = (assignedKpiIdsByEmployee[e.id] ?? const <String>{})
-        .intersection(roleKpiIdsByCard[cardId] ?? const <String>{});
-    return employeeNeedsKpiSet(onRole);
-  }).length;
+  final noKpiSet =
+      (roleKpiIdsByCard == null || assignedKpiIdsByEmployee == null)
+      ? 0
+      : employees.where((e) {
+          if (e.employmentStatus != 'ACTIVE' || e.deletedAt != null) {
+            return false;
+          }
+          final cardId = e.roleScorecardId;
+          if (cardId == null) return false;
+          final onRole = (assignedKpiIdsByEmployee[e.id] ?? const <String>{})
+              .intersection(roleKpiIdsByCard[cardId] ?? const <String>{});
+          return employeeNeedsKpiSet(onRole);
+        }).length;
   add(
     AttentionCategory.people,
     AttentionSeverity.medium,
