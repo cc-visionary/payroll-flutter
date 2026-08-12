@@ -1,62 +1,83 @@
 # STATE
 
-Task: TASK-001 — deterministic verification gate   Contract: docs/tasks/TASK-001.json
-Branch: main                  Last commit: f0bbc91
-Agent: Claude (started 2026-08-06T14:56Z; explore stage re-run 2026-08-10)
+Task: Accountability Chart (Plan C) — EOS seats, seat tree, chart screen
+Contract: docs/superpowers/plans/2026-08-12-accountability-chart.md
+Branch: accountability-chart (worktree .claude/worktrees/accountability-chart)
+Base: main @ cfe90a2        Last commit: 320017c
+Agent: Claude (subagent-driven; 2026-08-12 → 2026-08-13)
 
 ## Done
-- repository wired into dev-standards
-- scripts/verify.sh added (dart format / flutter analyze / flutter test gate)
-- docs/tasks/TASK-001.json added and validated against the contract schema
-  (`load_contract()` returns id "TASK-001", exit 0)
-- `dart format .` run once and committed alone (4ada116, 438 files, .dart only);
-  sha recorded in .git-blame-ignore-revs and blame.ignoreRevsFile configured.
-  verify.sh's format gate now passes and the run reaches analyze + test.
-- All 19 analyzer warnings cleared (f0bbc91): 3 redundant operators removed,
-  5 provably-dead declarations deleted, `_SortOrder`'s 11 unused sort codes
-  KEPT with a documented `ignore_for_file: unused_field` — they hold slots in
-  the numbering scheme mirrored from payrollos and must not be deleted.
-- verify.sh analyze gate set to `--no-fatal-infos`. Warnings/errors stay fatal;
-  the 192 remaining infos are dominated by `constant_identifier_names` on that
-  same SCREAMING_CASE catalog. Proved the gate still fails on a planted
-  `unused_field` (exit 1), so it did not become a rubber stamp.
-- **verify.sh is GREEN end to end**: format PASS, analyze PASS,
-  test PASS (1171 passed, 1 skipped), exit 0. Re-confirmed 2026-08-10.
-- **explore stage run for real against TASK-001** (2026-08-10, brief Step 5,
-  previously skipped): `orchestrate explore` on read-only codex, exit 0,
-  artifact validates against stage-output.schema.json, 7 actions / 3 findings.
-  Acceptance criterion held: `git status` unchanged apart from the two
-  pre-existing benign entries, and no worktree was left behind.
+- All 5 plan tasks implemented, individually reviewed, fix rounds closed.
+  Per-task findings and rulings: `.superpowers/sdd/2026-08-12-accountability-chart/progress.md`
+  — read that before re-deciding anything; it records WHY, not just what.
+  1. Vocabulary: the responsibility card is the SEAT (12 strings, 2 tests).
+  2. `role_scorecards.parent_id` + index + cycle-guard trigger, and the
+     role details pane now carries `parentId` forward on save (it did not —
+     every ordinary "Save Role" wiped the seat's chart placement).
+  3. `seat_tree.dart`: `seatBoxes` (one box per ACTIVE holder, sorted by full
+     name; exactly ONE open box for a seat with none) and `seatDropError`.
+  4. `/accountability-chart` screen, drag-to-reparent, explicit route guard
+     at `router.dart:112` (the `/workforce-planning` prefix does NOT cover it).
+  5. Two Needs-attention chips: ">5 roles" and "open seats".
+- Final whole-branch review: seams clean. One real defect found and fixed
+  (deleting a parent seat threw an uncaught FK error at two screens this
+  branch never touched) — FK is now `on delete set null`, and both confirm
+  dialogs say how many seats will re-root.
+- Verified on the final tree, directly: **1377 passing / 1 skipped**,
+  `flutter analyze lib test` **0 errors / 0 warnings / 192 infos**.
 
 ## In flight
-- none
+- none. Tree is clean; 12 commits sit on `accountability-chart` awaiting the
+  owner's integration decision (merge locally / PR / keep).
 
 ## Decisions
-- Preserved the original CLAUDE.md content under AGENTS.md's
-  "## Project rules" heading (Design System, Tech stack, Conventions)
-  rather than discarding it during the wiring migration — 2026-08-06
-- Did not append to .gitignore: `.ai/`, `.worktrees/`, and `docs/standards`
-  were already present from Task 12 — appending again would have duplicated
-  them — 2026-08-06
-- Did not run the explore-stage dry run (brief Step 5): the Gemini CLI is
-  unusable on this machine (Google discontinued Gemini Code Assist for
-  individuals; OAuth returns IneligibleTierError; no GEMINI_API_KEY is set).
-  Deferred, not worked around — 2026-08-06
-- RESOLVED 2026-08-10: rather than fix Gemini, `explorer` and
-  `reviewer_secondary` were rebound upstream to read-only codex
-  (`codex exec -s read-only`). The dry run then ran green. Gemini stays
-  unusable and is bound to no role — 2026-08-10
+- The chart counts a seat's roles from AUTHORED areas (`wp_tasks` via
+  `areasBySeat`), NOT `RoleScorecard.responsibilities`, which appends
+  shared-in areas and is what the role-card PDF renders. So the chart shows
+  fewer roles than the PDF for a seat with shared work — intentional: an EOS
+  role is a seat's own accountability, and shared work has its primary owner
+  elsewhere. The Needs-attention chip calls the same function so the chip and
+  the box can never disagree.
+- `on delete set null`, not `cascade` (would delete real seats and their
+  holders' role assignment) and not the default `no action` (the bug).
+- `toUpsertPayload` always emitting `parent_id` was left alone deliberately —
+  see Blockers. It is a release-ordering fact, not a defect, and defending
+  against it in code would leave permanent complexity behind a one-time step.
 
 ## Next
-- Run the `plan` stage against TASK-001. Stages now chain on a shared
-  `ai/task-001` branch, so plan will see whatever explore committed (explore is
-  read-only, so for this contract that is nothing).
-- `orchestrate verify docs/tasks/TASK-001.json --repo .` is the deterministic
-  gate and is wired to this repo's own scripts/verify.sh via the contract's
-  verification_commands.
-- `orchestrate prune --repo .` clears merged `ai/*` branches when a task is done.
+- The owner picks: merge to `main` locally, open a PR, or keep the branch.
+- Then GUI smoke: open `/accountability-chart`, drag a seat onto another,
+  confirm the Balance tab's two new chips show real counts, and delete a
+  parent seat to confirm its children re-root instead of failing silently.
 
 ## Blockers
-- none.
-  (The Gemini blocker is retired, not fixed: Gemini remains unusable on this
-  machine, but no role is bound to it any more.)
+- **SHIP ORDER.** Four migrations must be applied TOGETHER and BEFORE or WITH
+  the code, never after: `20260811000001`, `20260811000002`, `20260812000001`
+  (Spec A) and `20260813000001` (this branch). If the code reaches users
+  first, every "Save Role" and "New Role" in the app fails with a
+  column-not-found error — including HR workflows unrelated to this feature.
+  Applied by a human with `supabase db push`; no agent may run it.
+
+---
+
+## Previous track (kept, not current): TASK-001 deterministic verification gate
+
+Contract: docs/tasks/TASK-001.json — Branch main, last commit f0bbc91
+(2026-08-06 → 2026-08-10). Superseded as the active task, not cancelled.
+
+- `scripts/verify.sh` (format / analyze / test gate) is GREEN end to end.
+- `dart format .` run once and committed alone (4ada116, 438 files); sha in
+  `.git-blame-ignore-revs`, `blame.ignoreRevsFile` configured.
+- All 19 analyzer warnings cleared (f0bbc91). `_SortOrder`'s 11 unused sort
+  codes were KEPT behind a documented `ignore_for_file: unused_field` — they
+  hold slots in a numbering scheme mirrored from payrollos.
+- Analyze gate runs `--no-fatal-infos`; warnings/errors stay fatal. Proved
+  still-failing on a planted `unused_field` (exit 1), so it is not a rubber
+  stamp.
+- Explore stage ran for real against TASK-001 (2026-08-10), exit 0, artifact
+  valid, no worktree left behind.
+- Gemini is unusable on this machine (Gemini Code Assist discontinued for
+  individuals; OAuth returns IneligibleTierError). `explorer` and
+  `reviewer_secondary` were rebound to read-only codex; no role is bound to
+  Gemini any more. Retired, not fixed.
+- Next for that track, if resumed: run the `plan` stage against TASK-001.
