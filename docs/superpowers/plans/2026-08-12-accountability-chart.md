@@ -65,10 +65,17 @@ Two are doc comments, reworded in the same pass so the code stops using a name t
 - [ ] **Step 1: Confirm the list is still exact**
 
 ```
-grep -rn "Responsibility Card" lib
+grep -rni "responsibility card" lib
 ```
 
-Expected: ten hits, matching the list above. **If it differs, stop and report** — something changed since the plan was written.
+**Case-insensitive, deliberately.** An earlier draft of this plan specified a
+case-sensitive grep and treated its ten Title Case hits as the whole set; it
+misses two lowercase plurals — the empty-state message six lines below the
+title being renamed (`responsibility_cards_screen.dart:34`) and the hint in
+`role_title_field.dart:77`, a widget embedded in six document forms.
+
+Expected: twelve hits — the ten listed above plus those two. **If it differs,
+stop and report.**
 
 - [ ] **Step 2: Rename**
 
@@ -79,7 +86,7 @@ Do **not** touch route paths, table names, class names, or file names.
 - [ ] **Step 3: Verify nothing else moved**
 
 ```
-grep -rn "Responsibility Card" lib test
+grep -rni "responsibility card" lib test
 flutter test
 flutter analyze lib test
 ```
