@@ -7,13 +7,12 @@ import '../../auth/profile_provider.dart';
 
 /// Opens the minimal dialog that creates a bare role card from the Roles
 /// tab — job title and mission only. Everything else defaults exactly as
-/// the old card editor's new-card mode did (role_scorecard_form_screen.dart,
-/// lines 39-45 for the controller seeds and 466-470 for the saved values):
-/// `MONTHLY` wage, 8 hours/day, "Monday to Saturday", active, effective
-/// today. The rest — department, brand, salary, responsibilities, KPIs,
-/// skills, expectations — is authored afterwards in the workbench's Role
-/// details pane; duplicating that form here would recreate the two-places-
-/// to-edit-a-role problem this project exists to remove.
+/// the old (now-deleted) card editor's new-card mode did: `MONTHLY` wage,
+/// 8 hours/day, "Monday to Saturday", active, effective today. The rest —
+/// department, brand, salary, responsibilities, KPIs, skills, expectations
+/// — is authored afterwards in the workbench's Role details pane;
+/// duplicating that form here would recreate the two-places-to-edit-a-role
+/// problem this project exists to remove.
 ///
 /// Returns the new card's id, or null if the dialog was cancelled.
 Future<String?> showNewRoleDialog(BuildContext context, WidgetRef ref) {
@@ -156,7 +155,7 @@ class _NewRoleDialogState extends State<_NewRoleDialog> {
   }
 }
 
-/// Mirrors role_scorecard_form_screen.dart's `_uuid()` (lines 1282-1292): a
+/// Mirrors the `_uuid()` helper from the old (now-deleted) card editor: a
 /// short pseudo-UUID for a new row. The server accepts it since
 /// client-generated UUIDs are stored across the schema; collisions are
 /// astronomically unlikely.

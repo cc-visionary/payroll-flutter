@@ -31,8 +31,8 @@ import '../wp_providers.dart';
 /// full costing model — a second costing form is exactly what this pane
 /// avoids building. "Add" and "Link existing task" reuse that same dialog
 /// (Add) or `diffResponsibilities` + `saveResponsibilities` (Link, and a
-/// brand-new area) — the same two functions the card editor's Save button
-/// uses at `role_scorecard_form_screen.dart:492-520`.
+/// brand-new area) — the same two functions the old (now-deleted) card
+/// editor's Save button used.
 ///
 /// Archive/Delete are gated by [removalActionForTask]: a task with
 /// `wp_task_assignments` history is archived, never deleted, because costing

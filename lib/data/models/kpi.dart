@@ -128,11 +128,12 @@ class KpiLinkInput {
   ///   the derived `target` as NULL, so clearing a goal in the workbench
   ///   actually clears it.
   /// * `writeGoal: false` (the default) → "I have no opinion". The repository
-  ///   leaves those four columns alone. This is what the legacy card editor
-  ///   (`role_scorecard_form_screen.dart`) gets: it builds every link with no
-  ///   goal on every save, so without this it would wipe every structured
-  ///   goal the workbench had authored — and `target`, which the role-card
-  ///   PDF and the employment contract's Annex A render, would revert to
+  ///   leaves those four columns alone. This is what the old responsibility-
+  ///   card editor (deleted once the workbench became the only place a role
+  ///   is authored) needed: it built every link with no goal on every save,
+  ///   so without this it would have wiped every structured goal the
+  ///   workbench had authored — and `target`, which the role-card PDF and
+  ///   the employment contract's Annex A render, would have reverted to
   ///   free text on a signed document.
   ///
   /// Ignored when [goal] is non-null: a caller that supplies a goal has an

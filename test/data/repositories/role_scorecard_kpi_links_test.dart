@@ -126,12 +126,12 @@ void main() {
     'a name-matched existing KPI (kpiId null) does not overwrite the '
     'link\'s typed frequency with the library row\'s cadence',
     () async {
-      // Reproduces the live form-screen bug: `_KpiDraft` never carries the
-      // library `kpiId` back from an existing card (see
-      // role_scorecard_form_screen.dart's `_KpiDraft` and its load path), so
-      // every KPI on an existing card round-trips through saveRoleScorecardKpis
-      // with kpiId == null, cadence == null and goal == null — only the
-      // name-match branch of upsertKpi ties it back to its library row.
+      // Reproduces a bug in the old (now-deleted) responsibility-card
+      // editor: its `_KpiDraft` never carried the library `kpiId` back from
+      // an existing card, so every KPI on an existing card round-tripped
+      // through saveRoleScorecardKpis with kpiId == null, cadence == null
+      // and goal == null — only the name-match branch of upsertKpi ties it
+      // back to its library row.
       final recorded = <_RecordedRequest>[];
       final mock = MockClient((request) async {
         Object? body;
@@ -224,13 +224,14 @@ void main() {
     'a save with no opinion on the goal omits target and the goal columns '
     'entirely, so the old card editor cannot wipe a workbench-authored goal',
     () async {
-      // The live regression: HR sets "≤ 3%" on Return Rate in the workbench,
-      // then a colleague opens /responsibility-cards/:id/edit to fix a typo in
-      // the mission statement. role_scorecard_form_screen builds every
-      // KpiLinkInput with no goal and no cadence, for every KPI on the card,
-      // on every save — so its save must not be able to reach the structured
-      // columns at all. The card PDF and the next contract Annex A render the
-      // derived `target`, so a wipe here reaches signed documents.
+      // The regression this guarded: HR sets "≤ 3%" on Return Rate in the
+      // workbench, then a colleague opens the old (now-deleted)
+      // responsibility-card editor to fix a typo in the mission statement.
+      // That editor built every KpiLinkInput with no goal and no cadence,
+      // for every KPI on the card, on every save — so its save must not
+      // have been able to reach the structured columns at all. The card PDF
+      // and the next contract Annex A render the derived `target`, so a
+      // wipe here would have reached signed documents.
       final recorded = <_RecordedRequest>[];
       // The server's view of this card's links. Round 1 (the workbench) puts
       // a structured goal there; round 2's read is what tells the repository

@@ -13,7 +13,6 @@ import '../features/employees/profile/employee_profile_screen.dart';
 import '../features/responsibility_cards/responsibility_cards_screen.dart';
 import '../features/responsibility_cards/role_card_pdf_screen.dart';
 import '../features/responsibility_cards/role_scorecard_detail_screen.dart';
-import '../features/responsibility_cards/role_scorecard_form_screen.dart';
 import '../features/attendance/attendance_screen.dart';
 import '../features/attendance/attendance_detail_screen.dart';
 import '../features/dashboard/dashboard_screen.dart';
@@ -159,10 +158,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (c, s) => const ResponsibilityCardsScreen(),
           ),
           GoRoute(
-            path: '/responsibility-cards/new',
-            builder: (c, s) => const RoleScorecardFormScreen(),
-          ),
-          GoRoute(
             path: '/responsibility-cards/:id/pdf',
             builder: (c, s) =>
                 RoleCardPdfScreen(cardId: s.pathParameters['id']!),
@@ -171,11 +166,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/responsibility-cards/:id',
             builder: (c, s) =>
                 RoleScorecardDetailScreen(cardId: s.pathParameters['id']!),
-          ),
-          GoRoute(
-            path: '/responsibility-cards/:id/edit',
-            builder: (c, s) =>
-                RoleScorecardFormScreen(cardId: s.pathParameters['id']),
           ),
           GoRoute(
             path: '/kpi-library',

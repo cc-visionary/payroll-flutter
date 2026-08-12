@@ -38,8 +38,9 @@ String? _persisted(String? id, Iterable<String>? ids) =>
     ids == null ? id : _present(id, ids);
 
 /// The first pane of the role workbench: identity, required skills,
-/// behavioral expectations, and compensation & schedule. Ported from
-/// `role_scorecard_form_screen.dart` — the same labels, the same
+/// behavioral expectations, and compensation & schedule. Ported from the
+/// original responsibility-card editor (deleted once this workbench became
+/// the only place a role is authored) — the same labels, the same
 /// `_responsiveRow` two-column behaviour, the same validators — with two
 /// departures: base salary is rendered permanently read-only (this pane only
 /// ever edits an existing card), and every repeating row is keyed by its

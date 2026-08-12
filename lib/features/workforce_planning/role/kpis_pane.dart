@@ -829,9 +829,9 @@ class _AddKpiResult {
 
 /// "Add KPI": pick an existing library KPI by name, or define a brand-new
 /// one inline via [KpiDefinitionForm] when the typed name doesn't match.
-/// Mirrors `role_scorecard_form_screen.dart`'s `_kpiEditor` Autocomplete
-/// pattern, minus its free-text target/frequency fields — this pane derives
-/// those, it never collects them directly.
+/// Mirrored the old (now-deleted) responsibility-card editor's `_kpiEditor`
+/// Autocomplete pattern, minus its free-text target/frequency fields — this
+/// pane derives those, it never collects them directly.
 class _AddKpiDialog extends ConsumerStatefulWidget {
   const _AddKpiDialog({required this.companyId, required this.library});
 
