@@ -22,9 +22,20 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// request the repository issued.
 class _RecordedRequest {
   final String method;
-  final String path;
+  final Uri url;
   final Object? body;
-  _RecordedRequest(this.method, this.path, this.body);
+  _RecordedRequest(this.method, this.url, this.body);
+  String get path => url.path;
+
+  /// The `?columns=` list Postgrest attaches to every BULK insert/upsert (the
+  /// union of every row's keys — see `PostgrestQueryBuilder`'s
+  /// `_setColumnsSearchParam` in postgrest 2.6.0). PostgREST treats that list
+  /// as the statement's full column set: a row that omitted one of them is
+  /// inserted with NULL, and `resolution=merge-duplicates` expands to
+  /// `on conflict do update set <every listed column> = excluded.<column>`.
+  /// So "the key is absent from my row map" only means "the column is left
+  /// alone" when the column is absent from THIS list too.
+  String get columnsParam => url.queryParameters['columns'] ?? '';
 }
 
 void main() {
@@ -41,7 +52,7 @@ void main() {
             body = request.body;
           }
         }
-        recorded.add(_RecordedRequest(request.method, request.url.path, body));
+        recorded.add(_RecordedRequest(request.method, request.url, body));
         return http.Response('[]', 200, request: request);
       });
 
@@ -84,12 +95,13 @@ void main() {
             (r) => r.method == 'POST' && r.path.endsWith('/role_scorecard_kpis'),
           )
           .toList();
-      expect(
-        upsertRequests,
-        hasLength(1),
-        reason: 'expected exactly one upsert POST to role_scorecard_kpis',
-      );
-      final rows = (upsertRequests.single.body as List).cast<Map>();
+      // One POST per row SHAPE, not per save: a goal-carrying row and a
+      // goal-less one cannot share a batch (see _RecordedRequest.columnsParam
+      // and saveRoleScorecardKpis's step 3), so collect the rows across
+      // however many batches went out.
+      final rows = upsertRequests
+          .expand((r) => (r.body as List).cast<Map>())
+          .toList();
       expect(rows, hasLength(2));
 
       final goalRow = rows.singleWhere((r) => r['kpi_id'] == 'kpi-1');
@@ -130,7 +142,7 @@ void main() {
             body = request.body;
           }
         }
-        recorded.add(_RecordedRequest(request.method, request.url.path, body));
+        recorded.add(_RecordedRequest(request.method, request.url, body));
         // The library already holds this KPI at the migration's default
         // cadence (WEEKLY) — upsertKpi's GET-then-name-match finds it here.
         if (request.method == 'GET' && request.url.path.endsWith('/kpis')) {
@@ -208,6 +220,179 @@ void main() {
     },
   );
 
+  test(
+    'a save with no opinion on the goal omits target and the goal columns '
+    'entirely, so the old card editor cannot wipe a workbench-authored goal',
+    () async {
+      // The live regression: HR sets "≤ 3%" on Return Rate in the workbench,
+      // then a colleague opens /responsibility-cards/:id/edit to fix a typo in
+      // the mission statement. role_scorecard_form_screen builds every
+      // KpiLinkInput with no goal and no cadence, for every KPI on the card,
+      // on every save — so its save must not be able to reach the structured
+      // columns at all. The card PDF and the next contract Annex A render the
+      // derived `target`, so a wipe here reaches signed documents.
+      final recorded = <_RecordedRequest>[];
+      // The server's view of this card's links. Round 1 (the workbench) puts
+      // a structured goal there; round 2's read is what tells the repository
+      // there is something to protect.
+      var storedLinks = <Map<String, dynamic>>[];
+      final mock = MockClient((request) async {
+        Object? body;
+        if (request.body.isNotEmpty) {
+          try {
+            body = jsonDecode(request.body);
+          } catch (_) {
+            body = request.body;
+          }
+        }
+        recorded.add(_RecordedRequest(request.method, request.url, body));
+        if (request.method == 'GET' &&
+            request.url.path.endsWith('/role_scorecard_kpis')) {
+          return http.Response(jsonEncode(storedLinks), 200, request: request);
+        }
+        return http.Response('[]', 200, request: request);
+      });
+
+      final client = SupabaseClient(
+        'https://stub.supabase.co',
+        'stub-anon-key',
+        httpClient: mock,
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+      );
+      final repo = RoleScorecardRepository(client);
+
+      // Round 1 — the workbench's KPIs pane. It renders the goal editor, so
+      // it owns the goal columns (writeGoal: true).
+      await repo.saveRoleScorecardKpis('card-1', 'co-1', const [
+        KpiLinkInput(
+          kpiId: 'kpi-1',
+          name: 'Return Rate',
+          target: '',
+          frequency: '',
+          goal: KpiGoal(direction: GoalDirection.lte, value: 3),
+          unit: '%',
+          cadence: 'WEEKLY',
+          writeGoal: true,
+        ),
+      ]);
+      // Only the two columns the repository's protect-check actually selects
+      // — PostgREST returns exactly the projection it was asked for.
+      storedLinks = [
+        {'kpi_id': 'kpi-1', 'goal_direction': 'LTE'},
+      ];
+      recorded.clear();
+
+      // Round 2 — the old card editor. Exactly what its save loop builds:
+      // the free text it loaded, and no structured anything.
+      await repo.saveRoleScorecardKpis('card-1', 'co-1', const [
+        KpiLinkInput(
+          kpiId: 'kpi-1',
+          name: 'Return Rate',
+          target: '≤ 3%',
+          frequency: 'Weekly',
+        ),
+      ]);
+
+      final upserts = recorded
+          .where(
+            (r) => r.method == 'POST' && r.path.endsWith('/role_scorecard_kpis'),
+          )
+          .toList();
+      expect(upserts, hasLength(1));
+      final row = (upserts.single.body as List).cast<Map>().single;
+      expect(row['kpi_id'], 'kpi-1');
+
+      const protectedKeys = [
+        'goal_direction',
+        'goal_value',
+        'goal_value_max',
+        'target',
+      ];
+      for (final key in protectedKeys) {
+        expect(
+          row.containsKey(key),
+          isFalse,
+          reason: '$key must be ABSENT from the row, not present-and-null',
+        );
+        expect(
+          upserts.single.columnsParam.contains(key),
+          isFalse,
+          reason:
+              '$key must also be absent from Postgrest\'s ?columns= union — '
+              'a column listed there is written (as NULL) even for a row '
+              'whose map omitted it',
+        );
+      }
+      // The keys this save legitimately owns are still written.
+      expect(row['sort_order'], 0);
+      expect(row['frequency'], 'Weekly');
+    },
+  );
+
+  test(
+    'a writeGoal caller CAN clear a goal — omitting the columns is reserved '
+    'for a caller with no opinion, not for one that says "no goal"',
+    () async {
+      // The other half of the contract. If "goal == null means leave it
+      // alone" were unconditional, clearing the direction dropdown in the
+      // workbench would silently do nothing and the stale bar would keep
+      // being printed on the role card.
+      final recorded = <_RecordedRequest>[];
+      final mock = MockClient((request) async {
+        Object? body;
+        if (request.body.isNotEmpty) {
+          try {
+            body = jsonDecode(request.body);
+          } catch (_) {
+            body = request.body;
+          }
+        }
+        recorded.add(_RecordedRequest(request.method, request.url, body));
+        if (request.method == 'GET' &&
+            request.url.path.endsWith('/role_scorecard_kpis')) {
+          return http.Response(
+            jsonEncode([
+              {'kpi_id': 'kpi-1', 'goal_direction': 'LTE'},
+            ]),
+            200,
+            request: request,
+          );
+        }
+        return http.Response('[]', 200, request: request);
+      });
+      final client = SupabaseClient(
+        'https://stub.supabase.co',
+        'stub-anon-key',
+        httpClient: mock,
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+      );
+      final repo = RoleScorecardRepository(client);
+
+      await repo.saveRoleScorecardKpis('card-1', 'co-1', const [
+        KpiLinkInput(
+          kpiId: 'kpi-1',
+          name: 'Return Rate',
+          target: '',
+          frequency: '',
+          goal: null,
+          unit: '%',
+          cadence: 'WEEKLY',
+          writeGoal: true,
+        ),
+      ]);
+
+      final upserts = recorded.where(
+        (r) => r.method == 'POST' && r.path.endsWith('/role_scorecard_kpis'),
+      );
+      final row = (upserts.single.body as List).cast<Map>().single;
+      expect(row.containsKey('goal_direction'), isTrue);
+      expect(row['goal_direction'], isNull);
+      expect(row['goal_value'], isNull);
+      expect(row['goal_value_max'], isNull);
+      expect(row['target'], isNull);
+    },
+  );
+
   group('saveLibraryKpi writeDefinition', () {
     const definitionKeys = [
       'value_type',
@@ -241,7 +426,7 @@ void main() {
             body = request.body;
           }
         }
-        recorded.add(_RecordedRequest(request.method, request.url.path, body));
+        recorded.add(_RecordedRequest(request.method, request.url, body));
         return http.Response(
           jsonEncode({
             'id': 'kpi-1',

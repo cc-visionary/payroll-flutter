@@ -118,6 +118,27 @@ class KpiLinkInput {
   final String? unit;
   final String? cadence;
 
+  /// Whether this caller OWNS the structured goal, i.e. it renders a goal
+  /// editor and submits whatever that editor currently says.
+  ///
+  /// Distinguishes the two things a null [goal] can mean:
+  ///
+  /// * `writeGoal: true`  → "this role has no goal for this KPI". The
+  ///   repository writes `goal_direction`/`goal_value`/`goal_value_max` and
+  ///   the derived `target` as NULL, so clearing a goal in the workbench
+  ///   actually clears it.
+  /// * `writeGoal: false` (the default) → "I have no opinion". The repository
+  ///   leaves those four columns alone. This is what the legacy card editor
+  ///   (`role_scorecard_form_screen.dart`) gets: it builds every link with no
+  ///   goal on every save, so without this it would wipe every structured
+  ///   goal the workbench had authored — and `target`, which the role-card
+  ///   PDF and the employment contract's Annex A render, would revert to
+  ///   free text on a signed document.
+  ///
+  /// Ignored when [goal] is non-null: a caller that supplies a goal has an
+  /// opinion by definition.
+  final bool writeGoal;
+
   const KpiLinkInput({
     this.kpiId,
     required this.name,
@@ -128,5 +149,9 @@ class KpiLinkInput {
     this.goal,
     this.unit,
     this.cadence,
+    this.writeGoal = false,
   });
+
+  /// True when the repository must write the four goal columns for this link.
+  bool get ownsGoal => writeGoal || goal != null;
 }

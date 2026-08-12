@@ -380,6 +380,9 @@ class RoleScorecardRepository {
   /// Replaces a role card's KPI links with [links]. Creates library KPIs for
   /// entries with a null kpiId (find-or-create by name), then reconciles the
   /// link rows (insert new, update target/frequency/order, delete removed).
+  ///
+  /// Whether a link's structured goal columns are written at all is the
+  /// caller's decision, carried on [KpiLinkInput.writeGoal] — see step 3.
   Future<void> saveRoleScorecardKpis(
     String roleScorecardId,
     String companyId,
@@ -437,32 +440,85 @@ class RoleScorecardRepository {
     // 3. Upsert the current links with their order. target and frequency are
     //    DERIVED — from the goal and the KPI's cadence — so the free-text
     //    columns the PDF and contract templates read can never drift from the
-    //    structured values. A link with no goal keeps whatever text it had.
-    if (deduped.isNotEmpty) {
-      await _client.from('role_scorecard_kpis').upsert([
-        for (var i = 0; i < deduped.length; i++)
-          {
-            'role_scorecard_id': roleScorecardId,
-            'kpi_id': deduped[i].kpiId,
-            'sort_order': i,
-            'frequency':
-                frequencyLabelFromCadence(deduped[i].cadence) ??
-                (deduped[i].link.frequency.trim().isEmpty
-                    ? null
-                    : deduped[i].link.frequency.trim()),
-            ...deduped[i].link.goal == null
-                ? {
-                    'target': deduped[i].link.target.trim().isEmpty
-                        ? null
-                        : deduped[i].link.target.trim(),
-                    'goal_direction': null,
-                    'goal_value': null,
-                    'goal_value_max': null,
-                  }
-                : goalColumns(deduped[i].link.goal, deduped[i].link.unit),
-          },
-      ], onConflict: 'role_scorecard_id,kpi_id');
+    //    structured values.
+    //
+    //    Three row SHAPES, and one upsert per shape:
+    //
+    //    a) The caller owns the goal ([KpiLinkInput.ownsGoal]) — the four goal
+    //       columns are written from `goalColumns`, nulls included, so the
+    //       workbench can clear a goal as well as set one.
+    //    b) The caller has no opinion AND a structured goal is already stored
+    //       — nothing goal-shaped is sent at all. This is the legacy card
+    //       editor, which builds every link with no goal on every save; the
+    //       columns must survive it untouched, or the role-card PDF and the
+    //       next contract's Annex A print a reverted target.
+    //    c) The caller has no opinion and there is no stored goal to protect —
+    //       the legacy free-text `target` is still accepted, so adding a KPI
+    //       in the old editor keeps working exactly as it does today.
+    //
+    //    They cannot share one batch. Postgrest sends a bulk upsert with
+    //    `?columns=<union of every row's keys>` (postgrest 2.6.0,
+    //    `PostgrestQueryBuilder._setColumnsSearchParam`) and PostgREST treats
+    //    that list as the statement's column set: a row that omitted a key is
+    //    inserted with NULL for it, and `resolution=merge-duplicates` expands
+    //    to `on conflict do update set <every listed column> =
+    //    excluded.<column>`. A shape-(b) row riding along with a shape-(a) one
+    //    would therefore still have target/goal_* written — as NULL, which is
+    //    the very wipe this guards against. Homogeneous batches are what make
+    //    "omit the key" actually mean "leave the column alone".
+    if (deduped.isEmpty) return;
+    final needsStoredGoals = deduped.any((r) => !r.link.ownsGoal);
+    final kpiIdsWithStoredGoal = needsStoredGoals
+        ? await _kpiIdsWithStoredGoal(roleScorecardId)
+        : const <String>{};
+
+    final ownedRows = <Map<String, dynamic>>[];
+    final protectedRows = <Map<String, dynamic>>[];
+    final legacyTextRows = <Map<String, dynamic>>[];
+    for (var i = 0; i < deduped.length; i++) {
+      final r = deduped[i];
+      final base = <String, dynamic>{
+        'role_scorecard_id': roleScorecardId,
+        'kpi_id': r.kpiId,
+        'sort_order': i,
+        'frequency':
+            frequencyLabelFromCadence(r.cadence) ??
+            (r.link.frequency.trim().isEmpty
+                ? null
+                : r.link.frequency.trim()),
+      };
+      if (r.link.ownsGoal) {
+        ownedRows.add({...base, ...goalColumns(r.link.goal, r.link.unit)});
+      } else if (kpiIdsWithStoredGoal.contains(r.kpiId)) {
+        protectedRows.add(base);
+      } else {
+        legacyTextRows.add({
+          ...base,
+          'target': r.link.target.trim().isEmpty ? null : r.link.target.trim(),
+        });
+      }
     }
+    for (final batch in [ownedRows, protectedRows, legacyTextRows]) {
+      if (batch.isEmpty) continue;
+      await _client
+          .from('role_scorecard_kpis')
+          .upsert(batch, onConflict: 'role_scorecard_id,kpi_id');
+    }
+  }
+
+  /// The kpi_ids on [roleScorecardId] whose link already carries a structured
+  /// goal. Read only when some incoming link has no opinion on the goal (see
+  /// [KpiLinkInput.writeGoal]) — the workbench never pays for this query.
+  Future<Set<String>> _kpiIdsWithStoredGoal(String roleScorecardId) async {
+    final rows = await _client
+        .from('role_scorecard_kpis')
+        .select('kpi_id, goal_direction')
+        .eq('role_scorecard_id', roleScorecardId)
+        .not('goal_direction', 'is', null);
+    return {
+      for (final r in (rows as List).cast<Map<String, dynamic>>())
+        r['kpi_id'] as String,
+    };
   }
 
   /// Applies a responsibility diff (see diffResponsibilities) for one card, then

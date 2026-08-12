@@ -145,6 +145,13 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
             // KpiDefinitionForm draft for a brand-new one, never a bare
             // 'WEEKLY' default written by this pane itself.
             cadence: d.cadence,
+            // This pane renders the goal editor, so a null goal here means
+            // "this role has no goal for this KPI" and must be written as
+            // such — otherwise clearing the direction dropdown would appear
+            // to work and change nothing. The legacy card editor leaves this
+            // false: it has no goal editor, so its null means "no opinion"
+            // and the repository leaves the stored goal alone.
+            writeGoal: true,
           ),
       ];
       await ref
