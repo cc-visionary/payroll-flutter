@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -62,6 +63,63 @@ void main() {
     expect(find.text('Create'), findsOneWidget);
     expect(find.textContaining('ission'), findsWidgets);
   });
+
+  testWidgets(
+    'shows a visible complaint and stays open when the profile has not '
+    'loaded yet, instead of silently doing nothing',
+    (tester) async {
+      tester.view.physicalSize = const Size(1200, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            // A Future that never completes — userProfileProvider stays
+            // AsyncLoading for the whole test. This is reachable in the real
+            // app: the /workforce-planning router guard's every check is
+            // nested inside `if (profile != null)` (router.dart:85-114), so
+            // an unresolved profile is free passage to this screen, not a
+            // barrier — a slow network right after login, or a deep link
+            // straight into /workforce-planning/roles/:id, lands here before
+            // the profile has resolved. Deliberately NOT warmed, unlike the
+            // defaults test below.
+            userProfileProvider.overrideWith(
+              (ref) => Completer<UserProfile?>().future,
+            ),
+          ],
+          child: MaterialApp(
+            home: Consumer(
+              builder: (context, ref, _) => Scaffold(
+                body: TextButton(
+                  onPressed: () => showNewRoleDialog(context, ref),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byType(TextFormField).at(0),
+        'Kiosk Rep',
+      );
+      await tester.enterText(
+        find.byType(TextFormField).at(1),
+        'Sell through the kiosk.',
+      );
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      // Still open — no card was silently skipped — with a complaint the
+      // manager can act on, not nothing.
+      expect(find.text('Create'), findsOneWidget);
+      expect(find.textContaining('profile'), findsWidgets);
+    },
+  );
 
   testWidgets(
     'creates a role carrying the old editor\'s new-card defaults',

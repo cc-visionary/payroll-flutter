@@ -49,7 +49,19 @@ class _NewRoleDialogState extends State<_NewRoleDialog> {
   Future<void> _create() async {
     if (!_formKey.currentState!.validate()) return;
     final profile = widget.ref.read(userProfileProvider).asData?.value;
-    if (profile == null) return;
+    if (profile == null) {
+      // Reachable for real, not just in an isolated test: the
+      // /workforce-planning router guard only acts once profile != null
+      // (see app/router.dart), so an unresolved profile is free passage to
+      // this screen, not a barrier — a slow network right after login, or a
+      // deep link straight into /workforce-planning/roles/:id, can land a
+      // manager here before it has settled. A bare return here would have
+      // them fill in the dialog, press Create, and see nothing happen.
+      setState(
+        () => _error = 'Still loading your profile — try again in a moment.',
+      );
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
