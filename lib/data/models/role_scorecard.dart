@@ -235,6 +235,7 @@ class RoleScorecard {
   final String? supersededById;
   final String? shiftTemplateId;
   final String? hiringEntityId;
+  final String? parentId;
 
   const RoleScorecard({
     required this.id,
@@ -258,6 +259,7 @@ class RoleScorecard {
     this.supersededById,
     this.shiftTemplateId,
     this.hiringEntityId,
+    this.parentId,
   });
 
   factory RoleScorecard.fromRow(Map<String, dynamic> r) {
@@ -373,6 +375,7 @@ class RoleScorecard {
       supersededById: r['superseded_by_id'] as String?,
       shiftTemplateId: r['shift_template_id'] as String?,
       hiringEntityId: r['hiring_entity_id'] as String?,
+      parentId: r['parent_id'] as String?,
     );
   }
 
@@ -405,6 +408,7 @@ class RoleScorecard {
       supersededById: supersededById,
       shiftTemplateId: shiftTemplateId,
       hiringEntityId: hiringEntityId,
+      parentId: parentId,
     );
   }
 
@@ -436,5 +440,6 @@ class RoleScorecard {
     'is_active': isActive,
     'effective_date': effectiveDate.toIso8601String().substring(0, 10),
     'hiring_entity_id': hiringEntityId,
+    'parent_id': parentId,
   };
 }
