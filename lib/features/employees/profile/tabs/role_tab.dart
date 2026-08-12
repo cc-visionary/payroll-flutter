@@ -11,6 +11,7 @@ import '../../../../data/models/role_scorecard.dart';
 import '../../../../data/repositories/compensation_change_repository.dart';
 import '../../../../data/repositories/role_scorecard_repository.dart';
 import '../../../auth/profile_provider.dart';
+import '../../../kpi_library/kpi_set_rules.dart';
 import '../effective_pay.dart';
 import '../providers.dart';
 import '../widgets/compensation_change_action.dart';
@@ -585,11 +586,28 @@ class EmployeeKpiAssignmentSection extends ConsumerStatefulWidget {
   final String employeeId;
   final String roleScorecardId;
   final bool canManage;
+
+  /// Live check over the current checkbox selection. Null (the default)
+  /// preserves this widget's original behaviour exactly — no banner, Save
+  /// always enabled — which is what this employee profile call site still
+  /// gets, since it has no ready source for a role's measurable-KPI subset.
+  ///
+  /// When supplied (the People pane passes `validateKpiSet`), [validate]'s
+  /// `problems` are rendered and disable Save; its `warnings` are rendered
+  /// too but never disable it — "not on this role" can't actually occur
+  /// through these checkboxes (they only ever list this role's own KPIs),
+  /// so in practice the reachable problem is an unmeasurable pick, and the
+  /// reachable warning is the 3-5 count band. Re-run on every checkbox
+  /// toggle, not just at load, so ticking an unmeasurable KPI disables Save
+  /// immediately rather than only after a reload.
+  final KpiSetVerdict Function(Set<String> checked)? validate;
+
   const EmployeeKpiAssignmentSection({
     super.key,
     required this.employeeId,
     required this.roleScorecardId,
     required this.canManage,
+    this.validate,
   });
 
   @override
@@ -633,6 +651,11 @@ class _EmployeeKpiAssignmentSectionState
             for (final k in kpis) k.kpiId,
           ]);
           final checked = _checked!;
+          // Re-run on every build, i.e. after every checkbox toggle
+          // (setState below), not just once at load — so ticking an
+          // unmeasurable KPI disables Save immediately.
+          final verdict = widget.validate?.call(checked);
+          final blocked = verdict?.blocked ?? false;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -650,6 +673,20 @@ class _EmployeeKpiAssignmentSectionState
                     'No KPIs selected yet. Pick the 3-5 this person is '
                     "measured on — an employee with no selection isn't "
                     'scored.',
+                  ),
+                ),
+              if (verdict != null &&
+                  (verdict.problems.isNotEmpty || verdict.warnings.isNotEmpty))
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final p in verdict.problems)
+                        _validationLine(context, StatusTone.danger, p),
+                      for (final w in verdict.warnings)
+                        _validationLine(context, StatusTone.warning, w),
+                    ],
                   ),
                 ),
               for (final k in kpis)
@@ -673,7 +710,7 @@ class _EmployeeKpiAssignmentSectionState
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: FilledButton(
-                    onPressed: _saving ? null : _save,
+                    onPressed: (_saving || blocked) ? null : _save,
                     child: Text(_saving ? 'Saving...' : 'Save KPI selection'),
                   ),
                 ),
@@ -706,5 +743,13 @@ class _EmployeeKpiAssignmentSectionState
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  Widget _validationLine(BuildContext context, StatusTone tone, String text) {
+    final color = StatusPalette.of(context, tone).foreground;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Text(text, style: TextStyle(fontSize: 12, color: color)),
+    );
   }
 }

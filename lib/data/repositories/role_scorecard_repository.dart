@@ -515,8 +515,10 @@ class RoleScorecardRepository {
     };
   }
 
-  /// Replace the employee's KPI assignment with [kpiIds]. Empty clears it
-  /// (employee falls back to the full role set).
+  /// Replace the employee's KPI assignment with [kpiIds]. Empty leaves no
+  /// rows — since 20260811000002 that means nobody has chosen yet (a gap to
+  /// close), NOT "falls back to the full role set"; that pre-migration
+  /// fallback no longer exists anywhere in the app.
   Future<void> saveEmployeeKpis(String employeeId, List<String> kpiIds) async {
     await _client.from('employee_kpis').delete().eq('employee_id', employeeId);
     if (kpiIds.isNotEmpty) {

@@ -3,10 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/status_colors.dart';
 import '../../../data/models/employee.dart';
-import '../../../data/models/role_kpi.dart';
+import '../../../data/models/kpi.dart';
 import '../../../data/models/workforce_planning.dart';
 import '../../../data/repositories/role_scorecard_repository.dart';
 import '../../employees/profile/tabs/role_tab.dart' show EmployeeKpiAssignmentSection;
+import '../../kpi_library/kpi_measurable.dart';
 import '../../kpi_library/kpi_set_rules.dart';
 import '../capacity_math.dart';
 import '../tabs/load_chip.dart';
@@ -18,9 +19,9 @@ import '../wp_providers.dart';
 ///
 /// Unlike [RoleDetailsPane]/`ResponsibilitiesPane`/`KpisPane`, this pane has
 /// no local mutable draft and therefore no capture-once snapshot to go stale
-/// — it watches `wpActiveEmployeesProvider`, `wpPersonLoadsProvider` and
-/// `roleKpisProvider` directly on every build, so it can never disagree with
-/// what those providers currently hold.
+/// — it watches `wpActiveEmployeesProvider`, `wpPersonLoadsProvider`,
+/// `roleKpisProvider` and `kpiLibraryProvider` directly on every build, so it
+/// can never disagree with what those providers currently hold.
 ///
 /// Holders are filtered to ACTIVE, non-deleted employees on this card. Per
 /// `resolveEffectiveOwner`'s documented gap, `wpActiveEmployeesProvider`
@@ -46,6 +47,9 @@ class PeoplePane extends ConsumerWidget {
         ref.watch(wpPersonLoadsProvider).asData?.value ??
         const <WpPersonLoad>[];
     final roleKpisAsync = ref.watch(roleKpisProvider(cardId));
+    final library =
+        ref.watch(kpiLibraryProvider).asData?.value ?? const <Kpi>[];
+    final libraryById = {for (final k in library) k.id: k};
 
     final holders =
         employees
@@ -88,6 +92,32 @@ class PeoplePane extends ConsumerWidget {
                     child: Text('Nobody holds this role yet.'),
                   );
                 }
+                final roleKpiIds = {for (final k in roleKpis) k.kpiId};
+                // Only a measurable KPI may join a person's tracked set —
+                // `kpi_measurable.dart`'s own words. A role KPI is
+                // measurable when its link has a goal AND its library row
+                // is fully defined (unit, numerator, and — for a RATIO —
+                // denominator), exactly what `KpisPane` itself computes for
+                // the same rows, so this pane can never disagree with the
+                // one that lets a manager set those goals in the first
+                // place.
+                final measurableKpiIds = <String>{
+                  for (final rk in roleKpis)
+                    if (rk.goal != null &&
+                        isKpiDefined(
+                          valueType: libraryById[rk.kpiId]?.valueType,
+                          unit: libraryById[rk.kpiId]?.unit ?? rk.unit,
+                          numeratorLabel:
+                              libraryById[rk.kpiId]?.numeratorLabel,
+                          numeratorSource:
+                              libraryById[rk.kpiId]?.numeratorSource,
+                          denominatorLabel:
+                              libraryById[rk.kpiId]?.denominatorLabel,
+                          denominatorSource:
+                              libraryById[rk.kpiId]?.denominatorSource,
+                        ))
+                      rk.kpiId,
+                };
                 return Column(
                   children: [
                     for (final holder in holders)
@@ -96,7 +126,8 @@ class PeoplePane extends ConsumerWidget {
                         employee: holder,
                         cardId: cardId,
                         load: loadByEmployee[holder.id],
-                        roleKpis: roleKpis,
+                        roleKpiIds: roleKpiIds,
+                        measurableKpiIds: measurableKpiIds,
                       ),
                   ],
                 );
@@ -110,29 +141,31 @@ class PeoplePane extends ConsumerWidget {
 }
 
 /// One holder's row: collapsed, it names them, their load band, and either
-/// `tracks N of M` or a "No KPI set" warning chip. Expanded, it shows a
-/// validation summary for their currently-saved selection followed by
-/// [EmployeeKpiAssignmentSection] itself, reused rather than rebuilt.
+/// `tracks N of M` or a "No KPI set" warning chip. Expanded, it mounts
+/// [EmployeeKpiAssignmentSection] itself — reused rather than rebuilt — wired
+/// to `validateKpiSet` via that widget's `validate` hook, so an unmeasurable
+/// pick disables Save right there instead of only being described beside it.
 class _PersonRow extends ConsumerWidget {
   const _PersonRow({
     super.key,
     required this.employee,
     required this.cardId,
     required this.load,
-    required this.roleKpis,
+    required this.roleKpiIds,
+    required this.measurableKpiIds,
   });
 
   final Employee employee;
   final String cardId;
   final WpPersonLoad? load;
-  final List<RoleKpi> roleKpis;
+  final Set<String> roleKpiIds;
+  final Set<String> measurableKpiIds;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final assignedAsync = ref.watch(
       employeeAssignedKpiIdsProvider(employee.id),
     );
-    final roleKpiIds = {for (final k in roleKpis) k.kpiId};
 
     return assignedAsync.when(
       loading: () => ListTile(
@@ -175,14 +208,23 @@ class _PersonRow extends ConsumerWidget {
             ],
           ),
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: _validationBanner(context, assigned, roleKpiIds),
-            ),
             EmployeeKpiAssignmentSection(
               employeeId: employee.id,
               roleScorecardId: cardId,
               canManage: true,
+              // "Not on this role" can't actually happen through these
+              // checkboxes — they only ever list `roleKpiIds` itself. The
+              // reachable problem here is an unmeasurable pick; the
+              // reachable warning is the 3-5 count band. An empty set is
+              // its own problem too, but that state is what the collapsed
+              // "No KPI set" chip above already exists to flag as a gap to
+              // close, not to block — the manager must still be able to
+              // open this and start ticking boxes.
+              validate: (checked) => validateKpiSet(
+                selectedKpiIds: checked,
+                roleKpiIds: roleKpiIds,
+                measurableKpiIds: measurableKpiIds,
+              ),
             ),
           ],
         );
@@ -204,51 +246,6 @@ class _PersonRow extends ConsumerWidget {
         const SizedBox(width: 6),
         LoadStatusChip(status: loadStatus(fraction)),
       ],
-    );
-  }
-
-  /// A read-only summary of `validateKpiSet` against the holder's currently
-  /// saved selection — refreshed whenever `employeeAssignedKpiIdsProvider`
-  /// re-fetches (including right after `EmployeeKpiAssignmentSection`'s own
-  /// save invalidates it below). Problems are drawn in the same danger tone
-  /// [KpisPane] uses for its own hints; warnings (the 3-5 band) are shown in
-  /// warning tone but never suppress the checkboxes or Save button beneath —
-  /// `validateKpiSet` itself distinguishes the two for exactly this reason.
-  ///
-  /// The checkboxes below only ever offer this role's own KPIs, so an
-  /// off-role selection can't occur through this UI; every role KPI is
-  /// treated as measurable here for the same reason KpisPane's own
-  /// measurability check has nothing to add on this pane — this pane does
-  /// not carry the KPI library's definition fields needed to test that
-  /// properly, so it is intentionally left to the KPIs pane.
-  Widget _validationBanner(
-    BuildContext context,
-    Set<String> assigned,
-    Set<String> roleKpiIds,
-  ) {
-    final verdict = validateKpiSet(
-      selectedKpiIds: assigned,
-      roleKpiIds: roleKpiIds,
-      measurableKpiIds: roleKpiIds,
-    );
-    if (verdict.problems.isEmpty && verdict.warnings.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final p in verdict.problems) _hint(context, StatusTone.danger, p),
-        for (final w in verdict.warnings)
-          _hint(context, StatusTone.warning, w),
-      ],
-    );
-  }
-
-  Widget _hint(BuildContext context, StatusTone tone, String text) {
-    final color = StatusPalette.of(context, tone).foreground;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Text(text, style: TextStyle(fontSize: 12, color: color)),
     );
   }
 }
