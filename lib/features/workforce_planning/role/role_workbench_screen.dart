@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/breakpoints.dart';
 import '../../documents/providers.dart';
 import 'kpis_pane.dart';
+import 'people_pane.dart';
 import 'responsibilities_pane.dart';
 import 'role_details_pane.dart';
 
@@ -73,7 +74,8 @@ class RoleWorkbenchScreen extends ConsumerWidget {
                 cardId: card.id,
                 companyId: card.companyId,
               ),
-              // Later tasks append below, in this order: people.
+              const SizedBox(height: 16),
+              PeoplePane(key: ValueKey(cardId), cardId: card.id),
             ],
           );
         },
