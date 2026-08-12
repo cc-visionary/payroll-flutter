@@ -79,12 +79,26 @@ class _RoleLens extends ConsumerWidget {
     final loadsAsync = ref.watch(wpPersonLoadsProvider);
     final multiplier = ref.watch(wpGrowthMultiplierProvider);
 
+    // [header] carries the "New role" button, which since the card editor was
+    // deleted is the ONLY way to create a role anywhere in the app. It
+    // therefore renders above the loading and error returns below, not inside
+    // the data branch: any one of these five providers failing would
+    // otherwise take role creation offline entirely, and a rollup that cannot
+    // load is exactly when an empty company most needs to add its first role.
+    Widget framed(Widget body) => SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [header, body],
+      ),
+    );
+
     if (cardsAsync.isLoading ||
         empsAsync.isLoading ||
         tasksAsync.isLoading ||
         computedAsync.isLoading ||
         loadsAsync.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return framed(const Center(child: CircularProgressIndicator()));
     }
     final err =
         cardsAsync.error ??
@@ -93,8 +107,10 @@ class _RoleLens extends ConsumerWidget {
         computedAsync.error ??
         loadsAsync.error;
     if (err != null) {
-      return Center(
-        child: Text('Error: $err', style: const TextStyle(color: Colors.red)),
+      return framed(
+        Center(
+          child: Text('Error: $err', style: const TextStyle(color: Colors.red)),
+        ),
       );
     }
 

@@ -27,6 +27,14 @@ import 'role_details_pane.dart';
 /// element, never this one rebuilding in place. `cardId` is therefore fixed
 /// for the lifetime of any given instance, and the panes below carry no key
 /// of their own.
+///
+/// That conclusion rests entirely on `push`. Routing here with
+/// `context.go`/`context.replace`/`pushReplacement`, or hosting this screen
+/// inside a `StatefulShellBranch` (whose branch navigator keeps one page
+/// alive across route changes), would all reuse the same element for a new
+/// `cardId` and resurface the stale-controller bug — silently, as another
+/// role's unsaved edits. Add a `ValueKey(cardId)` on each pane before making
+/// any of those changes.
 class RoleWorkbenchScreen extends ConsumerWidget {
   const RoleWorkbenchScreen({super.key, required this.cardId});
 

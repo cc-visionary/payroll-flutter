@@ -154,7 +154,14 @@ class _CardTile extends StatelessWidget {
             itemBuilder: (_) => [
               const PopupMenuItem(
                 value: 'edit',
-                child: ListTile(leading: Icon(Icons.edit), title: Text('Edit')),
+                // Named for where it goes, matching the detail screen's
+                // button: this pushes into the role workbench, which is now
+                // the only place a role is authored. A bare "Edit" would
+                // promise an editor on this screen, and there isn't one.
+                child: ListTile(
+                  leading: Icon(Icons.edit),
+                  title: Text('Edit in Workforce Planning'),
+                ),
               ),
               if (canDelete)
                 const PopupMenuItem(
