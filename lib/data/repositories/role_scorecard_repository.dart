@@ -739,6 +739,45 @@ class RoleScorecardRepository {
       employeeSubsets: employeeSubsets,
     );
   }
+
+  /// The two maps the Needs-attention strip's "no KPI set" signal needs:
+  /// each role's KPI ids, and each employee's stored KPI ids. Two queries
+  /// company-wide rather than the per-card/per-employee round trips
+  /// [roleKpisProvider] and [employeeAssignedKpiIdsProvider] would need one
+  /// per holder — this is the same pair of tables [assignedEmployeesByKpi]
+  /// already reads, just returned as maps instead of folded into per-KPI
+  /// assignee lists.
+  Future<
+    ({
+      Map<String, Set<String>> roleKpiIdsByCard,
+      Map<String, Set<String>> assignedKpiIdsByEmployee,
+    })
+  >
+  kpiAssignmentMaps() async {
+    final roleLinks = await _client
+        .from('role_scorecard_kpis')
+        .select('role_scorecard_id, kpi_id');
+    final ek = await _client
+        .from('employee_kpis')
+        .select('employee_id, kpi_id');
+
+    final roleKpiIdsByCard = <String, Set<String>>{};
+    for (final r in (roleLinks as List).cast<Map<String, dynamic>>()) {
+      (roleKpiIdsByCard[r['role_scorecard_id'] as String] ??= {}).add(
+        r['kpi_id'] as String,
+      );
+    }
+    final assignedKpiIdsByEmployee = <String, Set<String>>{};
+    for (final r in (ek as List).cast<Map<String, dynamic>>()) {
+      (assignedKpiIdsByEmployee[r['employee_id'] as String] ??= {}).add(
+        r['kpi_id'] as String,
+      );
+    }
+    return (
+      roleKpiIdsByCard: roleKpiIdsByCard,
+      assignedKpiIdsByEmployee: assignedKpiIdsByEmployee,
+    );
+  }
 }
 
 final roleScorecardRepositoryProvider = Provider<RoleScorecardRepository>(
@@ -795,3 +834,15 @@ final employeeAssignedKpiIdsProvider =
           .watch(roleScorecardRepositoryProvider)
           .employeeAssignedKpiIds(employeeId);
     });
+
+/// Company-wide role->KPI and employee->KPI maps in one round trip, for the
+/// Needs-attention strip's "no KPI set" signal. See
+/// [RoleScorecardRepository.kpiAssignmentMaps].
+final wpKpiAssignmentMapsProvider = FutureProvider<
+  ({
+    Map<String, Set<String>> roleKpiIdsByCard,
+    Map<String, Set<String>> assignedKpiIdsByEmployee,
+  })
+>((ref) {
+  return ref.watch(roleScorecardRepositoryProvider).kpiAssignmentMaps();
+});

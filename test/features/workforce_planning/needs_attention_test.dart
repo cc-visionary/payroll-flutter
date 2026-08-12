@@ -58,6 +58,26 @@ Kpi _kpi(String id, {bool active = true, String? unit, String? dept}) => Kpi(
   departmentId: dept,
 );
 
+Employee _emp(String id, String name, String? cardId) => Employee(
+  id: id,
+  companyId: 'c',
+  employeeNumber: id,
+  firstName: name,
+  lastName: 'X',
+  roleScorecardId: cardId,
+  employmentType: 'FULL_TIME',
+  employmentStatus: 'ACTIVE',
+  hireDate: DateTime(2024, 1, 1),
+  isRankAndFile: true,
+  isOtEligible: false,
+  isNdEligible: false,
+  isHolidayPayEligible: false,
+  sssEligibilityOverride: false,
+  philhealthEligibilityOverride: false,
+  pagibigEligibilityOverride: false,
+  taxOnFullEarnings: false,
+);
+
 List<AttentionItem> _run({
   List<WpPersonLoad> loads = const [],
   List<WpTask> tasks = const [],
@@ -66,6 +86,8 @@ List<AttentionItem> _run({
   List<Kpi> kpis = const [],
   Map<String, List<KpiAssignee>> assigned = const {},
   Map<String, List<WpTaskAssignment>> assignmentsByTask = const {},
+  Map<String, Set<String>> roleKpiIdsByCard = const {},
+  Map<String, Set<String>> assignedKpiIdsByEmployee = const {},
 }) => buildNeedsAttention(
   loads: loads,
   tasks: tasks,
@@ -74,6 +96,8 @@ List<AttentionItem> _run({
   kpis: kpis,
   kpiAssignedByKpi: assigned,
   assignmentsByTask: assignmentsByTask,
+  roleKpiIdsByCard: roleKpiIdsByCard,
+  assignedKpiIdsByEmployee: assignedKpiIdsByEmployee,
 );
 
 WpTaskAssignment _a(String id, String taskId, double pct) => WpTaskAssignment(
@@ -207,6 +231,48 @@ void main() {
     // unstaffed-critical (rs1) + no-department (rs1 only; rs2 has a dept)
     expect(struct.any((i) => i.count == 1), isTrue);
     expect(struct.length, 2);
+  });
+
+  test('flags only holders whose ON-ROLE set is empty', () {
+    // e1 tracks one of its role's KPIs -> fine.
+    // e2 stores only an id that is NOT on its role -> reads as absent.
+    // e3 stores nothing -> absent.
+    // e4 holds no role card at all -> not this signal's business.
+    final items = _run(
+      employees: [
+        _emp('e1', 'One', 'card-1'),
+        _emp('e2', 'Two', 'card-1'),
+        _emp('e3', 'Three', 'card-1'),
+        _emp('e4', 'Four', null),
+      ],
+      cards: [_card('card-1')],
+      roleKpiIdsByCard: const {
+        'card-1': {'k1', 'k2'},
+      },
+      assignedKpiIdsByEmployee: const {
+        'e1': {'k1'},
+        'e2': {'zz'},
+        'e3': <String>{},
+      },
+    );
+
+    final item = items.singleWhere((i) => i.label.contains('no KPI set'));
+    expect(item.count, 2);
+    expect(item.target, AttentionTarget.roles);
+  });
+
+  test('says nothing when every holder has an on-role set', () {
+    final items = _run(
+      employees: [_emp('e1', 'One', 'card-1')],
+      cards: [_card('card-1')],
+      roleKpiIdsByCard: const {
+        'card-1': {'k1'},
+      },
+      assignedKpiIdsByEmployee: const {
+        'e1': {'k1'},
+      },
+    );
+    expect(items.where((i) => i.label.contains('no KPI set')), isEmpty);
   });
 
   test('high-severity items rank before medium', () {

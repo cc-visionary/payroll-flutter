@@ -5,6 +5,7 @@ import '../../data/models/workforce_planning.dart';
 import '../../data/repositories/role_scorecard_repository.dart'
     show KpiAssignee;
 import '../kpi_library/kpi_rows.dart' show kpiIsAssigned;
+import '../kpi_library/kpi_set_rules.dart' show employeeNeedsKpiSet;
 import 'allocation.dart';
 import 'capacity_math.dart';
 import 'tasks_rows.dart' show isTaskNotCosted;
@@ -54,6 +55,8 @@ List<AttentionItem> buildNeedsAttention({
   required List<Kpi> kpis,
   required Map<String, List<KpiAssignee>> kpiAssignedByKpi,
   Map<String, List<WpTaskAssignment>> assignmentsByTask = const {},
+  Map<String, Set<String>> roleKpiIdsByCard = const {},
+  Map<String, Set<String>> assignedKpiIdsByEmployee = const {},
 }) {
   final items = <AttentionItem>[];
   void add(
@@ -104,6 +107,26 @@ List<AttentionItem> buildNeedsAttention({
     orphans.length,
     '${_plural(orphans.length, 'responsibility', 'responsibilities')} unassigned',
     AttentionTarget.unassigned,
+  );
+
+  // An employee needs a set when the ids they store that are actually ON
+  // their own role come to nothing. Testing the raw stored set instead is a
+  // real bug we already shipped once: a holder whose only tracked KPI was
+  // later removed from the role read as fully tracked.
+  final noKpiSet = employees.where((e) {
+    if (e.employmentStatus != 'ACTIVE' || e.deletedAt != null) return false;
+    final cardId = e.roleScorecardId;
+    if (cardId == null) return false;
+    final onRole = (assignedKpiIdsByEmployee[e.id] ?? const <String>{})
+        .intersection(roleKpiIdsByCard[cardId] ?? const <String>{});
+    return employeeNeedsKpiSet(onRole);
+  }).length;
+  add(
+    AttentionCategory.people,
+    AttentionSeverity.medium,
+    noKpiSet,
+    '${_plural(noKpiSet, 'person has', 'people have')} no KPI set',
+    AttentionTarget.roles,
   );
 
   // Process
