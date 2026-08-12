@@ -263,7 +263,13 @@ void main() {
         areasBySeat: const {'s1': ['Packing', 'Customer service']},
       );
       expect(boxes, hasLength(2));
-      expect(boxes.map((b) => b.holderName), ['Christian', 'Evander']);
+      // FULL names. role_scorecard_repository.dart:725 builds every other
+      // person label as '$first $last'.trim(); a box reading "Christian"
+      // beside a People pane reading "Christian Biason" looks truncated.
+      expect(
+        boxes.map((b) => b.holderName),
+        ['Christian Biason', 'Evander Mercado'],
+      );
       expect(boxes.every((b) => b.function == 'Brand Handling'), isTrue);
       expect(boxes.first.roles, ['Packing', 'Customer service']);
     });
@@ -293,7 +299,7 @@ void main() {
         areasBySeat: const {},
       );
       expect(boxes, hasLength(1));
-      expect(boxes.single.holderName, 'Live');
+      expect(boxes.single.holderName, 'Live X');
     });
 
     test('a seat with no areas has no roles, and does not throw', () {
