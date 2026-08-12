@@ -1,18 +1,30 @@
+import 'package:decimal/decimal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../data/models/role_scorecard.dart';
 import '../../../data/repositories/role_scorecard_repository.dart';
 import '../../auth/profile_provider.dart';
+import '../../responsibility_cards/scorecard_base_salary.dart';
 
 /// Opens the minimal dialog that creates a bare role card from the Roles
-/// tab — job title and mission only. Everything else defaults exactly as
-/// the old (now-deleted) card editor's new-card mode did: `MONTHLY` wage,
-/// 8 hours/day, "Monday to Saturday", active, effective today. The rest —
-/// department, brand, salary, responsibilities, KPIs, skills, expectations
-/// — is authored afterwards in the workbench's Role details pane;
-/// duplicating that form here would recreate the two-places-to-edit-a-role
-/// problem this project exists to remove.
+/// tab — job title, mission, and an optional base salary. Everything else
+/// defaults exactly as the old (now-deleted) card editor's new-card mode
+/// did: `MONTHLY` wage, 8 hours/day, "Monday to Saturday", active,
+/// effective today. The rest — department, brand, responsibilities, KPIs,
+/// skills, expectations — is authored afterwards in the workbench's Role
+/// details pane; duplicating that form here would recreate the
+/// two-places-to-edit-a-role problem this project exists to remove.
+///
+/// Base salary is the one exception to "author it in the details pane
+/// afterwards", and it has to be: `base_salary` is settable only at CREATION
+/// and immutable thereafter (see [resolveScorecardBaseSalaryOnSave]), so the
+/// details pane renders it permanently read-only. If this dialog did not
+/// collect it, no surface in the app could set it at all — and payroll falls
+/// back to it for every holder with no `compensation_changes` row
+/// (`compute_service.dart`), so a role created without it and then staffed
+/// pays a basic of ₱0 on a released payslip.
 ///
 /// Returns the new card's id, or null if the dialog was cancelled.
 Future<String?> showNewRoleDialog(BuildContext context, WidgetRef ref) {
@@ -35,6 +47,7 @@ class _NewRoleDialogState extends State<_NewRoleDialog> {
   final _formKey = GlobalKey<FormState>();
   final _jobTitle = TextEditingController();
   final _mission = TextEditingController();
+  final _baseSalary = TextEditingController();
   bool _saving = false;
   String? _error;
 
@@ -42,6 +55,7 @@ class _NewRoleDialogState extends State<_NewRoleDialog> {
   void dispose() {
     _jobTitle.dispose();
     _mission.dispose();
+    _baseSalary.dispose();
     super.dispose();
   }
 
@@ -73,6 +87,15 @@ class _NewRoleDialogState extends State<_NewRoleDialog> {
         missionStatement: _mission.text.trim(),
         responsibilities: const [],
         kpis: const [],
+        // Creation is the ONLY moment this is settable — every later save
+        // routes through the same helper with isEdit: true and keeps the
+        // stored value. Reusing the helper here rather than parsing inline
+        // keeps that invariant expressed in exactly one place.
+        baseSalary: resolveScorecardBaseSalaryOnSave(
+          isEdit: false,
+          existingBaseSalary: null,
+          typedText: _baseSalary.text,
+        ),
         wageType: 'MONTHLY',
         workHoursPerDay: 8,
         workDaysPerWeek: 'Monday to Saturday',
@@ -121,6 +144,31 @@ class _NewRoleDialogState extends State<_NewRoleDialog> {
                     ? 'Mission statement is required'
                     : null,
               ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _baseSalary,
+                decoration: const InputDecoration(
+                  labelText: 'Base salary (PHP)',
+                  helperMaxLines: 3,
+                  helperText:
+                      "The role's default pay. Used by offer letters, and by "
+                      'any employee who has no compensation record yet. '
+                      'Locked once the role exists — later pay changes go '
+                      'through "Adjust Compensation" on the employee.',
+                ),
+                // Optional, but anything typed must parse with the same
+                // Decimal.tryParse the save path uses.
+                // resolveScorecardBaseSalaryOnSave returns null for whatever
+                // it cannot read, so without this a typo ("50,000") would
+                // save as "no salary set" and say nothing about it.
+                validator: (v) {
+                  final text = (v ?? '').trim();
+                  if (text.isEmpty) return null;
+                  return Decimal.tryParse(text) == null
+                      ? 'Enter a plain number, e.g. 25000'
+                      : null;
+                },
+              ),
               const SizedBox(height: 8),
               Text(
                 'Wage type, hours, schedule, department and everything else '
@@ -155,16 +203,12 @@ class _NewRoleDialogState extends State<_NewRoleDialog> {
   }
 }
 
-/// Mirrors the `_uuid()` helper from the old (now-deleted) card editor: a
-/// short pseudo-UUID for a new row. The server accepts it since
-/// client-generated UUIDs are stored across the schema; collisions are
-/// astronomically unlikely.
-String _newCardId() {
-  final now = DateTime.now().microsecondsSinceEpoch;
-  final rnd = now.toRadixString(16).padLeft(12, '0');
-  return '${rnd.substring(0, 8)}-${rnd.substring(8, 12)}-4xxx-yxxx-xxxxxxxxxxxx'
-      .replaceAllMapped(RegExp(r'[xy]'), (m) {
-        final r = (DateTime.now().microsecond + m.start) & 0xf;
-        return (m.group(0) == 'x' ? r : (r & 0x3) | 0x8).toRadixString(16);
-      });
-}
+/// The new row's id, generated client-side (the schema stores client-made
+/// UUIDs throughout).
+///
+/// A real v4 from `package:uuid`, not the old card editor's hand-rolled
+/// `_uuid()`, which drew its "random" digits from a truncated microsecond
+/// clock and so had far less entropy than its shape suggested. That matters
+/// because `upsert()` is select-then-insert-or-update: a collision would not
+/// fail loudly, it would silently UPDATE somebody else's role card.
+String _newCardId() => const Uuid().v4();

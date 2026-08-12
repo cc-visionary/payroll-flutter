@@ -210,6 +210,7 @@ void main() {
         find.byType(TextFormField).at(1),
         'Sell through the kiosk.',
       );
+      await tester.enterText(find.byType(TextFormField).at(2), '32500');
       await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
 
@@ -227,6 +228,88 @@ void main() {
         insertedBody!['effective_date'],
         DateTime.now().toIso8601String().substring(0, 10),
       );
+      // The ONLY surface that can set a role's base salary. Payroll falls
+      // back to it for every holder with no compensation_changes row
+      // (compute_service.dart), so a role created without it and staffed
+      // before HR files a compensation record pays basic ₱0.
+      expect(insertedBody!['base_salary'], '32500');
     },
   );
+
+  testWidgets('leaving base salary blank saves a null, not a zero', (
+    tester,
+  ) async {
+    Map<String, dynamic>? insertedBody;
+    final mock = MockClient((request) async {
+      if (request.method == 'GET' &&
+          request.url.path.endsWith('/role_scorecards')) {
+        return http.Response('[]', 200, request: request);
+      }
+      if (request.method == 'POST' &&
+          request.url.path.endsWith('/role_scorecards')) {
+        insertedBody = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(jsonEncode(insertedBody), 201, request: request);
+      }
+      return http.Response('[]', 200, request: request);
+    });
+    final client = SupabaseClient(
+      'https://stub.supabase.co',
+      'stub-anon-key',
+      httpClient: mock,
+      authOptions: const AuthClientOptions(autoRefreshToken: false),
+    );
+    final repo = RoleScorecardRepository(client);
+
+    tester.view.physicalSize = const Size(1200, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          roleScorecardRepositoryProvider.overrideWithValue(repo),
+          userProfileProvider.overrideWith(
+            (ref) async => const UserProfile(
+              userId: 'u1',
+              email: 'hr@example.com',
+              companyId: 'co-1',
+              employeeId: null,
+              appRole: AppRole.HR_ADMIN,
+              mustChangePassword: false,
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          home: Consumer(
+            builder: (context, ref, _) {
+              ref.watch(userProfileProvider);
+              return Scaffold(
+                body: TextButton(
+                  onPressed: () => showNewRoleDialog(context, ref),
+                  child: const Text('open'),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField).at(0), 'Kiosk Rep');
+    await tester.enterText(
+      find.byType(TextFormField).at(1),
+      'Sell through the kiosk.',
+    );
+    // Base salary deliberately untouched.
+    await tester.tap(find.text('Create'));
+    await tester.pumpAndSettle();
+
+    expect(insertedBody, isNotNull, reason: 'the role should still save');
+    // Null, never '0': a 0 here would read as "this role is unpaid" to the
+    // Roles tab's Cost/mo column and to payroll's fallback, where an absent
+    // value reads as "not set yet" and shows an em dash.
+    expect(insertedBody!['base_salary'], isNull);
+  });
 }
