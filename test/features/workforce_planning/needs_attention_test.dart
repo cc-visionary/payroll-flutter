@@ -239,7 +239,7 @@ void main() {
         .where((i) => i.target == AttentionTarget.kpiLibrary)
         .toList();
     expect(lib.length, 4); // measuring-nobody + no-measurement + no-department
-    // + not-yet-measurable
+    // + incomplete-definition
   });
 
   test('counts active library KPIs with an incomplete definition', () {
@@ -259,7 +259,11 @@ void main() {
       ],
     );
 
-    final item = items.singleWhere((i) => i.label.contains('measurable'));
+    // "incomplete definition", not "not measurable yet": the latter is the
+    // KPIs pane's phrase for the per-role GOAL gap, which this does NOT count.
+    final item = items.singleWhere(
+      (i) => i.label.contains('incomplete definition'),
+    );
     expect(item.count, 2);
     expect(item.target, AttentionTarget.kpiLibrary);
   });

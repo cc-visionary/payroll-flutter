@@ -205,10 +205,13 @@ List<AttentionItem> buildNeedsAttention({
     AttentionTarget.kpiLibrary,
   );
 
-  // Library-level only: a KPI nobody could produce a number for. The per-ROLE
+  // Library-level only: a KPI whose DEFINITION is incomplete. The per-ROLE
   // gap (a link with no goal) is deliberately not counted here — it would
   // double-count a KPI used on four roles, and the workbench's KPIs pane
-  // already marks a goal-less link "not measurable yet".
+  // already marks a goal-less link "not measurable yet". The label names the
+  // definition explicitly for that reason: "not measurable yet" is the KPIs
+  // pane's phrase for the GOAL gap one click away, and the same words must
+  // not name two different things.
   final undefined = activeKpis
       .where(
         (k) => !isKpiDefined(
@@ -225,7 +228,7 @@ List<AttentionItem> buildNeedsAttention({
     AttentionCategory.process,
     AttentionSeverity.medium,
     undefined,
-    '${_plural(undefined, 'KPI', 'KPIs')} not yet measurable',
+    '${_plural(undefined, 'KPI', 'KPIs')} with an incomplete definition',
     AttentionTarget.kpiLibrary,
   );
 
