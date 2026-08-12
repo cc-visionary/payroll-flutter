@@ -762,10 +762,21 @@ class _AddKpiDialogState extends ConsumerState<_AddKpiDialog> {
   /// name and presses Save without clicking the row must never fall into
   /// the "define a new KPI" branch, which would seed the link's cadence from
   /// [KpiDefinitionForm]'s bare default instead of this KPI's real one.
+  ///
+  /// Matches against [kpiLibraryAllProvider] (every row, active or not) —
+  /// NOT `widget.library` (active-only, the Autocomplete's suggestion
+  /// source). `upsertKpi` resolves a name against every row server-side and
+  /// silently reactivates a deactivated match, so a manager who types a
+  /// retired KPI's exact name (correctly absent from suggestions) must still
+  /// get that KPI's real cadence rather than an accidental new one. Falls
+  /// back to `widget.library` while the wider list is still loading, so an
+  /// active KPI still resolves immediately rather than waiting on a second
+  /// fetch.
   Kpi? _matchByName(String name) {
     final target = name.trim().toLowerCase();
     if (target.isEmpty) return null;
-    for (final k in widget.library) {
+    final all = ref.read(kpiLibraryAllProvider).asData?.value ?? widget.library;
+    for (final k in all) {
       if (k.name.trim().toLowerCase() == target) return k;
     }
     return null;
@@ -775,6 +786,10 @@ class _AddKpiDialogState extends ConsumerState<_AddKpiDialog> {
   Widget build(BuildContext context) {
     final sources =
         ref.watch(kpiSourcesProvider).asData?.value ?? const <String>[];
+    // Watched (not just read from `_matchByName`) so that once this
+    // provider's fetch resolves, this dialog rebuilds and a name typed
+    // before it loaded gets re-resolved without needing another keystroke.
+    ref.watch(kpiLibraryAllProvider);
     final typedMatchesExisting = _picked != null;
     return Dialog(
       child: ConstrainedBox(
@@ -836,6 +851,23 @@ class _AddKpiDialogState extends ConsumerState<_AddKpiDialog> {
                   'Cadence: ${_picked!.cadence}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
+                // _picked can resolve to a deactivated row (typed by exact
+                // name, not offered as a suggestion) — the server reactivates
+                // it silently on save, so the manager deserves to know that
+                // is what "Add" is about to do here.
+                if (!_picked!.isActive) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'This KPI was retired — adding it here reactivates it.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: StatusPalette.of(
+                        context,
+                        StatusTone.warning,
+                      ).foreground,
+                    ),
+                  ),
+                ],
               ],
               const SizedBox(height: 16),
               Row(

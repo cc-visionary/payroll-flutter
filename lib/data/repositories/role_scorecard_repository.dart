@@ -630,6 +630,20 @@ final kpiLibraryProvider = FutureProvider<List<Kpi>>((ref) {
   return ref.watch(roleScorecardRepositoryProvider).listKpis();
 });
 
+/// Every library KPI regardless of `is_active` — for NAME RESOLUTION only,
+/// never for populating a picker's suggestions (those stay active-only via
+/// [kpiLibraryProvider]). `upsertKpi` resolves a name against every row
+/// (see its query above), silently reactivating a deactivated one on match;
+/// a caller that only resolves against the active list would fall through
+/// to "define a new KPI" for a retired name that the server would actually
+/// have matched — a new KPI seeded with a form default cadence instead of
+/// the retired KPI's real one.
+final kpiLibraryAllProvider = FutureProvider<List<Kpi>>((ref) {
+  return ref
+      .watch(roleScorecardRepositoryProvider)
+      .listKpis(onlyActive: false);
+});
+
 final kpiSourcesProvider = FutureProvider<List<String>>((ref) {
   return ref.watch(roleScorecardRepositoryProvider).distinctKpiSources();
 });

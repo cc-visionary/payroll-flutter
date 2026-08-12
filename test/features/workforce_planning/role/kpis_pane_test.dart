@@ -40,6 +40,11 @@ void main() {
     List<RoleKpi> kpis, {
     _CapturingRepository? repo,
     List<Kpi> library = const [],
+    // Defaults to mirroring `library` — most tests don't care about the
+    // active/all distinction. Pass a wider list explicitly to exercise
+    // name-resolution against a deactivated KPI that must NOT appear in
+    // the suggestion list (`library`) but must still resolve by exact name.
+    List<Kpi>? allLibrary,
   }) async {
     tester.view.physicalSize = const Size(1400, 3000);
     tester.view.devicePixelRatio = 1.0;
@@ -49,6 +54,9 @@ void main() {
         overrides: [
           roleKpisProvider('card-1').overrideWith((ref) async => kpis),
           kpiLibraryProvider.overrideWith((ref) async => library),
+          kpiLibraryAllProvider.overrideWith(
+            (ref) async => allLibrary ?? library,
+          ),
           if (repo != null)
             roleScorecardRepositoryProvider.overrideWithValue(repo),
         ],
@@ -472,6 +480,72 @@ void main() {
         link.cadence,
         'QUARTERLY',
         reason: "must carry the KPI's real cadence, not the form's default",
+      );
+    },
+  );
+
+  testWidgets(
+    'typing a deactivated KPI\'s exact name still resolves to it, not a '
+    'new KPI with a default cadence',
+    (tester) async {
+      // kpiLibraryProvider (the Autocomplete's suggestion source) only ever
+      // lists active KPIs, so a retired one is correctly absent from
+      // suggestions — a manager should not be offered a retired measurable.
+      // But upsertKpi resolves a typed name against EVERY row regardless of
+      // is_active and silently reactivates a match (saveLibraryKpi's own doc
+      // comment describes this as supported behaviour). Resolving the typed
+      // name only against the active list, as `_matchByName` originally did,
+      // reopens exactly the side door round 1 closed: the link would be
+      // saved with KpiDefinitionForm's default cadence instead of this
+      // KPI's real one.
+      final repo = _CapturingRepository();
+      const retired = Kpi(
+        id: 'lib-retired',
+        companyId: 'co-1',
+        name: 'Legacy Return Rate',
+        unit: '%',
+        cadence: 'QUARTERLY',
+        isActive: false,
+        valueType: 'RATIO',
+        numeratorLabel: 'Returns',
+        numeratorSource: 'BigSeller',
+        denominatorLabel: 'Orders',
+        denominatorSource: 'BigSeller',
+      );
+      await pump(
+        tester,
+        const [],
+        repo: repo,
+        library: const [], // absent from suggestions — it is retired
+        allLibrary: const [retired],
+      );
+
+      await tester.tap(find.widgetWithText(TextButton, 'Add KPI'));
+      await tester.pumpAndSettle();
+      // The Autocomplete offers nothing (retired KPIs aren't suggested), so
+      // there is no row to click — type the full name and go straight to Add.
+      await tester.enterText(
+        find.byType(TextFormField).first,
+        'Legacy Return Rate',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect(repo.captured, isNotNull);
+      final link = repo.captured!.single;
+      expect(
+        link.kpiId,
+        'lib-retired',
+        reason: 'must resolve to the existing (retired) row, not create one',
+      );
+      expect(
+        link.cadence,
+        'QUARTERLY',
+        reason: "must carry the retired KPI's real cadence, not 'WEEKLY'",
       );
     },
   );
