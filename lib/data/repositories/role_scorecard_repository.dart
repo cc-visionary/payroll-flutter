@@ -327,13 +327,28 @@ class RoleScorecardRepository {
       },
     };
     if (id != null && id.isNotEmpty) {
+      // Read the current cadence/unit before overwriting them — the links'
+      // derived columns are re-rendered from the difference (see
+      // [_rederiveLinkColumns]). Skipped when this caller has no opinion on
+      // the definition, because then neither can have changed.
+      final before = writeDefinition
+          ? (await _client
+                    .from('kpis')
+                    .select('cadence, unit')
+                    .eq('id', id)
+                    .limit(1))
+                .cast<Map<String, dynamic>>()
+                .firstOrNull
+          : null;
       final row = await _client
           .from('kpis')
           .update(fields)
           .eq('id', id)
           .select()
           .single();
-      return Kpi.fromRow(row);
+      final saved = Kpi.fromRow(row);
+      await _rederiveLinkColumns(kpiId: id, before: before, after: saved);
+      return saved;
     }
     final existingRows = await _client
         .from('kpis')
@@ -348,7 +363,14 @@ class RoleScorecardRepository {
             .eq('id', r['id'])
             .select()
             .single();
-        return Kpi.fromRow(row);
+        final saved = Kpi.fromRow(row);
+        await _rederiveLinkColumns(
+          kpiId: r['id'] as String,
+          // Already in hand from the name-resolution select above.
+          before: writeDefinition ? r : null,
+          after: saved,
+        );
+        return saved;
       }
     }
     final row = await _client
@@ -356,7 +378,54 @@ class RoleScorecardRepository {
         .insert({'company_id': companyId, ...fields})
         .select()
         .single();
+    // A row that did not exist a moment ago has no links to re-derive.
     return Kpi.fromRow(row);
+  }
+
+  /// Re-renders the `role_scorecard_kpis` columns that are DERIVED from a
+  /// library KPI, after [saveLibraryKpi] changed what they derive from.
+  ///
+  /// `frequency` comes from the KPI's cadence and `target` from the link's
+  /// stored goal rendered with the KPI's unit — but both are only ever
+  /// written by [saveRoleScorecardKpis], which nothing invokes when a manager
+  /// corrects the library entry. So moving "Return Rate" from WEEKLY to
+  /// MONTHLY left every link saying `frequency = 'Weekly'`, and the next
+  /// employment contract's Annex A printed "Weekly". This lives beside the
+  /// derivation it mirrors so the two cannot drift.
+  ///
+  /// A link with no stored goal keeps its existing `target` untouched: there
+  /// is nothing to re-render it from, and its free text is the same thing an
+  /// opinion-less upsert protects (see [KpiLinkInput.writeGoal]).
+  Future<void> _rederiveLinkColumns({
+    required String kpiId,
+    required Map<String, dynamic>? before,
+    required Kpi after,
+  }) async {
+    if (before == null) return;
+    final cadenceChanged = (before['cadence'] as String?) != after.cadence;
+    final unitChanged = (before['unit'] as String?) != after.unit;
+    if (!cadenceChanged && !unitChanged) return;
+
+    final frequency = frequencyLabelFromCadence(after.cadence);
+    final rows = await _client
+        .from('role_scorecard_kpis')
+        .select('id, goal_direction, goal_value, goal_value_max')
+        .eq('kpi_id', kpiId);
+    for (final r in (rows as List).cast<Map<String, dynamic>>()) {
+      final patch = <String, dynamic>{};
+      // A cadence outside WEEKLY/MONTHLY/QUARTERLY has no label; blanking
+      // the column would be worse than leaving the old text.
+      if (cadenceChanged && frequency != null) patch['frequency'] = frequency;
+      if (unitChanged) {
+        final goal = KpiGoal.fromRow(r);
+        if (goal != null) patch['target'] = formatGoal(goal, after.unit);
+      }
+      if (patch.isEmpty) continue;
+      await _client
+          .from('role_scorecard_kpis')
+          .update(patch)
+          .eq('id', r['id'] as String);
+    }
   }
 
   /// Source systems already named on some KPI, for the definition form's

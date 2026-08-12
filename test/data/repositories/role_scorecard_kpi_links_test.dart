@@ -393,6 +393,164 @@ void main() {
     },
   );
 
+  group('saveLibraryKpi re-derives the columns its links depend on', () {
+    /// One library KPI ('kpi-1') at LTE 3 %, WEEKLY, with two links: one
+    /// carrying a structured goal, one with only legacy free text.
+    Future<List<_RecordedRequest>> editLibraryKpi({
+      required String cadence,
+      required String? unit,
+    }) async {
+      final recorded = <_RecordedRequest>[];
+      final mock = MockClient((request) async {
+        Object? body;
+        if (request.body.isNotEmpty) {
+          try {
+            body = jsonDecode(request.body);
+          } catch (_) {
+            body = request.body;
+          }
+        }
+        recorded.add(_RecordedRequest(request.method, request.url, body));
+        final path = request.url.path;
+        if (request.method == 'GET' && path.endsWith('/kpis')) {
+          return http.Response(
+            jsonEncode([
+              {
+                'id': 'kpi-1',
+                'company_id': 'co-1',
+                'name': 'Return Rate',
+                'is_active': true,
+                'value_type': 'PERCENT',
+                'unit': '%',
+                'cadence': 'WEEKLY',
+              },
+            ]),
+            200,
+            request: request,
+          );
+        }
+        if (request.method == 'GET' &&
+            path.endsWith('/role_scorecard_kpis')) {
+          return http.Response(
+            jsonEncode([
+              {
+                'id': 'link-goal',
+                'goal_direction': 'LTE',
+                'goal_value': 3,
+                'goal_value_max': null,
+              },
+              {
+                'id': 'link-freetext',
+                'goal_direction': null,
+                'goal_value': null,
+                'goal_value_max': null,
+              },
+            ]),
+            200,
+            request: request,
+          );
+        }
+        if (request.method == 'PATCH' && path.endsWith('/kpis')) {
+          return http.Response(
+            jsonEncode({
+              'id': 'kpi-1',
+              'company_id': 'co-1',
+              'name': 'Return Rate',
+              'is_active': true,
+              'cadence': cadence,
+              'unit': unit,
+            }),
+            200,
+            request: request,
+          );
+        }
+        return http.Response('[]', 200, request: request);
+      });
+      final client = SupabaseClient(
+        'https://stub.supabase.co',
+        'stub-anon-key',
+        httpClient: mock,
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+      );
+      await RoleScorecardRepository(client).saveLibraryKpi(
+        id: 'kpi-1',
+        companyId: 'co-1',
+        name: 'Return Rate',
+        valueType: 'PERCENT',
+        unit: unit,
+        cadence: cadence,
+        writeDefinition: true,
+      );
+      return recorded
+          .where(
+            (r) =>
+                r.method == 'PATCH' &&
+                r.path.endsWith('/role_scorecard_kpis'),
+          )
+          .toList();
+    }
+
+    test(
+      'correcting a cadence rewrites every link\'s derived frequency — the '
+      'text the contract Annex A prints',
+      () async {
+        // frequency is only ever written inside saveRoleScorecardKpis, so
+        // moving Return Rate from WEEKLY to MONTHLY used to leave every link
+        // saying "Weekly" and the next employment contract printing it.
+        final patches = await editLibraryKpi(cadence: 'MONTHLY', unit: '%');
+        expect(patches, hasLength(2), reason: 'both links carry a frequency');
+        for (final p in patches) {
+          expect((p.body as Map)['frequency'], 'Monthly');
+        }
+        // The unit did not change, so nothing may touch target.
+        for (final p in patches) {
+          expect((p.body as Map).containsKey('target'), isFalse);
+        }
+      },
+    );
+
+    test(
+      'correcting a unit re-renders a goal-carrying link\'s target and '
+      'leaves a goal-less one alone',
+      () async {
+        final patches = await editLibraryKpi(
+          cadence: 'WEEKLY',
+          unit: 'orders',
+        );
+        final byLink = {
+          for (final p in patches)
+            p.url.queryParameters['id']: (p.body as Map),
+        };
+        expect(
+          byLink['eq.link-goal']!['target'],
+          '≤ 3 orders',
+          reason: 'the stored goal re-rendered with the corrected unit',
+        );
+        expect(
+          byLink['eq.link-freetext']?.containsKey('target') ?? false,
+          isFalse,
+          reason:
+              'a link with no structured goal has no derivable target — its '
+              'free text must survive, same rule as a goal-less upsert',
+        );
+      },
+    );
+
+    test(
+      'a library edit that changes neither cadence nor unit touches no link',
+      () async {
+        final patches = await editLibraryKpi(cadence: 'WEEKLY', unit: '%');
+        expect(
+          patches,
+          isEmpty,
+          reason:
+              'renaming a KPI must not normalise legacy free-text frequency '
+              'away — that is what the typed-frequency test above protects',
+        );
+      },
+    );
+  });
+
   group('saveLibraryKpi writeDefinition', () {
     const definitionKeys = [
       'value_type',
@@ -427,13 +585,23 @@ void main() {
           }
         }
         recorded.add(_RecordedRequest(request.method, request.url, body));
+        const row = {
+          'id': 'kpi-1',
+          'company_id': 'co-1',
+          'name': 'Return Rate',
+          'is_active': true,
+          'cadence': 'WEEKLY',
+          'unit': null,
+        };
+        // This KPI has no links, so re-derivation (covered by the group
+        // above) finds nothing to do whatever cadence/unit the call changes.
+        if (request.url.path.endsWith('/role_scorecard_kpis')) {
+          return http.Response('[]', 200, request: request);
+        }
+        // Only `.single()`/`.maybeSingle()` reads want an object back; the
+        // pre-update `select(...).limit(1)` wants a list.
         return http.Response(
-          jsonEncode({
-            'id': 'kpi-1',
-            'company_id': 'co-1',
-            'name': 'Return Rate',
-            'is_active': true,
-          }),
+          jsonEncode(request.method == 'GET' ? [row] : row),
           200,
           request: request,
         );
