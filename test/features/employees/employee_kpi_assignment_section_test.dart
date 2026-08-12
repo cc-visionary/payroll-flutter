@@ -172,8 +172,10 @@ void main() {
                 employeeId: 'emp-1',
                 roleScorecardId: 'role-1',
                 canManage: true,
-                // No `validate` passed — this is the employee profile's
-                // Role tab call site, which is not wired to one.
+                // No `validate` passed. Both real call sites supply one now
+                // (see role_tab_kpi_set_test.dart); this pins the widget's
+                // own null-validator contract so a future read-only host is
+                // not forced to invent a verdict.
               ),
             ),
           ),

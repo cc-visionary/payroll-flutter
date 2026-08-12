@@ -6,11 +6,13 @@ import '../../../../app/status_colors.dart';
 import '../../../../core/money.dart';
 import '../../../../data/models/compensation_change.dart';
 import '../../../../data/models/employee.dart';
+import '../../../../data/models/kpi.dart';
 import '../../../../data/models/role_kpi.dart';
 import '../../../../data/models/role_scorecard.dart';
 import '../../../../data/repositories/compensation_change_repository.dart';
 import '../../../../data/repositories/role_scorecard_repository.dart';
 import '../../../auth/profile_provider.dart';
+import '../../../kpi_library/kpi_measurable.dart';
 import '../../../kpi_library/kpi_set_rules.dart';
 import '../effective_pay.dart';
 import '../providers.dart';
@@ -274,14 +276,48 @@ class _RoleDetail extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: 16),
-        EmployeeKpiAssignmentSection(
-          employeeId: employee.id,
-          roleScorecardId: card.id,
-          canManage: canManage,
-        ),
+        _kpiAssignment(ref),
         const SizedBox(height: 16),
         CompensationHistorySection(employee: employee, canManage: canManage),
       ],
+    );
+  }
+
+  /// The employee profile's copy of the KPI-set editor, wired to the same
+  /// validator the workbench's People pane uses.
+  ///
+  /// It went unvalidated for one reason: this widget has only `card.kpis`
+  /// (display text — no kpiId, no goal, no definition fields), so it had no
+  /// way to say which of the role's KPIs are measurable. It does now, from
+  /// `roleKpisProvider` and `kpiLibraryProvider` through the shared
+  /// [measurableRoleKpiIds]. Without it HR could untick every box here, be
+  /// told by the copy above that an employee with no selection isn't scored,
+  /// save `[]` — and have the next review cycle generate a full-role-set
+  /// review for them anyway, because generate_employee_review,
+  /// seedSkillRatingsForCheckIn and employeesByKpi all still fall back to the
+  /// role set for an absent one. Those fallbacks stay (an absent set must not
+  /// mean an empty review); the authoring hole is what closes.
+  Widget _kpiAssignment(WidgetRef ref) {
+    final roleKpis =
+        ref.watch(roleKpisProvider(card.id)).asData?.value ??
+        const <RoleKpi>[];
+    final libraryAsync = ref.watch(kpiLibraryProvider);
+    final libraryById = {
+      for (final k in libraryAsync.asData?.value ?? const <Kpi>[]) k.id: k,
+    };
+    return EmployeeKpiAssignmentSection(
+      employeeId: employee.id,
+      roleScorecardId: card.id,
+      canManage: canManage,
+      validate: (checked) => validateKpiSet(
+        selectedKpiIds: checked,
+        roleKpiIds: {for (final k in roleKpis) k.kpiId},
+        measurableKpiIds: measurableRoleKpiIds(
+          roleKpis: roleKpis,
+          libraryById: libraryById,
+          libraryLoaded: libraryAsync.hasValue,
+        ),
+      ),
     );
   }
 
@@ -587,12 +623,13 @@ class EmployeeKpiAssignmentSection extends ConsumerStatefulWidget {
   final String roleScorecardId;
   final bool canManage;
 
-  /// Live check over the current checkbox selection. Null (the default)
-  /// preserves this widget's original behaviour exactly — no banner, Save
-  /// always enabled — which is what this employee profile call site still
-  /// gets, since it has no ready source for a role's measurable-KPI subset.
+  /// Live check over the current checkbox selection. Null preserves this
+  /// widget's original behaviour exactly — no banner, Save always enabled.
+  /// Both call sites supply one now (the workbench's People pane and this
+  /// file's own `_kpiAssignment`); the null default remains only so a future
+  /// read-only host is not forced to invent a verdict.
   ///
-  /// When supplied (the People pane passes `validateKpiSet`), [validate]'s
+  /// When supplied, [validate]'s
   /// `problems` are rendered and disable Save; its `warnings` are rendered
   /// too but never disable it — "not on this role" can't actually occur
   /// through these checkboxes (they only ever list this role's own KPIs),

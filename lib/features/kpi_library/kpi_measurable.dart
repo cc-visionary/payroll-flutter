@@ -1,4 +1,6 @@
+import '../../data/models/kpi.dart';
 import '../../data/models/kpi_goal.dart';
+import '../../data/models/role_kpi.dart';
 
 /// EOS vocabulary for a measurable. These lists MUST match the check
 /// constraints in `20260811000001_kpi_measurables.sql` — a value here that the
@@ -55,3 +57,38 @@ bool isKpiDefined({
 /// measurable KPI may join an employee's tracked set.
 bool isMeasurableForRole({required bool defined, required KpiGoal? goal}) =>
     defined && goal != null;
+
+/// The subset of [roleKpis] an employee may actually be measured on: the link
+/// has a goal AND the library row is fully defined (unit, numerator, and —
+/// for a RATIO — denominator).
+///
+/// One derivation, two call sites: the role workbench's People pane and the
+/// employee profile's Role tab both gate Save on it, and they must not be
+/// able to disagree about which KPIs are pickable. `RoleKpi`'s own row only
+/// selects name/unit/cadence, so the definition fields are cross-referenced
+/// against [libraryById]; the link's unit stands in when the library row is
+/// not to hand, matching what [KpisPane] does for the same rows.
+///
+/// [libraryLoaded] is false while `kpiLibraryProvider` is still resolving.
+/// Every KPI then counts as measurable rather than none of them — a spinner
+/// upstream must not be able to tell HR that their whole role is broken.
+Set<String> measurableRoleKpiIds({
+  required List<RoleKpi> roleKpis,
+  required Map<String, Kpi> libraryById,
+  bool libraryLoaded = true,
+}) {
+  if (!libraryLoaded) return {for (final rk in roleKpis) rk.kpiId};
+  return {
+    for (final rk in roleKpis)
+      if (rk.goal != null &&
+          isKpiDefined(
+            valueType: libraryById[rk.kpiId]?.valueType,
+            unit: libraryById[rk.kpiId]?.unit ?? rk.unit,
+            numeratorLabel: libraryById[rk.kpiId]?.numeratorLabel,
+            numeratorSource: libraryById[rk.kpiId]?.numeratorSource,
+            denominatorLabel: libraryById[rk.kpiId]?.denominatorLabel,
+            denominatorSource: libraryById[rk.kpiId]?.denominatorSource,
+          ))
+        rk.kpiId,
+  };
+}

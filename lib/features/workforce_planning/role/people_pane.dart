@@ -47,9 +47,10 @@ class PeoplePane extends ConsumerWidget {
         ref.watch(wpPersonLoadsProvider).asData?.value ??
         const <WpPersonLoad>[];
     final roleKpisAsync = ref.watch(roleKpisProvider(cardId));
-    final library =
-        ref.watch(kpiLibraryProvider).asData?.value ?? const <Kpi>[];
-    final libraryById = {for (final k in library) k.id: k};
+    final libraryAsync = ref.watch(kpiLibraryProvider);
+    final libraryById = {
+      for (final k in libraryAsync.asData?.value ?? const <Kpi>[]) k.id: k,
+    };
 
     final holders =
         employees
@@ -94,30 +95,14 @@ class PeoplePane extends ConsumerWidget {
                 }
                 final roleKpiIds = {for (final k in roleKpis) k.kpiId};
                 // Only a measurable KPI may join a person's tracked set —
-                // `kpi_measurable.dart`'s own words. A role KPI is
-                // measurable when its link has a goal AND its library row
-                // is fully defined (unit, numerator, and — for a RATIO —
-                // denominator), exactly what `KpisPane` itself computes for
-                // the same rows, so this pane can never disagree with the
-                // one that lets a manager set those goals in the first
-                // place.
-                final measurableKpiIds = <String>{
-                  for (final rk in roleKpis)
-                    if (rk.goal != null &&
-                        isKpiDefined(
-                          valueType: libraryById[rk.kpiId]?.valueType,
-                          unit: libraryById[rk.kpiId]?.unit ?? rk.unit,
-                          numeratorLabel:
-                              libraryById[rk.kpiId]?.numeratorLabel,
-                          numeratorSource:
-                              libraryById[rk.kpiId]?.numeratorSource,
-                          denominatorLabel:
-                              libraryById[rk.kpiId]?.denominatorLabel,
-                          denominatorSource:
-                              libraryById[rk.kpiId]?.denominatorSource,
-                        ))
-                      rk.kpiId,
-                };
+                // `kpi_measurable.dart`'s own words. Shared with the employee
+                // profile's Role tab, which gates the same Save button, so
+                // the two can never disagree about what is pickable.
+                final measurableKpiIds = measurableRoleKpiIds(
+                  roleKpis: roleKpis,
+                  libraryById: libraryById,
+                  libraryLoaded: libraryAsync.hasValue,
+                );
                 return Column(
                   children: [
                     for (final holder in holders)
@@ -181,8 +166,15 @@ class _PersonRow extends ConsumerWidget {
         subtitle: Text('Could not load KPI set: $e'),
       ),
       data: (assigned) {
-        final needsSet = employeeNeedsKpiSet(assigned);
-        final trackedCount = assigned.intersection(roleKpiIds).length;
+        // Intersected with the role, the same way `trackedCount` below and
+        // `initialCheckedKpiIds` (which defines an off-role id as absent)
+        // already are. Reading the raw stored set instead meant that after a
+        // manager removed a KPI from the role, a holder whose only tracked
+        // KPI was that one showed "tracks 0 of 3" and no warning — the exact
+        // state the chip exists to catch.
+        final onRole = assigned.intersection(roleKpiIds);
+        final needsSet = employeeNeedsKpiSet(onRole);
+        final trackedCount = onRole.length;
         return ExpansionTile(
           key: ValueKey('person-tile-${employee.id}'),
           title: Row(

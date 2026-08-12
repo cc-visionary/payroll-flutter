@@ -103,4 +103,19 @@ void main() {
     await pump(tester, assigned: {'k1'});
     expect(find.textContaining('Marvin'), findsOneWidget);
   });
+
+  testWidgets(
+    'a stored set that is entirely off this role reads as no set, not as '
+    'zero of three',
+    (tester) async {
+      // The count line already intersects with the role's KPIs, and
+      // initialCheckedKpiIds defines an off-role id as absent — so a holder
+      // whose only tracked KPI was just removed from the role read
+      // "tracks 0 of 3" with no warning beside it, the one state the chip
+      // exists to catch.
+      await pump(tester, assigned: {'removed-from-this-role'});
+      expect(find.textContaining('No KPI set'), findsOneWidget);
+      expect(find.textContaining('tracks 0 of 3'), findsNothing);
+    },
+  );
 }
