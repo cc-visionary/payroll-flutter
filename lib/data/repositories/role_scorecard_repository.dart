@@ -222,6 +222,18 @@ class RoleScorecardRepository {
     return id;
   }
 
+  /// Re-parents a seat in the Accountability Chart tree. Deliberately a
+  /// single-column write (mirrors `updateReportsTo` in
+  /// `employee_repository.dart`) rather than routing through [upsert], which
+  /// would round-trip the whole card (including `key_responsibilities`) for
+  /// a change that touches one column.
+  Future<void> updateParent(String seatId, String? parentId) async {
+    await _client
+        .from('role_scorecards')
+        .update({'parent_id': parentId})
+        .eq('id', seatId);
+  }
+
   Future<void> delete(String id) async {
     await _client.from('role_scorecards').delete().eq('id', id);
   }
