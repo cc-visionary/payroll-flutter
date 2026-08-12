@@ -4,6 +4,8 @@ import '../../../app/theme.dart';
 import '../../../data/models/employee.dart';
 import '../../../data/models/role_scorecard.dart';
 import '../../../data/models/workforce_planning.dart';
+import '../duplicate_check.dart';
+import '../duplicate_warning.dart';
 import 'assignment_panel.dart';
 
 const _tiers = ['Transactional', 'Operational', 'Managerial', 'Strategic'];
@@ -130,6 +132,17 @@ class TaskFormDialog extends StatefulWidget {
   /// IS a card responsibility, so this is what makes the Tasks tab a peer of the
   /// card editor rather than a read-mostly view.
   final List<RoleScorecard> cards;
+
+  /// Every accountability the company already tracks, for the live
+  /// duplicate nudge under the Name field (see [SimilarNameWarning]). Empty
+  /// — the default — turns the nudge off entirely.
+  ///
+  /// Opt-in rather than always-on because a duplicate matters most where a
+  /// name alone becomes a brand-new `wp_tasks` row on a role card, whose
+  /// hours then land twice in load %, cost/hour and the contract's Annex A.
+  /// [findSimilarAccountabilities] excludes [existing] by id, so an edit that
+  /// leaves the name alone never warns about itself.
+  final List<WpTask> duplicateCheckPool;
   const TaskFormDialog({
     super.key,
     this.existing,
@@ -139,6 +152,7 @@ class TaskFormDialog extends StatefulWidget {
     required this.rates,
     required this.employees,
     this.cards = const [],
+    this.duplicateCheckPool = const [],
   });
 
   @override
@@ -270,7 +284,18 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
                 controller: _name,
                 autofocus: true,
                 decoration: _dec('Name'),
+                onChanged: widget.duplicateCheckPool.isEmpty
+                    ? null
+                    : (_) => setState(() {}),
               ),
+              if (widget.duplicateCheckPool.isNotEmpty)
+                SimilarNameWarning(
+                  matches: findSimilarAccountabilities(
+                    typed: _name.text,
+                    all: widget.duplicateCheckPool,
+                    excludeId: widget.existing?.id,
+                  ),
+                ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String?>(
                 initialValue: _present(_nodeId, widget.nodes.map((n) => n.id)),

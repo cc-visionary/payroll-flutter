@@ -294,4 +294,79 @@ void main() {
     await tester.pumpAndSettle();
     expect(saved?.hoursPerMonth, 12);
   });
+
+  group('duplicate nudge', () {
+    // Same guard as the Add-area dialog, on the other path into a brand-new
+    // responsibility. A second row for work already tracked double-counts its
+    // hours into load %, cost/hour and the contract's Annex A.
+    const existing = 'Pack, label, check and dispatch online orders';
+    final pool = [
+      WpTask(
+        id: 't9',
+        companyId: 'c',
+        name: existing,
+        timesSource: 'manual',
+        minutesSource: 'manual',
+        driverFactor: 1,
+        isEssential: true,
+        isExpectation: false,
+        status: 'ACTIVE',
+      ),
+    ];
+
+    Future<void> open(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(1200, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () => showDialog<WpTask>(
+                  context: context,
+                  builder: (_) => TaskFormDialog(
+                    companyId: 'c',
+                    nodes: const [],
+                    drivers: const [],
+                    rates: const [],
+                    employees: const [],
+                    duplicateCheckPool: pool,
+                  ),
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('warns when the typed name looks like an existing one', (
+      tester,
+    ) async {
+      await open(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Name').first,
+        'Pack and dispatch orders',
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('similar-name-warning')), findsOneWidget);
+      expect(find.textContaining(existing), findsOneWidget);
+    });
+
+    testWidgets('a clearly distinct name raises no warning', (tester) async {
+      await open(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Name').first,
+        'Reconcile the monthly bank statement',
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('similar-name-warning')), findsNothing);
+    });
+  });
 }

@@ -29,6 +29,21 @@ WpTask _task({
   status: 'ACTIVE',
 );
 
+/// An ACTIVE accountability the business already tracks, owned by nobody's
+/// card — exactly what "Link existing" adopts, and what retyping would
+/// duplicate.
+WpTask _unlinked(String id, String name) => WpTask(
+  id: id,
+  companyId: 'co-1',
+  name: name,
+  timesSource: 'manual',
+  minutesSource: 'manual',
+  driverFactor: 1,
+  isEssential: true,
+  isExpectation: false,
+  status: 'ACTIVE',
+);
+
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -176,4 +191,63 @@ void main() {
       expect(find.text('Task B'), findsOneWidget);
     },
   );
+
+  group('duplicate nudge', () {
+    // The old card editor ran findSimilarAccountabilities live as you typed a
+    // responsibility name. Without it, a manager retyping work the business
+    // already tracks silently creates a SECOND wp_tasks row for it — and its
+    // hours are then counted twice into load %, cost/hour and the
+    // employment contract's Annex A.
+    const existing = 'Pack, label, check and dispatch online orders';
+
+    testWidgets('the Add area dialog warns when the first responsibility '
+        'looks like one that already exists', (tester) async {
+      await pump(tester, [
+        _task(id: 't1', name: 'Something unrelated', area: 'Setup'),
+        _unlinked('t9', existing),
+      ]);
+
+      await tester.tap(find.text('Add area'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'First responsibility'),
+        'Pack and dispatch orders',
+      );
+      await tester.pumpAndSettle();
+
+      final warning = find.byKey(const ValueKey('similar-name-warning'));
+      expect(warning, findsOneWidget);
+      expect(
+        find.descendant(of: warning, matching: find.textContaining(existing)),
+        findsOneWidget,
+      );
+      // The adopt path already has a home; the nudge only has to point at it
+      // (the pane behind the dialog carries its own "Link existing task"
+      // button, so this must be scoped to the warning itself).
+      expect(
+        find.descendant(
+          of: warning,
+          matching: find.textContaining('Link existing'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('a clearly distinct name raises no warning', (tester) async {
+      await pump(tester, [
+        _task(id: 't1', name: 'Something unrelated', area: 'Setup'),
+        _unlinked('t9', existing),
+      ]);
+
+      await tester.tap(find.text('Add area'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'First responsibility'),
+        'Reconcile the monthly bank statement',
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('similar-name-warning')), findsNothing);
+    });
+  });
 }

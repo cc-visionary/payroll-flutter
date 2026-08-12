@@ -10,6 +10,8 @@ import '../../../data/repositories/role_scorecard_repository.dart';
 import '../../../data/repositories/workforce_planning_repository.dart';
 import '../../documents/providers.dart' show roleScorecardByIdProvider;
 import '../../responsibility_cards/responsibility_rows.dart';
+import '../duplicate_check.dart';
+import '../duplicate_warning.dart';
 import '../removal_lifecycle.dart';
 import '../tabs/role_view_tab.dart' show ownerComputedProvider;
 import '../tabs/task_form_dialog.dart';
@@ -159,9 +161,17 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
   /// a safeguard. `KpisPane` stages edits in its own `TextEditingController`s
   /// behind a bottom `Save` button; this pane has no such staging and no
   /// `Save` button to stage behind.
+  ///
+  /// Invalidates the same set as [_invalidateAfterTaskChange] rather than
+  /// `wpTasksProvider` alone: the other screen whose change this is pulling in
+  /// could just as easily have recosted a task or moved its owner, and the
+  /// hours column and owner badges on this pane read `wpAllTaskComputedProvider`
+  /// and `wpTaskAssignmentsProvider`, not the task row. Refetching only the
+  /// names would leave a control whose tooltip promises "reload from the
+  /// server" showing stale hours next to fresh names.
   void _resync() {
-    ref.invalidate(wpTasksProvider);
-    setState(() => _captured = false);
+    _invalidateAfterTaskChange(const []);
+    setState(() {});
   }
 
   Future<void> _persistDraft(
@@ -197,47 +207,61 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
   /// Prompts for a brand-new area and its first responsibility, then inserts
   /// it via `diffResponsibilities` — the one gap the "Edit" dialog can't fill,
   /// since its area field only offers areas the selected card already has.
-  Future<void> _addArea() async {
+  ///
+  /// The first-responsibility field runs the duplicate nudge as you type (see
+  /// [SimilarNameWarning]); it is the one field in this pane that creates a
+  /// `wp_tasks` row from a name alone.
+  Future<void> _addArea(List<WpTask> allTasks) async {
     final result = await showDialog<({String area, String task})>(
       context: context,
       builder: (ctx) {
         final areaCtl = TextEditingController();
         final taskCtl = TextEditingController();
-        return AlertDialog(
-          title: const Text('New responsibility area'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextField(
-                controller: areaCtl,
-                autofocus: true,
-                decoration: const InputDecoration(labelText: 'Area name'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: taskCtl,
-                decoration: const InputDecoration(
-                  labelText: 'First responsibility',
+        var similar = const <SimilarMatch>[];
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: const Text('New responsibility area'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: areaCtl,
+                  autofocus: true,
+                  decoration: const InputDecoration(labelText: 'Area name'),
                 ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: taskCtl,
+                  decoration: const InputDecoration(
+                    labelText: 'First responsibility',
+                  ),
+                  onChanged: (v) => setDialogState(
+                    () => similar = findSimilarAccountabilities(
+                      typed: v,
+                      all: allTasks,
+                    ),
+                  ),
+                ),
+                SimilarNameWarning(matches: similar),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final area = areaCtl.text.trim();
+                  final task = taskCtl.text.trim();
+                  if (area.isEmpty || task.isEmpty) return;
+                  Navigator.pop(ctx, (area: area, task: task));
+                },
+                child: const Text('Add'),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final area = areaCtl.text.trim();
-                final task = taskCtl.text.trim();
-                if (area.isEmpty || task.isEmpty) return;
-                Navigator.pop(ctx, (area: area, task: task));
-              },
-              child: const Text('Add'),
-            ),
-          ],
         );
       },
     );
@@ -293,13 +317,15 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
   /// Opens the Tasks tab's own costing dialog for a brand-new responsibility.
   /// Mirrors `tasks_tab.dart`'s `_openForm(existing: null)` exactly — the
   /// user picks this card and an area the same way the Tasks tab's "New
-  /// task" button does.
+  /// task" button does — plus [TaskFormDialog.duplicateCheckPool], since this
+  /// is the pane's other path from a typed name to a new `wp_tasks` row.
   Future<void> _addTask({
     required List<WpNode> nodes,
     required List<WpDriver> drivers,
     required List<WpRate> rates,
     required List<Employee> employees,
     required List<RoleScorecard> cards,
+    required List<WpTask> allTasks,
   }) async {
     final result = await showDialog<WpTask>(
       context: context,
@@ -310,6 +336,7 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
         rates: rates,
         employees: employees,
         cards: cards,
+        duplicateCheckPool: allTasks,
       ),
     );
     if (result == null) return;
@@ -517,12 +544,13 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
                               rates: rates,
                               employees: employees,
                               cards: cards,
+                              allTasks: allTasks,
                             ),
                       icon: const Icon(Icons.add),
                       label: const Text('Add task'),
                     ),
                     TextButton.icon(
-                      onPressed: _saving ? null : _addArea,
+                      onPressed: _saving ? null : () => _addArea(allTasks),
                       icon: const Icon(Icons.create_new_folder_outlined),
                       label: const Text('Add area'),
                     ),
