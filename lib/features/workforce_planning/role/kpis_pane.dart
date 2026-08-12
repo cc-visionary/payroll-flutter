@@ -116,6 +116,12 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
     // this the chip can go stale-true after the exact edit that should have
     // cleared it.
     ref.invalidate(wpKpiAssignmentMapsProvider);
+    // Same edit also changes the KPI Library's people and roles counts for
+    // every KPI added to or removed from this card — without these the
+    // library can show a role/people count that no longer matches what was
+    // just saved until something else happens to invalidate them.
+    ref.invalidate(kpiAssignedEmployeesProvider);
+    ref.invalidate(kpiRoleTitlesProvider);
     // Force a resync from the next successful load rather than trust local
     // state, which a partially-failed save could have left disagreeing with
     // the server.
@@ -257,6 +263,10 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
     // on-role KPI set may have changed underneath us (e.g. another session's
     // edit), so the strip's cached view of it must not survive this reload.
     ref.invalidate(wpKpiAssignmentMapsProvider);
+    // ...and neither must the KPI Library's people/roles counts, for the
+    // same reason.
+    ref.invalidate(kpiAssignedEmployeesProvider);
+    ref.invalidate(kpiRoleTitlesProvider);
     setState(() => _captured = false);
   }
 
