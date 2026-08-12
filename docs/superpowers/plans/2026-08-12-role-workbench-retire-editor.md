@@ -228,27 +228,11 @@ void main() {
     await initSupabaseStub();
   });
 
-  Future<void> pump(WidgetTester tester, {required VoidCallback onOpen}) async {
+  /// Pumps a host whose only job is to open the dialog under test.
+  Future<void> openDialog(WidgetTester tester) async {
     tester.view.physicalSize = const Size(1200, 1600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (context) =>
-                  TextButton(onPressed: onOpen, child: const Text('open')),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  testWidgets('refuses to create a role with no job title', (tester) async {
-    await pump(tester, onOpen: () {});
-    // Open the dialog directly against a throwaway host.
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
@@ -265,6 +249,10 @@ void main() {
     );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
+  }
+
+  testWidgets('refuses to create a role with no job title', (tester) async {
+    await openDialog(tester);
 
     await tester.tap(find.text('Create'));
     await tester.pumpAndSettle();
@@ -275,22 +263,7 @@ void main() {
   });
 
   testWidgets('refuses to create a role with no mission', (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          home: Consumer(
-            builder: (context, ref, _) => Scaffold(
-              body: TextButton(
-                onPressed: () => showNewRoleDialog(context, ref),
-                child: const Text('open'),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.tap(find.text('open'));
-    await tester.pumpAndSettle();
+    await openDialog(tester);
 
     await tester.enterText(find.byType(TextFormField).first, 'Kiosk Rep');
     await tester.tap(find.text('Create'));
