@@ -17,11 +17,15 @@ class _CapturingRepository extends RoleScorecardRepository {
   Future<RoleScorecard> upsert(RoleScorecard card) async => saved = card;
 }
 
-RoleScorecard _card({String? departmentId, String? hiringEntityId}) =>
-    RoleScorecard(
+RoleScorecard _card({
+  String? departmentId,
+  String? hiringEntityId,
+  String? parentId,
+}) => RoleScorecard(
   id: 'card-1',
   departmentId: departmentId,
   hiringEntityId: hiringEntityId,
+  parentId: parentId,
   companyId: 'co-1',
   jobTitle: 'Kiosk Sales Representative',
   missionStatement: 'Sell through the kiosk.',
@@ -167,4 +171,28 @@ void main() {
     expect(repo.saved, isNotNull);
     expect(repo.saved!.jobTitle, 'Kiosk Sales Representative');
   });
+
+  testWidgets(
+    'an ordinary save carries the seat parent forward unchanged',
+    (tester) async {
+      // The pane has no control for parent_id (a later task adds the chart's
+      // drag-and-drop). _save() reconstructs the card field-by-field, so any
+      // field it forgets to carry forward silently reverts to the
+      // constructor's null default on every save — exactly what happened
+      // here before parentId was added beside supersededById/shiftTemplateId.
+      final repo = _CapturingRepository();
+      await pump(
+        tester,
+        card: _card(parentId: 'seat-root'),
+        repo: repo,
+      );
+      await tester.tap(find.text('Role details'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect(repo.saved, isNotNull);
+      expect(repo.saved!.parentId, 'seat-root');
+    },
+  );
 }

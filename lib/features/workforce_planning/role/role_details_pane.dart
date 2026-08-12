@@ -183,6 +183,7 @@ class _RoleDetailsPaneState extends ConsumerState<RoleDetailsPane> {
         effectiveDate: _effectiveDate,
         supersededById: widget.card.supersededById,
         shiftTemplateId: widget.card.shiftTemplateId,
+        parentId: widget.card.parentId,
       );
       await ref.read(roleScorecardRepositoryProvider).upsert(updated);
       ref.invalidate(roleScorecardByIdProvider(widget.card.id));
