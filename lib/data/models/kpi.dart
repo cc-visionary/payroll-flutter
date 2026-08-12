@@ -124,9 +124,17 @@ class KpiLinkInput {
   /// Distinguishes the two things a null [goal] can mean:
   ///
   /// * `writeGoal: true`  → "this role has no goal for this KPI". The
-  ///   repository writes `goal_direction`/`goal_value`/`goal_value_max` and
-  ///   the derived `target` as NULL, so clearing a goal in the workbench
-  ///   actually clears it.
+  ///   repository writes `goal_direction`/`goal_value`/`goal_value_max` as
+  ///   NULL unconditionally. `target` is NULL too, but only when [target]
+  ///   is also empty — a caller may still pass a link's legacy free text
+  ///   through [target] here, and the repository preserves it (see
+  ///   `goalColumns`). `KpisPane` relies on exactly that: it saves every
+  ///   link on the card in one call, `writeGoal: true` throughout, and
+  ///   forwards a link's stored prose in [target] for any link that never
+  ///   had a structured goal to begin with, so that prose survives instead
+  ///   of being wiped. Only a link whose goal WAS stored and has since been
+  ///   cleared sends an empty [target] — that is the case that actually
+  ///   nulls the column.
   /// * `writeGoal: false` (the default) → "I have no opinion". The repository
   ///   leaves those four columns alone. This is what the old responsibility-
   ///   card editor (deleted once the workbench became the only place a role

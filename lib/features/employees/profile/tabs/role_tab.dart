@@ -703,7 +703,14 @@ class _EmployeeKpiAssignmentSectionState
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-              if (assignedIds.isEmpty)
+              // With a validator, an empty set is already covered by its own
+              // "Pick at least one KPI" problem line below — that one wins
+              // because it disappears the moment the set stops being empty.
+              // Without a validator (the field's null default, kept only so
+              // a read-only host isn't forced to invent a verdict) there is
+              // no other line telling the caller why the section is blank,
+              // so this static one is the only copy that runs.
+              if (assignedIds.isEmpty && widget.validate == null)
                 const Padding(
                   padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: Text(

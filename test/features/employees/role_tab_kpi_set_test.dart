@@ -138,6 +138,15 @@ void main() {
       reason: 'the problem must be stated, not just implied by a dead button',
     );
     expect(
+      find.textContaining('No KPIs selected yet'),
+      findsNothing,
+      reason:
+          'this call site always supplies a validator, so its own problem '
+          'line covers the empty set — the static line is for a caller with '
+          'no validator and must not also render here saying the same thing '
+          'twice',
+    );
+    expect(
       tester.widget<FilledButton>(saveButton).onPressed,
       isNull,
       reason:

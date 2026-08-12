@@ -16,6 +16,17 @@ import 'role_details_pane.dart';
 /// Each pane owns its own save. There is deliberately no single form key
 /// spanning them — a manager fixing one responsibility's hours should not be
 /// blocked by an unrelated empty field three panes away.
+///
+/// The panes populate controllers in `initState` with no `didUpdateWidget`
+/// resync, so reusing one mounted instance across a `cardId` change would
+/// leave it showing the previous card's edited-but-unsaved values. That is
+/// not reachable here: every call site reaches this screen via
+/// `context.push('/workforce-planning/roles/$id')`, and go_router assigns
+/// every pushed page a fresh, globally-unique key regardless of the matched
+/// `:id` — so a new `cardId` always means a brand-new `RoleWorkbenchScreen`
+/// element, never this one rebuilding in place. `cardId` is therefore fixed
+/// for the lifetime of any given instance, and the panes below carry no key
+/// of their own.
 class RoleWorkbenchScreen extends ConsumerWidget {
   const RoleWorkbenchScreen({super.key, required this.cardId});
 
@@ -61,21 +72,16 @@ class RoleWorkbenchScreen extends ConsumerWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 24),
-              RoleDetailsPane(key: ValueKey(cardId), card: card),
+              RoleDetailsPane(card: card),
               const SizedBox(height: 16),
               ResponsibilitiesPane(
-                key: ValueKey(cardId),
                 cardId: card.id,
                 companyId: card.companyId,
               ),
               const SizedBox(height: 16),
-              KpisPane(
-                key: ValueKey(cardId),
-                cardId: card.id,
-                companyId: card.companyId,
-              ),
+              KpisPane(cardId: card.id, companyId: card.companyId),
               const SizedBox(height: 16),
-              PeoplePane(key: ValueKey(cardId), cardId: card.id),
+              PeoplePane(cardId: card.id),
             ],
           );
         },
