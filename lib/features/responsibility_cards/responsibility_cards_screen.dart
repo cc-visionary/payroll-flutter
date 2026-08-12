@@ -50,6 +50,9 @@ class ResponsibilityCardsScreen extends ConsumerWidget {
                     ref,
                     rows[i],
                     counts[rows[i].id] ?? 0,
+                    // Already fetched as part of `rows` — no extra round
+                    // trip to warn about re-rooting.
+                    rows.where((r) => r.parentId == rows[i].id).length,
                   ),
                 ),
               ),
@@ -62,6 +65,7 @@ class ResponsibilityCardsScreen extends ConsumerWidget {
     WidgetRef ref,
     RoleScorecard card,
     int count,
+    int childSeatCount,
   ) async {
     if (count > 0) {
       await showDialog(
@@ -81,13 +85,23 @@ class ResponsibilityCardsScreen extends ConsumerWidget {
       );
       return;
     }
+    // A deleted seat's children re-root to the top level (parent_id ON
+    // DELETE SET NULL — see 20260813000001_seat_parent.sql) rather than
+    // blocking the delete. That is a state worth surfacing here, not just
+    // letting it happen silently.
+    final rerootWarning = childSeatCount > 0
+        ? '\n\n$childSeatCount seat${childSeatCount == 1 ? '' : 's'} '
+              '${childSeatCount == 1 ? 'reports' : 'report'} to this one and '
+              'will move to the top level.'
+        : '';
     final confirmed =
         await showDialog<bool>(
           context: ctx,
           builder: (c) => AlertDialog(
             title: const Text('Delete card?'),
             content: Text(
-              'This will delete "${card.jobTitle}". This cannot be undone.',
+              'This will delete "${card.jobTitle}". This cannot be undone.'
+              '$rerootWarning',
             ),
             actions: [
               TextButton(

@@ -2,8 +2,16 @@
 -- .reports_to_id cannot express it: a person can hold two seats in different
 -- branches (Clinton holds Visionary and Sourcing), and reports_to_id is one
 -- value per person.
+
+-- ON DELETE SET NULL, not the default NO ACTION: deleting a seat that has
+-- children must not be blocked by an uncaught FK violation (neither delete
+-- call site traps one). A re-rooted child is a visible, repairable state — a
+-- manager sees it at the top of the chart and can re-parent it — whereas a
+-- silently failed delete tells the user nothing. ON DELETE CASCADE is wrong
+-- for the opposite reason: it would delete real seats, and with them their
+-- holders' role assignment, when only the parent was meant to go.
 alter table role_scorecards
-  add column if not exists parent_id uuid references role_scorecards(id);
+  add column if not exists parent_id uuid references role_scorecards(id) on delete set null;
 create index if not exists role_scorecards_parent on role_scorecards (parent_id);
 
 comment on column role_scorecards.parent_id is

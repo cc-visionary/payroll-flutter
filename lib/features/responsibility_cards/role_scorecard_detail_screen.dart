@@ -59,11 +59,20 @@ class RoleScorecardDetailScreen extends ConsumerWidget {
               icon: const Icon(Icons.more_vert),
               onSelected: (v) {
                 if (v == 'delete') {
-                  final card = async.asData?.value
+                  final allSeats = async.asData?.value ?? const [];
+                  final card = allSeats
                       .where((c) => c.id == cardId)
                       .firstOrNull;
                   if (card == null) return;
-                  _confirmDelete(context, ref, card, counts[cardId] ?? 0);
+                  _confirmDelete(
+                    context,
+                    ref,
+                    card,
+                    counts[cardId] ?? 0,
+                    // Already fetched as `allSeats` — no extra round trip
+                    // to warn about re-rooting.
+                    allSeats.where((c) => c.parentId == cardId).length,
+                  );
                 }
               },
               itemBuilder: (_) => [
@@ -104,6 +113,7 @@ class RoleScorecardDetailScreen extends ConsumerWidget {
     WidgetRef ref,
     RoleScorecard card,
     int count,
+    int childSeatCount,
   ) async {
     if (count > 0) {
       await showDialog(
@@ -123,13 +133,23 @@ class RoleScorecardDetailScreen extends ConsumerWidget {
       );
       return;
     }
+    // A deleted seat's children re-root to the top level (parent_id ON
+    // DELETE SET NULL — see 20260813000001_seat_parent.sql) rather than
+    // blocking the delete. That is a state worth surfacing here, not just
+    // letting it happen silently.
+    final rerootWarning = childSeatCount > 0
+        ? '\n\n$childSeatCount seat${childSeatCount == 1 ? '' : 's'} '
+              '${childSeatCount == 1 ? 'reports' : 'report'} to this one and '
+              'will move to the top level.'
+        : '';
     final confirmed =
         await showDialog<bool>(
           context: ctx,
           builder: (c) => AlertDialog(
             title: const Text('Delete card?'),
             content: Text(
-              'This will delete "${card.jobTitle}". This cannot be undone.',
+              'This will delete "${card.jobTitle}". This cannot be undone.'
+              '$rerootWarning',
             ),
             actions: [
               TextButton(
