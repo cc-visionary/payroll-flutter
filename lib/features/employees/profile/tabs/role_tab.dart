@@ -781,6 +781,13 @@ class _EmployeeKpiAssignmentSectionState
       // this, the Needs-attention strip's "no KPI set" chip can go
       // stale-true after the exact save that should have cleared it.
       ref.invalidate(wpKpiAssignmentMapsProvider);
+      // employee_kpis also feeds assignedEmployeesByKpi: the "N KPIs
+      // measuring nobody" chip, the Balance tab's per-person KPI count, and
+      // the KPI Library's people column and peopleTracked stat all go stale
+      // after HR narrows a set without this. (kpiRoleTitlesProvider is
+      // deliberately NOT invalidated — employee_kpis cannot change which
+      // ROLES link a KPI.)
+      ref.invalidate(kpiAssignedEmployeesProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
