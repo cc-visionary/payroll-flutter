@@ -38,9 +38,17 @@ class KpiAssignee {
   });
 }
 
-/// kpiId -> employees effectively tracked on it. An employee tracks a KPI if it
-/// is on their role card AND (no per-employee subset intersects their role -> the
-/// full role set, else only the subset). Mirrors generate_employee_review.
+/// kpiId -> employees effectively tracked on it. An employee tracks a KPI iff
+/// it is on their role card AND in their stored set. There is no "empty means
+/// all" fallback: per Spec A Decision 4 an employee whose stored set does not
+/// intersect their role has NO set — a gap the Needs-attention strip flags
+/// ("N people have no KPI set"), not somebody tracking everything. Defaulting
+/// here would make that chip contradict the people list beside it and would
+/// credit KPIs to a person nobody has curated.
+///
+/// NOTE: the SQL `generate_employee_review` (20260718000006) still carries the
+/// old fallback via its `not v_has_assignment` branch. Scoring is Spec B; that
+/// function must be brought in line before it is used for scoring.
 Map<String, List<KpiAssignee>> employeesByKpi({
   required List<({KpiAssignee assignee, String? roleScorecardId})> employees,
   required Map<String, Set<String>> roleKpiIds,
@@ -56,8 +64,7 @@ Map<String, List<KpiAssignee>> employeesByKpi({
     final onRoleSubset = subset == null
         ? const <String>{}
         : subset.where(roleSet.contains).toSet();
-    final effective = onRoleSubset.isEmpty ? roleSet : onRoleSubset;
-    for (final kpiId in effective) {
+    for (final kpiId in onRoleSubset) {
       (out[kpiId] ??= []).add(e.assignee);
     }
   }
