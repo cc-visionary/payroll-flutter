@@ -107,6 +107,14 @@ class ResponsibilityCardsScreen extends ConsumerWidget {
     await ref.read(roleScorecardRepositoryProvider).delete(card.id);
     ref.invalidate(roleScorecardListProvider);
     ref.invalidate(scorecardEmployeeCountProvider);
+    // Deleting a card cascade-deletes its role_scorecard_kpis, and
+    // kpiRoleTitlesProvider is keyed purely on that table, so the KPI
+    // Library's "used by" column would keep naming a role that no longer
+    // exists. kpiAssignedEmployeesProvider and wpKpiAssignmentMapsProvider
+    // need no invalidation here: employees.role_scorecard_id is a RESTRICT
+    // FK, so a card with any holder cannot be deleted at all — a deletable
+    // card contributed no employees to either derivation.
+    ref.invalidate(kpiRoleTitlesProvider);
   }
 }
 
