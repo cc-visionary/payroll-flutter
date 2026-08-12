@@ -42,16 +42,16 @@ class RoleScorecardDetailScreen extends ConsumerWidget {
               padding: const EdgeInsets.only(right: 8),
               child: mobile
                   ? IconButton(
-                      tooltip: 'Edit',
+                      tooltip: 'Edit in Workforce Planning',
                       onPressed: () =>
-                          context.push('/responsibility-cards/$cardId/edit'),
+                          context.push('/workforce-planning/roles/$cardId'),
                       icon: const Icon(Icons.edit),
                     )
                   : FilledButton.icon(
                       onPressed: () =>
-                          context.push('/responsibility-cards/$cardId/edit'),
+                          context.push('/workforce-planning/roles/$cardId'),
                       icon: const Icon(Icons.edit),
-                      label: const Text('Edit'),
+                      label: const Text('Edit in Workforce Planning'),
                     ),
             ),
           if (canDelete)

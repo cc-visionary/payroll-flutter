@@ -65,7 +65,7 @@ class ResponsibilityCardsScreen extends ConsumerWidget {
                   onOpen: () =>
                       context.push('/responsibility-cards/${rows[i].id}'),
                   onEdit: () =>
-                      context.push('/responsibility-cards/${rows[i].id}/edit'),
+                      context.push('/workforce-planning/roles/${rows[i].id}'),
                   onDelete: () => _confirmDelete(
                     context,
                     ref,
