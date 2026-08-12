@@ -58,9 +58,17 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
   /// True once `_areas`/`_existingRows` have been captured from
   /// `wpTasksProvider`'s first successful load in this build cycle. Reset to
   /// false after any mutation this pane makes (see
-  /// `_invalidateAfterTaskChange`), so the next successful load recaptures
-  /// fresh server state — never a stale local guess about what the server
-  /// now holds.
+  /// `_invalidateAfterTaskChange`) or by [_resync], so the next successful
+  /// load recaptures fresh server state — never a stale local guess about
+  /// what the server now holds.
+  ///
+  /// This gate exists purely to keep `_areas`/`RespDraft` object identity
+  /// stable across ordinary rebuilds — `_buildArea`/`_buildTaskRow` key their
+  /// rows by `identityHashCode` of those objects, and recomputing fresh
+  /// objects on every build would change every key on every frame, tearing
+  /// down and rebuilding the whole tree even when nothing changed. It is NOT
+  /// standing in for unsaved local edits: see [_resync]'s doc comment for why
+  /// this pane, unlike `KpisPane`, has none to protect.
   bool _captured = false;
   final List<_AreaDraft> _areas = [];
 
@@ -132,6 +140,28 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
     // state, which a partially-failed save could have left disagreeing with
     // the server.
     _captured = false;
+  }
+
+  /// Explicit resync: `wpTasksProvider` is watched, but [_captured] only
+  /// flips false right after THIS pane's own mutations (see its doc
+  /// comment), so another screen changing the same card's tasks — e.g. the
+  /// Tasks tab editing one directly, or a different workbench tab — would
+  /// otherwise leave [_areas]/[_existingRows] silently stale.
+  ///
+  /// Unlike `KpisPane._resync`, this never confirms before discarding
+  /// anything, because there is nothing local to discard: every mutation
+  /// this pane makes (`_addArea`, `_linkExisting`, `_addTask`/`_editTask` via
+  /// `TaskFormDialog`, archive, delete) persists to the server the instant
+  /// its dialog is confirmed. Area and task names render as plain `Text` in
+  /// `_buildArea`/`_buildTaskRow`, never a `TextField` a manager could leave
+  /// mid-edit — so a dirty-vs-baseline comparison here would have nothing
+  /// that could ever differ, which is worse than no check at all rather than
+  /// a safeguard. `KpisPane` stages edits in its own `TextEditingController`s
+  /// behind a bottom `Save` button; this pane has no such staging and no
+  /// `Save` button to stage behind.
+  void _resync() {
+    ref.invalidate(wpTasksProvider);
+    setState(() => _captured = false);
   }
 
   Future<void> _persistDraft(
@@ -470,6 +500,14 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
                       ),
                       const SizedBox(width: 12),
                     ],
+                    IconButton(
+                      key: const ValueKey('resp-pane-resync'),
+                      tooltip:
+                          'Reload from the server — every change on this '
+                          'pane is already saved, so nothing is discarded',
+                      onPressed: _saving ? null : _resync,
+                      icon: const Icon(Icons.refresh),
+                    ),
                     TextButton.icon(
                       onPressed: _saving
                           ? null

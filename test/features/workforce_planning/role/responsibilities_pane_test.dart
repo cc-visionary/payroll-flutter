@@ -127,4 +127,53 @@ void main() {
     expect(find.text('Live work'), findsOneWidget);
     expect(find.text('Retired work'), findsNothing);
   });
+
+  testWidgets(
+    'the resync control pulls in a change made by another screen',
+    (tester) async {
+      // `_captured` only clears itself after this pane's OWN mutations (see
+      // its doc comment), so watching `wpTasksProvider` alone is not enough —
+      // another screen (e.g. the Tasks tab, or a different workbench tab
+      // touching the same card) changing this card's tasks would otherwise
+      // sit invisible behind the captured draft forever, even though the
+      // pane's own hours/computed figures (not gated by `_captured`) already
+      // moved on. Unlike `KpisPane`, this control never asks for
+      // confirmation: every mutation here already persisted the instant its
+      // dialog was confirmed, so there is nothing local this reload could
+      // ever discard.
+      var tasks = [_task(id: 't1', name: 'Task A', area: 'Setup')];
+      tester.view.physicalSize = const Size(1400, 3000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            wpTasksProvider.overrideWith((ref) async => tasks),
+            wpAllTaskComputedProvider.overrideWith((ref) async => const []),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: ResponsibilitiesPane(cardId: 'card-1', companyId: 'co-1'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Task A'), findsOneWidget);
+
+      // Simulate another screen changing what's stored for this card.
+      tasks = [_task(id: 't2', name: 'Task B', area: 'Setup')];
+
+      await tester.tap(find.byKey(const ValueKey('resp-pane-resync')));
+      await tester.pumpAndSettle();
+
+      // No confirmation dialog for the reasons above — the reload just
+      // happens.
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text('Task A'), findsNothing);
+      expect(find.text('Task B'), findsOneWidget);
+    },
+  );
 }
