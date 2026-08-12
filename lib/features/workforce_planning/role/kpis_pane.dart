@@ -111,6 +111,11 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
     ref.invalidate(wpTaskAssignmentsProvider);
     ref.invalidate(roleScorecardByIdProvider(widget.cardId));
     ref.invalidate(roleKpisProvider(widget.cardId));
+    // Adding/removing a role->KPI link changes what the Needs-attention
+    // strip's "no KPI set" signal sees as this card's on-role set — without
+    // this the chip can go stale-true after the exact edit that should have
+    // cleared it.
+    ref.invalidate(wpKpiAssignmentMapsProvider);
     // Force a resync from the next successful load rather than trust local
     // state, which a partially-failed save could have left disagreeing with
     // the server.
@@ -248,6 +253,10 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
       if (!mounted) return;
     }
     ref.invalidate(roleKpisProvider(widget.cardId));
+    // Same reasoning as _invalidateAfterSave: a resync means this card's
+    // on-role KPI set may have changed underneath us (e.g. another session's
+    // edit), so the strip's cached view of it must not survive this reload.
+    ref.invalidate(wpKpiAssignmentMapsProvider);
     setState(() => _captured = false);
   }
 

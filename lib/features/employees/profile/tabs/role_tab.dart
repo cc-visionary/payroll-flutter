@@ -775,6 +775,12 @@ class _EmployeeKpiAssignmentSectionState
             kpiIdsToPersist(_checked!, [for (final k in _roleKpis) k.kpiId]),
           );
       ref.invalidate(employeeAssignedKpiIdsProvider(widget.employeeId));
+      // This is the one write path for an employee's KPI set — reached both
+      // from this tab and from the workforce-planning People pane, which
+      // mounts this same section rather than saving separately. Without
+      // this, the Needs-attention strip's "no KPI set" chip can go
+      // stale-true after the exact save that should have cleared it.
+      ref.invalidate(wpKpiAssignmentMapsProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
