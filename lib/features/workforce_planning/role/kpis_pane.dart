@@ -162,9 +162,11 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
             // This pane renders the goal editor, so a null goal here means
             // "this role has no goal for this KPI" and must be written as
             // such — otherwise clearing the direction dropdown would appear
-            // to work and change nothing. The legacy card editor leaves this
-            // false: it has no goal editor, so its null means "no opinion"
-            // and the repository leaves the stored goal alone.
+            // to work and change nothing. A caller with no goal editor would
+            // leave this false, meaning "no opinion", and the repository
+            // would preserve whatever goal is already stored. This pane is
+            // currently the only caller, so that branch has no live user —
+            // see saveRoleScorecardKpis for why it is nonetheless kept.
             writeGoal: true,
           ),
       ];

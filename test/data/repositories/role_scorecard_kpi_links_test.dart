@@ -222,16 +222,21 @@ void main() {
 
   test(
     'a save with no opinion on the goal omits target and the goal columns '
-    'entirely, so the old card editor cannot wipe a workbench-authored goal',
+    'entirely, so it cannot wipe a goal another caller authored',
     () async {
-      // The regression this guarded: HR sets "≤ 3%" on Return Rate in the
-      // workbench, then a colleague opens the old (now-deleted)
-      // responsibility-card editor to fix a typo in the mission statement.
-      // That editor built every KpiLinkInput with no goal and no cadence,
-      // for every KPI on the card, on every save — so its save must not
-      // have been able to reach the structured columns at all. The card PDF
-      // and the next contract Annex A render the derived `target`, so a
-      // wipe here would have reached signed documents.
+      // The regression this came from: HR set "≤ 3%" on Return Rate in the
+      // workbench, then a colleague opened the old responsibility-card editor
+      // to fix a typo in the mission statement — and that editor rebuilt
+      // every KpiLinkInput with no goal and no cadence, on every save,
+      // reverting the target. That editor is deleted, and the workbench's
+      // KPIs pane (which always sets writeGoal: true) is the only caller
+      // left, so no live code path reaches the branch under test here.
+      //
+      // It is pinned anyway because the branch is still reachable by the
+      // next caller who has no goal editor — a bulk importer, an onboarding
+      // seed, a Lark sync — and getting it wrong is silent: it throws
+      // nothing, it just reverts a target that the role-card PDF and the
+      // next employment contract's Annex A then print.
       final recorded = <_RecordedRequest>[];
       // The server's view of this card's links. Round 1 (the workbench) puts
       // a structured goal there; round 2's read is what tells the repository
@@ -283,8 +288,10 @@ void main() {
       ];
       recorded.clear();
 
-      // Round 2 — the old card editor. Exactly what its save loop builds:
-      // the free text it loaded, and no structured anything.
+      // Round 2 — a caller with no opinion on the goal. Exactly what the
+      // old card editor's save loop used to build, and what any future
+      // goal-unaware caller would build: the free text it loaded, and no
+      // structured anything.
       await repo.saveRoleScorecardKpis('card-1', 'co-1', const [
         KpiLinkInput(
           kpiId: 'kpi-1',

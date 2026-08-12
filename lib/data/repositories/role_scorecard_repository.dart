@@ -494,13 +494,21 @@ class RoleScorecardRepository {
     //       columns are written from `goalColumns`, nulls included, so the
     //       workbench can clear a goal as well as set one.
     //    b) The caller has no opinion AND a structured goal is already stored
-    //       — nothing goal-shaped is sent at all. This is the legacy card
-    //       editor, which builds every link with no goal on every save; the
-    //       columns must survive it untouched, or the role-card PDF and the
-    //       next contract's Annex A print a reverted target.
+    //       — nothing goal-shaped is sent at all, so the columns survive
+    //       untouched rather than being nulled.
     //    c) The caller has no opinion and there is no stored goal to protect —
-    //       the legacy free-text `target` is still accepted, so adding a KPI
-    //       in the old editor keeps working exactly as it does today.
+    //       the free-text `target` is written as given.
+    //
+    //    Only shape (a) has a caller today: `KpisPane` is the sole caller of
+    //    this method and passes `ownsGoal: true` on every link, so (b) and (c)
+    //    are unreachable in production. They are kept because "no opinion"
+    //    is a real position for a future caller to hold — a bulk importer, an
+    //    onboarding seed, a Lark sync that knows a KPI belongs on a role but
+    //    nothing about its target — and because getting (b) wrong is silent:
+    //    it does not throw, it reverts a target that the role-card PDF and
+    //    the next employment contract's Annex A then print. Anyone adding
+    //    such a caller must set `ownsGoal` deliberately; leaving it false is
+    //    a claim that the stored goal is more authoritative than yours.
     //
     //    They cannot share one batch. Postgrest sends a bulk upsert with
     //    `?columns=<union of every row's keys>` (postgrest 2.6.0,
