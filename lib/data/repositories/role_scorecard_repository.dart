@@ -557,7 +557,22 @@ class RoleScorecardRepository {
                 : r.link.frequency.trim()),
       };
       if (r.link.ownsGoal) {
-        ownedRows.add({...base, ...goalColumns(r.link.goal, r.link.unit)});
+        // `target` still comes from the goal whenever there IS one. With no
+        // goal it falls back to whatever free text the caller supplied,
+        // because owning the goal columns does not mean owning every link's
+        // history: the workbench saves a card's whole KPI set in one call, so
+        // legacy links the manager never touched ride along with the one they
+        // edited, and `target` is the only copy of their typed prose. The
+        // caller marks the difference by sending no text for a link whose
+        // goal it authored and has now cleared — see goalColumns.
+        ownedRows.add({
+          ...base,
+          ...goalColumns(
+            r.link.goal,
+            r.link.unit,
+            legacyTarget: r.link.target,
+          ),
+        });
       } else if (kpiIdsWithStoredGoal.contains(r.kpiId)) {
         protectedRows.add(base);
       } else {

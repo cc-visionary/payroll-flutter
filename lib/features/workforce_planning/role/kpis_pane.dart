@@ -132,7 +132,21 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
           KpiLinkInput(
             kpiId: d.kpiId,
             name: d.name.trim(),
-            target: d.legacyTarget ?? '',
+            // Only a link that arrived WITHOUT a stored goal forwards its
+            // legacy `target`. This pane cannot save one row at a time (see
+            // the class comment), so every link on the card rides in every
+            // save with `writeGoal: true` below — including the ones the
+            // manager never looked at. For those, `target` is untouched prose
+            // that predates goals ("Consistently high quality"), the only
+            // copy of it that exists, and what role_card_pdf.dart and the
+            // contract's Annex A print; sending '' would have the repository
+            // write NULL over it.
+            //
+            // A link that DID arrive with a goal is genuinely this pane's to
+            // author: its stored `target` was DERIVED from that goal, so
+            // sending nothing is what lets clearing the goal also clear the
+            // text, instead of resurrecting a bar nobody holds.
+            target: d.hadStoredGoal ? '' : (d.legacyTarget ?? ''),
             frequency: d.legacyFrequency ?? '',
             goal: d.goal,
             unit: d.unit,
@@ -677,6 +691,19 @@ class _KpiLinkDraft {
   String? legacyTarget;
   String? legacyFrequency;
 
+  /// Whether this link already carried a structured goal when it was loaded.
+  ///
+  /// A load-time fact, never edited — clearing the goal editor does not make
+  /// this false. It is the one thing the repository cannot know and the pane
+  /// can, and it decides whether [legacyTarget] is prose worth preserving (no
+  /// stored goal → it is the only copy) or merely the previous goal's derived
+  /// rendering (stored goal → clearing the goal must clear it too). See the
+  /// `target:` argument in `_KpisPaneState._save`.
+  ///
+  /// False for a row added in this session: a brand-new link has no history
+  /// to protect.
+  final bool hadStoredGoal;
+
   GoalDirection? direction;
 
   /// Backed by controllers, not plain strings: `TextFormField.initialValue`
@@ -703,6 +730,7 @@ class _KpiLinkDraft {
     this.denominatorSource,
     this.legacyTarget,
     this.legacyFrequency,
+    this.hadStoredGoal = false,
     this.direction,
     String? initialValue,
     String? initialValueMax,
@@ -724,6 +752,7 @@ class _KpiLinkDraft {
     cadence: kpi.cadence,
     legacyTarget: kpi.target,
     legacyFrequency: kpi.frequency,
+    hadStoredGoal: kpi.goal != null,
     direction: kpi.goal?.direction,
     initialValue: kpi.goal == null ? '' : _trim(kpi.goal!.value),
     initialValueMax: kpi.goal?.valueMax == null

@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:payroll_flutter/data/models/kpi.dart';
 import 'package:payroll_flutter/data/models/kpi_goal.dart';
 import 'package:payroll_flutter/data/models/role_kpi.dart';
@@ -72,6 +76,68 @@ class _CapturingRepository extends RoleScorecardRepository {
   }
 }
 
+/// The REAL [RoleScorecardRepository], pointed at a recording HTTP client, so
+/// a pane-level test can assert on the row that actually lands in
+/// `role_scorecard_kpis` rather than only on the [KpiLinkInput] the pane
+/// composed.
+///
+/// Both halves are needed here, and neither alone would have caught the
+/// regression this exists for: the pane faithfully forwarded a legacy link's
+/// free-text target, `goalColumns` faithfully derived `target` from the goal,
+/// and the data loss happened in the seam between them — a goal-less link
+/// whose owner-caller supplied free text got a NULL target written over it.
+class _WireRepository extends RoleScorecardRepository {
+  _WireRepository(super.client);
+
+  List<KpiLinkInput>? captured;
+
+  @override
+  Future<void> saveRoleScorecardKpis(
+    String roleScorecardId,
+    String companyId,
+    List<KpiLinkInput> links,
+  ) async {
+    captured = links;
+    await super.saveRoleScorecardKpis(roleScorecardId, companyId, links);
+  }
+}
+
+/// A [_WireRepository], the `role_scorecard_kpis` rows its upserts sent, and
+/// the `?columns=` list attached to each of those upsert POSTs.
+///
+/// The columns list matters as much as the rows: Postgrest sends the UNION of
+/// every row's keys there, and PostgREST treats that union as the statement's
+/// column set — so a key one row omitted is still written (as NULL) if
+/// another row in the same batch carried it. `saveRoleScorecardKpis` splits
+/// into homogeneous batches for exactly that reason.
+({_WireRepository repo, List<Map> rows, List<String> upsertColumns})
+wiredRepository() {
+  final rows = <Map>[];
+  final upsertColumns = <String>[];
+  final mock = MockClient((request) async {
+    if (request.method == 'POST' &&
+        request.url.path.endsWith('/role_scorecard_kpis') &&
+        request.body.isNotEmpty) {
+      rows.addAll((jsonDecode(request.body) as List).cast<Map>());
+      upsertColumns.add(request.url.queryParameters['columns'] ?? '');
+    }
+    return http.Response('[]', 200, request: request);
+  });
+  final client = SupabaseClient(
+    'https://stub.supabase.co',
+    'stub-anon-key',
+    httpClient: mock,
+    // Without this the GoTrue refresh timer outlives the widget test and
+    // trips flutter_test's "Timer still pending" invariant.
+    authOptions: const AuthClientOptions(autoRefreshToken: false),
+  );
+  return (
+    repo: _WireRepository(client),
+    rows: rows,
+    upsertColumns: upsertColumns,
+  );
+}
+
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -81,7 +147,7 @@ void main() {
   Future<void> pump(
     WidgetTester tester,
     List<RoleKpi> kpis, {
-    _CapturingRepository? repo,
+    RoleScorecardRepository? repo,
     List<Kpi> library = const [],
     // Defaults to mirroring `library` — most tests don't care about the
     // active/all distinction. Pass a wider list explicitly to exercise
@@ -416,6 +482,134 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.captured!.single.writeGoal, isTrue);
+    },
+  );
+
+  testWidgets(
+    'setting a goal on one KPI leaves a sibling legacy KPI\'s typed target '
+    'intact',
+    (tester) async {
+      // The exact live action that destroyed data: a legacy card carries
+      // KPIs with typed prose targets, HR opens the workbench and sets a
+      // structured goal on ONE of them, then presses Save. This pane saves
+      // the whole set in one call with writeGoal on every link, so the
+      // untouched links rode along and had their `target` written to NULL.
+      // That column is the ONLY copy of the prose, and it is what
+      // role_card_pdf.dart and the employment contract's Annex A print —
+      // silent, irreversible, and (because "Consistently high quality" is
+      // unparseable) with no `Suggested:` prompt to warn the manager.
+      final wired = wiredRepository();
+      await pump(tester, const [
+        RoleKpi(
+          kpiId: 'k1',
+          name: 'Return Rate',
+          target: '≤ 3%',
+          goal: KpiGoal(direction: GoalDirection.lte, value: 3),
+          unit: '%',
+          cadence: 'WEEKLY',
+        ),
+        RoleKpi(
+          kpiId: 'k2',
+          name: 'Setup Accuracy',
+          target: 'Consistently high quality',
+          frequency: 'Weekly',
+          cadence: 'WEEKLY',
+        ),
+      ], repo: wired.repo);
+
+      // Tighten the first KPI's goal from 3 to 2 — the Value field of the
+      // first row (each row's other TextFormField, "To", only exists for a
+      // BETWEEN goal).
+      await tester.enterText(find.byType(TextFormField).first, '2');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      // Both links own their goal columns, so they share ONE homogeneous
+      // upsert batch — see saveRoleScorecardKpis step 3 on why shapes cannot
+      // mix. Now that a goal-less owned row carries a non-null `target`, that
+      // batch's `?columns=` union has to be exactly what both rows already
+      // sent: goalColumns emits all four keys whether or not there is a goal,
+      // so adding the fallback text changes a VALUE, never the key set.
+      expect(
+        wired.upsertColumns,
+        hasLength(1),
+        reason: 'two owned rows are one shape and must not be split',
+      );
+      for (final key in [
+        'target',
+        'goal_direction',
+        'goal_value',
+        'goal_value_max',
+      ]) {
+        expect(
+          wired.upsertColumns.single.contains(key),
+          isTrue,
+          reason:
+              '$key is written by every row in an owned batch, so it belongs '
+              'in the union — an owned row must never rely on omission',
+        );
+      }
+      expect(wired.rows, hasLength(2));
+      final edited = wired.rows.singleWhere((r) => r['kpi_id'] == 'k1');
+      final untouched = wired.rows.singleWhere((r) => r['kpi_id'] == 'k2');
+
+      expect(edited['target'], '≤ 2%', reason: 'the edit itself must land');
+      expect(edited['goal_direction'], 'LTE');
+      expect(edited['goal_value'], 2);
+
+      expect(
+        untouched['target'],
+        'Consistently high quality',
+        reason:
+            'this KPI was never touched — its typed target is the only copy '
+            'the role-card PDF and contract Annex A have',
+      );
+      expect(untouched['goal_direction'], isNull);
+      expect(untouched['goal_value'], isNull);
+    },
+  );
+
+  testWidgets(
+    'clearing a goal the workbench authored clears the derived target too, '
+    'rather than resurrecting the text it replaced',
+    (tester) async {
+      // The other side of the same coin, and the reason the pane — not the
+      // repository — has to decide which links get free text. A link that
+      // ARRIVED with a goal has a `target` that was derived FROM that goal
+      // (`≤ 3%` here). Forwarding that derived text back on a save that
+      // clears the goal would leave the card printing a bar nobody holds.
+      final wired = wiredRepository();
+      await pump(tester, const [
+        RoleKpi(
+          kpiId: 'k1',
+          name: 'Return Rate',
+          target: '≤ 3%',
+          goal: KpiGoal(direction: GoalDirection.lte, value: 3),
+          unit: '%',
+          cadence: 'WEEKLY',
+        ),
+      ], repo: wired.repo);
+
+      await tester.tap(find.byType(DropdownButtonFormField<GoalDirection?>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('(none)').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect(wired.rows, hasLength(1));
+      final row = wired.rows.single;
+      expect(row['goal_direction'], isNull);
+      expect(
+        row['target'],
+        isNull,
+        reason:
+            'the derived text goes with the goal it was derived from — the '
+            'pane must not send it back as if it were legacy prose',
+      );
     },
   );
 

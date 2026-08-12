@@ -329,14 +329,23 @@ void main() {
     },
   );
 
-  test(
-    'a writeGoal caller CAN clear a goal — omitting the columns is reserved '
-    'for a caller with no opinion, not for one that says "no goal"',
-    () async {
-      // The other half of the contract. If "goal == null means leave it
-      // alone" were unconditional, clearing the direction dropdown in the
-      // workbench would silently do nothing and the stale bar would keep
-      // being printed on the role card.
+  group('a writeGoal caller and the legacy target column', () {
+    // A null goal on a caller that OWNS the goal columns means two different
+    // things, and the difference is what the legacy `target` text lives or
+    // dies on. The workbench renders the goal editor for every link it shows,
+    // so `writeGoal: true` rides on ALL of them — but only some of those
+    // links arrived carrying a structured goal. The caller's free text is the
+    // signal for which is which: it sends '' for a link whose goal it
+    // authored and has now removed, and the stored prose for a legacy link
+    // that never had a goal at all. Conflating the two blanked the free-text
+    // targets that the role-card PDF and the contract's Annex A print.
+
+    /// Saves one `writeGoal: true` link with no structured goal and returns
+    /// the row that reached `role_scorecard_kpis`.
+    Future<Map> upsertedRow({
+      required String target,
+      required bool storedGoal,
+    }) async {
       final recorded = <_RecordedRequest>[];
       final mock = MockClient((request) async {
         Object? body;
@@ -351,9 +360,13 @@ void main() {
         if (request.method == 'GET' &&
             request.url.path.endsWith('/role_scorecard_kpis')) {
           return http.Response(
-            jsonEncode([
-              {'kpi_id': 'kpi-1', 'goal_direction': 'LTE'},
-            ]),
+            jsonEncode(
+              storedGoal
+                  ? [
+                      {'kpi_id': 'kpi-1', 'goal_direction': 'LTE'},
+                    ]
+                  : const [],
+            ),
             200,
             request: request,
           );
@@ -368,11 +381,11 @@ void main() {
       );
       final repo = RoleScorecardRepository(client);
 
-      await repo.saveRoleScorecardKpis('card-1', 'co-1', const [
+      await repo.saveRoleScorecardKpis('card-1', 'co-1', [
         KpiLinkInput(
           kpiId: 'kpi-1',
           name: 'Return Rate',
-          target: '',
+          target: target,
           frequency: '',
           goal: null,
           unit: '%',
@@ -384,14 +397,62 @@ void main() {
       final upserts = recorded.where(
         (r) => r.method == 'POST' && r.path.endsWith('/role_scorecard_kpis'),
       );
-      final row = (upserts.single.body as List).cast<Map>().single;
-      expect(row.containsKey('goal_direction'), isTrue);
-      expect(row['goal_direction'], isNull);
-      expect(row['goal_value'], isNull);
-      expect(row['goal_value_max'], isNull);
-      expect(row['target'], isNull);
-    },
-  );
+      return (upserts.single.body as List).cast<Map>().single;
+    }
+
+    test(
+      'a writeGoal caller CAN clear a goal — omitting the columns is '
+      'reserved for a caller with no opinion, not for one that says '
+      '"no goal"',
+      () async {
+        // If "goal == null means leave it alone" were unconditional,
+        // clearing the direction dropdown in the workbench would silently do
+        // nothing and the stale bar would keep being printed on the role
+        // card. The pane signals the clear by supplying no free text at all.
+        final row = await upsertedRow(target: '', storedGoal: true);
+        expect(row.containsKey('goal_direction'), isTrue);
+        expect(row['goal_direction'], isNull);
+        expect(row['goal_value'], isNull);
+        expect(row['goal_value_max'], isNull);
+        expect(
+          row['target'],
+          isNull,
+          reason:
+              'the derived text must go when the goal it was derived from '
+              'goes — otherwise the card keeps printing a bar nobody holds',
+        );
+      },
+    );
+
+    test(
+      'a writeGoal caller that supplies free text for a goal-less link '
+      'keeps that text — a legacy target is not collateral damage of '
+      'editing a sibling KPI',
+      () async {
+        // The live regression: a card carries five KPIs with typed targets,
+        // HR sets a structured goal on ONE of them in the workbench and
+        // saves. Every link on that card rides in the same save with
+        // writeGoal: true, so the other four's prose — the only copy of it,
+        // rendered into the role-card PDF and the employment contract's
+        // Annex A — must survive a save that had no opinion about them.
+        final row = await upsertedRow(
+          target: 'Consistently high quality',
+          storedGoal: false,
+        );
+        expect(row.containsKey('goal_direction'), isTrue);
+        expect(row['goal_direction'], isNull);
+        expect(row['goal_value'], isNull);
+        expect(row['goal_value_max'], isNull);
+        expect(
+          row['target'],
+          'Consistently high quality',
+          reason:
+              'no goal to derive from does not mean no target — the free '
+              'text the caller supplied is the only copy that exists',
+        );
+      },
+    );
+  });
 
   group('saveLibraryKpi re-derives the columns its links depend on', () {
     /// One library KPI ('kpi-1') at LTE 3 %, WEEKLY, with two links: one

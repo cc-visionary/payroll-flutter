@@ -131,14 +131,35 @@ KpiGoal? parseLegacyTarget(String? text) {
   return null;
 }
 
-/// The columns a role→KPI link writes for its goal, including the derived
-/// legacy `target` text. One place, so `target` can never drift from the goal.
-Map<String, dynamic> goalColumns(KpiGoal? goal, String? unit) => {
-  'goal_direction': goal == null ? null : goalDirectionCode(goal.direction),
-  'goal_value': goal?.value,
-  'goal_value_max': goal?.valueMax,
-  'target': goal == null ? null : formatGoal(goal, unit),
-};
+/// The columns a role→KPI link writes for its goal, including the legacy
+/// `target` text. One place, so `target` can never drift from the goal.
+///
+/// With a [goal], `target` is DERIVED from it and [legacyTarget] is ignored —
+/// the structured value always wins over free text.
+///
+/// Without one, `target` falls back to [legacyTarget]. That column predates
+/// goals and, on a link that never had one, holds prose nobody can regenerate
+/// ("Consistently high quality") which `role_card_pdf.dart` and the
+/// employment contract's Annex A print. So the caller decides: supply the
+/// stored prose for a link that arrived with no goal, and supply nothing for
+/// a link whose goal the caller itself authored and has now cleared — in the
+/// latter case the stored text was derived FROM that goal, and echoing it
+/// back would leave the card printing a bar nobody holds.
+Map<String, dynamic> goalColumns(
+  KpiGoal? goal,
+  String? unit, {
+  String? legacyTarget,
+}) {
+  final legacy = (legacyTarget ?? '').trim();
+  return {
+    'goal_direction': goal == null ? null : goalDirectionCode(goal.direction),
+    'goal_value': goal?.value,
+    'goal_value_max': goal?.valueMax,
+    'target': goal != null
+        ? formatGoal(goal, unit)
+        : (legacy.isEmpty ? null : legacy),
+  };
+}
 
 /// The legacy `frequency` text, derived from the KPI's cadence — an EOS
 /// measurable has one rhythm, so the link no longer carries its own.
