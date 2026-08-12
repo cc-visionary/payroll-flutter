@@ -49,13 +49,30 @@ RoleScorecard _card(String id, {bool active = true, String? dept}) =>
       effectiveDate: DateTime(2026),
     );
 
-Kpi _kpi(String id, {bool active = true, String? unit, String? dept}) => Kpi(
+Kpi _kpi(
+  String id, {
+  bool active = true,
+  String? unit, // legacy measurementUnit — NOT the definition's unit column
+  String? dept,
+  String valueType = 'COUNT',
+  String? definitionUnit,
+  String? numeratorLabel,
+  String? numeratorSource,
+  String? denominatorLabel,
+  String? denominatorSource,
+}) => Kpi(
   id: id,
   companyId: 'c',
   name: id,
   isActive: active,
   measurementUnit: unit,
   departmentId: dept,
+  valueType: valueType,
+  unit: definitionUnit,
+  numeratorLabel: numeratorLabel,
+  numeratorSource: numeratorSource,
+  denominatorLabel: denominatorLabel,
+  denominatorSource: denominatorSource,
 );
 
 Employee _emp(String id, String name, String? cardId) => Employee(
@@ -198,20 +215,53 @@ void main() {
   test('KPI signals: measuring nobody, no measurement, no department', () {
     final items = _run(
       kpis: [
-        _kpi('k1', unit: 'orders', dept: 'd1'),
+        // Assigned, has a legacy unit and a dept, AND fully defined at the
+        // library level -> must trip none of the four KPI-library signals.
+        _kpi(
+          'k1',
+          unit: 'orders',
+          dept: 'd1',
+          definitionUnit: 'orders',
+          numeratorLabel: 'Orders shipped',
+          numeratorSource: 'BigSeller',
+        ),
       ], // assigned below -> only... see asserts
       assigned: {
         'k1': [const KpiAssignee(employeeId: 'e', name: 'E')],
       },
     );
-    // k1 is assigned, has a unit and a dept -> no KPI signals at all
+    // k1 is assigned, has a unit, a dept, and a complete definition -> no
+    // KPI signals at all.
     expect(items.where((i) => i.target == AttentionTarget.kpiLibrary), isEmpty);
 
-    final bad = _run(kpis: [_kpi('k2')]); // unassigned, no unit, no dept
+    final bad = _run(kpis: [_kpi('k2')]); // unassigned, no unit, no dept, undefined
     final lib = bad
         .where((i) => i.target == AttentionTarget.kpiLibrary)
         .toList();
-    expect(lib.length, 3); // measuring-nobody + no-measurement + no-department
+    expect(lib.length, 4); // measuring-nobody + no-measurement + no-department
+    // + not-yet-measurable
+  });
+
+  test('counts active library KPIs with an incomplete definition', () {
+    final items = _run(
+      kpis: [
+        // Complete: a RATIO with both halves and a unit.
+        _kpi('k1', valueType: 'RATIO', definitionUnit: '%',
+            numeratorLabel: 'Returns', numeratorSource: 'BigSeller',
+            denominatorLabel: 'Orders', denominatorSource: 'BigSeller'),
+        // A RATIO missing its denominator.
+        _kpi('k2', valueType: 'RATIO', definitionUnit: '%',
+            numeratorLabel: 'Returns', numeratorSource: 'BigSeller'),
+        // A legacy row with nothing but a name.
+        _kpi('k3'),
+        // Inactive rows are not a gap to close.
+        _kpi('k4', active: false),
+      ],
+    );
+
+    final item = items.singleWhere((i) => i.label.contains('measurable'));
+    expect(item.count, 2);
+    expect(item.target, AttentionTarget.kpiLibrary);
   });
 
   test('unstaffed card with CRITICAL work, and card with no department', () {

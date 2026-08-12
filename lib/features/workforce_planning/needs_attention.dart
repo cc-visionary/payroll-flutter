@@ -4,6 +4,7 @@ import '../../data/models/role_scorecard.dart';
 import '../../data/models/workforce_planning.dart';
 import '../../data/repositories/role_scorecard_repository.dart'
     show KpiAssignee;
+import '../kpi_library/kpi_measurable.dart' show isKpiDefined;
 import '../kpi_library/kpi_rows.dart' show kpiIsAssigned;
 import '../kpi_library/kpi_set_rules.dart' show employeeNeedsKpiSet;
 import 'allocation.dart';
@@ -191,6 +192,30 @@ List<AttentionItem> buildNeedsAttention({
     AttentionSeverity.medium,
     noMeasurement,
     '${_plural(noMeasurement, 'KPI', 'KPIs')} with no measurement',
+    AttentionTarget.kpiLibrary,
+  );
+
+  // Library-level only: a KPI nobody could produce a number for. The per-ROLE
+  // gap (a link with no goal) is deliberately not counted here — it would
+  // double-count a KPI used on four roles, and the workbench's KPIs pane
+  // already marks a goal-less link "not measurable yet".
+  final undefined = activeKpis
+      .where(
+        (k) => !isKpiDefined(
+          valueType: k.valueType,
+          unit: k.unit,
+          numeratorLabel: k.numeratorLabel,
+          numeratorSource: k.numeratorSource,
+          denominatorLabel: k.denominatorLabel,
+          denominatorSource: k.denominatorSource,
+        ),
+      )
+      .length;
+  add(
+    AttentionCategory.process,
+    AttentionSeverity.medium,
+    undefined,
+    '${_plural(undefined, 'KPI', 'KPIs')} not yet measurable',
     AttentionTarget.kpiLibrary,
   );
 
