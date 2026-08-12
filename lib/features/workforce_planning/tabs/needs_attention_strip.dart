@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/status_colors.dart';
 import '../../../data/repositories/role_scorecard_repository.dart';
+import '../accountability_chart_screen.dart' show areasBySeat;
 import '../needs_attention.dart';
+import '../seat_tree.dart' show seatBoxes;
 import '../wp_providers.dart';
 import 'tab_intro.dart';
 
@@ -76,6 +78,27 @@ class NeedsAttentionStrip extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
+    // Same derivation the Accountability Chart itself uses for a box's roles
+    // (`areasBySeat()` in accountability_chart_screen.dart — authored areas
+    // from wp_tasks, not the card's shared-appended `responsibilities`; see
+    // that function's doc comment for why) and for what counts as an open
+    // seat (`seatBoxes`' no-ACTIVE-holder rule) — so a chip's count matches
+    // what the chart shows one click away.
+    final areas = areasBySeat(tasks);
+    final areaCountBySeat = {
+      for (final entry in areas.entries) entry.key: entry.value.length,
+    };
+    final boxes = seatBoxes(
+      seats: cards,
+      employees: employees,
+      areasBySeat: areas,
+    );
+    final holderCountBySeat = <String, int>{};
+    for (final box in boxes) {
+      holderCountBySeat[box.seatId] =
+          (holderCountBySeat[box.seatId] ?? 0) + (box.isOpen ? 0 : 1);
+    }
+
     final items = buildNeedsAttention(
       loads: loads,
       tasks: tasks,
@@ -86,6 +109,8 @@ class NeedsAttentionStrip extends ConsumerWidget {
       assignmentsByTask: assignmentsByTask,
       roleKpiIdsByCard: kpiAssignmentMaps?.roleKpiIdsByCard,
       assignedKpiIdsByEmployee: kpiAssignmentMaps?.assignedKpiIdsByEmployee,
+      areaCountBySeat: areaCountBySeat,
+      holderCountBySeat: holderCountBySeat,
     );
     if (items.isEmpty) return const SizedBox.shrink();
 

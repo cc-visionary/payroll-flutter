@@ -247,4 +247,104 @@ void main() {
       expect(find.textContaining('no KPI set'), findsNothing);
     },
   );
+
+  // Guards the wiring itself: `areaCountBySeat` and `holderCountBySeat` are
+  // computed in NeedsAttentionStrip from `areasBySeat(tasks)` and
+  // `seatBoxes(...)` and passed to buildNeedsAttention. If that wiring were
+  // ever dropped (both args replaced with `const {}`), buildNeedsAttention's
+  // defaults would silently read zero and this test must fail.
+  final oversizedCard = RoleScorecard(
+    id: 'rs1',
+    companyId: 'c',
+    jobTitle: 'Oversized Seat',
+    missionStatement: '',
+    responsibilities: const [],
+    kpis: const [],
+    wageType: 'MONTHLY',
+    workHoursPerDay: 8,
+    workDaysPerWeek: 'MON_FRI',
+    isActive: true,
+    effectiveDate: DateTime(2026),
+  );
+  final openCard = RoleScorecard(
+    id: 'rs2',
+    companyId: 'c',
+    jobTitle: 'Open Seat',
+    missionStatement: '',
+    responsibilities: const [],
+    kpis: const [],
+    wageType: 'MONTHLY',
+    workHoursPerDay: 8,
+    workDaysPerWeek: 'MON_FRI',
+    isActive: true,
+    effectiveDate: DateTime(2026),
+  );
+  final oversizedHolder = Employee(
+    id: 'h1',
+    companyId: 'c',
+    employeeNumber: 'h1',
+    firstName: 'Holder',
+    lastName: 'X',
+    roleScorecardId: 'rs1',
+    employmentType: 'FULL_TIME',
+    employmentStatus: 'ACTIVE',
+    hireDate: DateTime(2024, 1, 1),
+    isRankAndFile: true,
+    isOtEligible: false,
+    isNdEligible: false,
+    isHolidayPayEligible: false,
+    sssEligibilityOverride: false,
+    philhealthEligibilityOverride: false,
+    pagibigEligibilityOverride: false,
+    taxOnFullEarnings: false,
+  );
+
+  testWidgets(
+    'flags a seat with more than five authored roles, and a seat with no '
+    'ACTIVE holder, with their real counts',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            wpPersonLoadsProvider.overrideWith((ref) async => const []),
+            // rs1 authors 6 distinct responsibility areas -> oversized.
+            // rs2 authors none, and (below) has no holder -> open.
+            wpTasksProvider.overrideWith(
+              (ref) async => [
+                for (var i = 1; i <= 6; i++)
+                  WpTask(
+                    id: 't$i',
+                    companyId: 'c',
+                    name: 'Task $i',
+                    roleScorecardId: 'rs1',
+                    responsibilityArea: 'Area $i',
+                  ),
+              ],
+            ),
+            // rs1 is staffed (so it trips ONLY the oversized signal); rs2 has
+            // no holder at all (so it trips ONLY the open-seat signal).
+            wpActiveEmployeesProvider.overrideWith(
+              (ref) async => [oversizedHolder],
+            ),
+            roleScorecardListProvider.overrideWith(
+              (ref) async => [oversizedCard, openCard],
+            ),
+            kpiLibraryProvider.overrideWith((ref) async => const []),
+            kpiAssignedEmployeesProvider.overrideWith((ref) async => const {}),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: DefaultTabController(
+                length: 5,
+                child: NeedsAttentionStrip(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('1 seat with more than five roles'), findsOneWidget);
+      expect(find.text('1 open seat'), findsOneWidget);
+    },
+  );
 }

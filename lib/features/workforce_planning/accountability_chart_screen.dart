@@ -67,7 +67,7 @@ class AccountabilityChartScreen extends ConsumerWidget {
       final boxes = seatBoxes(
         seats: seats,
         employees: employees,
-        areasBySeat: _areasBySeat(tasks),
+        areasBySeat: areasBySeat(tasks),
       );
       body = _ChartBody(seats: seats, boxes: boxes);
     }
@@ -101,7 +101,7 @@ class AccountabilityChartScreen extends ConsumerWidget {
 /// [responsibilitiesFromTaskRows] is the same vetted area/task grouping
 /// `RoleScorecard.fromRow` itself uses for the authored list, reused here
 /// rather than re-derived.
-Map<String, List<String>> _areasBySeat(List<WpTask> tasks) {
+Map<String, List<String>> areasBySeat(List<WpTask> tasks) {
   final rowsBySeat = <String, List<Map<String, dynamic>>>{};
   for (final t in tasks) {
     final seatId = t.roleScorecardId;
