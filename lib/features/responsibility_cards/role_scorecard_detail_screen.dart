@@ -26,7 +26,7 @@ class RoleScorecardDetailScreen extends ConsumerWidget {
     return Scaffold(
       drawer: mobile ? const AppDrawer() : null,
       appBar: AppBar(
-        title: const Text('Responsibility Card'),
+        title: const Text('Seat'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/responsibility-cards'),

@@ -219,7 +219,7 @@ class ReviewCycleRepository {
   }
 
   /// Calls the database transaction that validates assignments and snapshots
-  /// the employee's current Responsibility Card. Idempotent for cycle+employee.
+  /// the employee's current seat. Idempotent for cycle+employee.
   Future<String> generateEmployeeReview({
     required String cycleId,
     required String employeeId,

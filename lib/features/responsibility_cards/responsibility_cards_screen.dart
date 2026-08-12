@@ -24,7 +24,7 @@ class ResponsibilityCardsScreen extends ConsumerWidget {
     final mobile = isMobile(context);
     return Scaffold(
       drawer: mobile ? const AppDrawer() : null,
-      appBar: AppBar(title: const Text('Responsibility Cards')),
+      appBar: AppBar(title: const Text('Seats')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(

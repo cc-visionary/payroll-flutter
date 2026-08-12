@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/data/models/employee_review.dart';
 
 void main() {
-  test('parses immutable Responsibility Card snapshot metadata', () {
+  test('parses immutable Seat snapshot metadata', () {
     final review = EmployeeReview.fromRow({
       'id': 'review-1',
       'review_cycle_id': 'cycle-1',

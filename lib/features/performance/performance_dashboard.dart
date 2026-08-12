@@ -108,7 +108,7 @@ class PerformanceDashboard extends ConsumerWidget {
                     count: data.employeesWithoutManager,
                   ),
                   _SetupIssue(
-                    label: 'Employees without Responsibility Card',
+                    label: 'Employees without a seat',
                     count: data.employeesWithoutResponsibilityCard,
                   ),
                 ],
