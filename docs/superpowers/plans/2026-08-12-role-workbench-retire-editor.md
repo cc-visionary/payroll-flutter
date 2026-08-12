@@ -45,7 +45,17 @@
 - Consumes: the route `/workforce-planning/roles/:id`, live since Plan 2.
 - Produces: nothing new; two call sites change target.
 
-The card view's Edit button (`role_scorecard_detail_screen.dart:47,52`) and the list row's `onEdit` (`responsibility_cards_screen.dart:68`) both push `/responsibility-cards/$cardId/edit`. Both become `/workforce-planning/roles/$cardId`.
+**Three** call sites push `/responsibility-cards/$cardId/edit`, not two:
+
+- the card view's Edit button (`role_scorecard_detail_screen.dart:47,52`),
+- the list row's `onEdit` (`responsibility_cards_screen.dart:68`),
+- and `unassigned_tab.dart:366`, where "Propose role" drafts an INACTIVE card
+  from a cluster and lands HR on it to finish it.
+
+All three become `/workforce-planning/roles/$cardId`. The third is the one that
+would otherwise become a dead link when Task 4 removes the route. It is safe to
+repoint: `RoleScorecardRepository.byId` (`:87-101`) has no `is_active` filter,
+so the workbench opens a draft, and its header already renders "· inactive".
 
 Relabel the card view's button from **Edit** to **Edit in Workforce Planning** on desktop (the tooltip likewise on mobile). The destination is a different screen in a different section; a button still saying "Edit" would read as a bug the first time it navigates away.
 
