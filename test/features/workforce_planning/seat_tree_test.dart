@@ -47,10 +47,14 @@ Employee emp(
 
 void main() {
   group('seatBoxes', () {
-    test('one box per active holder', () {
+    test('one box per active holder, ordered by name regardless of input order', () {
+      // Employees are passed in reverse-alphabetical order deliberately: this
+      // would fail if seatBoxes emitted boxes in caller/input order instead of
+      // sorting, matching the same comparator role/people_pane.dart uses for
+      // this holder list.
       final boxes = seatBoxes(
         seats: [seat('s1', 'Brand Handling')],
-        employees: [emp('e1', 'Christian', 's1'), emp('e2', 'Evander', 's1')],
+        employees: [emp('e2', 'Evander', 's1'), emp('e1', 'Christian', 's1')],
         areasBySeat: const {
           's1': ['Packing', 'Customer service'],
         },

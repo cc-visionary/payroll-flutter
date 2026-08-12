@@ -37,12 +37,16 @@ List<SeatBox> seatBoxes({
 }) {
   final boxes = <SeatBox>[];
   for (final seat in seats) {
-    final holders = employees.where(
-      (e) =>
-          e.roleScorecardId == seat.id &&
-          e.employmentStatus == 'ACTIVE' &&
-          e.deletedAt == null,
-    );
+    final holders =
+        employees
+            .where(
+              (e) =>
+                  e.roleScorecardId == seat.id &&
+                  e.employmentStatus == 'ACTIVE' &&
+                  e.deletedAt == null,
+            )
+            .toList()
+          ..sort((a, b) => a.fullName.compareTo(b.fullName));
     final roles = areasBySeat[seat.id] ?? const <String>[];
     if (holders.isEmpty) {
       boxes.add(
