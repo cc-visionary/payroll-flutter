@@ -60,7 +60,10 @@ List<SeatBox> seatBoxes({
           SeatBox(
             seatId: seat.id,
             function: seat.jobTitle,
-            holderName: holder.firstName,
+            // Full name, matching the convention `KpiAssignee.name` uses in
+            // role_scorecard_repository.dart (and what the People pane and
+            // KPI Library already display) — not a first-name-only shorthand.
+            holderName: '${holder.firstName} ${holder.lastName}'.trim(),
             holderId: holder.id,
             roles: roles,
           ),

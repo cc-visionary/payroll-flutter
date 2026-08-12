@@ -56,7 +56,7 @@ void main() {
         },
       );
       expect(boxes, hasLength(2));
-      expect(boxes.map((b) => b.holderName), ['Christian', 'Evander']);
+      expect(boxes.map((b) => b.holderName), ['Christian X', 'Evander X']);
       expect(boxes.every((b) => b.function == 'Brand Handling'), isTrue);
       expect(boxes.first.roles, ['Packing', 'Customer service']);
     });
@@ -88,7 +88,7 @@ void main() {
         areasBySeat: const {},
       );
       expect(boxes, hasLength(1));
-      expect(boxes.single.holderName, 'Live');
+      expect(boxes.single.holderName, 'Live X');
     });
 
     test('a seat with no areas has no roles, and does not throw', () {
