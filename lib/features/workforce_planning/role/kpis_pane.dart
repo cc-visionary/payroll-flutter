@@ -338,23 +338,37 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
   /// just filled in). Either way, a library row that can't be found (still
   /// loading, or not in the active list) is treated as not-defined — a safe
   /// default, never a crash.
-  bool _isDefined(_KpiLinkDraft draft, Map<String, Kpi> libraryById) {
+  List<String> _definitionGaps(
+    _KpiLinkDraft draft,
+    Map<String, Kpi> libraryById,
+  ) {
     final lib = draft.kpiId == null ? null : libraryById[draft.kpiId];
-    final valueType = lib?.valueType ?? draft.valueType;
-    final unit = lib?.unit ?? draft.unit;
-    final numeratorLabel = lib?.numeratorLabel ?? draft.numeratorLabel;
-    final numeratorSource = lib?.numeratorSource ?? draft.numeratorSource;
-    final denominatorLabel = lib?.denominatorLabel ?? draft.denominatorLabel;
-    final denominatorSource =
-        lib?.denominatorSource ?? draft.denominatorSource;
-    return isKpiDefined(
-      valueType: valueType,
-      unit: unit,
-      numeratorLabel: numeratorLabel,
-      numeratorSource: numeratorSource,
-      denominatorLabel: denominatorLabel,
-      denominatorSource: denominatorSource,
+    return kpiDefinitionGaps(
+      valueType: lib?.valueType ?? draft.valueType,
+      unit: lib?.unit ?? draft.unit,
+      numeratorLabel: lib?.numeratorLabel ?? draft.numeratorLabel,
+      numeratorSource: lib?.numeratorSource ?? draft.numeratorSource,
+      denominatorLabel: lib?.denominatorLabel ?? draft.denominatorLabel,
+      denominatorSource: lib?.denominatorSource ?? draft.denominatorSource,
     );
+  }
+
+  /// Names what is actually missing, rather than always saying "set a goal".
+  /// A KPI needs both a goal on THIS role and a complete library definition;
+  /// telling a manager to set a goal they have already set, when the real gap
+  /// is a missing numerator source in the library, sends them to the wrong
+  /// screen.
+  String _notMeasurableHint(List<String> gaps, bool hasGoal) {
+    if (!hasGoal && gaps.isEmpty) {
+      return 'This KPI is not measurable yet — set a goal.';
+    }
+    final definition =
+        'its definition is incomplete (${gaps.join(', ')}) — edit it in the '
+        'KPI Library';
+    if (hasGoal) {
+      return 'This KPI is not measurable yet — $definition.';
+    }
+    return 'This KPI is not measurable yet — set a goal, and $definition.';
   }
 
   Widget _buildRow(
@@ -363,10 +377,13 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
     Map<String, Kpi> libraryById,
   ) {
     final key = identityHashCode(draft);
-    // goal == null short-circuits isMeasurableForRole to false either way, so
-    // the defined lookup can be skipped for those rows.
-    final defined = draft.goal == null ? false : _isDefined(draft, libraryById);
-    final measurable = isMeasurableForRole(defined: defined, goal: draft.goal);
+    // Computed even when there is no goal: the hint below names every gap,
+    // and a row missing both a goal and a formula must say so.
+    final gaps = _definitionGaps(draft, libraryById);
+    final measurable = isMeasurableForRole(
+      defined: gaps.isEmpty,
+      goal: draft.goal,
+    );
     final suggestion = draft.goal == null && (draft.legacyTarget ?? '').isNotEmpty
         ? parseLegacyTarget(draft.legacyTarget)
         : null;
@@ -434,7 +451,7 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
             _hint(
               context,
               StatusTone.warning,
-              'This KPI is not measurable yet — set a goal.',
+              _notMeasurableHint(gaps, draft.goal != null),
             ),
           if (suggestion != null) ...[
             const SizedBox(height: 4),

@@ -23,6 +23,20 @@ import '../../responsibility_cards/scorecard_base_salary.dart';
 String? _present(String? id, Iterable<String> ids) =>
     (id != null && ids.contains(id)) ? id : null;
 
+/// What [_save] must persist for a dropdown-backed id: whatever [_present] is
+/// currently DISPLAYING for it.
+///
+/// Writing the raw field instead meant the pane showed "(none)" for a
+/// since-deleted department and then wrote the dangling id straight back — so
+/// the stale link could never be cleared from here, and a save the user
+/// believed changed nothing quietly reasserted it.
+///
+/// [ids] is null while the list is still loading. There is nothing to check
+/// against then, so the stored id is kept rather than dropped: a save fired
+/// before the dropdowns populated must not clear a perfectly good department.
+String? _persisted(String? id, Iterable<String>? ids) =>
+    ids == null ? id : _present(id, ids);
+
 /// The first pane of the role workbench: identity, required skills,
 /// behavioral expectations, and compensation & schedule. Ported from
 /// `role_scorecard_form_screen.dart` — the same labels, the same
@@ -107,6 +121,16 @@ class _RoleDetailsPaneState extends ConsumerState<RoleDetailsPane> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    final departmentIds = ref
+        .read(departmentListProvider)
+        .asData
+        ?.value
+        .map((d) => d.id);
+    final hiringEntityIds = ref
+        .read(hiringEntityListProvider)
+        .asData
+        ?.value
+        .map((e) => e.id);
     Decimal? dec(String s) =>
         s.trim().isEmpty ? null : Decimal.tryParse(s.trim());
     setState(() {
@@ -118,8 +142,8 @@ class _RoleDetailsPaneState extends ConsumerState<RoleDetailsPane> {
         id: widget.card.id,
         companyId: widget.card.companyId,
         jobTitle: _jobTitle.text.trim(),
-        departmentId: _departmentId,
-        hiringEntityId: _hiringEntityId,
+        departmentId: _persisted(_departmentId, departmentIds),
+        hiringEntityId: _persisted(_hiringEntityId, hiringEntityIds),
         missionStatement: _mission.text.trim(),
         responsibilities: widget.card.responsibilities,
         kpis: widget.card.kpis,

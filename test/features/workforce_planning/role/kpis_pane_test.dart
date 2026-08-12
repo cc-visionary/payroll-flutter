@@ -136,6 +136,40 @@ void main() {
     expect(find.textContaining('not measurable'), findsWidgets);
   });
 
+  testWidgets(
+    'says which half is missing, not always "set a goal"',
+    (tester) async {
+      // A goal IS set here; what is missing is the library definition. The
+      // blanket "set a goal" sent the manager to re-do the one thing they
+      // had already done, on the wrong screen.
+      await pump(
+        tester,
+        const [
+          RoleKpi(
+            kpiId: 'k1',
+            name: 'Return Rate',
+            goal: KpiGoal(direction: GoalDirection.lte, value: 3),
+            unit: '%',
+            cadence: 'WEEKLY',
+          ),
+        ],
+        library: const [
+          Kpi(
+            id: 'k1',
+            companyId: 'co-1',
+            name: 'Return Rate',
+            unit: '%',
+            // No numerator: the KPI says nothing about what is counted.
+          ),
+        ],
+      );
+      expect(find.textContaining('not measurable yet'), findsWidgets);
+      expect(find.textContaining('what is counted'), findsWidgets);
+      expect(find.textContaining('KPI Library'), findsWidgets);
+      expect(find.textContaining('set a goal'), findsNothing);
+    },
+  );
+
   testWidgets('offers the legacy target as a suggestion, not a fact', (
     tester,
   ) async {
