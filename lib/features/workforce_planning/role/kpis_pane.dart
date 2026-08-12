@@ -575,23 +575,67 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
     if (result.existing != null) {
       _addExisting(result.existing!);
     } else if (result.newDraft != null) {
-      setState(() {
-        final d = _KpiLinkDraft(
-          kpiId: null,
-          name: result.newName!,
-          unit: result.newDraft!.unit,
-          // Seeded from the KpiDefinitionForm's emitted draft — that form
-          // defaults its own cadence to 'WEEKLY' until the manager changes
-          // it. This pane must never hardcode a bare 'WEEKLY' itself.
-          cadence: result.newDraft!.cadence,
-          valueType: result.newDraft!.valueType,
-          numeratorLabel: result.newDraft!.numeratorLabel,
-          numeratorSource: result.newDraft!.numeratorSource,
-          denominatorLabel: result.newDraft!.denominatorLabel,
-          denominatorSource: result.newDraft!.denominatorSource,
-        );
-        _links.add(d);
-      });
+      await _createAndAddLibraryKpi(result.newName!, result.newDraft!);
+    }
+  }
+
+  /// Creates the library row for an inline-defined KPI, WITH its definition,
+  /// then links the row by the returned id.
+  ///
+  /// The definition has to be written here because [KpiLinkInput] carries
+  /// only unit and cadence: routing a brand-new KPI through
+  /// `saveRoleScorecardKpis`'s find-or-create instead inserted it as
+  /// `value_type = 'COUNT'` with a null numerator, whatever the manager had
+  /// just filled in — so the KPI read "not measurable yet" forever and could
+  /// never join anyone's tracked set. `saveLibraryKpi` already accepts all
+  /// eight definition fields; widening `KpiLinkInput` (and the `Kpi` the
+  /// repository builds from it) would have duplicated that surface for no
+  /// gain.
+  ///
+  /// Creating the row at Add time rather than at Save time also means the
+  /// library is the single author of library rows — `saveLibraryKpi` resolves
+  /// the name case-insensitively and reactivates a retired match, exactly as
+  /// picking an existing KPI would have.
+  Future<void> _createAndAddLibraryKpi(
+    String name,
+    KpiDefinitionDraft draft,
+  ) async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final created = await ref
+          .read(roleScorecardRepositoryProvider)
+          .saveLibraryKpi(
+            companyId: widget.companyId,
+            name: name,
+            measurementUnit: draft.unit,
+            valueType: draft.valueType,
+            numeratorLabel: draft.numeratorLabel,
+            numeratorSource: draft.numeratorSource,
+            denominatorLabel: draft.denominatorLabel,
+            denominatorSource: draft.denominatorSource,
+            unit: draft.unit,
+            // From the KpiDefinitionForm's emitted draft — that form defaults
+            // its own cadence to 'WEEKLY' until the manager changes it. This
+            // pane must never hardcode a bare 'WEEKLY' itself.
+            cadence: draft.cadence,
+            proofType: draft.proofType,
+            writeDefinition: true,
+          );
+      // The picker, the name-resolution list and the source autocomplete all
+      // read the library; a KPI created here must show up in each of them
+      // without a reload.
+      ref.invalidate(kpiLibraryProvider);
+      ref.invalidate(kpiLibraryAllProvider);
+      ref.invalidate(kpiSourcesProvider);
+      if (!mounted) return;
+      _addExisting(created);
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Could not create the KPI: $e');
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 }

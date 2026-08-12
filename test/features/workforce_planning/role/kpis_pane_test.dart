@@ -19,6 +19,12 @@ class _CapturingRepository extends RoleScorecardRepository {
 
   List<KpiLinkInput>? captured;
 
+  /// The library KPI the pane asked to be created for an inline definition,
+  /// as it would land in `kpis` — this is where the whole measurable
+  /// definition either survives or is silently reduced to a bare COUNT.
+  Kpi? createdLibraryKpi;
+  bool? createdWithDefinition;
+
   @override
   Future<void> saveRoleScorecardKpis(
     String roleScorecardId,
@@ -26,6 +32,43 @@ class _CapturingRepository extends RoleScorecardRepository {
     List<KpiLinkInput> links,
   ) async {
     captured = links;
+  }
+
+  @override
+  Future<Kpi> saveLibraryKpi({
+    String? id,
+    required String companyId,
+    required String name,
+    String? category,
+    String? description,
+    String? measurementUnit,
+    String valueType = 'COUNT',
+    String? numeratorLabel,
+    String? numeratorSource,
+    String? denominatorLabel,
+    String? denominatorSource,
+    String? unit,
+    String cadence = 'WEEKLY',
+    String? proofType,
+    bool writeDefinition = false,
+  }) async {
+    createdWithDefinition = writeDefinition;
+    return createdLibraryKpi = Kpi(
+      id: id ?? 'lib-created',
+      companyId: companyId,
+      name: name,
+      category: category,
+      description: description,
+      measurementUnit: measurementUnit,
+      valueType: valueType,
+      numeratorLabel: numeratorLabel,
+      numeratorSource: numeratorSource,
+      denominatorLabel: denominatorLabel,
+      denominatorSource: denominatorSource,
+      unit: unit,
+      cadence: cadence,
+      proofType: proofType,
+    );
   }
 }
 
@@ -249,8 +292,96 @@ void main() {
 
       expect(repo.captured, isNotNull);
       final link = repo.captured!.single;
-      expect(link.kpiId, isNull, reason: 'brand-new — resolved server-side');
+      // The library row is created up front now (see the RATIO test below),
+      // so the link references it by id instead of being resolved by name
+      // server-side — but the cadence must still be the one the manager
+      // picked, never the form's bare WEEKLY default.
+      expect(link.kpiId, 'lib-created');
       expect(link.cadence, 'MONTHLY');
+      expect(repo.createdLibraryKpi?.cadence, 'MONTHLY');
+    },
+  );
+
+  testWidgets(
+    'defining a RATIO inline creates the library row with its whole '
+    'definition, not a bare COUNT with no numerator',
+    (tester) async {
+      // The inline-define path is half of what "Add KPI" offers. It captured
+      // valueType/numerator/denominator/sources from KpiDefinitionForm and
+      // then dropped every one of them, because KpiLinkInput had nowhere to
+      // put them and saveRoleScorecardKpis constructed the new Kpi from
+      // name/unit/cadence alone. The library row was inserted as
+      // value_type = 'COUNT' with a null numerator, so the KPI read "not
+      // measurable yet" forever and could never join anyone's tracked set.
+      final repo = _CapturingRepository();
+      await pump(tester, const [], repo: repo);
+
+      await tester.tap(find.widgetWithText(TextButton, 'Add KPI'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).first, 'Return Rate');
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.widgetWithText(DropdownButtonFormField<String>, 'COUNT'),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('RATIO').last);
+      await tester.pumpAndSettle();
+
+      Future<void> fill(String label, String text) async {
+        await tester.enterText(find.widgetWithText(TextFormField, label), text);
+        await tester.pumpAndSettle();
+      }
+
+      await fill('What is counted', 'Returns');
+      await fill('Source', 'BigSeller');
+      await fill('Counted against', 'Orders');
+      await fill('Denominator source', 'Temu');
+      await fill('Unit', '%');
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+      await tester.pumpAndSettle();
+
+      final created = repo.createdLibraryKpi;
+      expect(created, isNotNull, reason: 'the library row must be created');
+      expect(
+        repo.createdWithDefinition,
+        isTrue,
+        reason:
+            'without writeDefinition the eight definition columns are not '
+            'sent at all — saveLibraryKpi says so in its own doc comment',
+      );
+      expect(created!.name, 'Return Rate');
+      expect(created.valueType, 'RATIO');
+      expect(created.numeratorLabel, 'Returns');
+      expect(created.numeratorSource, 'BigSeller');
+      expect(created.denominatorLabel, 'Orders');
+      expect(created.denominatorSource, 'Temu');
+      expect(created.unit, '%');
+
+      // And the row now on the pane links to that library id, so the goal it
+      // gets is attached to the defined KPI rather than to a name.
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+      expect(repo.captured!.single.kpiId, 'lib-created');
+    },
+  );
+
+  testWidgets(
+    'this pane owns the goal columns — its saves carry writeGoal',
+    (tester) async {
+      // Without this the workbench could set a goal but never clear one: the
+      // repository leaves the goal columns alone for a caller with no
+      // opinion (see KpiLinkInput.writeGoal).
+      final repo = _CapturingRepository();
+      await pump(tester, const [
+        RoleKpi(kpiId: 'k1', name: 'Return Rate', cadence: 'WEEKLY'),
+      ], repo: repo);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect(repo.captured!.single.writeGoal, isTrue);
     },
   );
 
