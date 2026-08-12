@@ -336,13 +336,37 @@ git commit -m "feat(wp): create a role from the Roles tab"
 - Consumes: the pattern already shipped in `kpis_pane.dart` — `_isDirty` comparing drafts against a baseline captured in `_captureFrom`, and `_resync()` behind a confirm dialog when dirty, silent when pristine.
 - Produces: nothing new.
 
-Plan 2 deferred this. The pane holds a capture-once snapshot of `_areas`/`_existingRows` that only refreshes on its own mutations, so another screen invalidating `wpTasksProvider` leaves it showing stale names and order beside live hours. It matters more here than it did in the KPIs pane: this pane's order is what the role-card PDF and contract Annex A render.
+Plan 2 deferred this. The pane holds a capture-once snapshot of
+`_areas`/`_existingRows` that only refreshes on its own mutations, so another
+screen invalidating `wpTasksProvider` leaves it showing stale names and order
+beside live hours. It matters more here than in the KPIs pane: **this pane's
+order is what the role-card PDF and contract Annex A render.**
 
-Mirror `kpis_pane.dart`'s implementation rather than inventing a second shape — two panes on one screen behaving differently under refresh is its own bug.
+**Do NOT port the dirty check.** An earlier draft of this task said to mirror
+`kpis_pane.dart` wholesale, including `_isDirty` and a confirm dialog. That was
+wrong. `KpisPane` stages edits in `TextEditingController`s behind its own Save
+button, so it has genuine unsaved state to protect. This pane has none: every
+mutation path (`_addArea`, `_linkExisting`, `_addTask`, `_editTask`) persists
+immediately from a dialog, names render as plain `Text`, and there is no Save
+button. A dirty check here would always be false — the "worse than none" case.
+
+Fix the staleness itself. Prefer **deleting the `_captured` gate** and deriving
+the drafts from the provider each build, which removes the bug class rather
+than giving the user a manual workaround. Before doing that, check whether
+anything in the pane keys off draft identity or otherwise needs those draft
+objects stable across builds; if it does, keep the gate and add a
+silent-always refresh `IconButton` instead. Either way there is no confirm
+dialog — copy claiming to discard typing would be a lie.
+
+Document the divergence from `kpis_pane.dart` in the code, not only in a
+report: the next reader will see two panes on one screen behaving differently
+and needs the reason without re-deriving it.
 
 - [ ] **Step 1: Write the failing test**
 
-Add to `test/features/workforce_planning/role/responsibilities_pane_test.dart` a case that pumps the pane, changes what `wpTasksProvider` returns, taps the refresh control, and asserts the new task name appears. Add a second asserting that with an unsaved edit pending the control asks for confirmation first, and a third that a pristine pane refreshes without a dialog. Follow the three equivalent cases already in `kpis_pane_test.dart` — read them first and match their shape.
+Add to `test/features/workforce_planning/role/responsibilities_pane_test.dart` one case: an external change to what `wpTasksProvider` returns surfaces in the pane. Whether that means "after tapping refresh" or "on the next build" depends on which fix the check above led you to.
+
+Write only tests that correspond to reachable behaviour. There is no dirty state and no confirm dialog here, so there is nothing to test for either — do not manufacture a scenario to fill the shape of the KPIs pane's test list.
 
 - [ ] **Step 2: Run it and watch it fail**
 
@@ -354,7 +378,7 @@ Expected: FAIL — no refresh control exists.
 
 - [ ] **Step 3: Implement**
 
-Port `_isDirty`, `_baseline`, `_resync()` and the refresh `IconButton` from `kpis_pane.dart`, adapted to this pane's draft shape. The dirty comparison must cover what a manager can actually edit here — area names and the task rows' names and membership.
+Apply whichever fix the identity-key check indicated: drop the `_captured` gate, or keep it behind a silent refresh control. No `_isDirty`, no `_baseline`, no confirm dialog.
 
 - [ ] **Step 4: Run everything**
 
