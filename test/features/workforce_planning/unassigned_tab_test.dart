@@ -64,7 +64,7 @@ const _p2 = WpTask(
   hoursPerMonth: 5,
 );
 
-Widget _host(_FakeRepo repo, _FakeCards cards) {
+Widget _host(_FakeRepo repo, _FakeCards cards, {List<String>? pushed}) {
   final router = GoRouter(
     initialLocation: '/unassigned',
     routes: [
@@ -79,8 +79,20 @@ Widget _host(_FakeRepo repo, _FakeCards cards) {
         ),
       ),
       GoRoute(
+        path: '/workforce-planning/roles/:id',
+        builder: (_, s) {
+          pushed?.add('/workforce-planning/roles/${s.pathParameters['id']}');
+          return const Scaffold(body: Text('WORKBENCH STUB'));
+        },
+      ),
+      // Catch the retired destination too, so a regression back to the old
+      // editor fails loudly here rather than silently 404ing.
+      GoRoute(
         path: '/responsibility-cards/:id/edit',
-        builder: (_, _) => const Scaffold(body: Text('EDIT STUB')),
+        builder: (_, s) {
+          pushed?.add('/responsibility-cards/${s.pathParameters['id']}/edit');
+          return const Scaffold(body: Text('EDIT STUB'));
+        },
       ),
     ],
   );
@@ -125,6 +137,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(cards.drafted, hasLength(1));
     expect(cards.drafted.single.$2.toSet(), {'p1', 'p2'});
-    expect(find.text('EDIT STUB'), findsOneWidget);
+    expect(find.text('WORKBENCH STUB'), findsOneWidget);
   });
+
+  testWidgets(
+    'Propose role lands on the workbench, not the old editor',
+    (tester) async {
+      final cards = _FakeCards();
+      final pushed = <String>[];
+      await tester.pumpWidget(_host(_FakeRepo(), cards, pushed: pushed));
+      await tester.pumpAndSettle();
+      await tester.tap(find.textContaining('Propose role from these'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Draft role'));
+      await tester.pumpAndSettle();
+      expect(pushed, ['/workforce-planning/roles/new-card']);
+    },
+  );
 }

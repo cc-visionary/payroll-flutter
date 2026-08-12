@@ -360,10 +360,11 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
         ),
       ),
     );
-    // Land HR on the draft to complete it; the /edit route loads an inactive
-    // card by id. This is the working downstream the propose action needs, and
-    // navigating away also stops the see-no-change-and-re-click duplicate loop.
-    context.push('/responsibility-cards/$newId/edit');
+    // Land HR on the draft to complete it; the workbench loads an inactive
+    // card by id same as any other role. This is the working downstream the
+    // propose action needs, and navigating away also stops the
+    // see-no-change-and-re-click duplicate loop.
+    context.push('/workforce-planning/roles/$newId');
   }
 
   /// Mirrors `TasksTab._invalidateAfterTaskChange`: any mutation here moves a
