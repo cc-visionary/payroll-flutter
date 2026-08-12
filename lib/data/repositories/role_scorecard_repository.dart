@@ -778,6 +778,26 @@ class RoleScorecardRepository {
       assignedKpiIdsByEmployee: assignedKpiIdsByEmployee,
     );
   }
+
+  /// kpiId -> the job titles of the role cards linking it. Roles and PEOPLE
+  /// differ: a KPI on a card with no current holder has a role but nobody
+  /// tracking it, which is precisely the state 20260811000001's cleanup
+  /// deactivates rather than deletes.
+  Future<Map<String, List<String>>> roleTitlesByKpi() async {
+    final rows = await _client
+        .from('role_scorecard_kpis')
+        .select('kpi_id, role_scorecards(job_title)');
+    final out = <String, List<String>>{};
+    for (final r in (rows as List).cast<Map<String, dynamic>>()) {
+      final title = (r['role_scorecards'] as Map?)?['job_title'] as String?;
+      if (title == null) continue;
+      (out[r['kpi_id'] as String] ??= []).add(title);
+    }
+    for (final list in out.values) {
+      list.sort();
+    }
+    return out;
+  }
 }
 
 final roleScorecardRepositoryProvider = Provider<RoleScorecardRepository>(
@@ -820,6 +840,14 @@ final kpiAssignedEmployeesProvider =
           .watch(roleScorecardRepositoryProvider)
           .assignedEmployeesByKpi();
     });
+
+/// kpiId -> job titles of the role cards linking it. Sits beside
+/// [kpiAssignedEmployeesProvider] in the KPI Library: roles and people
+/// differ, because a KPI on a vacant card has a role but no holder tracking
+/// it yet — see [RoleScorecardRepository.roleTitlesByKpi].
+final kpiRoleTitlesProvider = FutureProvider<Map<String, List<String>>>((ref) {
+  return ref.watch(roleScorecardRepositoryProvider).roleTitlesByKpi();
+});
 
 final roleKpisProvider = FutureProvider.family<List<RoleKpi>, String>((
   ref,

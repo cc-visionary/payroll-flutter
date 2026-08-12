@@ -50,4 +50,38 @@ void main() {
     expect(find.text('Uncategorized'), findsOneWidget);
     expect(find.text('Ad-hoc Score'), findsOneWidget);
   });
+
+  testWidgets(
+    'shows a roles count beside the people count, even for a vacant card',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            kpiLibraryProvider.overrideWith(
+              (ref) async => const [
+                Kpi(
+                  id: '1',
+                  companyId: 'c',
+                  name: 'Retention',
+                  category: 'Sales',
+                ),
+              ],
+            ),
+            // No holder tracks it (vacant card) — people count is zero —
+            // but the role that carries it still exists.
+            kpiAssignedEmployeesProvider.overrideWith((ref) async => const {}),
+            kpiRoleTitlesProvider.overrideWith(
+              (ref) async => const {
+                '1': ['Regional Sales Lead'],
+              },
+            ),
+          ],
+          child: const MaterialApp(home: KpiLibraryScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Measuring nobody'), findsWidgets);
+      expect(find.text('1 · Regional Sales Lead'), findsOneWidget);
+    },
+  );
 }

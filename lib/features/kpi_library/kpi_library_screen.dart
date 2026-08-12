@@ -39,6 +39,7 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
   Widget build(BuildContext context) {
     final async = ref.watch(kpiLibraryProvider);
     final assignedAsync = ref.watch(kpiAssignedEmployeesProvider);
+    final roleTitlesAsync = ref.watch(kpiRoleTitlesProvider);
     final deptNames = <String, String>{
       for (final d
           in ref.watch(departmentListProvider).asData?.value ??
@@ -132,6 +133,7 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
                     _KpiTile(
                       kpi: kpi,
                       assignedAsync: assignedAsync,
+                      roleTitlesAsync: roleTitlesAsync,
                       onEdit: companyId == null
                           ? null
                           : () => _openForm(
@@ -521,11 +523,13 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
 class _KpiTile extends StatelessWidget {
   final Kpi kpi;
   final AsyncValue<Map<String, List<KpiAssignee>>> assignedAsync;
+  final AsyncValue<Map<String, List<String>>> roleTitlesAsync;
   final VoidCallback? onEdit;
   final VoidCallback onDeactivate;
   const _KpiTile({
     required this.kpi,
     required this.assignedAsync,
+    required this.roleTitlesAsync,
     required this.onEdit,
     required this.onDeactivate,
   });
@@ -607,7 +611,17 @@ class _KpiTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          SizedBox(width: 210, child: _buildAssigneeLine(context)),
+          SizedBox(
+            width: 210,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildAssigneeLine(context),
+                _buildRoleTitlesLine(context),
+              ],
+            ),
+          ),
           const SizedBox(width: 8),
           if (onEdit != null)
             IconButton(
@@ -679,6 +693,51 @@ class _KpiTile extends StatelessWidget {
               Flexible(
                 child: Text(
                   '${assignees.length} · $names',
+                  style: mutedStyle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => SizedBox(
+        height: 12,
+        width: 12,
+        child: CircularProgressIndicator(
+          strokeWidth: 1.5,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+      error: (_, _) => const SizedBox.shrink(),
+    );
+  }
+
+  /// The roles count beside the people count above. Unlike the people line
+  /// this renders nothing when the count is zero — "on no role card" is a
+  /// different, rarer gap than "measuring nobody" and already implied by an
+  /// empty people line, so a second empty-state warning here would just be
+  /// noise on every already-flagged row.
+  Widget _buildRoleTitlesLine(BuildContext context) {
+    final mutedStyle = TextStyle(
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+      fontSize: 12,
+    );
+    return roleTitlesAsync.when(
+      data: (map) {
+        final titles = map[kpi.id] ?? const <String>[];
+        if (titles.isEmpty) return const SizedBox.shrink();
+        return Tooltip(
+          message: titles.join(', '),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.badge_outlined, size: 13, color: mutedStyle.color),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  '${titles.length} · ${titles.join(', ')}',
                   style: mutedStyle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
