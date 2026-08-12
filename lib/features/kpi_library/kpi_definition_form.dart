@@ -93,7 +93,10 @@ class _KpiDefinitionFormState extends State<KpiDefinitionForm> {
     // Report the starting draft before the user touches anything — a host
     // that saves immediately (e.g. an unedited "New KPI" dialog) must see the
     // same defaults this form is displaying, not null.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _emit());
+    // _report, not _emit: the first build already rendered the gaps line from
+    // these same controllers, so there is nothing to refresh — only the host
+    // needs telling.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _report());
   }
 
   @override
@@ -110,7 +113,21 @@ class _KpiDefinitionFormState extends State<KpiDefinitionForm> {
 
   String? _blank(String v) => v.trim().isEmpty ? null : v.trim();
 
+  /// Reports the current draft AND refreshes this form's own gaps line.
+  /// Use from anything backed by a [TextEditingController]; the dropdowns
+  /// call [_report] directly because they already `setState`.
   void _emit() {
+    _report();
+    // The "Still needed" line is computed in build() from these controllers'
+    // text, and a TextEditingController change does not itself rebuild this
+    // widget — only the dropdowns did, via their own setState. So typing into
+    // "What is counted" left the line still listing it as missing (and, once
+    // the last gap was filled by typing, left the form claiming the
+    // definition was incomplete when it was not).
+    if (mounted) setState(() {});
+  }
+
+  void _report() {
     widget.onChanged(
       KpiDefinitionDraft(
         valueType: _valueType,
@@ -145,7 +162,8 @@ class _KpiDefinitionFormState extends State<KpiDefinitionForm> {
         _denominatorSource.clear();
       }
     });
-    _emit();
+    // The setState above already schedules the rebuild _emit would add.
+    _report();
   }
 
   @override
@@ -205,7 +223,7 @@ class _KpiDefinitionFormState extends State<KpiDefinitionForm> {
                 onChanged: (v) {
                   if (v == null) return;
                   setState(() => _cadence = v);
-                  _emit();
+                  _report();
                 },
               ),
             ),
@@ -301,7 +319,7 @@ class _KpiDefinitionFormState extends State<KpiDefinitionForm> {
                 ],
                 onChanged: (v) {
                   setState(() => _proofType = v);
-                  _emit();
+                  _report();
                 },
               ),
             ),
@@ -346,24 +364,36 @@ class _KpiDefinitionFormState extends State<KpiDefinitionForm> {
   }
 
   Widget _gapsLine(BuildContext context, List<String> gaps) {
-    if (gaps.isEmpty) {
-      final tone = StatusPalette.of(context, StatusTone.success).foreground;
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.check_circle_outline, size: 14, color: tone),
-          const SizedBox(width: 4),
-          Text(
-            'Definition complete — a number can be produced for this KPI.',
-            style: TextStyle(fontSize: 12, color: tone),
-          ),
-        ],
-      );
-    }
+    if (gaps.isEmpty) return _completeLine(context);
     final tone = StatusPalette.of(context, StatusTone.warning).foreground;
     return Text(
       'Still needed: ${gaps.join(', ')}',
       style: TextStyle(fontSize: 12, color: tone),
+    );
+  }
+
+  /// Wrapped in [Flexible] rather than sized naturally: the sentence is longer
+  /// than the 640px-wide Add-KPI dialog this form also lives in, so an
+  /// unconstrained Text beside the icon overflows the Row the moment the
+  /// definition becomes complete.
+  Widget _completeLine(BuildContext context) {
+    final tone = StatusPalette.of(context, StatusTone.success).foreground;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: Icon(Icons.check_circle_outline, size: 14, color: tone),
+        ),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+            'Definition complete — a number can be produced for this KPI.',
+            style: TextStyle(fontSize: 12, color: tone),
+          ),
+        ),
+      ],
     );
   }
 }
