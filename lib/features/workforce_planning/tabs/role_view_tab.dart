@@ -8,6 +8,7 @@ import '../../../data/models/workforce_planning.dart';
 import '../../../data/repositories/role_scorecard_repository.dart';
 import '../../../data/repositories/workforce_planning_repository.dart';
 import '../../../widgets/responsive_table.dart';
+import '../role/new_role_dialog.dart';
 import '../role_rollup.dart';
 import '../wp_providers.dart';
 import 'load_chip.dart';
@@ -29,12 +30,32 @@ final ownerComputedProvider =
 /// preview, headroom), and two tabs answering the same question is how a hub
 /// gets confusing. This tab now answers only the question Balance cannot: is
 /// the ROLE viable, whoever holds it?
-class RoleViewTab extends StatelessWidget {
+class RoleViewTab extends ConsumerWidget {
   const RoleViewTab({super.key});
 
   @override
-  Widget build(BuildContext context) =>
-      const _RoleLens(header: SizedBox.shrink());
+  Widget build(BuildContext context, WidgetRef ref) => _RoleLens(
+    // Creating a role now lives here, not the old card editor's new-card
+    // mode (which a later step in this project deletes). No extra
+    // permission check: this tab is already HR/Admin-only via the
+    // /workforce-planning route guard in app/router.dart.
+    header: Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: FilledButton.icon(
+          onPressed: () async {
+            final id = await showNewRoleDialog(context, ref);
+            if (id != null && context.mounted) {
+              context.push('/workforce-planning/roles/$id');
+            }
+          },
+          icon: const Icon(Icons.add),
+          label: const Text('New role'),
+        ),
+      ),
+    ),
+  );
 }
 
 /// The per-ROLE lens: one row per active role card with its responsibility

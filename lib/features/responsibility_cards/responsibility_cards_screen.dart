@@ -24,28 +24,7 @@ class ResponsibilityCardsScreen extends ConsumerWidget {
     final mobile = isMobile(context);
     return Scaffold(
       drawer: mobile ? const AppDrawer() : null,
-      appBar: AppBar(
-        title: const Text('Responsibility Cards'),
-        actions: [
-          if (canManage)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: mobile
-                  ? IconButton(
-                      tooltip: 'New card',
-                      onPressed: () =>
-                          context.push('/responsibility-cards/new'),
-                      icon: const Icon(Icons.add),
-                    )
-                  : FilledButton.icon(
-                      onPressed: () =>
-                          context.push('/responsibility-cards/new'),
-                      icon: const Icon(Icons.add),
-                      label: const Text('New card'),
-                    ),
-            ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Responsibility Cards')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
