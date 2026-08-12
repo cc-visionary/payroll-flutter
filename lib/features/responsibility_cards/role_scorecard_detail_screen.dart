@@ -146,7 +146,7 @@ class RoleScorecardDetailScreen extends ConsumerWidget {
         await showDialog<bool>(
           context: ctx,
           builder: (c) => AlertDialog(
-            title: const Text('Delete card?'),
+            title: const Text('Delete seat?'),
             content: Text(
               'This will delete "${card.jobTitle}". This cannot be undone.'
               '$rerootWarning',
