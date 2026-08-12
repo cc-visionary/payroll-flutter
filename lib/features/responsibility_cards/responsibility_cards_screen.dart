@@ -31,7 +31,7 @@ class ResponsibilityCardsScreen extends ConsumerWidget {
           child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
         ),
         data: (rows) => rows.isEmpty
-            ? const Center(child: Text('No responsibility cards yet.'))
+            ? const Center(child: Text('No seats yet.'))
             : ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemCount: rows.length,

@@ -74,7 +74,7 @@ class _RoleTitleFieldState extends ConsumerState<RoleTitleField> {
           decoration: InputDecoration(
             labelText: widget.labelText,
             hintText:
-                widget.hintText ?? 'Type or select from responsibility cards',
+                widget.hintText ?? 'Type or select from seats',
             border: const OutlineInputBorder(),
             isDense: true,
           ),
