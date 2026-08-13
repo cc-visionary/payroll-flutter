@@ -6,7 +6,6 @@ import '../../data/repositories/role_scorecard_repository.dart'
     show KpiAssignee;
 import '../kpi_library/kpi_measurable.dart' show isKpiDefined;
 import '../kpi_library/kpi_rows.dart' show kpiIsAssigned;
-import '../kpi_library/kpi_set_rules.dart' show employeeNeedsKpiSet;
 import 'allocation.dart';
 import 'capacity_math.dart';
 import 'tasks_rows.dart' show isTaskNotCosted;
@@ -56,18 +55,9 @@ List<AttentionItem> buildNeedsAttention({
   required List<Kpi> kpis,
   required Map<String, List<KpiAssignee>> kpiAssignedByKpi,
   Map<String, List<WpTaskAssignment>> assignmentsByTask = const {},
-  // Null means NOT LOADED, and is not the same as an empty map. Empty
-  // roleKpiIdsByCard makes every holder's on-role intersection empty, so
-  // reading an unresolved provider as empty would report the MAXIMUM — every
-  // ACTIVE holder in the company has no KPI set — rather than zero. The
-  // signal is therefore skipped entirely while either map is absent.
-  Map<String, Set<String>>? roleKpiIdsByCard,
-  Map<String, Set<String>>? assignedKpiIdsByEmployee,
   // Role card id -> how many people currently hold it. Empty (the default)
-  // yields zero for the signal below rather than "not loaded" — unlike
-  // roleKpiIdsByCard above, an empty map here is the true zero state (no
-  // roles known yet), not the wrong extreme, so no absent/empty distinction
-  // is needed.
+  // yields zero for the "roles nobody holds" signal below rather than "not
+  // loaded" — an empty map here is the true zero state (no roles known yet).
   Map<String, int> holderCountByRole = const {},
 }) {
   final items = <AttentionItem>[];
@@ -121,28 +111,18 @@ List<AttentionItem> buildNeedsAttention({
     AttentionTarget.unassigned,
   );
 
-  // An employee needs a set when the ids they store that are actually ON
-  // their own role come to nothing. Testing the raw stored set instead is a
-  // real bug we already shipped once: a holder whose only tracked KPI was
-  // later removed from the role read as fully tracked.
-  final noKpiSet =
-      (roleKpiIdsByCard == null || assignedKpiIdsByEmployee == null)
-      ? 0
-      : employees.where((e) {
-          if (e.employmentStatus != 'ACTIVE' || e.deletedAt != null) {
-            return false;
-          }
-          final cardId = e.roleScorecardId;
-          if (cardId == null) return false;
-          final onRole = (assignedKpiIdsByEmployee[e.id] ?? const <String>{})
-              .intersection(roleKpiIdsByCard[cardId] ?? const <String>{});
-          return employeeNeedsKpiSet(onRole);
-        }).length;
+  // A person's KPIs are their role's KPIs — pure inheritance, no
+  // per-employee curation. So the gap that used to be a PERSON'S (someone
+  // with zero of their role's KPIs ticked) is now a ROLE'S: a role that
+  // defines no KPIs leaves every current and future holder unmeasured on
+  // day one. Counted per role, not per holder, the same way roleNoDept below
+  // counts a role once rather than once per person on it.
+  final rolesNoKpi = cards.where((c) => c.isActive && c.kpis.isEmpty).length;
   add(
     AttentionCategory.people,
     AttentionSeverity.medium,
-    noKpiSet,
-    '${_plural(noKpiSet, 'person has', 'people have')} no KPI set',
+    rolesNoKpi,
+    '${_plural(rolesNoKpi, 'role', 'roles')} with no KPI',
     AttentionTarget.roles,
   );
 

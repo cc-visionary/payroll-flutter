@@ -113,14 +113,12 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
     ref.invalidate(roleScorecardByIdProvider(widget.cardId));
     ref.invalidate(roleKpisProvider(widget.cardId));
     // Adding/removing a role->KPI link changes what the Needs-attention
-    // strip's "no KPI set" signal sees as this card's on-role set — without
-    // this the chip can go stale-true after the exact edit that should have
-    // cleared it.
-    ref.invalidate(wpKpiAssignmentMapsProvider);
-    // Same edit also changes the KPI Library's people and roles counts for
-    // every KPI added to or removed from this card — without these the
-    // library can show a role/people count that no longer matches what was
-    // just saved until something else happens to invalidate them.
+    // strip's "N roles with no KPI" signal sees (it reads `card.kpis`
+    // straight off roleScorecardListProvider, already invalidated above) and
+    // the KPI Library's people and roles counts for every KPI added to or
+    // removed from this card — without these the library can show a
+    // role/people count that no longer matches what was just saved until
+    // something else happens to invalidate them.
     ref.invalidate(kpiAssignedEmployeesProvider);
     ref.invalidate(kpiRoleTitlesProvider);
     // Force a resync from the next successful load rather than trust local
@@ -272,10 +270,10 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
     ref.invalidate(roleOutcomesProvider(widget.cardId));
     // Same reasoning as _invalidateAfterSave: a resync means this card's
     // on-role KPI set may have changed underneath us (e.g. another session's
-    // edit), so the strip's cached view of it must not survive this reload.
-    ref.invalidate(wpKpiAssignmentMapsProvider);
-    // ...and neither must the KPI Library's people/roles counts, for the
-    // same reason.
+    // edit), so the KPI Library's people/roles counts must not survive this
+    // reload stale. (The Needs-attention strip's "N roles with no KPI"
+    // signal reads `card.kpis` off roleScorecardListProvider, invalidated
+    // above.)
     ref.invalidate(kpiAssignedEmployeesProvider);
     ref.invalidate(kpiRoleTitlesProvider);
     setState(() => _captured = false);

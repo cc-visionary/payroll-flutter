@@ -33,21 +33,25 @@ WpTask _t(
   isExpectation: expectation,
 );
 
-RoleScorecard _card(String id, {bool active = true, String? dept}) =>
-    RoleScorecard(
-      id: id,
-      companyId: 'c',
-      jobTitle: id,
-      missionStatement: '',
-      departmentId: dept,
-      responsibilities: const [],
-      kpis: const [],
-      wageType: 'MONTHLY',
-      workHoursPerDay: 8,
-      workDaysPerWeek: 'MON_FRI',
-      isActive: active,
-      effectiveDate: DateTime(2026),
-    );
+RoleScorecard _card(
+  String id, {
+  bool active = true,
+  String? dept,
+  List<KpiItem> kpis = const [],
+}) => RoleScorecard(
+  id: id,
+  companyId: 'c',
+  jobTitle: id,
+  missionStatement: '',
+  departmentId: dept,
+  responsibilities: const [],
+  kpis: kpis,
+  wageType: 'MONTHLY',
+  workHoursPerDay: 8,
+  workDaysPerWeek: 'MON_FRI',
+  isActive: active,
+  effectiveDate: DateTime(2026),
+);
 
 Kpi _kpi(
   String id, {
@@ -103,8 +107,6 @@ List<AttentionItem> _run({
   List<Kpi> kpis = const [],
   Map<String, List<KpiAssignee>> assigned = const {},
   Map<String, List<WpTaskAssignment>> assignmentsByTask = const {},
-  Map<String, Set<String>>? roleKpiIdsByCard,
-  Map<String, Set<String>>? assignedKpiIdsByEmployee,
   Map<String, int> holderCountByRole = const {},
 }) => buildNeedsAttention(
   loads: loads,
@@ -114,8 +116,6 @@ List<AttentionItem> _run({
   kpis: kpis,
   kpiAssignedByKpi: assigned,
   assignmentsByTask: assignmentsByTask,
-  roleKpiIdsByCard: roleKpiIdsByCard,
-  assignedKpiIdsByEmployee: assignedKpiIdsByEmployee,
   holderCountByRole: holderCountByRole,
 );
 
@@ -289,71 +289,49 @@ void main() {
     expect(struct.length, 2);
   });
 
-  test('flags only holders whose ON-ROLE set is empty', () {
-    // e1 tracks one of its role's KPIs -> fine.
-    // e2 stores only an id that is NOT on its role -> reads as absent.
-    // e3 stores nothing -> absent.
-    // e4 holds no role card at all -> not this signal's business.
-    final items = _run(
-      employees: [
-        _emp('e1', 'One', 'card-1'),
-        _emp('e2', 'Two', 'card-1'),
-        _emp('e3', 'Three', 'card-1'),
-        _emp('e4', 'Four', null),
-      ],
-      cards: [_card('card-1')],
-      roleKpiIdsByCard: const {
-        'card-1': {'k1', 'k2'},
-      },
-      assignedKpiIdsByEmployee: const {
-        'e1': {'k1'},
-        'e2': {'zz'},
-        'e3': <String>{},
-      },
+  // Pure inheritance retired the per-employee "no KPI set" signal: an
+  // employee's KPIs are their role's KPIs, so there is no stored subset left
+  // to be absent or off-role. The rule that survives is the same shape one
+  // level up — a gap the app must still flag, just on the ROLE now.
+  test('a role with no KPIs is flagged; one with a KPI is not', () {
+    const returnRate = KpiItem(
+      name: 'Return Rate',
+      measurement: '%',
+      target: '',
+      frequency: 'Weekly',
     );
-
-    final item = items.singleWhere((i) => i.label.contains('no KPI set'));
-    expect(item.count, 2);
+    final items = _run(
+      cards: [_card('card-1'), _card('card-2', kpis: const [returnRate])],
+    );
+    final item = items.singleWhere((i) => i.label.contains('with no KPI'));
+    expect(item.count, 1);
     expect(item.target, AttentionTarget.roles);
+    expect(item.category, AttentionCategory.people);
   });
 
-  test('says nothing while the assignment maps are still absent', () {
-    // Absent is not empty. Empty maps make every holder's on-role set empty,
-    // so defaulting an unresolved provider to {} would flag EVERY active
-    // holder — the maximum, not zero.
-    final absent = _run(
-      employees: [_emp('e1', 'One', 'card-1'), _emp('e2', 'Two', 'card-1')],
-      cards: [_card('card-1')],
+  test('says nothing when every active role has a KPI', () {
+    const returnRate = KpiItem(
+      name: 'Return Rate',
+      measurement: '%',
+      target: '',
+      frequency: 'Weekly',
     );
-    expect(absent.where((i) => i.label.contains('no KPI set')), isEmpty);
-
-    // Same inputs, maps now loaded and genuinely empty -> both are flagged.
-    final loaded = _run(
-      employees: [_emp('e1', 'One', 'card-1'), _emp('e2', 'Two', 'card-1')],
-      cards: [_card('card-1')],
-      roleKpiIdsByCard: const {
-        'card-1': {'k1'},
-      },
-      assignedKpiIdsByEmployee: const {},
-    );
-    expect(
-      loaded.singleWhere((i) => i.label.contains('no KPI set')).count,
-      2,
-    );
+    final items = _run(cards: [_card('card-1', kpis: const [returnRate])]);
+    expect(items.where((i) => i.label.contains('with no KPI')), isEmpty);
   });
 
-  test('says nothing when every holder has an on-role set', () {
+  test('an inactive role with no KPI does not count', () {
+    final items = _run(cards: [_card('card-1', active: false)]);
+    expect(items.where((i) => i.label.contains('with no KPI')), isEmpty);
+  });
+
+  test('a role with no KPIs is flagged once, not once per holder', () {
     final items = _run(
-      employees: [_emp('e1', 'One', 'card-1')],
+      employees: [_emp('e1', 'One', 'card-1'), _emp('e2', 'Two', 'card-1')],
       cards: [_card('card-1')],
-      roleKpiIdsByCard: const {
-        'card-1': {'k1'},
-      },
-      assignedKpiIdsByEmployee: const {
-        'e1': {'k1'},
-      },
     );
-    expect(items.where((i) => i.label.contains('no KPI set')), isEmpty);
+    final item = items.singleWhere((i) => i.label.contains('with no KPI'));
+    expect(item.count, 1);
   });
 
   test('an unfilled role is flagged once, not once per missing holder', () {

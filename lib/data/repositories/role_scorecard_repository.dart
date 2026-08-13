@@ -8,26 +8,6 @@ import '../models/role_outcome.dart';
 import '../models/role_scorecard.dart';
 import '../models/workforce_planning.dart';
 
-/// Which boxes to tick for an employee whose stored set is [assigned].
-///
-/// The stored set IS the set. An empty result means nobody has chosen yet —
-/// a gap to close, not "tracks everything". That changed in 20260811000002,
-/// which backfilled an explicit set for everyone who had an effective one.
-/// Ids no longer on the role are dropped: an employee can be moved to a
-/// different card, leaving rows that point at the old role's KPIs.
-Set<String> initialCheckedKpiIds(
-  Set<String> assigned,
-  List<String> roleKpiIds,
-) => roleKpiIds.where(assigned.contains).toSet();
-
-/// What to store for [checked], in role order so the rows read predictably.
-///
-/// Unlike the pre-20260811000002 rule this never collapses a full selection to
-/// the empty list — "tracks all three" and "nobody has chosen" are different
-/// states and scoring has to tell them apart.
-List<String> kpiIdsToPersist(Set<String> checked, List<String> roleKpiIds) =>
-    roleKpiIds.where(checked.contains).toList();
-
 class KpiAssignee {
   final String employeeId;
   final String name;
@@ -39,33 +19,20 @@ class KpiAssignee {
   });
 }
 
-/// kpiId -> employees effectively tracked on it. An employee tracks a KPI iff
-/// it is on their role card AND in their stored set. There is no "empty means
-/// all" fallback: per Spec A Decision 4 an employee whose stored set does not
-/// intersect their role has NO set — a gap the Needs-attention strip flags
-/// ("N people have no KPI set"), not somebody tracking everything. Defaulting
-/// here would make that chip contradict the people list beside it and would
-/// credit KPIs to a person nobody has curated.
-///
-/// NOTE: the SQL `generate_employee_review` (20260718000006) still carries the
-/// old fallback via its `not v_has_assignment` branch. Scoring is Spec B; that
-/// function must be brought in line before it is used for scoring.
+/// kpiId -> employees effectively tracked on it. Pure inheritance: an
+/// employee tracks every KPI on their role card, with no per-employee subset
+/// to intersect against — a role now defines 2-4 KPIs and whoever holds it
+/// inherits all of them.
 Map<String, List<KpiAssignee>> employeesByKpi({
   required List<({KpiAssignee assignee, String? roleScorecardId})> employees,
   required Map<String, Set<String>> roleKpiIds,
-  required Map<String, Set<String>> employeeSubsets,
 }) {
   final out = <String, List<KpiAssignee>>{};
   for (final e in employees) {
     final rsId = e.roleScorecardId;
     if (rsId == null) continue;
     final roleSet = roleKpiIds[rsId] ?? const <String>{};
-    if (roleSet.isEmpty) continue;
-    final subset = employeeSubsets[e.assignee.employeeId];
-    final onRoleSubset = subset == null
-        ? const <String>{}
-        : subset.where(roleSet.contains).toSet();
-    for (final kpiId in onRoleSubset) {
+    for (final kpiId in roleSet) {
       (out[kpiId] ??= []).add(e.assignee);
     }
   }
@@ -695,30 +662,6 @@ class RoleScorecardRepository {
     await _client.from('role_outcomes').delete().eq('id', id);
   }
 
-  Future<Set<String>> employeeAssignedKpiIds(String employeeId) async {
-    final rows = await _client
-        .from('employee_kpis')
-        .select('kpi_id')
-        .eq('employee_id', employeeId);
-    return {
-      for (final r in (rows as List).cast<Map<String, dynamic>>())
-        r['kpi_id'] as String,
-    };
-  }
-
-  /// Replace the employee's KPI assignment with [kpiIds]. Empty leaves no
-  /// rows — since 20260811000002 that means nobody has chosen yet (a gap to
-  /// close), NOT "falls back to the full role set"; that pre-migration
-  /// fallback no longer exists anywhere in the app.
-  Future<void> saveEmployeeKpis(String employeeId, List<String> kpiIds) async {
-    await _client.from('employee_kpis').delete().eq('employee_id', employeeId);
-    if (kpiIds.isNotEmpty) {
-      await _client.from('employee_kpis').insert([
-        for (final id in kpiIds) {'employee_id': employeeId, 'kpi_id': id},
-      ]);
-    }
-  }
-
   /// Accountabilities reaching a card through an ASSIGNMENT (the shared ones),
   /// as opposed to those authored on it via wp_tasks.role_scorecard_id.
   /// Keyed by role_scorecard_id.
@@ -772,9 +715,6 @@ class RoleScorecardRepository {
     final roleLinks = await _client
         .from('role_scorecard_kpis')
         .select('role_scorecard_id, kpi_id');
-    final ek = await _client
-        .from('employee_kpis')
-        .select('employee_id, kpi_id');
 
     final employees = [
       for (final e in (emps as List).cast<Map<String, dynamic>>())
@@ -793,56 +733,7 @@ class RoleScorecardRepository {
         r['kpi_id'] as String,
       );
     }
-    final employeeSubsets = <String, Set<String>>{};
-    for (final r in (ek as List).cast<Map<String, dynamic>>()) {
-      (employeeSubsets[r['employee_id'] as String] ??= {}).add(
-        r['kpi_id'] as String,
-      );
-    }
-    return employeesByKpi(
-      employees: employees,
-      roleKpiIds: roleKpiIds,
-      employeeSubsets: employeeSubsets,
-    );
-  }
-
-  /// The two maps the Needs-attention strip's "no KPI set" signal needs:
-  /// each role's KPI ids, and each employee's stored KPI ids. Two queries
-  /// company-wide rather than the per-card/per-employee round trips
-  /// [roleKpisProvider] and [employeeAssignedKpiIdsProvider] would need one
-  /// per holder — this is the same pair of tables [assignedEmployeesByKpi]
-  /// already reads, just returned as maps instead of folded into per-KPI
-  /// assignee lists.
-  Future<
-    ({
-      Map<String, Set<String>> roleKpiIdsByCard,
-      Map<String, Set<String>> assignedKpiIdsByEmployee,
-    })
-  >
-  kpiAssignmentMaps() async {
-    final roleLinks = await _client
-        .from('role_scorecard_kpis')
-        .select('role_scorecard_id, kpi_id');
-    final ek = await _client
-        .from('employee_kpis')
-        .select('employee_id, kpi_id');
-
-    final roleKpiIdsByCard = <String, Set<String>>{};
-    for (final r in (roleLinks as List).cast<Map<String, dynamic>>()) {
-      (roleKpiIdsByCard[r['role_scorecard_id'] as String] ??= {}).add(
-        r['kpi_id'] as String,
-      );
-    }
-    final assignedKpiIdsByEmployee = <String, Set<String>>{};
-    for (final r in (ek as List).cast<Map<String, dynamic>>()) {
-      (assignedKpiIdsByEmployee[r['employee_id'] as String] ??= {}).add(
-        r['kpi_id'] as String,
-      );
-    }
-    return (
-      roleKpiIdsByCard: roleKpiIdsByCard,
-      assignedKpiIdsByEmployee: assignedKpiIdsByEmployee,
-    );
+    return employeesByKpi(employees: employees, roleKpiIds: roleKpiIds);
   }
 
   /// kpiId -> the job titles of the role cards linking it. Roles and PEOPLE
@@ -931,21 +822,3 @@ final roleOutcomesProvider = FutureProvider.family<List<RoleOutcome>, String>((
   return ref.watch(roleScorecardRepositoryProvider).outcomes(roleScorecardId);
 });
 
-final employeeAssignedKpiIdsProvider =
-    FutureProvider.family<Set<String>, String>((ref, employeeId) {
-      return ref
-          .watch(roleScorecardRepositoryProvider)
-          .employeeAssignedKpiIds(employeeId);
-    });
-
-/// Company-wide role->KPI and employee->KPI maps in one round trip, for the
-/// Needs-attention strip's "no KPI set" signal. See
-/// [RoleScorecardRepository.kpiAssignmentMaps].
-final wpKpiAssignmentMapsProvider = FutureProvider<
-  ({
-    Map<String, Set<String>> roleKpiIdsByCard,
-    Map<String, Set<String>> assignedKpiIdsByEmployee,
-  })
->((ref) {
-  return ref.watch(roleScorecardRepositoryProvider).kpiAssignmentMaps();
-});
