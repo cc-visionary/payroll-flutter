@@ -124,7 +124,7 @@ class _Overview extends StatelessWidget {
               value: latest == null ? 'No review' : _label(latest.status),
             ),
             _Fact(
-              label: 'Seat',
+              label: 'Role',
               value: person?.roleScorecardId == null
                   ? 'Not assigned'
                   : 'Assigned',

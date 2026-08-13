@@ -24,14 +24,14 @@ class ResponsibilityCardsScreen extends ConsumerWidget {
     final mobile = isMobile(context);
     return Scaffold(
       drawer: mobile ? const AppDrawer() : null,
-      appBar: AppBar(title: const Text('Seats')),
+      appBar: AppBar(title: const Text('Roles')),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
           child: Text('Error: $e', style: const TextStyle(color: Colors.red)),
         ),
         data: (rows) => rows.isEmpty
-            ? const Center(child: Text('No seats yet.'))
+            ? const Center(child: Text('No roles yet.'))
             : ListView.separated(
                 padding: const EdgeInsets.all(16),
                 itemCount: rows.length,
@@ -50,9 +50,6 @@ class ResponsibilityCardsScreen extends ConsumerWidget {
                     ref,
                     rows[i],
                     counts[rows[i].id] ?? 0,
-                    // Already fetched as part of `rows` — no extra round
-                    // trip to warn about re-rooting.
-                    rows.where((r) => r.parentId == rows[i].id).length,
                   ),
                 ),
               ),
@@ -65,7 +62,6 @@ class ResponsibilityCardsScreen extends ConsumerWidget {
     WidgetRef ref,
     RoleScorecard card,
     int count,
-    int childSeatCount,
   ) async {
     if (count > 0) {
       await showDialog(
@@ -85,23 +81,13 @@ class ResponsibilityCardsScreen extends ConsumerWidget {
       );
       return;
     }
-    // A deleted seat's children re-root to the top level (parent_id ON
-    // DELETE SET NULL — see 20260813000001_seat_parent.sql) rather than
-    // blocking the delete. That is a state worth surfacing here, not just
-    // letting it happen silently.
-    final rerootWarning = childSeatCount > 0
-        ? '\n\n$childSeatCount seat${childSeatCount == 1 ? '' : 's'} '
-              '${childSeatCount == 1 ? 'reports' : 'report'} to this one and '
-              'will move to the top level.'
-        : '';
     final confirmed =
         await showDialog<bool>(
           context: ctx,
           builder: (c) => AlertDialog(
-            title: const Text('Delete seat?'),
+            title: const Text('Delete role?'),
             content: Text(
-              'This will delete "${card.jobTitle}". This cannot be undone.'
-              '$rerootWarning',
+              'This will delete "${card.jobTitle}". This cannot be undone.',
             ),
             actions: [
               TextButton(

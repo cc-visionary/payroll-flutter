@@ -98,7 +98,7 @@ final _groups = <_NavGroup>[
   ]),
   _NavGroup('Work & Performance', [
     _NavItem(
-      'Seats',
+      'Roles',
       Icons.badge_outlined,
       '/responsibility-cards',
       _hrOrAdmin,

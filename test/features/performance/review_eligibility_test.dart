@@ -29,10 +29,10 @@ void main() {
     expect(reviewEligibilityIssue(employee()), isNull);
   });
 
-  test('missing Seat is explained', () {
+  test('missing role is explained', () {
     expect(
       reviewEligibilityIssue(employee(roleCard: null)),
-      'No seat assigned',
+      'No role assigned',
     );
   });
 

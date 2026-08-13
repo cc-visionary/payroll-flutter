@@ -5,7 +5,7 @@ String? reviewEligibilityIssue(Employee employee) {
     return 'Employee is not active';
   }
   if (employee.roleScorecardId == null) {
-    return 'No seat assigned';
+    return 'No role assigned';
   }
   if (employee.reportsToId == null) {
     return 'No direct manager assigned';

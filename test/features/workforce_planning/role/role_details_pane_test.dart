@@ -20,12 +20,12 @@ class _CapturingRepository extends RoleScorecardRepository {
 RoleScorecard _card({
   String? departmentId,
   String? hiringEntityId,
-  String? parentId,
+  String? shiftTemplateId,
 }) => RoleScorecard(
   id: 'card-1',
   departmentId: departmentId,
   hiringEntityId: hiringEntityId,
-  parentId: parentId,
+  shiftTemplateId: shiftTemplateId,
   companyId: 'co-1',
   jobTitle: 'Kiosk Sales Representative',
   missionStatement: 'Sell through the kiosk.',
@@ -173,17 +173,18 @@ void main() {
   });
 
   testWidgets(
-    'an ordinary save carries the seat parent forward unchanged',
+    'an ordinary save carries a field the pane cannot edit forward unchanged',
     (tester) async {
-      // The pane has no control for parent_id (a later task adds the chart's
-      // drag-and-drop). _save() reconstructs the card field-by-field, so any
-      // field it forgets to carry forward silently reverts to the
-      // constructor's null default on every save — exactly what happened
-      // here before parentId was added beside supersededById/shiftTemplateId.
+      // The pane has no control for shift_template_id. _save() reconstructs
+      // the card field-by-field, so any field it forgets to carry forward
+      // silently reverts to the constructor's null default on every save.
+      // That has genuinely happened here before, to a different field, and
+      // the model test cannot catch it: fromRow/toUpsertPayload round-trip
+      // correctly in isolation while the CALLER drops the value.
       final repo = _CapturingRepository();
       await pump(
         tester,
-        card: _card(parentId: 'seat-root'),
+        card: _card(shiftTemplateId: 'shift-1'),
         repo: repo,
       );
       await tester.tap(find.text('Role details'));
@@ -192,7 +193,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.saved, isNotNull);
-      expect(repo.saved!.parentId, 'seat-root');
+      expect(repo.saved!.shiftTemplateId, 'shift-1');
     },
   );
 }

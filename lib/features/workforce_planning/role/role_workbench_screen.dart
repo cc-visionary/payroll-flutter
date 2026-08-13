@@ -10,8 +10,8 @@ import 'responsibilities_pane.dart';
 import 'role_details_pane.dart';
 
 /// The one place a role is authored: details, responsibilities, KPIs and the
-/// people holding it. Reached from the Roles tab; the Seat
-/// screen is the read-only artifact this produces.
+/// people holding it. Reached from the Roles tab; the role card screen is the
+/// read-only artifact this produces.
 ///
 /// Each pane owns its own save. There is deliberately no single form key
 /// spanning them — a manager fixing one responsibility's hours should not be

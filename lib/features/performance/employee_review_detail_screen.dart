@@ -132,7 +132,7 @@ class EmployeeReviewDetailScreen extends ConsumerWidget {
                         '${_date(value.reviewPeriodStart)} to ${_date(value.reviewPeriodEnd)}',
                   ),
                   _Fact(
-                    label: 'Seat',
+                    label: 'Role',
                     value: 'Version ${value.responsibilityCardVersion}',
                   ),
                 ],
@@ -150,7 +150,7 @@ class EmployeeReviewDetailScreen extends ConsumerWidget {
               const SizedBox(height: 24),
               _Section(
                 title: 'KPI standards',
-                subtitle: 'Snapshot from the seat.',
+                subtitle: 'Snapshot from the role.',
                 child: kpis.when(
                   loading: () => const LinearProgressIndicator(),
                   error: (error, _) => Text('Could not load KPIs: $error'),
