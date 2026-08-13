@@ -111,6 +111,12 @@ final _groups = <_NavGroup>[
       _hrOrAdmin,
     ),
     _NavItem(
+      'KPI Dashboard',
+      Icons.dashboard_customize_outlined,
+      '/kpi-dashboard',
+      _hrOrAdmin,
+    ),
+    _NavItem(
       'Workforce Planning',
       Icons.insights_outlined,
       '/workforce-planning',

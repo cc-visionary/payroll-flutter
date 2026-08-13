@@ -29,9 +29,11 @@ final kpiResultsForPeriodProvider =
 
 String _twoDigit(int n) => n.toString().padLeft(2, '0');
 
-String _periodOf(DateTime d) => '${d.year}-${_twoDigit(d.month)}';
+/// Public so `kpi_dashboard_screen.dart` shares the exact same period
+/// arithmetic rather than a second, potentially drifting copy.
+String periodOf(DateTime d) => '${d.year}-${_twoDigit(d.month)}';
 
-DateTime _startOfPeriod(String period) {
+DateTime startOfPeriod(String period) {
   final parts = period.split('-');
   return DateTime(int.parse(parts[0]), int.parse(parts[1]), 1);
 }
@@ -66,16 +68,16 @@ class KpiResultsScreen extends ConsumerStatefulWidget {
 }
 
 class _KpiResultsScreenState extends ConsumerState<KpiResultsScreen> {
-  late String _period = _periodOf(DateTime.now());
+  late String _period = periodOf(DateTime.now());
   _ScopeFilter _scope = _ScopeFilter.all;
   bool _recomputing = false;
 
-  DateTime get _periodStart => _startOfPeriod(_period);
+  DateTime get _periodStart => startOfPeriod(_period);
   String get _monthLabel => DateFormat('MMMM yyyy').format(_periodStart);
 
   void _shiftMonth(int delta) {
     final d = DateTime(_periodStart.year, _periodStart.month + delta, 1);
-    setState(() => _period = _periodOf(d));
+    setState(() => _period = periodOf(d));
   }
 
   @override
@@ -283,13 +285,17 @@ String _scopeLabel(KpiScope s) => switch (s) {
 /// `KpiStatus`. Distinct label AND distinct tint (neutral, not danger);
 /// StatusChip already renders tinted background + darker text, no colored
 /// border, per PRODUCT.md.
-String _statusLabel(KpiStatus s) => switch (s) {
+///
+/// Public so `kpi_dashboard_screen.dart` renders the exact same chip
+/// vocabulary rather than a second, subtly different one -- that distinction
+/// is the reason `KpiStatus.noData` exists at all.
+String kpiStatusLabel(KpiStatus s) => switch (s) {
   KpiStatus.onTrack => 'On track',
   KpiStatus.offTrack => 'Off track',
   KpiStatus.noData => 'No data',
 };
 
-StatusTone _statusTone(KpiStatus s) => switch (s) {
+StatusTone kpiStatusTone(KpiStatus s) => switch (s) {
   KpiStatus.onTrack => StatusTone.success,
   KpiStatus.offTrack => StatusTone.danger,
   KpiStatus.noData => StatusTone.neutral,
@@ -306,7 +312,8 @@ String _fmtNum(num? v) {
   return v.toString();
 }
 
-String _fmtValue(num? v, Kpi? kpi) {
+/// Public for the same reason as [kpiStatusLabel] -- shared, not reinvented.
+String fmtKpiValue(num? v, Kpi? kpi) {
   final base = _fmtNum(v);
   if (v == null) return base;
   final unit = kpi?.unit?.trim();
@@ -376,14 +383,14 @@ class _ResultsTable extends ConsumerWidget {
                 cells: [
                   DataCell(Text(nameOf(r))),
                   DataCell(Text(_scopeLabel(r.scope))),
-                  DataCell(Text(_fmtValue(r.value, kpiById[r.kpiId]))),
+                  DataCell(Text(fmtKpiValue(r.value, kpiById[r.kpiId]))),
                   DataCell(
-                    Text(_fmtValue(r.targetSnapshot, kpiById[r.kpiId])),
+                    Text(fmtKpiValue(r.targetSnapshot, kpiById[r.kpiId])),
                   ),
                   DataCell(
                     StatusChip(
-                      label: _statusLabel(r.status),
-                      tone: _statusTone(r.status),
+                      label: kpiStatusLabel(r.status),
+                      tone: kpiStatusTone(r.status),
                     ),
                   ),
                   DataCell(Text(_sourceLabel(r, kpiById[r.kpiId]))),

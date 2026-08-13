@@ -179,7 +179,18 @@ StatusTone toneForStatusString(String? status) {
 class StatusChip extends StatelessWidget {
   final String label;
   final StatusTone tone;
-  const StatusChip({super.key, required this.label, required this.tone});
+
+  /// Optional key applied to the inner label [Text], not the chip itself --
+  /// lets a caller find the rendered status text directly (e.g. to assert
+  /// on-screen ordering) without depending on [Chip]'s internal structure.
+  final Key? labelKey;
+
+  const StatusChip({
+    super.key,
+    required this.label,
+    required this.tone,
+    this.labelKey,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -187,6 +198,7 @@ class StatusChip extends StatelessWidget {
     return Chip(
       label: Text(
         label,
+        key: labelKey,
         style: TextStyle(color: s.foreground, fontWeight: FontWeight.w600),
       ),
       backgroundColor: s.background,
