@@ -37,10 +37,13 @@ Each of these was chosen against a real alternative. Do not re-litigate them
 without new information.
 
 1. **A person's KPIs are their role's KPIs. Pure inheritance, no per-employee
-   exceptions.** `employee_kpis` and its migrations are deleted. A new hire is
-   measurable the day they are assigned a role, and a role change moves
-   measurement automatically. The cost, accepted: two people in one role cannot
-   be measured differently, so a trainee carries the veteran's target.
+   exceptions.** A new hire is measurable the day they are assigned a role, and
+   a role change moves measurement automatically. Two costs, both accepted:
+   two people in one role cannot be measured differently, so a trainee carries
+   the veteran's target; and `employee_kpis` is a LIVE table on production, so
+   removing it is a destructive migration that also rewrites a live SQL
+   function — see "Removing `employee_kpis`" below, which corrects an earlier
+   draft of this spec that wrongly called it unapplied.
 2. **Desired Outcomes hang off a role's accountability areas**, not off the
    role as a whole and not off the KPI. Area → outcome → KPI is the authoring
    order, and modelling it this way is what makes both gaps visible: an area
@@ -68,15 +71,15 @@ without new information.
 
 ### Configuration
 
-**`kpis` gains five columns.** Measurement and Source A/B are already covered by
+**`kpis` gains four columns.** Measurement and Source A/B are already covered by
 the unapplied `20260811000001` (`value_type`, `numerator_label`,
 `numerator_source`, `denominator_label`, `denominator_source`, `unit`,
-`cadence`, `proof_type`).
+`cadence`, `proof_type`), and **`department_id` already exists** — added by the
+applied `20260723000002_kpi_departments.sql` and already on the `Kpi` model.
 
 | Column | Values | Note |
 |---|---|---|
 | `level` | `PERSONAL` / `DEPARTMENT` / `COMPANY` | Which scope this KPI is designed for |
-| `department_id` | → `departments` | Null for company-level |
 | `parent_kpi_id` | → `kpis` | The higher-level KPI this one serves |
 | `rollup_type` | `DIRECT` / `SHARED` / `ALIGNED` / `INDEPENDENT` | Governs whether the engine computes upper scopes |
 | `data_method` | `AUTOMATIC` / `HYBRID` / `MANUAL_EXCEPTION` / `MANUAL_PERIODIC` | Governs where inputs come from |
@@ -95,9 +98,27 @@ as "this role's KPI proves this role's outcome". It lives on the link rather
 than on `kpis` because an outcome belongs to a role, and a Company KPI has no
 role.
 
-**Deleted:** `employee_kpis`, migration `20260811000002`, and the comment-only
-`20260812000001`. None has been applied to any database, so this removes files
-rather than writing a down-migration.
+**Removing `employee_kpis` is a live schema change, not a file deletion.** An
+earlier draft of this spec said it had never been applied. That was wrong, and
+the correction changes the cost of decision 1:
+
+- `employee_kpis` was created by `20260718000005` and **is applied on
+  production**. Migrations `20260719000001-3` are confirmed applied, and
+  `supabase db push` applies in filename order, so everything before them is
+  too. The table holds real per-employee curation.
+- `20260718000006` defines `generate_employee_review`, a **live SQL function**
+  that reads `employee_kpis` — intersecting an employee's subset with their
+  role's KPIs, and falling back to the full role set when the subset is empty.
+  Dropping the table without rewriting that function breaks review generation.
+- Only `20260811000002` and `20260812000001` are genuinely unapplied files that
+  can simply be deleted.
+
+So the work is: rewrite `generate_employee_review` to read the role's KPIs
+directly, then drop the table in the same migration. Because "no rows" already
+means "the whole role set", every employee with no curated subset is unaffected
+by definition; only employees with a deliberately narrowed subset change
+behaviour, and they change to measuring their full role set — which is what
+pure inheritance means.
 
 ### Results
 
@@ -235,8 +256,9 @@ These carry the correctness and belong in plain Dart files with unit tests:
   the Library can filter by level.
 - A role's accountability areas carry desired outcomes, and a KPI can name the
   outcome it proves.
-- A person's KPIs come from their role with no per-employee setup, and
-  `employee_kpis` is gone.
+- A person's KPIs come from their role with no per-employee setup;
+  `generate_employee_review` reads the role's KPIs directly, and
+  `employee_kpis` is dropped in the same migration.
 - A month's results exist at all three scopes, with department and company
   recomputed from source rather than averaged from children.
 - No Data renders visibly differently from Off Track.
