@@ -183,16 +183,37 @@ void main() {
   });
 
   group('floating-point tolerance', () {
-    test('a division landing exactly on target within epsilon is on track', () {
-      // 398 / 400 = 0.995, which with epsilon tolerance matches a target of
-      // 0.995 exactly (the difference is machine-precision rounding, not a real
-      // miss). This motivates the 1e-9 epsilon.
+    test('a computed GTE value landing below target needs epsilon', () {
+      // Whole-number ratios like 398/400 are exactly representable (IEEE 754
+      // correctly-rounded division), so they never need epsilon. Task 7 feeds
+      // this function computed values (registry minus exceptions) that are
+      // fractional and suffer representation error: 0.7 + 0.1 = 0.79999...
+      // Passing numerator as an expression so arithmetic happens at runtime.
+      final computed = 0.7 + 0.1; // 0.79999999999999993339
       final r = run(
-        numerator: 398,
-        denominator: 400,
-        target: 0.995,
+        valueType: 'COUNT',
+        numerator: computed,
+        target: 0.8,
+        direction: GoalDirection.gte,
       );
-      expect(r.value, closeTo(0.995, 0.0001));
+      // Without epsilon: computed < target due to float error -> off track (WRONG)
+      // With epsilon: computed >= target - 1e-9 -> on track (CORRECT)
+      expect(r.status, KpiStatus.onTrack);
+    });
+
+    test('a computed LTE value landing above target needs epsilon', () {
+      // Mirror of the GTE case: a computed value that rounds up slightly
+      // must still pass an "at most" target. Task 7 feeds CURRENCY KPIs
+      // from rate * quantity: 4.35 * 100 = 434.99999...
+      final computed = 4.35 * 100; // 434.99999999999994316
+      final r = run(
+        valueType: 'CURRENCY',
+        numerator: computed,
+        target: 435,
+        direction: GoalDirection.lte,
+      );
+      // Without epsilon: computed > target due to float error -> off track (WRONG)
+      // With epsilon: computed <= target + 1e-9 -> on track (CORRECT)
       expect(r.status, KpiStatus.onTrack);
     });
   });
