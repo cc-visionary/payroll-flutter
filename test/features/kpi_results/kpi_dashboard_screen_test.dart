@@ -67,6 +67,24 @@ void main() {
     expect(chips, ['Off track', 'No data', 'On track']);
   });
 
+  // UNTESTED SEAM, recorded rather than papered over: this fixture has
+  // exactly one row per status, so there is no tie for the sort to break.
+  // This test can tell "status-correct" apart from "status-wrong", but it
+  // cannot distinguish "status-correct AND deterministic within a status"
+  // from "status-correct but arbitrary within a status" -- two rows sharing
+  // one status would need to appear in the same relative order on every
+  // read to prove the latter, and that determinism is a property of
+  // `KpiResultRepository.listByPeriod`'s query-level `ORDER BY` (see its doc
+  // comment), not of anything a widget test can observe by mocking the
+  // provider directly. `kpi_result_repository_test.dart` pins the query side
+  // (the outgoing request carries a total `order` clause); nothing pins the
+  // composition of the two end to end, because doing so would mean either
+  // asserting on Postgres' actual row-return order (not observable from
+  // Dart) or writing a same-status-tie assertion this fixture's mocked
+  // provider would satisfy regardless of whether the query orders anything --
+  // exactly the kind of test that passes for a reason other than its stated
+  // one.
+
   testWidgets('a month with nothing computed is empty, not red', (
     tester,
   ) async {

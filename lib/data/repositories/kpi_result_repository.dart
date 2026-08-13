@@ -35,10 +35,30 @@ class KpiResultRepository {
 
   /// All rows for [period], optionally narrowed to one KPI. RLS (not this
   /// filter) is what scopes the result to the caller's company.
+  ///
+  /// Deterministically ordered -- `kpi_id`, then `scope`, then
+  /// `employee_id`/`department_id` (Postgres' own default NULLS LAST is fine
+  /// here; the goal is a TOTAL order, not a particular null placement).
+  /// Without this, two reads of the same period can return rows in different
+  /// sequences (whatever order Postgres happens to produce that call), which
+  /// a caller's own stable sort then faithfully preserves -- so a page that
+  /// visibly reorders itself between one refresh and the next despite no
+  /// underlying change. `kpi_dashboard_screen.dart`'s off-track-first sort is
+  /// only meaningful once ties within a status are themselves deterministic;
+  /// this is where that determinism actually comes from, not a client-side
+  /// tiebreak (see that file's own doc comment for why one was deliberately
+  /// not added there).
   Future<List<KpiResult>> listByPeriod(String period, {String? kpiId}) async {
     var q = _client.from('kpi_results').select().eq('period', period);
     if (kpiId != null) q = q.eq('kpi_id', kpiId);
-    final rows = await q;
+    // `ascending: true` stated explicitly on every clause -- postgrest-dart's
+    // own default is DESCENDING (`order`'s `ascending` parameter defaults to
+    // `false`), which is easy to misread from a bare `.order('col')` call.
+    final rows = await q
+        .order('kpi_id', ascending: true)
+        .order('scope', ascending: true)
+        .order('employee_id', ascending: true)
+        .order('department_id', ascending: true);
     return (rows as List)
         .cast<Map<String, dynamic>>()
         .map(KpiResult.fromRow)
