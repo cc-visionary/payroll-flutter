@@ -2,10 +2,61 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/status_colors.dart';
+import '../../data/models/kpi.dart';
+import '../../data/models/kpi_result.dart';
 import '../../data/models/performance_check_in.dart';
 import '../../data/repositories/employee_repository.dart';
+import '../../data/repositories/kpi_result_repository.dart';
 import '../../data/repositories/performance_repository.dart';
+import '../../data/repositories/role_scorecard_repository.dart';
 import '../auth/profile_provider.dart';
+import '../kpi_results/kpi_results_screen.dart'
+    show periodOf, startOfPeriod, kpiStatusLabel, kpiStatusTone, fmtKpiValue;
+
+/// The employee whose own results this is, and the period the trailing
+/// three-month window ends at.
+typedef PersonalHistoryKey = ({String employeeId, String anchorPeriod});
+
+/// The three periods (oldest first) ending at [anchorPeriod], inclusive.
+List<String> _lastThreeMonths(String anchorPeriod) {
+  final anchor = startOfPeriod(anchorPeriod);
+  return [
+    for (var i = 2; i >= 0; i--)
+      periodOf(DateTime(anchor.year, anchor.month - i, 1)),
+  ];
+}
+
+/// This employee's own (`PERSONAL` scope) `kpi_results` rows for the three
+/// months ending at [PersonalHistoryKey.anchorPeriod] -- the same monthly
+/// records the KPI Results and Dashboard screens read, per the spec's
+/// requirement that check-ins not maintain a second copy of this data.
+///
+/// [KpiResultRepository.listByPeriod] is scoped by RLS to the caller's
+/// COMPANY, not to one employee -- it returns every scope's rows a manager
+/// or HR can see for that period, including PERSONAL rows belonging to
+/// other employees they oversee. The `r.employeeId == key.employeeId` check
+/// below is what keeps this screen -- opened about one specific person --
+/// from ever rendering someone else's numbers; it is not a convenience
+/// filter, it is the isolation guarantee.
+final personalKpiHistoryProvider =
+    FutureProvider.family<List<KpiResult>, PersonalHistoryKey>((
+      ref,
+      key,
+    ) async {
+      final repo = ref.watch(kpiResultRepositoryProvider);
+      final rows = <KpiResult>[];
+      for (final period in _lastThreeMonths(key.anchorPeriod)) {
+        final periodRows = await repo.listByPeriod(period);
+        rows.addAll(
+          periodRows.where(
+            (r) =>
+                r.scope == KpiScope.personal && r.employeeId == key.employeeId,
+          ),
+        );
+      }
+      return rows;
+    });
 
 class PerformanceCheckInScreen extends ConsumerWidget {
   final String checkInId;
@@ -107,6 +158,8 @@ class _Body extends ConsumerWidget {
             _GoalsSection(c: c),
             const SizedBox(height: 24),
             _SkillsSection(c: c),
+            const SizedBox(height: 24),
+            _KpiHistorySection(c: c),
             const SizedBox(height: 24),
             _ManagerReviewSection(c: c),
             const SizedBox(height: 24),
@@ -714,6 +767,120 @@ class _RatingPicker extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// Read-only personal KPI history -- the last three months of this
+/// employee's own `PERSONAL`-scope `kpi_results` rows. The check-in never
+/// edits results; recomputing or correcting a month's numbers happens on
+/// the KPI Results screen, not here.
+class _KpiHistorySection extends ConsumerWidget {
+  final PerformanceCheckIn c;
+  const _KpiHistorySection({required this.c});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Anchored to the check-in's own creation date, not wall-clock "now" --
+    // so reopening an old check-in always shows the three months that check-in
+    // was actually about, regardless of when it's viewed.
+    final anchorPeriod = periodOf(c.createdAt);
+    final historyAsync = ref.watch(
+      personalKpiHistoryProvider((
+        employeeId: c.employeeId,
+        anchorPeriod: anchorPeriod,
+      )),
+    );
+    final kpisAsync = ref.watch(kpiLibraryAllProvider);
+    final kpiById = <String, Kpi>{
+      for (final k in kpisAsync.asData?.value ?? const <Kpi>[]) k.id: k,
+    };
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'KPI History',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.4,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "This person's own KPI results, last three months. Read-only "
+              '-- edit results from the KPI Results screen.',
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            historyAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) =>
+                  Text('Error: $e', style: const TextStyle(color: Colors.red)),
+              data: (rows) {
+                if (rows.isEmpty) {
+                  return const Text('No KPI results recorded yet.');
+                }
+                String nameOf(KpiResult r) => kpiById[r.kpiId]?.name ?? r.kpiId;
+                final sorted = [...rows]..sort((a, b) {
+                  final byPeriod = a.period.compareTo(b.period);
+                  if (byPeriod != 0) return byPeriod;
+                  return nameOf(a).compareTo(nameOf(b));
+                });
+                return Column(
+                  children: [
+                    for (final r in sorted)
+                      _KpiHistoryRow(
+                        name: nameOf(r),
+                        result: r,
+                        kpi: kpiById[r.kpiId],
+                      ),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _KpiHistoryRow extends StatelessWidget {
+  final String name;
+  final KpiResult result;
+  final Kpi? kpi;
+  const _KpiHistoryRow({
+    required this.name,
+    required this.result,
+    required this.kpi,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(flex: 2, child: Text(name)),
+          SizedBox(width: 80, child: Text(result.period)),
+          SizedBox(
+            width: 100,
+            child: Text(fmtKpiValue(result.value, kpi)),
+          ),
+          StatusChip(
+            label: kpiStatusLabel(result.status),
+            tone: kpiStatusTone(result.status),
+          ),
+        ],
+      ),
     );
   }
 }
