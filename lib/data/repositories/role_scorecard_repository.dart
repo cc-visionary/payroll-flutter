@@ -4,28 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/kpi.dart';
 import '../models/kpi_goal.dart';
 import '../models/role_kpi.dart';
+import '../models/role_outcome.dart';
 import '../models/role_scorecard.dart';
 import '../models/workforce_planning.dart';
-
-/// Which boxes to tick for an employee whose stored set is [assigned].
-///
-/// The stored set IS the set. An empty result means nobody has chosen yet —
-/// a gap to close, not "tracks everything". That changed in 20260811000002,
-/// which backfilled an explicit set for everyone who had an effective one.
-/// Ids no longer on the role are dropped: an employee can be moved to a
-/// different card, leaving rows that point at the old role's KPIs.
-Set<String> initialCheckedKpiIds(
-  Set<String> assigned,
-  List<String> roleKpiIds,
-) => roleKpiIds.where(assigned.contains).toSet();
-
-/// What to store for [checked], in role order so the rows read predictably.
-///
-/// Unlike the pre-20260811000002 rule this never collapses a full selection to
-/// the empty list — "tracks all three" and "nobody has chosen" are different
-/// states and scoring has to tell them apart.
-List<String> kpiIdsToPersist(Set<String> checked, List<String> roleKpiIds) =>
-    roleKpiIds.where(checked.contains).toList();
 
 class KpiAssignee {
   final String employeeId;
@@ -38,33 +19,20 @@ class KpiAssignee {
   });
 }
 
-/// kpiId -> employees effectively tracked on it. An employee tracks a KPI iff
-/// it is on their role card AND in their stored set. There is no "empty means
-/// all" fallback: per Spec A Decision 4 an employee whose stored set does not
-/// intersect their role has NO set — a gap the Needs-attention strip flags
-/// ("N people have no KPI set"), not somebody tracking everything. Defaulting
-/// here would make that chip contradict the people list beside it and would
-/// credit KPIs to a person nobody has curated.
-///
-/// NOTE: the SQL `generate_employee_review` (20260718000006) still carries the
-/// old fallback via its `not v_has_assignment` branch. Scoring is Spec B; that
-/// function must be brought in line before it is used for scoring.
+/// kpiId -> employees effectively tracked on it. Pure inheritance: an
+/// employee tracks every KPI on their role card, with no per-employee subset
+/// to intersect against — a role now defines 2-4 KPIs and whoever holds it
+/// inherits all of them.
 Map<String, List<KpiAssignee>> employeesByKpi({
   required List<({KpiAssignee assignee, String? roleScorecardId})> employees,
   required Map<String, Set<String>> roleKpiIds,
-  required Map<String, Set<String>> employeeSubsets,
 }) {
   final out = <String, List<KpiAssignee>>{};
   for (final e in employees) {
     final rsId = e.roleScorecardId;
     if (rsId == null) continue;
     final roleSet = roleKpiIds[rsId] ?? const <String>{};
-    if (roleSet.isEmpty) continue;
-    final subset = employeeSubsets[e.assignee.employeeId];
-    final onRoleSubset = subset == null
-        ? const <String>{}
-        : subset.where(roleSet.contains).toSet();
-    for (final kpiId in onRoleSubset) {
+    for (final kpiId in roleSet) {
       (out[kpiId] ??= []).add(e.assignee);
     }
   }
@@ -290,6 +258,19 @@ class RoleScorecardRepository {
     // renames a KPI without also resending its formula. Only flip this to
     // true from a caller that actually renders and submits those fields.
     bool writeDefinition = false,
+    String level = 'PERSONAL',
+    String? parentKpiId,
+    String rollupType = 'INDEPENDENT',
+    String dataMethod = 'MANUAL_PERIODIC',
+    String? targetDirection,
+    num? targetValue,
+    // Same guard as [writeDefinition], and for the same reason: the KPI
+    // Library dialog is the only caller that renders level/parent/roll-up
+    // type/data method/default target today, so a caller with no opinion on
+    // the cascade (a future rename-only editor, say) must not silently reset
+    // an existing KPI back to PERSONAL/INDEPENDENT/MANUAL_PERIODIC with no
+    // parent the moment it saves a name change.
+    bool writeCascade = false,
   }) async {
     String? blank(String? v) =>
         (v == null || v.trim().isEmpty) ? null : v.trim();
@@ -308,6 +289,14 @@ class RoleScorecardRepository {
         'unit': blank(unit),
         'cadence': cadence,
         'proof_type': blank(proofType),
+      },
+      if (writeCascade) ...{
+        'level': level,
+        'parent_kpi_id': parentKpiId,
+        'rollup_type': rollupType,
+        'data_method': dataMethod,
+        'target_direction': targetDirection,
+        'target_value': targetValue,
       },
     };
     if (id != null && id.isNotEmpty) {
@@ -547,6 +536,14 @@ class RoleScorecardRepository {
             (r.link.frequency.trim().isEmpty
                 ? null
                 : r.link.frequency.trim()),
+        // Present on every row in every batch (like the three keys above),
+        // never conditionally omitted — omitting it on some rows but not
+        // others within the same upsert batch is exactly the trap this
+        // method's class comment documents: PostgREST would still write NULL
+        // for the rows that omitted it, because the `?columns=` list is the
+        // UNION across the whole batch. Being unconditional here is what
+        // makes it safe.
+        'outcome_id': r.link.outcomeId,
       };
       if (r.link.ownsGoal) {
         // `target` still comes from the goal whenever there IS one. With no
@@ -626,7 +623,7 @@ class RoleScorecardRepository {
     final rows = await _client
         .from('role_scorecard_kpis')
         .select(
-          'kpi_id, target, frequency, goal_direction, goal_value, goal_value_max, kpis(name, unit, cadence)',
+          'kpi_id, target, frequency, goal_direction, goal_value, goal_value_max, outcome_id, kpis(name, unit, cadence)',
         )
         .eq('role_scorecard_id', roleScorecardId)
         .order('sort_order');
@@ -636,28 +633,33 @@ class RoleScorecardRepository {
         .toList();
   }
 
-  Future<Set<String>> employeeAssignedKpiIds(String employeeId) async {
+  /// A role's desired outcomes, in author order. See [RoleOutcome] for why
+  /// [RoleOutcome.responsibilityArea] is a plain string match rather than a
+  /// foreign key.
+  Future<List<RoleOutcome>> outcomes(String roleId) async {
     final rows = await _client
-        .from('employee_kpis')
-        .select('kpi_id')
-        .eq('employee_id', employeeId);
-    return {
-      for (final r in (rows as List).cast<Map<String, dynamic>>())
-        r['kpi_id'] as String,
-    };
+        .from('role_outcomes')
+        .select()
+        .eq('role_scorecard_id', roleId)
+        .order('sort_order');
+    return rows.cast<Map<String, dynamic>>().map(RoleOutcome.fromRow).toList();
   }
 
-  /// Replace the employee's KPI assignment with [kpiIds]. Empty leaves no
-  /// rows — since 20260811000002 that means nobody has chosen yet (a gap to
-  /// close), NOT "falls back to the full role set"; that pre-migration
-  /// fallback no longer exists anywhere in the app.
-  Future<void> saveEmployeeKpis(String employeeId, List<String> kpiIds) async {
-    await _client.from('employee_kpis').delete().eq('employee_id', employeeId);
-    if (kpiIds.isNotEmpty) {
-      await _client.from('employee_kpis').insert([
-        for (final id in kpiIds) {'employee_id': employeeId, 'kpi_id': id},
-      ]);
-    }
+  /// Upserts [outcomes] for [roleId], writing `sort_order` from each entry's
+  /// list position — the same rule [saveRoleScorecardKpis] uses for its
+  /// links. Rows dropped from [outcomes] are NOT deleted here; the caller
+  /// removes them explicitly via [deleteOutcome].
+  Future<void> saveOutcomes(String roleId, List<RoleOutcome> outcomes) async {
+    if (outcomes.isEmpty) return;
+    final rows = [
+      for (var i = 0; i < outcomes.length; i++)
+        {...outcomes[i].toUpsertPayload(), 'sort_order': i},
+    ];
+    await _client.from('role_outcomes').upsert(rows);
+  }
+
+  Future<void> deleteOutcome(String id) async {
+    await _client.from('role_outcomes').delete().eq('id', id);
   }
 
   /// Accountabilities reaching a card through an ASSIGNMENT (the shared ones),
@@ -713,9 +715,6 @@ class RoleScorecardRepository {
     final roleLinks = await _client
         .from('role_scorecard_kpis')
         .select('role_scorecard_id, kpi_id');
-    final ek = await _client
-        .from('employee_kpis')
-        .select('employee_id, kpi_id');
 
     final employees = [
       for (final e in (emps as List).cast<Map<String, dynamic>>())
@@ -734,56 +733,7 @@ class RoleScorecardRepository {
         r['kpi_id'] as String,
       );
     }
-    final employeeSubsets = <String, Set<String>>{};
-    for (final r in (ek as List).cast<Map<String, dynamic>>()) {
-      (employeeSubsets[r['employee_id'] as String] ??= {}).add(
-        r['kpi_id'] as String,
-      );
-    }
-    return employeesByKpi(
-      employees: employees,
-      roleKpiIds: roleKpiIds,
-      employeeSubsets: employeeSubsets,
-    );
-  }
-
-  /// The two maps the Needs-attention strip's "no KPI set" signal needs:
-  /// each role's KPI ids, and each employee's stored KPI ids. Two queries
-  /// company-wide rather than the per-card/per-employee round trips
-  /// [roleKpisProvider] and [employeeAssignedKpiIdsProvider] would need one
-  /// per holder — this is the same pair of tables [assignedEmployeesByKpi]
-  /// already reads, just returned as maps instead of folded into per-KPI
-  /// assignee lists.
-  Future<
-    ({
-      Map<String, Set<String>> roleKpiIdsByCard,
-      Map<String, Set<String>> assignedKpiIdsByEmployee,
-    })
-  >
-  kpiAssignmentMaps() async {
-    final roleLinks = await _client
-        .from('role_scorecard_kpis')
-        .select('role_scorecard_id, kpi_id');
-    final ek = await _client
-        .from('employee_kpis')
-        .select('employee_id, kpi_id');
-
-    final roleKpiIdsByCard = <String, Set<String>>{};
-    for (final r in (roleLinks as List).cast<Map<String, dynamic>>()) {
-      (roleKpiIdsByCard[r['role_scorecard_id'] as String] ??= {}).add(
-        r['kpi_id'] as String,
-      );
-    }
-    final assignedKpiIdsByEmployee = <String, Set<String>>{};
-    for (final r in (ek as List).cast<Map<String, dynamic>>()) {
-      (assignedKpiIdsByEmployee[r['employee_id'] as String] ??= {}).add(
-        r['kpi_id'] as String,
-      );
-    }
-    return (
-      roleKpiIdsByCard: roleKpiIdsByCard,
-      assignedKpiIdsByEmployee: assignedKpiIdsByEmployee,
-    );
+    return employeesByKpi(employees: employees, roleKpiIds: roleKpiIds);
   }
 
   /// kpiId -> the job titles of the role cards linking it. Roles and PEOPLE
@@ -863,21 +813,12 @@ final roleKpisProvider = FutureProvider.family<List<RoleKpi>, String>((
   return ref.watch(roleScorecardRepositoryProvider).roleKpis(roleScorecardId);
 });
 
-final employeeAssignedKpiIdsProvider =
-    FutureProvider.family<Set<String>, String>((ref, employeeId) {
-      return ref
-          .watch(roleScorecardRepositoryProvider)
-          .employeeAssignedKpiIds(employeeId);
-    });
-
-/// Company-wide role->KPI and employee->KPI maps in one round trip, for the
-/// Needs-attention strip's "no KPI set" signal. See
-/// [RoleScorecardRepository.kpiAssignmentMaps].
-final wpKpiAssignmentMapsProvider = FutureProvider<
-  ({
-    Map<String, Set<String>> roleKpiIdsByCard,
-    Map<String, Set<String>> assignedKpiIdsByEmployee,
-  })
->((ref) {
-  return ref.watch(roleScorecardRepositoryProvider).kpiAssignmentMaps();
+/// A role's desired outcomes, in author order. See
+/// [RoleScorecardRepository.outcomes].
+final roleOutcomesProvider = FutureProvider.family<List<RoleOutcome>, String>((
+  ref,
+  roleScorecardId,
+) {
+  return ref.watch(roleScorecardRepositoryProvider).outcomes(roleScorecardId);
 });
+

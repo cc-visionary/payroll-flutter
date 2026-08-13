@@ -3,9 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/data/models/compensation_change.dart';
 import 'package:payroll_flutter/data/models/employee.dart';
-import 'package:payroll_flutter/data/models/kpi.dart';
-import 'package:payroll_flutter/data/models/kpi_goal.dart';
-import 'package:payroll_flutter/data/models/role_kpi.dart';
 import 'package:payroll_flutter/data/models/role_scorecard.dart';
 import 'package:payroll_flutter/data/repositories/compensation_change_repository.dart';
 import 'package:payroll_flutter/data/repositories/role_scorecard_repository.dart';
@@ -14,13 +11,14 @@ import 'package:payroll_flutter/features/employees/profile/tabs/role_tab.dart';
 
 import '../../support/supabase_stub.dart';
 
-/// The employee profile's Role tab is a SECOND place HR curates an employee's
-/// KPI set, and until now the only one with no validator: it told HR "an
-/// employee with no selection isn't scored" and then let them save exactly
-/// that. The three readers that still fall back to the full role set
-/// (generate_employee_review, seedSkillRatingsForCheckIn, employeesByKpi) are
-/// deliberate safety nets, so the empty set has to be stopped where it is
-/// AUTHORED, not where it is read.
+/// Pure inheritance retired the employee profile's KPI-set editor: an
+/// employee's KPIs are their role's KPIs, with no per-employee subset to
+/// curate. The Role tab's "Current Role" section already renders the role's
+/// KPIs read-only (from `card.kpis`); this file used to guard the second,
+/// now-removed curation surface (`EmployeeKpiAssignmentSection` mounted here)
+/// and is retargeted to guard its absence instead of being deleted outright,
+/// since "the Role tab shows an employee's KPIs" is still a real rule — it
+/// just means something different now.
 final _employee = Employee(
   id: 'emp-1',
   companyId: 'co-1',
@@ -47,7 +45,14 @@ final _card = RoleScorecard(
   jobTitle: 'Brand Handler',
   missionStatement: 'Ship orders on time.',
   responsibilities: const [],
-  kpis: const [],
+  kpis: const [
+    KpiItem(
+      name: 'Return Rate',
+      measurement: '%',
+      target: '≤3%',
+      frequency: 'Weekly',
+    ),
+  ],
   wageType: 'MONTHLY',
   workHoursPerDay: 8,
   workDaysPerWeek: 'MON_FRI',
@@ -55,37 +60,13 @@ final _card = RoleScorecard(
   effectiveDate: DateTime(2026, 1, 1),
 );
 
-const _defined = Kpi(
-  id: 'k1',
-  companyId: 'co-1',
-  name: 'Return Rate',
-  valueType: 'RATIO',
-  unit: '%',
-  numeratorLabel: 'Returns',
-  numeratorSource: 'BigSeller',
-  denominatorLabel: 'Orders',
-  denominatorSource: 'BigSeller',
-);
-
-const _roleKpis = [
-  RoleKpi(
-    kpiId: 'k1',
-    name: 'Return Rate',
-    goal: KpiGoal(direction: GoalDirection.lte, value: 3),
-    unit: '%',
-  ),
-];
-
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     await initSupabaseStub();
   });
 
-  Future<void> pump(
-    WidgetTester tester, {
-    required Set<String> assigned,
-  }) async {
+  Future<void> pump(WidgetTester tester) async {
     tester.view.physicalSize = const Size(1400, 4000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -109,11 +90,6 @@ void main() {
           compensationChangesByEmployeeProvider(
             'emp-1',
           ).overrideWith((ref) async => const <CompensationChange>[]),
-          roleKpisProvider('card-1').overrideWith((ref) async => _roleKpis),
-          kpiLibraryProvider.overrideWith((ref) async => const [_defined]),
-          employeeAssignedKpiIdsProvider(
-            'emp-1',
-          ).overrideWith((ref) async => assigned),
         ],
         child: MaterialApp(
           home: Scaffold(body: RoleTab(employee: _employee)),
@@ -123,44 +99,19 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  final saveButton = find.widgetWithText(FilledButton, 'Save KPI selection');
+  testWidgets(
+    "shows the role's KPIs, inherited and read-only — no curation UI",
+    (tester) async {
+      await pump(tester);
 
-  testWidgets('an empty set cannot be saved from the employee profile', (
-    tester,
-  ) async {
-    await pump(tester, assigned: const {});
-    await tester.scrollUntilVisible(saveButton, 300);
-    await tester.pumpAndSettle();
-
-    expect(
-      find.textContaining('Pick at least one KPI'),
-      findsOneWidget,
-      reason: 'the problem must be stated, not just implied by a dead button',
-    );
-    expect(
-      find.textContaining('No KPIs selected yet'),
-      findsNothing,
-      reason:
-          'this call site always supplies a validator, so its own problem '
-          'line covers the empty set — the static line is for a caller with '
-          'no validator and must not also render here saying the same thing '
-          'twice',
-    );
-    expect(
-      tester.widget<FilledButton>(saveButton).onPressed,
-      isNull,
-      reason:
-          'saving [] here would leave the person un-scored while the review '
-          'generator quietly snapshots the whole role set for them',
-    );
-  });
-
-  testWidgets('a valid set still saves', (tester) async {
-    await pump(tester, assigned: {'k1'});
-    await tester.scrollUntilVisible(saveButton, 300);
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('Pick at least one KPI'), findsNothing);
-    expect(tester.widget<FilledButton>(saveButton).onPressed, isNotNull);
-  });
+      expect(find.textContaining('Return Rate'), findsOneWidget);
+      // The retired curation surface is gone entirely: no Save button, no
+      // per-KPI checkboxes.
+      expect(
+        find.widgetWithText(FilledButton, 'Save KPI selection'),
+        findsNothing,
+      );
+      expect(find.byType(CheckboxListTile), findsNothing);
+    },
+  );
 }

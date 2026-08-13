@@ -1,5 +1,18 @@
 import 'kpi_goal.dart';
 
+const kKpiLevels = ['PERSONAL', 'DEPARTMENT', 'COMPANY'];
+const kKpiRollupTypes = ['DIRECT', 'SHARED', 'ALIGNED', 'INDEPENDENT'];
+const kKpiDataMethods = [
+  'AUTOMATIC',
+  'HYBRID',
+  'MANUAL_EXCEPTION',
+  'MANUAL_PERIODIC',
+];
+
+/// Matches the `target_direction` check constraint in
+/// `20260814000001_kpi_cascade_fields.sql`.
+const kKpiTargetDirections = ['HIGHER', 'LOWER'];
+
 class Kpi {
   final String id;
   final String companyId;
@@ -34,6 +47,26 @@ class Kpi {
   /// REPORT_EXPORT | SCREENSHOT | SYSTEM_LINK, or null for no requirement.
   final String? proofType;
 
+  // --- KPI cascade definition (20260814000001) ----------------------------------
+  /// PERSONAL | DEPARTMENT | COMPANY — the scope this measure is designed for.
+  final String level;
+
+  /// The higher-level measure this one serves. Null at the top.
+  final String? parentKpiId;
+
+  /// DIRECT | SHARED | ALIGNED | INDEPENDENT. Governs whether the results
+  /// engine may recompute this KPI at a wider scope.
+  final String rollupType;
+
+  /// AUTOMATIC | HYBRID | MANUAL_EXCEPTION | MANUAL_PERIODIC.
+  final String dataMethod;
+
+  /// HIGHER | LOWER, and the number that counts as healthy. The DEFAULT
+  /// target: `role_scorecard_kpis.goal_*` overrides it for one role, and a
+  /// DEPARTMENT or COMPANY scope has no role link so it uses this.
+  final String? targetDirection;
+  final num? targetValue;
+
   const Kpi({
     required this.id,
     required this.companyId,
@@ -51,6 +84,12 @@ class Kpi {
     this.unit,
     this.cadence = 'WEEKLY',
     this.proofType,
+    this.level = 'PERSONAL',
+    this.parentKpiId,
+    this.rollupType = 'INDEPENDENT',
+    this.dataMethod = 'MANUAL_PERIODIC',
+    this.targetDirection,
+    this.targetValue,
   });
 
   factory Kpi.fromRow(Map<String, dynamic> r) => Kpi(
@@ -72,6 +111,12 @@ class Kpi {
     unit: r['unit'] as String?,
     cadence: r['cadence'] as String? ?? 'WEEKLY',
     proofType: r['proof_type'] as String?,
+    level: r['level'] as String? ?? 'PERSONAL',
+    parentKpiId: r['parent_kpi_id'] as String?,
+    rollupType: r['rollup_type'] as String? ?? 'INDEPENDENT',
+    dataMethod: r['data_method'] as String? ?? 'MANUAL_PERIODIC',
+    targetDirection: r['target_direction'] as String?,
+    targetValue: r['target_value'] as num?,
   );
 
   Map<String, dynamic> toInsert(String companyId) => {
@@ -90,6 +135,12 @@ class Kpi {
     'unit': _blankToNull(unit),
     'cadence': cadence,
     'proof_type': _blankToNull(proofType),
+    'level': level,
+    'parent_kpi_id': parentKpiId,
+    'rollup_type': rollupType,
+    'data_method': dataMethod,
+    'target_direction': targetDirection,
+    'target_value': targetValue,
   };
 }
 
@@ -148,6 +199,19 @@ class KpiLinkInput {
   /// opinion by definition.
   final bool writeGoal;
 
+  /// The `role_outcomes` row this link proves — see role_outcomes
+  /// (20260814000002). Null means "no outcome picked yet", which is a legal,
+  /// permanent state, not merely a transient one: a KPI with no outcome must
+  /// stay valid.
+  ///
+  /// Always written on save, the same way [frequency]/[kpiId] are: `KpisPane`
+  /// saves the whole card's link set on every call, and there is no separate
+  /// "no opinion" mode for this field the way [writeGoal] gives one for the
+  /// goal columns — so a null here is read as "this role has no outcome for
+  /// this KPI" and clears the column, not as "leave whatever is stored
+  /// alone".
+  final String? outcomeId;
+
   const KpiLinkInput({
     this.kpiId,
     required this.name,
@@ -159,6 +223,7 @@ class KpiLinkInput {
     this.unit,
     this.cadence,
     this.writeGoal = false,
+    this.outcomeId,
   });
 
   /// True when the repository must write the four goal columns for this link.

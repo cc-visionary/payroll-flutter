@@ -90,7 +90,12 @@ void main() {
     );
   });
 
-  final noKpiSetCard = RoleScorecard(
+  // Pure inheritance: a person's KPIs are their role's KPIs, so the gap that
+  // used to be a PERSON'S ("N people have no KPI set", requiring the
+  // person's stored subset to be read separately from the role) is now the
+  // ROLE'S — read straight off `card.kpis`, the same embed the "N roles with
+  // no department" signal below already reads.
+  final noKpiCard = RoleScorecard(
     id: 'card-1',
     companyId: 'c',
     jobTitle: 'Card',
@@ -103,148 +108,105 @@ void main() {
     isActive: true,
     effectiveDate: DateTime(2026),
   );
-  final noKpiSetHolder = Employee(
-    id: 'e1',
+  final withKpiCard = RoleScorecard(
+    id: 'card-2',
     companyId: 'c',
-    employeeNumber: 'e1',
-    firstName: 'One',
-    lastName: 'X',
-    roleScorecardId: 'card-1',
-    employmentType: 'FULL_TIME',
-    employmentStatus: 'ACTIVE',
-    hireDate: DateTime(2024, 1, 1),
-    isRankAndFile: true,
-    isOtEligible: false,
-    isNdEligible: false,
-    isHolidayPayEligible: false,
-    sssEligibilityOverride: false,
-    philhealthEligibilityOverride: false,
-    pagibigEligibilityOverride: false,
-    taxOnFullEarnings: false,
-  );
-
-  Widget hostForNoKpiSet({
-    required Map<String, Set<String>> roleKpiIdsByCard,
-    required Map<String, Set<String>> assignedKpiIdsByEmployee,
-  }) => ProviderScope(
-    overrides: [
-      wpPersonLoadsProvider.overrideWith((ref) async => const []),
-      wpTasksProvider.overrideWith((ref) async => const []),
-      wpActiveEmployeesProvider.overrideWith(
-        (ref) async => [noKpiSetHolder],
-      ),
-      roleScorecardListProvider.overrideWith(
-        (ref) async => [noKpiSetCard],
-      ),
-      kpiLibraryProvider.overrideWith((ref) async => const []),
-      kpiAssignedEmployeesProvider.overrideWith((ref) async => const {}),
-      wpKpiAssignmentMapsProvider.overrideWith(
-        (ref) async => (
-          roleKpiIdsByCard: roleKpiIdsByCard,
-          assignedKpiIdsByEmployee: assignedKpiIdsByEmployee,
-        ),
-      ),
+    jobTitle: 'Card With KPI',
+    missionStatement: '',
+    responsibilities: const [],
+    kpis: const [
+      KpiItem(name: 'Return Rate', measurement: '%', target: '', frequency: 'Weekly'),
     ],
-    child: const MaterialApp(
-      home: Scaffold(
-        body: DefaultTabController(length: 5, child: NeedsAttentionStrip()),
-      ),
-    ),
+    wageType: 'MONTHLY',
+    workHoursPerDay: 8,
+    workDaysPerWeek: 'MON_FRI',
+    isActive: true,
+    effectiveDate: DateTime(2026),
   );
 
   testWidgets(
-    'no-KPI-set chip is absent when the holder tracks an on-role KPI',
+    'no-KPI chip is absent when the role has a KPI',
     (tester) async {
       await tester.pumpWidget(
-        hostForNoKpiSet(
-          roleKpiIdsByCard: const {
-            'card-1': {'k1'},
-          },
-          assignedKpiIdsByEmployee: const {
-            'e1': {'k1'},
-          },
+        ProviderScope(
+          overrides: [
+            wpPersonLoadsProvider.overrideWith((ref) async => const []),
+            wpTasksProvider.overrideWith((ref) async => const []),
+            wpActiveEmployeesProvider.overrideWith((ref) async => const []),
+            roleScorecardListProvider.overrideWith(
+              (ref) async => [withKpiCard],
+            ),
+            kpiLibraryProvider.overrideWith((ref) async => const []),
+            kpiAssignedEmployeesProvider.overrideWith((ref) async => const {}),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: DefaultTabController(length: 5, child: NeedsAttentionStrip()),
+            ),
+          ),
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.textContaining('no KPI set'), findsNothing);
+      expect(find.textContaining('with no KPI'), findsNothing);
     },
   );
 
   testWidgets(
-    'no-KPI-set chip is driven by wpKpiAssignmentMapsProvider — same '
-    'employee/card as the previous case, only the maps differ — and '
-    'deep-links to Roles',
+    'flags a role with no KPI, and deep-links to Roles — counted per role, '
+    'not per holder',
     (tester) async {
+      final holder = Employee(
+        id: 'e1',
+        companyId: 'c',
+        employeeNumber: 'e1',
+        firstName: 'One',
+        lastName: 'X',
+        roleScorecardId: 'card-1',
+        employmentType: 'FULL_TIME',
+        employmentStatus: 'ACTIVE',
+        hireDate: DateTime(2024, 1, 1),
+        isRankAndFile: true,
+        isOtEligible: false,
+        isNdEligible: false,
+        isHolidayPayEligible: false,
+        sssEligibilityOverride: false,
+        philhealthEligibilityOverride: false,
+        pagibigEligibilityOverride: false,
+        taxOnFullEarnings: false,
+      );
       await tester.pumpWidget(
-        hostForNoKpiSet(
-          roleKpiIdsByCard: const {
-            'card-1': {'k1'},
-          },
-          // Nobody assigned -> the holder's on-role set is empty.
-          assignedKpiIdsByEmployee: const {},
+        ProviderScope(
+          overrides: [
+            wpPersonLoadsProvider.overrideWith((ref) async => const []),
+            wpTasksProvider.overrideWith((ref) async => const []),
+            wpActiveEmployeesProvider.overrideWith((ref) async => [holder]),
+            roleScorecardListProvider.overrideWith(
+              (ref) async => [noKpiCard],
+            ),
+            kpiLibraryProvider.overrideWith((ref) async => const []),
+            kpiAssignedEmployeesProvider.overrideWith((ref) async => const {}),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: DefaultTabController(length: 5, child: NeedsAttentionStrip()),
+            ),
+          ),
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('1 person has no KPI set'), findsOneWidget);
+      expect(find.text('1 role with no KPI'), findsOneWidget);
 
       final controller = DefaultTabController.of(
-        tester.element(find.text('1 person has no KPI set')),
+        tester.element(find.text('1 role with no KPI')),
       );
       expect(controller.index, 0);
-      await tester.tap(find.text('1 person has no KPI set'));
+      await tester.tap(find.text('1 role with no KPI'));
       await tester.pumpAndSettle();
       expect(
         controller.index,
         1,
         reason: 'a roles-target chip must switch to the Roles tab',
       );
-    },
-  );
-
-  // Absent maps are NOT empty maps. Empty roleKpiIdsByCard makes every
-  // holder's on-role intersection empty, so treating an unresolved provider
-  // as empty reads the MAXIMUM — every ACTIVE holder in the company — rather
-  // than zero. A spinner or an RLS denial upstream must not be able to tell
-  // HR that nobody in the company has a KPI set.
-  testWidgets(
-    'no-KPI-set chip stays silent while the assignment maps are unresolved',
-    (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            // One unrelated gap so the strip itself renders and the absence
-            // of the KPI chip is a real assertion, not a blank widget.
-            wpPersonLoadsProvider.overrideWith((ref) async => const [_over]),
-            wpTasksProvider.overrideWith((ref) async => const []),
-            wpActiveEmployeesProvider.overrideWith(
-              (ref) async => [noKpiSetHolder],
-            ),
-            roleScorecardListProvider.overrideWith(
-              (ref) async => [noKpiSetCard],
-            ),
-            kpiLibraryProvider.overrideWith((ref) async => const []),
-            kpiAssignedEmployeesProvider.overrideWith((ref) async => const {}),
-            wpKpiAssignmentMapsProvider.overrideWith(
-              (ref) async => throw Exception('RLS denied'),
-            ),
-          ],
-          child: const MaterialApp(
-            home: Scaffold(
-              body: DefaultTabController(
-                length: 5,
-                child: NeedsAttentionStrip(),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(
-        find.text('Needs attention'),
-        findsOneWidget,
-        reason: 'the strip still renders its other signals',
-      );
-      expect(find.textContaining('no KPI set'), findsNothing);
     },
   );
 

@@ -55,6 +55,13 @@ class _CapturingRepository extends RoleScorecardRepository {
     String cadence = 'WEEKLY',
     String? proofType,
     bool writeDefinition = false,
+    String level = 'PERSONAL',
+    String? parentKpiId,
+    String rollupType = 'INDEPENDENT',
+    String dataMethod = 'MANUAL_PERIODIC',
+    String? targetDirection,
+    num? targetValue,
+    bool writeCascade = false,
   }) async {
     createdWithDefinition = writeDefinition;
     return createdLibraryKpi = Kpi(
@@ -136,6 +143,22 @@ wiredRepository() {
     rows: rows,
     upsertColumns: upsertColumns,
   );
+}
+
+/// Sets a goal on the pane's single KPI row via the direction dropdown and
+/// Value field. Several tests below add exactly one brand-new, fully-defined
+/// KPI and then save without ever touching the goal editor — orthogonal to
+/// what each of those tests actually verifies (cadence threading, definition
+/// capture, name resolution), but the goal-measurability guard (see
+/// `KpisPaneState.build`'s `blockedLinks`) now refuses to save a newly added
+/// KPI with no goal, so each of those tests must give it one.
+Future<void> _setGoal(WidgetTester tester) async {
+  await tester.tap(find.byType(DropdownButtonFormField<GoalDirection?>));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('≥').last);
+  await tester.pumpAndSettle();
+  await tester.enterText(find.byType(TextFormField).last, '10');
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -350,6 +373,10 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Add'));
       await tester.pumpAndSettle();
 
+      // A newly added KPI needs a goal before it is measurable enough to
+      // save — orthogonal to what this test checks (cadence propagation).
+      await _setGoal(tester);
+
       await tester.tap(find.widgetWithText(FilledButton, 'Save'));
       await tester.pumpAndSettle();
 
@@ -384,8 +411,29 @@ void main() {
       await tester.tap(find.text('MONTHLY').last);
       await tester.pumpAndSettle();
 
+      // A COUNT KPI's complete definition — orthogonal to what this test
+      // checks (cadence threading), but the guard below refuses a save
+      // where a newly-added KPI isn't measurable yet.
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'What is counted'),
+        'Widgets',
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Source'),
+        'BigSeller',
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Unit'),
+        'orders',
+      );
+      await tester.pumpAndSettle();
+
       await tester.tap(find.widgetWithText(FilledButton, 'Add'));
       await tester.pumpAndSettle();
+
+      await _setGoal(tester);
 
       await tester.tap(find.widgetWithText(FilledButton, 'Save'));
       await tester.pumpAndSettle();
@@ -461,6 +509,7 @@ void main() {
 
       // And the row now on the pane links to that library id, so the goal it
       // gets is attached to the defined KPI rather than to a name.
+      await _setGoal(tester);
       await tester.tap(find.widgetWithText(FilledButton, 'Save'));
       await tester.pumpAndSettle();
       expect(repo.captured!.single.kpiId, 'lib-created');
@@ -825,6 +874,10 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Add'));
       await tester.pumpAndSettle();
 
+      // A newly added KPI needs a goal before it is measurable enough to
+      // save — orthogonal to what this test checks (name resolution).
+      await _setGoal(tester);
+
       await tester.tap(find.widgetWithText(FilledButton, 'Save'));
       await tester.pumpAndSettle();
 
@@ -891,6 +944,10 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Add'));
       await tester.pumpAndSettle();
 
+      // A newly added KPI needs a goal before it is measurable enough to
+      // save — orthogonal to what this test checks (name resolution).
+      await _setGoal(tester);
+
       await tester.tap(find.widgetWithText(FilledButton, 'Save'));
       await tester.pumpAndSettle();
 
@@ -905,6 +962,223 @@ void main() {
         link.cadence,
         'QUARTERLY',
         reason: "must carry the retired KPI's real cadence, not 'WEEKLY'",
+      );
+    },
+  );
+
+  group('a newly added KPI must be measurable before it can be saved', () {
+    // Pure inheritance retired `validateKpiSet`, which used to refuse
+    // curating an employee onto an unmeasurable KPI. There is no curation
+    // step left to refuse at -- linking a KPI to a role now assigns it to
+    // every holder the instant this pane saves -- so the same refusal now
+    // lives here, scoped to links added THIS session (see `blockedLinks` in
+    // `KpisPaneState.build`).
+    const fullyDefined = Kpi(
+      id: 'k-new',
+      companyId: 'co-1',
+      name: 'On-Time Ship Rate',
+      unit: '%',
+      numeratorLabel: 'On-time orders',
+      numeratorSource: 'BigSeller',
+    );
+    const bareName = Kpi(id: 'k-bare', companyId: 'co-1', name: 'Setup Accuracy');
+
+    Future<void> addByName(WidgetTester tester, String name) async {
+      await tester.tap(find.widgetWithText(TextButton, 'Add KPI'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField).first, name);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(name).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'blocks Save and names the gap when a newly added, fully-defined KPI '
+      'has no goal yet -- then unblocks once one is set',
+      (tester) async {
+        final repo = _CapturingRepository();
+        await pump(
+          tester,
+          const [],
+          repo: repo,
+          library: const [fullyDefined],
+        );
+        await addByName(tester, 'On-Time Ship Rate');
+
+        expect(find.textContaining('not measurable yet'), findsWidgets);
+        final saveButton = find.byKey(const ValueKey('kpis-pane-save'));
+        expect(tester.widget<FilledButton>(saveButton).onPressed, isNull);
+
+        // Belt-and-braces: a disabled button ignores taps, but prove the
+        // repository was genuinely never called rather than trusting that.
+        await tester.tap(saveButton);
+        await tester.pumpAndSettle();
+        expect(repo.captured, isNull, reason: 'a disabled Save must not save');
+
+        await _setGoal(tester);
+        expect(tester.widget<FilledButton>(saveButton).onPressed, isNotNull);
+
+        await tester.tap(saveButton);
+        await tester.pumpAndSettle();
+        expect(repo.captured, isNotNull);
+      },
+    );
+
+    testWidgets(
+      'stays blocked when a newly added KPI has a goal but an incomplete '
+      'library definition',
+      (tester) async {
+        final repo = _CapturingRepository();
+        await pump(tester, const [], repo: repo, library: const [bareName]);
+        await addByName(tester, 'Setup Accuracy');
+        await _setGoal(tester);
+
+        expect(
+          find.textContaining('not measurable yet'),
+          findsWidgets,
+          reason:
+              'a goal alone is not enough -- the library definition is '
+              'still missing unit/numerator/source',
+        );
+        expect(
+          tester
+              .widget<FilledButton>(
+                find.byKey(const ValueKey('kpis-pane-save')),
+              )
+              .onPressed,
+          isNull,
+        );
+      },
+    );
+
+    testWidgets(
+      'does NOT block saving an unrelated edit when the gap is on an '
+      'already-loaded KPI, not one added this session',
+      (tester) async {
+        // Same shape as 'this pane owns the goal columns' above: k1 arrived
+        // from the server with no goal and no library definition -- legacy
+        // debt this session did not create. A card mixing a modern,
+        // fully-measurable KPI with an old free-text one is a real,
+        // deliberately-supported state (see the sibling-preservation test
+        // above); the guard must not lock the whole card over debt nobody
+        // just added.
+        final repo = _CapturingRepository();
+        await pump(tester, const [
+          RoleKpi(kpiId: 'k1', name: 'Return Rate', cadence: 'WEEKLY'),
+        ], repo: repo);
+
+        expect(
+          tester
+              .widget<FilledButton>(
+                find.byKey(const ValueKey('kpis-pane-save')),
+              )
+              .onPressed,
+          isNotNull,
+          reason: 'grandfathered debt must not lock the whole card',
+        );
+        await tester.tap(find.byKey(const ValueKey('kpis-pane-save')));
+        await tester.pumpAndSettle();
+        expect(repo.captured, isNotNull);
+      },
+    );
+  });
+
+  group(
+    'an already-linked KPI that regresses after capture blocks Save too',
+    () {
+      // Not hypothetical: the KPI Library dialog (Task 6) can strip a
+      // formula or source from a KPI already linked to a role, from a
+      // completely different screen, at any time. Round 1's guard only
+      // checked whether a link was NEW this session -- a link present at
+      // capture was skipped unconditionally, forever, even if it had since
+      // become unmeasurable. This is the gap: k1 reads as measurable when
+      // this pane captures its baseline, then its library row loses its
+      // numerator elsewhere, discovered here WITHOUT an explicit resync
+      // (resync would recapture a fresh baseline from the already-stripped
+      // state, which is a different, already-covered scenario --
+      // "always-been-unmeasurable" legacy debt, not a regression).
+      testWidgets(
+        'blocks Save once a captured-measurable KPI is discovered to be '
+        'unmeasurable at save time',
+        (tester) async {
+          final repo = _CapturingRepository();
+          var library = const [
+            Kpi(
+              id: 'k1',
+              companyId: 'co-1',
+              name: 'Return Rate',
+              unit: '%',
+              numeratorLabel: 'Returns',
+              numeratorSource: 'BigSeller',
+            ),
+          ];
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                roleKpisProvider('card-1').overrideWith(
+                  (ref) async => const [
+                    RoleKpi(
+                      kpiId: 'k1',
+                      name: 'Return Rate',
+                      goal: KpiGoal(direction: GoalDirection.lte, value: 3),
+                      unit: '%',
+                      cadence: 'WEEKLY',
+                    ),
+                  ],
+                ),
+                kpiLibraryProvider.overrideWith((ref) async => library),
+                roleScorecardRepositoryProvider.overrideWithValue(repo),
+              ],
+              child: const MaterialApp(
+                home: Scaffold(
+                  body: SingleChildScrollView(
+                    child: KpisPane(cardId: 'card-1', companyId: 'co-1'),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          final saveButton = find.byKey(const ValueKey('kpis-pane-save'));
+          expect(
+            tester.widget<FilledButton>(saveButton).onPressed,
+            isNotNull,
+            reason: 'k1 is fully defined and goaled at capture -- Save must '
+                'start enabled',
+          );
+
+          // Simulate the Library dialog stripping k1's definition from a
+          // different screen in the same session, then that change being
+          // discovered here — not via this pane's own resync button (that
+          // would recapture baseline from the post-edit state instead, a
+          // different scenario), but the way an independently-invalidated
+          // provider actually surfaces: the next time something reads it.
+          library = const [
+            Kpi(id: 'k1', companyId: 'co-1', name: 'Return Rate', unit: '%'),
+          ];
+          final container = ProviderScope.containerOf(
+            tester.element(find.byType(KpisPane)),
+          );
+          container.invalidate(kpiLibraryProvider);
+          await tester.pumpAndSettle();
+
+          expect(find.textContaining('not measurable yet'), findsWidgets);
+          expect(
+            tester.widget<FilledButton>(saveButton).onPressed,
+            isNull,
+            reason:
+                'k1 regressed from measurable to not since capture -- '
+                'saving now would keep assigning an undefined KPI to every '
+                'holder',
+          );
+
+          await tester.tap(saveButton);
+          await tester.pumpAndSettle();
+          expect(repo.captured, isNull, reason: 'a disabled Save must not save');
+        },
       );
     },
   );

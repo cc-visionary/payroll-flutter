@@ -58,15 +58,6 @@ class NeedsAttentionStrip extends ConsumerWidget {
     // assignment map yields ZERO misallocated responsibilities.
     final assignmentsByTask =
         ref.watch(wpAssignmentsByTaskProvider).asData?.value ?? const {};
-    // Deliberately NOT given the same empty-map default. `asData` is null
-    // while this FutureProvider re-resolves (every invalidation) and forever
-    // if it throws, and empty maps here would read as "every ACTIVE holder in
-    // the company has no KPI set" — the maximum, not zero. Passed through as
-    // null so buildNeedsAttention skips the signal until it really knows.
-    final kpiAssignmentMaps = ref
-        .watch(wpKpiAssignmentMapsProvider)
-        .asData
-        ?.value;
 
     if (loads == null ||
         tasks == null ||
@@ -90,8 +81,6 @@ class NeedsAttentionStrip extends ConsumerWidget {
       kpis: kpis,
       kpiAssignedByKpi: kpiAssignedByKpi,
       assignmentsByTask: assignmentsByTask,
-      roleKpiIdsByCard: kpiAssignmentMaps?.roleKpiIdsByCard,
-      assignedKpiIdsByEmployee: kpiAssignmentMaps?.assignedKpiIdsByEmployee,
       holderCountByRole: holdersByRole,
     );
     if (items.isEmpty) return const SizedBox.shrink();

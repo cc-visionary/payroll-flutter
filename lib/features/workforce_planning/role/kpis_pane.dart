@@ -5,6 +5,7 @@ import '../../../app/status_colors.dart';
 import '../../../data/models/kpi.dart';
 import '../../../data/models/kpi_goal.dart';
 import '../../../data/models/role_kpi.dart';
+import '../../../data/models/role_outcome.dart';
 import '../../../data/repositories/role_scorecard_repository.dart';
 import '../../documents/providers.dart' show roleScorecardByIdProvider;
 import '../../kpi_library/kpi_definition_form.dart';
@@ -65,6 +66,23 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
   /// Never sent anywhere; this is UI-only bookkeeping.
   List<_DraftSnapshot> _baseline = const [];
 
+  /// Whether each baseline link (by kpiId) was measurable AT THE MOMENT it
+  /// was captured — i.e. the same `isMeasurableForRole` reading `_buildRow`
+  /// renders, taken once and frozen. Absent (no entry) means "unknown": the
+  /// library hadn't finished loading yet when this capture ran, so nothing
+  /// meaningful was recorded rather than a guessed true/false that could
+  /// later read as a false regression once the library actually resolves.
+  ///
+  /// This is what lets the Save guard (see `build`'s `blockedLinks`) tell
+  /// "always-been-unmeasurable legacy debt" (grandfathered — see the
+  /// sibling-preservation test) apart from "became unmeasurable since this
+  /// pane last captured" (blocked — e.g. the KPI Library dialog stripped its
+  /// formula or source while this pane sat open with the same baseline).
+  /// `_DraftSnapshot` deliberately does not carry this: that snapshot drives
+  /// `_isDirty`, which is about USER-EDITED fields, and measurability is
+  /// never user-edited directly.
+  Map<String, bool> _baselineMeasurableByKpiId = {};
+
   bool _saving = false;
   String? _error;
 
@@ -76,7 +94,11 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
     super.dispose();
   }
 
-  void _captureFrom(List<RoleKpi> kpis) {
+  void _captureFrom(
+    List<RoleKpi> kpis,
+    Map<String, Kpi> libraryById, {
+    required bool libraryLoaded,
+  }) {
     // Recapturing replaces every draft wholesale (initial load, post-save,
     // or an explicit resync) — the outgoing drafts' controllers are not
     // referenced anywhere else, so they must be disposed here rather than
@@ -88,6 +110,16 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
       ..clear()
       ..addAll(kpis.map(_KpiLinkDraft.fromRoleKpi));
     _baseline = _links.map(_DraftSnapshot.of).toList();
+    _baselineMeasurableByKpiId = libraryLoaded
+        ? {
+            for (final d in _links)
+              if (d.kpiId != null)
+                d.kpiId!: isMeasurableForRole(
+                  defined: _definitionGaps(d, libraryById).isEmpty,
+                  goal: d.goal,
+                ),
+          }
+        : const {};
     _captured = true;
   }
 
@@ -112,14 +144,12 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
     ref.invalidate(roleScorecardByIdProvider(widget.cardId));
     ref.invalidate(roleKpisProvider(widget.cardId));
     // Adding/removing a role->KPI link changes what the Needs-attention
-    // strip's "no KPI set" signal sees as this card's on-role set — without
-    // this the chip can go stale-true after the exact edit that should have
-    // cleared it.
-    ref.invalidate(wpKpiAssignmentMapsProvider);
-    // Same edit also changes the KPI Library's people and roles counts for
-    // every KPI added to or removed from this card — without these the
-    // library can show a role/people count that no longer matches what was
-    // just saved until something else happens to invalidate them.
+    // strip's "N roles with no KPI" signal sees (it reads `card.kpis`
+    // straight off roleScorecardListProvider, already invalidated above) and
+    // the KPI Library's people and roles counts for every KPI added to or
+    // removed from this card — without these the library can show a
+    // role/people count that no longer matches what was just saved until
+    // something else happens to invalidate them.
     ref.invalidate(kpiAssignedEmployeesProvider);
     ref.invalidate(kpiRoleTitlesProvider);
     // Force a resync from the next successful load rather than trust local
@@ -179,6 +209,11 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
             // currently the only caller, so that branch has no live user —
             // see saveRoleScorecardKpis for why it is nonetheless kept.
             writeGoal: true,
+            // Always sent, never conditionally omitted — see
+            // KpiLinkInput.outcomeId. This pane saves every link on the card
+            // in every call, so a null here must mean "no outcome", not "no
+            // opinion".
+            outcomeId: d.outcomeId,
           ),
       ];
       await ref
@@ -259,12 +294,21 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
       if (!mounted) return;
     }
     ref.invalidate(roleKpisProvider(widget.cardId));
+    // The outcome picker's options come from this provider too — a resync
+    // means the role's outcomes may have changed underneath us as well (e.g.
+    // OutcomesPane, or another session), and a stale option list could name
+    // an outcome that no longer exists.
+    ref.invalidate(roleOutcomesProvider(widget.cardId));
     // Same reasoning as _invalidateAfterSave: a resync means this card's
     // on-role KPI set may have changed underneath us (e.g. another session's
-    // edit), so the strip's cached view of it must not survive this reload.
-    ref.invalidate(wpKpiAssignmentMapsProvider);
-    // ...and neither must the KPI Library's people/roles counts, for the
-    // same reason.
+    // edit). Unlike _invalidateAfterSave, nothing here invalidates
+    // roleScorecardListProvider by another path, so it is invalidated
+    // explicitly — the Needs-attention strip's "N roles with no KPI" signal
+    // reads `card.kpis` straight off it, and would otherwise show this
+    // card's PRE-resync KPI count until something else happened to refresh
+    // it. The KPI Library's people/roles counts are read fresh from their
+    // own providers for the same reason.
+    ref.invalidate(roleScorecardListProvider);
     ref.invalidate(kpiAssignedEmployeesProvider);
     ref.invalidate(kpiRoleTitlesProvider);
     setState(() => _captured = false);
@@ -273,9 +317,12 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
   @override
   Widget build(BuildContext context) {
     final kpisAsync = ref.watch(roleKpisProvider(widget.cardId));
-    final library =
-        ref.watch(kpiLibraryProvider).asData?.value ?? const <Kpi>[];
+    final libraryAsync = ref.watch(kpiLibraryProvider);
+    final library = libraryAsync.asData?.value ?? const <Kpi>[];
     final libraryById = {for (final k in library) k.id: k};
+    final outcomes =
+        ref.watch(roleOutcomesProvider(widget.cardId)).asData?.value ??
+        const <RoleOutcome>[];
 
     return kpisAsync.when(
       loading: () => const Padding(
@@ -287,7 +334,46 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
         child: Text('Could not load KPIs: $e'),
       ),
       data: (kpis) {
-        if (!_captured) _captureFrom(kpis);
+        if (!_captured) {
+          _captureFrom(kpis, libraryById, libraryLoaded: libraryAsync.hasValue);
+        }
+        // Pure inheritance sharpens what used to be `validateKpiSet`'s job:
+        // that function refused to let an EMPLOYEE be curated onto an
+        // unmeasurable KPI. There is no curation step left to refuse at —
+        // linking a KPI to a role now assigns it to every holder the moment
+        // this saves.
+        //
+        // Not a blanket "every link must be measurable" gate: a legacy card
+        // can carry KPIs that only ever had a typed prose target and no
+        // library definition (see the sibling-preservation save path
+        // below), and requiring the whole card to become measurable before
+        // an unrelated edit could be saved would make that legacy content
+        // un-editable. A currently-unmeasurable link is only blocked when:
+        //   (a) it is NEW this session (absent from `_baseline` — a manager
+        //       adding a brand-new, still-undefined KPI today, landing on
+        //       every holder with zero friction), or
+        //   (b) it REGRESSED since this pane's last capture — it read as
+        //       measurable then (`_baselineMeasurableByKpiId[kpiId] ==
+        //       true`) and does not now. This is the case a blanket "skip
+        //       everything in baseline" gate missed: the KPI Library dialog
+        //       can strip a formula or source from a KPI already linked to
+        //       this role, at any time, from a completely different screen,
+        //       and this pane must not keep saving that link as if nothing
+        //       changed just because it predates this editing session.
+        // An always-been-unmeasurable link (`_baselineMeasurableByKpiId
+        // [kpiId] == false`) or one with no recorded baseline reading at all
+        // (library hadn't loaded at capture time — unknown, not false) is
+        // grandfathered: nothing proves it got WORSE, so an unrelated save
+        // must still go through.
+        final blockedLinks = _links.where((d) {
+          final gaps = _definitionGaps(d, libraryById);
+          if (isMeasurableForRole(defined: gaps.isEmpty, goal: d.goal)) {
+            return false;
+          }
+          final isNew = !_baseline.any((b) => b.kpiId == d.kpiId);
+          if (isNew) return true;
+          return _baselineMeasurableByKpiId[d.kpiId] == true;
+        }).length;
         return Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -334,17 +420,29 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
                   )
                 else
                   for (final draft in _links)
-                    _buildRow(context, draft, libraryById),
+                    _buildRow(context, draft, libraryById, outcomes),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   Text(_error!, style: const TextStyle(color: Colors.red)),
+                ],
+                if (blockedLinks > 0) ...[
+                  const SizedBox(height: 12),
+                  _hint(
+                    context,
+                    StatusTone.danger,
+                    '$blockedLinks newly added KPI(s) are not measurable yet '
+                    '— every holder of this role would inherit it the moment '
+                    'this saves. Give it a goal and a complete definition, '
+                    'or remove it, before saving.',
+                  ),
                 ],
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     FilledButton(
-                      onPressed: _saving ? null : _save,
+                      key: const ValueKey('kpis-pane-save'),
+                      onPressed: (_saving || blockedLinks > 0) ? null : _save,
                       child: _saving
                           ? const SizedBox(
                               height: 18,
@@ -410,6 +508,7 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
     BuildContext context,
     _KpiLinkDraft draft,
     Map<String, Kpi> libraryById,
+    List<RoleOutcome> outcomes,
   ) {
     final key = identityHashCode(draft);
     // Computed even when there is no goal: the hint below names every gap,
@@ -474,6 +573,8 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
           ),
           const SizedBox(height: 8),
           _goalEditor(context, draft, key),
+          const SizedBox(height: 8),
+          _outcomePicker(context, draft, key, outcomes),
           const SizedBox(height: 6),
           if (draft.goal != null)
             Text(
@@ -534,6 +635,88 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
   Widget _hint(BuildContext context, StatusTone tone, String text) {
     final color = StatusPalette.of(context, tone).foreground;
     return Text(text, style: TextStyle(fontSize: 12, color: color));
+  }
+
+  /// Which `role_outcomes` row this link proves. Lists every outcome AUTHORED
+  /// ON THIS ROLE — including one whose stored area matches none of the
+  /// role's current responsibility areas (`OutcomesPane`'s "orphan" case) —
+  /// grouped by the area string each outcome is filed under, plus a
+  /// "— none —" option.
+  ///
+  /// Deliberately not filtered down to only outcomes on the role's CURRENT
+  /// areas: an outcome does not stop existing just because the area it was
+  /// written under got renamed on the Responsibilities tab, and a picker that
+  /// hid it would not make that KPI's proof go away — it would just make a
+  /// manager who can no longer find it recreate a duplicate. `OutcomesPane`
+  /// makes the same call for its own orphan section, for the same reason.
+  Widget _outcomePicker(
+    BuildContext context,
+    _KpiLinkDraft draft,
+    int key,
+    List<RoleOutcome> outcomes,
+  ) {
+    final byArea = <String, List<RoleOutcome>>{};
+    for (final o in outcomes) {
+      (byArea[o.responsibilityArea] ??= []).add(o);
+    }
+    final ids = outcomes.map((o) => o.id).toSet();
+    final items = <DropdownMenuItem<String?>>[
+      const DropdownMenuItem<String?>(value: null, child: Text('— none —')),
+    ];
+    for (final entry in byArea.entries) {
+      items.add(
+        DropdownMenuItem<String?>(
+          // A header, not a choice — this pane groups by area for
+          // readability only; the link still points straight at the outcome,
+          // never at the area (see [RoleOutcome]'s doc comment on why an
+          // area is not a row this could point to instead).
+          enabled: false,
+          value: ' header:${entry.key}',
+          child: Text(
+            entry.key,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      );
+      for (final o in entry.value) {
+        items.add(
+          DropdownMenuItem<String?>(value: o.id, child: Text('  ${o.text}')),
+        );
+      }
+    }
+    // Defensive: `roleOutcomesProvider` and `roleKpisProvider` resolve
+    // independently, so the very first frame can show a KPI whose stored
+    // outcomeId isn't in [outcomes] yet (still loading) — or, more
+    // permanently, one that pointed at an outcome since deleted elsewhere.
+    // `outcome_id` is `on delete set null`, so the latter self-heals on the
+    // next load; either way, a value with no matching item throws inside
+    // DropdownButtonFormField (it asserts exactly one match), so give it a
+    // placeholder entry rather than crash the pane.
+    if (draft.outcomeId != null && !ids.contains(draft.outcomeId)) {
+      items.add(
+        DropdownMenuItem<String?>(
+          value: draft.outcomeId,
+          child: const Text('(loading outcome…)'),
+        ),
+      );
+    }
+    return SizedBox(
+      width: 360,
+      child: DropdownButtonFormField<String?>(
+        key: ValueKey('kpi-outcome-picker-$key'),
+        initialValue: draft.outcomeId,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          labelText: 'Proves outcome',
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+        items: items,
+        onChanged: (v) => setState(() => draft.outcomeId = v),
+      ),
+    );
   }
 
   Widget _goalEditor(BuildContext context, _KpiLinkDraft draft, int key) {
@@ -712,6 +895,10 @@ class _KpiLinkDraft {
   String? legacyTarget;
   String? legacyFrequency;
 
+  /// The `role_outcomes` row this link proves, or null for "none picked".
+  /// See role_outcomes (20260814000002).
+  String? outcomeId;
+
   /// Whether this link already carried a structured goal when it was loaded.
   ///
   /// A load-time fact, never edited — clearing the goal editor does not make
@@ -751,6 +938,7 @@ class _KpiLinkDraft {
     this.denominatorSource,
     this.legacyTarget,
     this.legacyFrequency,
+    this.outcomeId,
     this.hadStoredGoal = false,
     this.direction,
     String? initialValue,
@@ -773,6 +961,7 @@ class _KpiLinkDraft {
     cadence: kpi.cadence,
     legacyTarget: kpi.target,
     legacyFrequency: kpi.frequency,
+    outcomeId: kpi.outcomeId,
     hadStoredGoal: kpi.goal != null,
     direction: kpi.goal?.direction,
     initialValue: kpi.goal == null ? '' : _trim(kpi.goal!.value),
@@ -810,6 +999,7 @@ class _DraftSnapshot {
   final GoalDirection? direction;
   final String value;
   final String valueMax;
+  final String? outcomeId;
 
   const _DraftSnapshot({
     required this.kpiId,
@@ -817,6 +1007,7 @@ class _DraftSnapshot {
     required this.direction,
     required this.value,
     required this.valueMax,
+    required this.outcomeId,
   });
 
   factory _DraftSnapshot.of(_KpiLinkDraft d) => _DraftSnapshot(
@@ -825,6 +1016,7 @@ class _DraftSnapshot {
     direction: d.direction,
     value: d.value,
     valueMax: d.valueMax,
+    outcomeId: d.outcomeId,
   );
 
   @override
@@ -834,10 +1026,12 @@ class _DraftSnapshot {
       other.name == name &&
       other.direction == direction &&
       other.value == value &&
-      other.valueMax == valueMax;
+      other.valueMax == valueMax &&
+      other.outcomeId == outcomeId;
 
   @override
-  int get hashCode => Object.hash(kpiId, name, direction, value, valueMax);
+  int get hashCode =>
+      Object.hash(kpiId, name, direction, value, valueMax, outcomeId);
 }
 
 class _AddKpiResult {

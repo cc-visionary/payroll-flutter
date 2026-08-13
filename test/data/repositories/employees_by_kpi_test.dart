@@ -3,78 +3,26 @@ import 'package:payroll_flutter/data/repositories/role_scorecard_repository.dart
 
 void main() {
   group('employeesByKpi', () {
-    // Spec A Decision 4: the stored set IS the set. An employee with no
-    // stored set is a gap to close, not somebody tracking their whole role —
-    // otherwise the Balance tab's "N people have no KPI set" chip and the
-    // people list one viewport below it contradict each other, and the
-    // "N KPIs measuring nobody" chip credits KPIs to a person nobody curated.
-    test('employee with NO stored set -> tracks nothing at all', () {
+    // Pure inheritance: a person's KPIs are their role's KPIs, with no
+    // per-employee subset to intersect against. An employee tracks every KPI
+    // their role card links, full stop.
+    test("employee on a role -> tracks every one of the role's KPIs", () {
       const assignee = KpiAssignee(employeeId: 'e1', name: 'Alice');
       final result = employeesByKpi(
         employees: [(assignee: assignee, roleScorecardId: 'r1')],
         roleKpiIds: {
           'r1': {'a', 'b'},
-        },
-        employeeSubsets: const {},
-      );
-      expect(result.isEmpty, isTrue);
-    });
-
-    test('employee with an EMPTY stored set -> tracks nothing at all', () {
-      const assignee = KpiAssignee(employeeId: 'e1', name: 'Alice');
-      final result = employeesByKpi(
-        employees: [(assignee: assignee, roleScorecardId: 'r1')],
-        roleKpiIds: {
-          'r1': {'a', 'b'},
-        },
-        employeeSubsets: const {'e1': <String>{}},
-      );
-      expect(result.isEmpty, isTrue);
-    });
-
-    test('employee whose stored set covers the whole role -> tracks both', () {
-      const assignee = KpiAssignee(employeeId: 'e1', name: 'Alice');
-      final result = employeesByKpi(
-        employees: [(assignee: assignee, roleScorecardId: 'r1')],
-        roleKpiIds: {
-          'r1': {'a', 'b'},
-        },
-        employeeSubsets: {
-          'e1': {'a', 'b'},
         },
       );
       expect(result['a']!.map((a) => a.name), ['Alice']);
       expect(result['b']!.map((a) => a.name), ['Alice']);
     });
 
-    test('employee with on-role subset {a} -> tracks only a', () {
+    test('a role with no KPIs -> tracks nothing', () {
       const assignee = KpiAssignee(employeeId: 'e1', name: 'Alice');
       final result = employeesByKpi(
         employees: [(assignee: assignee, roleScorecardId: 'r1')],
-        roleKpiIds: {
-          'r1': {'a', 'b'},
-        },
-        employeeSubsets: {
-          'e1': {'a'},
-        },
-      );
-      expect(result['a']!.map((a) => a.name), ['Alice']);
-      expect(result.containsKey('b'), isFalse);
-    });
-
-    // A stored set that no longer intersects the role (the person was moved
-    // to another card) reads exactly like an absent one: a gap, not the whole
-    // role. Same trigger condition as the Needs-attention chip's.
-    test('employee with an off-role subset {z} -> tracks nothing at all', () {
-      const assignee = KpiAssignee(employeeId: 'e1', name: 'Alice');
-      final result = employeesByKpi(
-        employees: [(assignee: assignee, roleScorecardId: 'r1')],
-        roleKpiIds: {
-          'r1': {'a', 'b'},
-        },
-        employeeSubsets: {
-          'e1': {'z'},
-        },
+        roleKpiIds: const {},
       );
       expect(result.isEmpty, isTrue);
     });
@@ -86,9 +34,41 @@ void main() {
         roleKpiIds: {
           'r1': {'a', 'b'},
         },
-        employeeSubsets: const {},
       );
       expect(result.isEmpty, isTrue);
+    });
+
+    test('two employees on the same role both track the same KPI', () {
+      const alice = KpiAssignee(employeeId: 'e1', name: 'Alice');
+      const bob = KpiAssignee(employeeId: 'e2', name: 'Bob');
+      final result = employeesByKpi(
+        employees: [
+          (assignee: alice, roleScorecardId: 'r1'),
+          (assignee: bob, roleScorecardId: 'r1'),
+        ],
+        roleKpiIds: {
+          'r1': {'a'},
+        },
+      );
+      expect(result['a']!.map((a) => a.name), containsAll(['Alice', 'Bob']));
+      expect(result['a']!.length, 2);
+    });
+
+    test('employees on different roles do not cross-track', () {
+      const alice = KpiAssignee(employeeId: 'e1', name: 'Alice');
+      const bob = KpiAssignee(employeeId: 'e2', name: 'Bob');
+      final result = employeesByKpi(
+        employees: [
+          (assignee: alice, roleScorecardId: 'r1'),
+          (assignee: bob, roleScorecardId: 'r2'),
+        ],
+        roleKpiIds: {
+          'r1': {'a'},
+          'r2': {'b'},
+        },
+      );
+      expect(result['a']!.map((a) => a.name), ['Alice']);
+      expect(result['b']!.map((a) => a.name), ['Bob']);
     });
   });
 }

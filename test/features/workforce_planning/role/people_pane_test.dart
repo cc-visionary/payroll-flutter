@@ -51,7 +51,8 @@ void main() {
 
   Future<void> pump(
     WidgetTester tester, {
-    required Set<String> assigned,
+    required List<Employee> holders,
+    List<RoleKpi> roleKpis = _roleKpis,
   }) async {
     tester.view.physicalSize = const Size(1400, 3000);
     tester.view.devicePixelRatio = 1.0;
@@ -59,20 +60,15 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          wpActiveEmployeesProvider.overrideWith(
-            (ref) async => [_emp('e1', 'Marvin')],
+          wpActiveEmployeesProvider.overrideWith((ref) async => holders),
+          wpPersonLoadsProvider.overrideWith(
+            (ref) async => [for (final h in holders) _load(h.id)],
           ),
-          wpPersonLoadsProvider.overrideWith((ref) async => [_load('e1')]),
-          roleKpisProvider('card-1').overrideWith((ref) async => _roleKpis),
-          employeeAssignedKpiIdsProvider(
-            'e1',
-          ).overrideWith((ref) async => assigned),
+          roleKpisProvider('card-1').overrideWith((ref) async => roleKpis),
         ],
         child: const MaterialApp(
           home: Scaffold(
-            body: SingleChildScrollView(
-              child: PeoplePane(cardId: 'card-1'),
-            ),
+            body: SingleChildScrollView(child: PeoplePane(cardId: 'card-1')),
           ),
         ),
       ),
@@ -80,42 +76,43 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('a holder with no stored set is flagged, not shown as full', (
-    tester,
-  ) async {
-    // Before 20260811000002 an empty set meant "tracks everything", so this
-    // person would have read as tracking all three. Under scoring that is the
-    // difference between measured-on-three and measured-on-ten.
-    await pump(tester, assigned: const {});
-    expect(find.textContaining('No KPI set'), findsOneWidget);
-    expect(find.textContaining('tracks 3 of 3'), findsNothing);
-  });
-
-  testWidgets("shows how many of the role's KPIs a holder tracks", (
-    tester,
-  ) async {
-    await pump(tester, assigned: {'k1', 'k2'});
-    expect(find.textContaining('tracks 2 of 3'), findsOneWidget);
-    expect(find.textContaining('No KPI set'), findsNothing);
-  });
+  // Pure inheritance's whole point: two holders of the same role can no
+  // longer disagree about which of the role's KPIs they track. Before this,
+  // one holder could have a narrower stored subset than another on the same
+  // card — the exact discrepancy this test now proves is impossible.
+  testWidgets(
+    'every holder of the same role tracks all of the same KPIs',
+    (tester) async {
+      await pump(
+        tester,
+        holders: [_emp('e1', 'Marvin'), _emp('e2', 'Alice')],
+      );
+      expect(find.textContaining('tracks all 3 of 3'), findsNWidgets(2));
+    },
+  );
 
   testWidgets('names the holder and their load', (tester) async {
-    await pump(tester, assigned: {'k1'});
+    await pump(tester, holders: [_emp('e1', 'Marvin')]);
     expect(find.textContaining('Marvin'), findsOneWidget);
   });
 
   testWidgets(
-    'a stored set that is entirely off this role reads as no set, not as '
-    'zero of three',
+    'a role with no KPIs is flagged on the holder row, not hidden as zero '
+    'of zero',
     (tester) async {
-      // The count line already intersects with the role's KPIs, and
-      // initialCheckedKpiIds defines an off-role id as absent — so a holder
-      // whose only tracked KPI was just removed from the role read
-      // "tracks 0 of 3" with no warning beside it, the one state the chip
-      // exists to catch.
-      await pump(tester, assigned: {'removed-from-this-role'});
-      expect(find.textContaining('No KPI set'), findsOneWidget);
-      expect(find.textContaining('tracks 0 of 3'), findsNothing);
+      await pump(tester, holders: [_emp('e1', 'Marvin')], roleKpis: const []);
+      expect(find.textContaining('Role has no KPIs'), findsOneWidget);
+      expect(find.textContaining('tracks all'), findsNothing);
     },
   );
+
+  testWidgets('no per-employee KPI picker remains on this pane', (
+    tester,
+  ) async {
+    await pump(tester, holders: [_emp('e1', 'Marvin')]);
+    // The retired curation surface (checkboxes, expandable per-person editor)
+    // is gone; the row is a plain read-out.
+    expect(find.byType(CheckboxListTile), findsNothing);
+    expect(find.byType(ExpansionTile), findsNothing);
+  });
 }

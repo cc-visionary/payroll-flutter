@@ -19,6 +19,10 @@ class RoleKpi {
   final String? unit;
   final String? cadence;
 
+  /// The `role_outcomes` row this link proves, or null if none has been
+  /// picked. See role_outcomes (20260814000002) and `KpiLinkInput.outcomeId`.
+  final String? outcomeId;
+
   const RoleKpi({
     required this.kpiId,
     required this.name,
@@ -27,6 +31,7 @@ class RoleKpi {
     this.goal,
     this.unit,
     this.cadence,
+    this.outcomeId,
   });
 
   factory RoleKpi.fromRow(Map<String, dynamic> r) {
@@ -39,6 +44,7 @@ class RoleKpi {
       goal: KpiGoal.fromRow(r),
       unit: kpi?['unit'] as String?,
       cadence: kpi?['cadence'] as String?,
+      outcomeId: r['outcome_id'] as String?,
     );
   }
 }

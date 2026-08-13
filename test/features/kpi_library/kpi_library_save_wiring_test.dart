@@ -34,6 +34,13 @@ class _RecordedSave {
   final String cadence;
   final String? proofType;
   final bool writeDefinition;
+  final String level;
+  final String? parentKpiId;
+  final String rollupType;
+  final String dataMethod;
+  final String? targetDirection;
+  final num? targetValue;
+  final bool writeCascade;
   _RecordedSave({
     required this.id,
     required this.companyId,
@@ -47,6 +54,13 @@ class _RecordedSave {
     required this.cadence,
     required this.proofType,
     required this.writeDefinition,
+    required this.level,
+    required this.parentKpiId,
+    required this.rollupType,
+    required this.dataMethod,
+    required this.targetDirection,
+    required this.targetValue,
+    required this.writeCascade,
   });
 }
 
@@ -70,6 +84,13 @@ class _RecordingRepo implements RoleScorecardRepository {
     String cadence = 'WEEKLY',
     String? proofType,
     bool writeDefinition = false,
+    String level = 'PERSONAL',
+    String? parentKpiId,
+    String rollupType = 'INDEPENDENT',
+    String dataMethod = 'MANUAL_PERIODIC',
+    String? targetDirection,
+    num? targetValue,
+    bool writeCascade = false,
   }) async {
     saves.add(
       _RecordedSave(
@@ -85,6 +106,13 @@ class _RecordingRepo implements RoleScorecardRepository {
         cadence: cadence,
         proofType: proofType,
         writeDefinition: writeDefinition,
+        level: level,
+        parentKpiId: parentKpiId,
+        rollupType: rollupType,
+        dataMethod: dataMethod,
+        targetDirection: targetDirection,
+        targetValue: targetValue,
+        writeCascade: writeCascade,
       ),
     );
     return Kpi(id: 'new-kpi', companyId: companyId, name: name);
