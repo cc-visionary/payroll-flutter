@@ -1,3 +1,12 @@
+> **SUPERSEDED — 2026-08-13.** Luxium is no longer adopting EOS, so the
+> vocabulary and the standalone chart this spec describes are gone. The
+> chart's content survives: Workforce Planning's Structure tab became
+> **Organization**, where each person's box now lists what their role owns.
+> "Seat" reads "Role" everywhere, and `role_scorecards.parent_id` was removed
+> along with its never-applied migration, because the Organization tab uses
+> `employees.reports_to_id` instead of a separate role tree. Kept for the
+> reasoning, not as a description of the app.
+
 # Spec C — The Accountability Chart
 
 **Date:** 2026-08-12

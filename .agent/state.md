@@ -1,62 +1,67 @@
 # STATE
 
-Task: Accountability Chart (Plan C) — EOS seats, seat tree, chart screen
-Contract: docs/superpowers/plans/2026-08-12-accountability-chart.md
-Branch: accountability-chart (worktree .claude/worktrees/accountability-chart)
-Base: main @ cfe90a2        Last commit: 320017c
-Agent: Claude (subagent-driven; 2026-08-12 → 2026-08-13)
+Task: drop the EOS vocabulary; fold the chart into an Organization tab
+Branch: role-vocabulary (worktree .claude/worktrees/role-vocabulary)
+Base: main @ b96125b        Last commit: (this branch's head)
+Agent: Claude (2026-08-13)
 
 ## Done
-- All 5 plan tasks implemented, individually reviewed, fix rounds closed.
-  Per-task findings and rulings: `.superpowers/sdd/2026-08-12-accountability-chart/progress.md`
-  — read that before re-deciding anything; it records WHY, not just what.
-  1. Vocabulary: the responsibility card is the SEAT (12 strings, 2 tests).
-  2. `role_scorecards.parent_id` + index + cycle-guard trigger, and the
-     role details pane now carries `parentId` forward on save (it did not —
-     every ordinary "Save Role" wiped the seat's chart placement).
-  3. `seat_tree.dart`: `seatBoxes` (one box per ACTIVE holder, sorted by full
-     name; exactly ONE open box for a seat with none) and `seatDropError`.
-  4. `/accountability-chart` screen, drag-to-reparent, explicit route guard
-     at `router.dart:112` (the `/workforce-planning` prefix does NOT cover it).
-  5. Two Needs-attention chips: ">5 roles" and "open seats".
-- Final whole-branch review: seams clean. One real defect found and fixed
-  (deleting a parent seat threw an uncaught FK error at two screens this
-  branch never touched) — FK is now `on delete set null`, and both confirm
-  dialogs say how many seats will re-root.
-- Verified on the final tree, directly: **1377 passing / 1 skipped**,
-  `flutter analyze lib test` **0 errors / 0 warnings / 192 infos**.
+- **People Analyzer cancelled** before this branch: quarterly reviews and
+  check-ins already capture the same judgement. Branch and 3 commits deleted,
+  spec and plan removed from main (`b96125b`). Nothing was applied to any
+  database.
+- **EOS is no longer the framework.** The direction is a lightweight cascading
+  Balanced Scorecard (Company → Department → Role → Person) plus strategic
+  workforce planning, with EOS kept only as management rhythm. This branch
+  removes the EOS residue:
+  1. `3fcde64` — the standalone `/accountability-chart` is folded into the
+     Structure tab, now **Organization**. Each person's box lists what their
+     role owns. `areasBySeat` → `role_structure.dart`'s `areasByRole`, joined
+     by `holderCountByRole`. `seat_tree.dart` and the chart screen are gone;
+     `OrgChartView` gained an optional `details` hook. The `>5 roles` chip (a
+     pure EOS prescription) is gone; the open-seat chip is now "N roles nobody
+     holds".
+  2. `1472f1a` — every user-visible "seat" reads "role" again, and
+     `role_scorecards.parent_id` is removed with its never-applied migration.
+  3. `60cb435` — the Tasks tab is the **Responsibilities** tab, through the
+     class, the file and every doc comment.
+- Verified on this branch: **1359 passing / 1 skipped**, `flutter analyze lib
+  test` 0 errors / 0 warnings / 192 infos.
 
 ## In flight
-- none. Tree is clean; 12 commits sit on `accountability-chart` awaiting the
-  owner's integration decision (merge locally / PR / keep).
+- none. Awaiting the owner's integration decision.
 
 ## Decisions
-- The chart counts a seat's roles from AUTHORED areas (`wp_tasks` via
-  `areasBySeat`), NOT `RoleScorecard.responsibilities`, which appends
-  shared-in areas and is what the role-card PDF renders. So the chart shows
-  fewer roles than the PDF for a seat with shared work — intentional: an EOS
-  role is a seat's own accountability, and shared work has its primary owner
-  elsewhere. The Needs-attention chip calls the same function so the chip and
-  the box can never disagree.
-- `on delete set null`, not `cascade` (would delete real seats and their
-  holders' role assignment) and not the default `no action` (the bug).
-- `toUpsertPayload` always emitting `parent_id` was left alone deliberately —
-  see Blockers. It is a release-ordering fact, not a defect, and defending
-  against it in code would leave permanent complexity behind a one-time step.
+- The Organization tree is `employees.reports_to_id`, not a role-parent tree.
+  The role tree existed to model one person holding two seats in different
+  branches — an EOS concern that no longer applies — so `parent_id` became
+  dead schema and was deleted rather than left dormant.
+- The role-details-pane carry-forward guard was RETARGETED, not deleted:
+  the pane rebuilds the card field-by-field on save, so a forgotten field
+  silently reverts to null, and the model test cannot catch it because
+  fromRow/toUpsertPayload round-trip fine while the CALLER drops the value.
+  It now pins `shiftTemplateId`.
+- The Accountability Chart spec and plan are kept with a SUPERSEDED header
+  rather than deleted — the reasoning is still worth reading, the description
+  of the app is not.
 
 ## Next
 - The owner picks: merge to `main` locally, open a PR, or keep the branch.
-- Then GUI smoke: open `/accountability-chart`, drag a seat onto another,
-  confirm the Balance tab's two new chips show real counts, and delete a
-  parent seat to confirm its children re-root instead of failing silently.
+- Then: write the **Integrated Performance & Workforce Planning** spec —
+  cascading Company → Department → Role → Person scorecards, a Desired
+  Outcomes layer between responsibility and KPI, and two new fields on every
+  KPI definition (Roll-Up Type: direct / aligned / independent; Data Method:
+  automatic / hybrid / manual-exception / manual-periodic). Source material:
+  the owner's 2026-08-13 message and
+  `/home/ccvisionary/Downloads/Luxium_People_Workforce_KPI_App_Update_Spec.docx`.
+  The stated planning order is company-first, then department, then role, with
+  bottom-up validation against controllability and available data.
 
 ## Blockers
-- **SHIP ORDER.** Four migrations must be applied TOGETHER and BEFORE or WITH
-  the code, never after: `20260811000001`, `20260811000002`, `20260812000001`
-  (Spec A) and `20260813000001` (this branch). If the code reaches users
-  first, every "Save Role" and "New Role" in the app fails with a
-  column-not-found error — including HR workflows unrelated to this feature.
-  Applied by a human with `supabase db push`; no agent may run it.
+- **SHIP ORDER.** THREE migrations must be applied TOGETHER and BEFORE or WITH
+  the code, never after: `20260811000001`, `20260811000002`, `20260812000001`.
+  (The fourth, `20260813000001`, is deleted by this branch.) Applied by a human
+  with `supabase db push`; no agent may run it.
 
 ---
 
