@@ -495,10 +495,12 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
             dataMethod: result.dataMethod,
             targetDirection: result.targetDirection,
             targetValue: result.targetValue,
+            departmentId: result.departmentId,
             // Same reasoning as writeDefinition above: the dialog now renders
             // and submits level/parent/roll-up type/data method/default
-            // target too, so this is where saveLibraryKpi finally gets told
-            // to write them instead of leaving them at their defaults.
+            // target (and now department) too, so this is where
+            // saveLibraryKpi finally gets told to write them instead of
+            // leaving them at their defaults.
             writeCascade: true,
           );
     } catch (e) {

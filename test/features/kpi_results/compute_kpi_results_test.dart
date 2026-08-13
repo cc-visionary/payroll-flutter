@@ -497,6 +497,52 @@ void main() {
   });
 
   test(
+    'a DEPARTMENT-level KPI with no departmentId produces a visible '
+    'NO_DATA/MISSING_SOURCE row instead of silently vanishing -- absence '
+    'must be legible, the same rule this whole engine applies to data',
+    () async {
+      final kpi = _kpi(
+        id: 'k-no-dept',
+        level: 'DEPARTMENT',
+        rollupType: 'INDEPENDENT',
+        dataMethod: 'MANUAL_PERIODIC',
+        // departmentId deliberately omitted -- the exact shape every KPI
+        // created through the dialog had before the department picker was
+        // added to it.
+        targetValue: 10,
+      );
+
+      final rows = await computeResults(
+        period: '2026-08',
+        kpis: [kpi],
+        employees: [_employee('a')],
+        roles: const [],
+        registry: const {},
+        exceptions: const [],
+        readings: const [],
+        roleKpiLinks: const {},
+      );
+
+      final deptRows = rows.where((r) => r.scope == KpiScope.department);
+      expect(
+        deptRows,
+        hasLength(1),
+        reason:
+            'INDEPENDENT resolves to exactly {department}, so this KPI must '
+            'produce exactly one department row, not zero',
+      );
+      final row = deptRows.single;
+      expect(row.departmentId, isNull);
+      expect(row.numerator, isNull);
+      expect(row.status, KpiStatus.noData);
+      expect(row.sourceCompleteness, SourceCompleteness.missingSource);
+      // Company scope is untouched by this -- INDEPENDENT resolves to
+      // {department} only.
+      expect(rows.any((r) => r.scope == KpiScope.company), isFalse);
+    },
+  );
+
+  test(
     'target snapshotting: the row carries the target as it is now, and a '
     'later change to the definition produces a changed snapshot on the '
     'next call rather than rewriting anything already returned',
@@ -842,6 +888,226 @@ void main() {
 
         final dept = _only(rows, KpiScope.department);
         expect(dept.numerator, 5); // 2 (alice) + 3 (unattributed).
+        expect(dept.sourceCompleteness, SourceCompleteness.complete);
+      },
+    );
+  });
+
+  // HYBRID mirror of the MANUAL_EXCEPTION group above. HYBRID subtracts the
+  // same confirmed-exception sum from a registry numerator instead of
+  // reporting it directly, but the unattributed rule is identical: an
+  // exception nobody could be attributed to is still real and must still
+  // flip sourceCompleteness, even though (unlike MANUAL_EXCEPTION) HYBRID
+  // always has SOME numerator to report and so can never itself go NO_DATA
+  // over this.
+  group('HYBRID: unattributed rows (no employee_id)', () {
+    test(
+      'unattributed-only at COMPANY scope subtracts directly and stays '
+      'COMPLETE',
+      () async {
+        final kpi = _kpi(
+          id: 'k-hybrid-company-unattr',
+          dataMethod: 'HYBRID',
+          valueType: 'COUNT',
+          numeratorSource: 'test.hybrid',
+          targetDirection: 'LOWER',
+          targetValue: 50,
+        );
+        final registry = {
+          'test.hybrid': _FixedSource(
+            'test.hybrid',
+            (_) => (numerator: 100, denominator: 100),
+          ),
+        };
+        final exceptions = [
+          // employeeId omitted, same as the MANUAL_EXCEPTION mirror above.
+          _exception(
+            kpiId: kpi.id,
+            occurredOn: '2026-08-05',
+            quantity: 3,
+            confirmedAt: DateTime(2026, 8, 6),
+          ),
+        ];
+
+        final rows = await computeResults(
+          period: '2026-08',
+          kpis: [kpi],
+          employees: [_employee('a')],
+          roles: const [],
+          registry: registry,
+          exceptions: exceptions,
+          readings: const [],
+          roleKpiLinks: const {},
+        );
+
+        final row = _only(rows, KpiScope.company);
+        expect(row.numerator, 97); // 100 - 3.
+        expect(row.sourceCompleteness, SourceCompleteness.complete);
+      },
+    );
+
+    test(
+      'unattributed-only at PERSONAL scope cannot be subtracted from THIS '
+      'person and must say so -- the regression this fix closes: the row '
+      'used to hardcode COMPLETE here and over-report accuracy',
+      () async {
+        final kpi = _kpi(
+          id: 'k-hybrid-personal-unattr',
+          level: 'PERSONAL',
+          rollupType: 'ALIGNED',
+          dataMethod: 'HYBRID',
+          valueType: 'COUNT',
+          numeratorSource: 'test.hybrid',
+          targetDirection: 'LOWER',
+          targetValue: 5,
+        );
+        final roles = [_role('r-ops')];
+        final employees = [_employee('alice', roleId: 'r-ops')];
+        final registry = {
+          'test.hybrid': _FixedSource(
+            'test.hybrid',
+            (_) => (numerator: 10, denominator: 10),
+          ),
+        };
+        final exceptions = [
+          _exception(
+            kpiId: kpi.id,
+            occurredOn: '2026-08-05',
+            quantity: 3,
+            confirmedAt: DateTime(2026, 8, 6),
+          ),
+        ];
+
+        final rows = await computeResults(
+          period: '2026-08',
+          kpis: [kpi],
+          employees: employees,
+          roles: roles,
+          registry: registry,
+          exceptions: exceptions,
+          readings: const [],
+          roleKpiLinks: {
+            'k-hybrid-personal-unattr': {'r-ops'},
+          },
+        );
+
+        final row = _only(rows, KpiScope.personal, employeeId: 'alice');
+        // Nothing could be attributed to alice, so the registry number
+        // passes through unsubtracted -- unavoidable, since nobody knows
+        // whose error it was. What must change is that the row no longer
+        // claims that unsubtracted number is COMPLETE.
+        expect(row.numerator, 10);
+        expect(row.sourceCompleteness, SourceCompleteness.missingSource);
+      },
+    );
+
+    test(
+      'an unattributed row in a DIFFERENT month does not taint this '
+      "period's PERSONAL result",
+      () async {
+        final kpi = _kpi(
+          id: 'k-hybrid-personal-unattr-2',
+          level: 'PERSONAL',
+          rollupType: 'ALIGNED',
+          dataMethod: 'HYBRID',
+          valueType: 'COUNT',
+          numeratorSource: 'test.hybrid',
+          targetDirection: 'LOWER',
+          targetValue: 5,
+        );
+        final roles = [_role('r-ops')];
+        final employees = [_employee('alice', roleId: 'r-ops')];
+        final registry = {
+          'test.hybrid': _FixedSource(
+            'test.hybrid',
+            (_) => (numerator: 10, denominator: 10),
+          ),
+        };
+        // The only exception is unattributed AND in August. September has
+        // no exceptions at all for this kpi and must read a clean COMPLETE
+        // rather than carrying August's MISSING_SOURCE forward.
+        final exceptions = [
+          _exception(
+            kpiId: kpi.id,
+            occurredOn: '2026-08-05',
+            quantity: 3,
+            confirmedAt: DateTime(2026, 8, 6),
+          ),
+        ];
+
+        final rows = await computeResults(
+          period: '2026-09',
+          kpis: [kpi],
+          employees: employees,
+          roles: roles,
+          registry: registry,
+          exceptions: exceptions,
+          readings: const [],
+          roleKpiLinks: {
+            'k-hybrid-personal-unattr-2': {'r-ops'},
+          },
+        );
+
+        final row = _only(rows, KpiScope.personal, employeeId: 'alice');
+        expect(row.numerator, 10); // nothing confirmed in September.
+        expect(row.sourceCompleteness, SourceCompleteness.complete);
+      },
+    );
+
+    test(
+      'mixed attributed and unattributed rows both subtract at DEPARTMENT '
+      'scope',
+      () async {
+        final kpi = _kpi(
+          id: 'k-hybrid-dept-unattr',
+          level: 'PERSONAL',
+          rollupType: 'DIRECT',
+          dataMethod: 'HYBRID',
+          valueType: 'COUNT',
+          departmentId: 'd-ops',
+          numeratorSource: 'test.hybrid',
+          targetDirection: 'LOWER',
+          targetValue: 5,
+        );
+        final roles = [_role('r-ops', deptId: 'd-ops')];
+        final employees = [_employee('alice', roleId: 'r-ops')];
+        final registry = {
+          'test.hybrid': _FixedSource(
+            'test.hybrid',
+            (_) => (numerator: 100, denominator: 100),
+          ),
+        };
+        final exceptions = [
+          _exception(
+            kpiId: kpi.id,
+            employeeId: 'alice',
+            occurredOn: '2026-08-05',
+            quantity: 2,
+            confirmedAt: DateTime(2026, 8, 6),
+          ),
+          _exception(
+            kpiId: kpi.id,
+            occurredOn: '2026-08-07',
+            quantity: 3,
+            confirmedAt: DateTime(2026, 8, 8),
+          ),
+        ];
+
+        final rows = await computeResults(
+          period: '2026-08',
+          kpis: [kpi],
+          employees: employees,
+          roles: roles,
+          registry: registry,
+          exceptions: exceptions,
+          readings: const [],
+          roleKpiLinks: {
+            'k-hybrid-dept-unattr': {'r-ops'},
+          },
+        );
+
+        final dept = _only(rows, KpiScope.department);
+        expect(dept.numerator, 95); // 100 - (2 alice + 3 unattributed).
         expect(dept.sourceCompleteness, SourceCompleteness.complete);
       },
     );

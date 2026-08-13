@@ -53,8 +53,12 @@ KpiScope? _kpiScopeFor(_ScopeFilter f) => switch (f) {
 
 /// HR/admin-facing monthly results screen: month picker, scope switch, one
 /// row per KPI result, and a "Recompute this month" action that runs Task 7's
-/// `computeResults` and upserts the output. Reachable only by HR/Admin -- see
-/// the `/kpi-results` redirect guard in `app/router.dart`.
+/// `computeResults` and upserts the output. Reachable only by
+/// `UserProfile.isPerformanceAdmin` -- SUPER_ADMIN/ADMIN/HR/HR_ADMIN, not the
+/// broader `isHrOrAdmin` (which also admits PAYROLL_ADMIN) most other
+/// HR-gated routes use -- see the `/kpi-results` redirect guard in
+/// `app/router.dart` and `kPerformanceAdminRoleCodes`'s doc comment
+/// (`features/auth/profile_provider.dart`) for why this route is narrower.
 ///
 /// `NO_DATA` must never render the same as `OFF_TRACK`: see the status chip
 /// in `_ResultsTable` and the doc comment on `KpiStatus` itself

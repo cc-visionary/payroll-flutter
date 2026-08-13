@@ -90,6 +90,7 @@ class _RecordingRepo implements RoleScorecardRepository {
     String dataMethod = 'MANUAL_PERIODIC',
     String? targetDirection,
     num? targetValue,
+    String? departmentId,
     bool writeCascade = false,
   }) async {
     saves.add(

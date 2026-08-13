@@ -111,7 +111,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         // literal strings, same as the '/workforce-planning' vs
         // '/accountability-chart' near-miss this plan's briefs keep citing)
         // -- no existing clause covers this path, so it gets its own.
-        if (loc.startsWith('/kpi-results') && !profile.isHrOrAdmin) {
+        //
+        // isPerformanceAdmin, NOT isHrOrAdmin: this screen's Recompute
+        // action reads employee_reviews through a check that only certifies
+        // full visibility for SUPER_ADMIN/ADMIN/HR/HR_ADMIN
+        // (ReviewCycleRepository.callerSeesAllReviews). isHrOrAdmin also
+        // admits PAYROLL_ADMIN, which used to reach this screen and silently
+        // overwrite every review-sourced KPI result with NO_DATA on
+        // Recompute -- see kPerformanceAdminRoleCodes' doc comment
+        // (features/auth/profile_provider.dart).
+        if (loc.startsWith('/kpi-results') && !profile.isPerformanceAdmin) {
           return '/dashboard';
         }
         // Neither '/kpi-library' nor '/kpi-results' prefix-matches

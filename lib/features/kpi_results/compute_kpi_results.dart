@@ -107,27 +107,55 @@ Future<List<KpiResult>> computeResults({
     }
 
     String? deptRow; // the one department this KPI's department row covers.
-    if (scopes.contains(KpiScope.department) && kpi.departmentId != null) {
-      deptRow = kpi.departmentId;
-      final population = populationFor(
-        scope: KpiScope.department,
-        departmentId: deptRow,
-        employees: employees,
-        roles: roles,
-      );
-      rows.add(
-        await _row(
-          kpi: kpi,
-          period: period,
+    if (scopes.contains(KpiScope.department)) {
+      if (kpi.departmentId != null) {
+        deptRow = kpi.departmentId;
+        final population = populationFor(
           scope: KpiScope.department,
-          population: population,
           departmentId: deptRow,
-          direction: direction,
-          registry: registry,
-          kpiExceptions: kpiExceptions,
-          kpiReadings: kpiReadings,
-        ),
-      );
+          employees: employees,
+          roles: roles,
+        );
+        rows.add(
+          await _row(
+            kpi: kpi,
+            period: period,
+            scope: KpiScope.department,
+            population: population,
+            departmentId: deptRow,
+            direction: direction,
+            registry: registry,
+            kpiExceptions: kpiExceptions,
+            kpiReadings: kpiReadings,
+          ),
+        );
+      } else {
+        // A DEPARTMENT row is required (this KPI's level/roll-up resolved
+        // {department} or wider) but kpi.departmentId is unset -- there is
+        // no roster to compute over and nothing in [roles] can safely guess
+        // which department was meant (see decision 2's own reasoning against
+        // iterating every department). The old behaviour here was to add
+        // nothing at all: the KPI silently had zero rows at this scope, no
+        // error, indistinguishable from a KPI nobody ever created. That is
+        // exactly the kind of quiet absence this whole engine exists to
+        // rule out for DATA; a misconfigured KPI deserves the same
+        // legibility. `kpi_results_identity`'s unique index coalesces a null
+        // department_id to a fixed sentinel uuid (20260814000004), so this
+        // is a normal, unique row -- not a schema special case.
+        rows.add(
+          KpiResult(
+            companyId: kpi.companyId,
+            kpiId: kpi.id,
+            period: period,
+            scope: KpiScope.department,
+            departmentId: null,
+            targetSnapshot: kpi.targetValue,
+            direction: direction,
+            status: KpiStatus.noData,
+            sourceCompleteness: SourceCompleteness.missingSource,
+          ),
+        );
+      }
     }
 
     if (scopes.contains(KpiScope.personal)) {
@@ -361,21 +389,34 @@ Future<_Inputs> _inputsFor({
             completeness: SourceCompleteness.missingSource,
           );
         }
-        // _confirmedSum's own SUM was already period-safe — confirmedCountFor
-        // buckets by occurred_on internally regardless of what it is handed
-        // — but it still routes through _scopedExceptions, which is why that
-        // function (not this call site) needed the period fix below.
-        final confirmed = _confirmedSum(
+        // Call _scopedExceptions directly, not through a numerator-only
+        // helper, because completeness below needs its excludedUnattributed
+        // flag too -- exactly what a prior version of this branch discarded.
+        // At PERSONAL scope, an unattributed exception (no employee_id) is
+        // excluded from `scoped.counted`, so the subtraction below only ever
+        // removes what could actually be attributed to THIS person; an
+        // unattributed error in the period is real but uncountable here, and
+        // `scoped.excludedUnattributed` is how this branch says so instead of
+        // silently reporting a too-high (better than reality) result as
+        // COMPLETE. Mirrors MANUAL_EXCEPTION's identical use of the same
+        // flag a few cases below.
+        final scoped = _scopedExceptions(
           kpi: kpi,
           kpiExceptions: kpiExceptions,
           period: period,
           scope: scope,
           population: population,
         );
+        final confirmed = confirmedCountFor(
+          exceptions: scoped.counted,
+          period: period,
+        );
         return (
           numerator: input.numerator! - confirmed,
           denominator: input.denominator,
-          completeness: SourceCompleteness.complete,
+          completeness: scoped.excludedUnattributed
+              ? SourceCompleteness.missingSource
+              : SourceCompleteness.complete,
         );
       }
 
@@ -523,27 +564,6 @@ Future<_Inputs> _inputsFor({
     excludedUnattributed: false,
   );
 }
-
-/// The confirmed sum for this row, restricted to [population] the same way
-/// [_scopedExceptions] restricts existence — delegates the actual counting
-/// rule (confirmed-only, bucketed by `occurred_on`) to [confirmedCountFor]
-/// rather than re-deriving it.
-num _confirmedSum({
-  required Kpi kpi,
-  required List<KpiException> kpiExceptions,
-  required String period,
-  required KpiScope scope,
-  required List<String> population,
-}) => confirmedCountFor(
-  exceptions: _scopedExceptions(
-    kpi: kpi,
-    kpiExceptions: kpiExceptions,
-    period: period,
-    scope: scope,
-    population: population,
-  ).counted,
-  period: period,
-);
 
 /// The one reading (if any) recorded for this exact row identity — the same
 /// five-part key `kpi_results`' own unique index uses. Not an aggregate:

@@ -264,6 +264,16 @@ class RoleScorecardRepository {
     String dataMethod = 'MANUAL_PERIODIC',
     String? targetDirection,
     num? targetValue,
+    // Bundled under writeCascade, not its own flag: department_id decides
+    // WHICH department a DEPARTMENT-or-wider row belongs to
+    // (compute_kpi_results.dart), the same cascade question level/rollup
+    // answer, and the only caller with an opinion on any of them is the same
+    // one -- the KPI Library dialog. Previously omitted from `fields`
+    // entirely, so even a caller that DID collect a department_id (none did)
+    // could never have persisted it; this was the second half of the
+    // vanishing-department-row defect, the first half being the dialog
+    // never rendering a picker at all.
+    String? departmentId,
     // Same guard as [writeDefinition], and for the same reason: the KPI
     // Library dialog is the only caller that renders level/parent/roll-up
     // type/data method/default target today, so a caller with no opinion on
@@ -297,6 +307,7 @@ class RoleScorecardRepository {
         'data_method': dataMethod,
         'target_direction': targetDirection,
         'target_value': targetValue,
+        'department_id': departmentId,
       },
     };
     if (id != null && id.isNotEmpty) {

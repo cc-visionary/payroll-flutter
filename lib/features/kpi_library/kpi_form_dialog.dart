@@ -1,10 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/models/department.dart';
 import '../../data/models/kpi.dart';
+import '../../data/repositories/department_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import 'kpi_definition_form.dart';
 import 'kpi_parentage.dart';
+
+/// Guards the Department `DropdownButtonFormField`'s `initialValue` against
+/// an id that isn't among its current `items` -- verified against the
+/// installed Flutter SDK, the widget asserts exactly one item matches
+/// `initialValue` unless it is null. A KPI pointing at a since-deleted
+/// department would otherwise crash this dialog on open. Duplicated,
+/// deliberately, from `role_details_pane.dart`'s identical `_present` /
+/// `_persisted` pair rather than imported -- both are private to that file,
+/// and this is the same small guard already accepted as worth re-deriving
+/// once for `compute_kpi_results.dart`'s own period-bucketing helper.
+String? _present(String? id, Iterable<String> ids) =>
+    (id != null && ids.contains(id)) ? id : null;
+
+/// What [_save] must persist for the Department dropdown: whatever
+/// [_present] is currently DISPLAYING for it. [ids] is null while
+/// [departmentListProvider] is still loading -- there is nothing to check
+/// against yet, so the stored id is kept rather than dropped: saving before
+/// the picker has populated must not silently clear a perfectly good
+/// department.
+String? _persisted(String? id, Iterable<String>? ids) =>
+    ids == null ? id : _present(id, ids);
 
 /// Create/edit dialog for a KPI library entry. Mirrors the layout of
 /// `RolesSettingsScreen`'s `_RoleForm` — an `AlertDialog` with a small set of
@@ -62,6 +85,15 @@ class _KpiFormDialogState extends ConsumerState<KpiFormDialog> {
   // still round-trips them on save — see the class doc comment.
   late String _level = widget.existing?.level ?? 'PERSONAL';
   late String? _parentKpiId = widget.existing?.parentKpiId;
+  // `kpis.department_id` (20260723000002) organises WHICH department a
+  // rolled-up row belongs to; `compute_kpi_results.dart` gates a DEPARTMENT
+  // row on it being non-null. Before this field existed here, every KPI
+  // created or edited through this dialog got `departmentId: null` (see
+  // _save()'s reconstruction below), which silently produced zero rows for
+  // any DEPARTMENT-or-wider KPI -- only the KPIs seeded by that migration
+  // could ever have a department row. This is the fix: expose the field
+  // that was already on the model and the table.
+  late String? _departmentId = widget.existing?.departmentId;
   late String _rollupType = widget.existing?.rollupType ?? 'INDEPENDENT';
   late String _dataMethod = widget.existing?.dataMethod ?? 'MANUAL_PERIODIC';
   late String? _targetDirection = widget.existing?.targetDirection;
@@ -149,7 +181,10 @@ class _KpiFormDialogState extends ConsumerState<KpiFormDialog> {
           ? null
           : _description.text.trim(),
       isActive: widget.existing?.isActive ?? true,
-      departmentId: widget.existing?.departmentId,
+      departmentId: _persisted(
+        _departmentId,
+        ref.read(departmentListProvider).asData?.value.map((d) => d.id),
+      ),
       valueType: _definition.valueType,
       numeratorLabel: _definition.numeratorLabel,
       numeratorSource: _definition.numeratorSource,
@@ -172,6 +207,8 @@ class _KpiFormDialogState extends ConsumerState<KpiFormDialog> {
   Widget build(BuildContext context) {
     final knownSources =
         ref.watch(kpiSourcesProvider).asData?.value ?? const <String>[];
+    final departments =
+        ref.watch(departmentListProvider).asData?.value ?? const <Department>[];
     final allKpis = ref.watch(kpiLibraryProvider).asData?.value ?? const <Kpi>[];
     _allKpis = allKpis;
     final parentError = _parentError(allKpis);
@@ -291,6 +328,44 @@ class _KpiFormDialogState extends ConsumerState<KpiFormDialog> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String?>(
+                initialValue: _present(
+                  _departmentId,
+                  departments.map((d) => d.id),
+                ),
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Department',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+                items: [
+                  const DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('No department (company-wide)'),
+                  ),
+                  for (final d in departments)
+                    DropdownMenuItem<String?>(
+                      value: d.id,
+                      child: Text('${d.code} — ${d.name}'),
+                    ),
+                ],
+                onChanged: (v) => setState(() => _departmentId = v),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  'Required for a DEPARTMENT (or wider) row to compute. Left '
+                  'unset, this KPI is company-wide -- and a DEPARTMENT/COMPANY '
+                  '-level KPI with no department produces a visible '
+                  'NO_DATA row rather than none at all.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(

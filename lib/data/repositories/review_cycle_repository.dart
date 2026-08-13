@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../features/auth/profile_provider.dart' show kPerformanceAdminRoleCodes;
 import '../pagination.dart';
 import '../models/employee_review.dart';
 import '../models/development_goal.dart';
@@ -298,12 +299,17 @@ class ReviewCycleRepository {
   /// (`auth_is_performance_admin_for_cycle`,
   /// 20260717000009_performance_rls_and_cascade_fixes.sql) treats as seeing
   /// every review in the company, not just self/direct-report rows.
-  static const _kFullReviewVisibilityRoles = {
-    'ADMIN',
-    'HR',
-    'HR_ADMIN',
-    'SUPER_ADMIN',
-  };
+  ///
+  /// Literally [kPerformanceAdminRoleCodes] -- not a second, separately
+  /// written copy of the same four codes. This constant used to live here
+  /// alone while `UserProfile.isAdmin`/`isHrOrAdmin` (which the
+  /// `/kpi-results` route guard used) independently decided PAYROLL_ADMIN
+  /// belonged in the "can manage this screen" set. Both lists were correct
+  /// against the authority each was reviewed against and wrong against the
+  /// other's; sharing one `const` makes that divergence structurally
+  /// impossible rather than merely policed by convention. See
+  /// [kPerformanceAdminRoleCodes]'s own doc comment for the full story.
+  static const _kFullReviewVisibilityRoles = kPerformanceAdminRoleCodes;
 
   /// Whether the CURRENT caller's `app_role` grants full-company visibility
   /// on `employee_reviews`. A caller outside [_kFullReviewVisibilityRoles]

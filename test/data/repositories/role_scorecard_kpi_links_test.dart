@@ -780,4 +780,119 @@ void main() {
       },
     );
   });
+
+  group('saveLibraryKpi writeCascade', () {
+    /// Mirrors `patchBody` above, for the cascade fields (level/parent/
+    /// roll-up type/data method/default target/department) instead of the
+    /// measurable-definition ones.
+    Future<Map> cascadePatchBody({
+      required bool writeCascade,
+      String level = 'PERSONAL',
+      String? parentKpiId,
+      String rollupType = 'INDEPENDENT',
+      String dataMethod = 'MANUAL_PERIODIC',
+      String? targetDirection,
+      num? targetValue,
+      String? departmentId,
+    }) async {
+      final recorded = <_RecordedRequest>[];
+      final mock = MockClient((request) async {
+        Object? body;
+        if (request.body.isNotEmpty) {
+          try {
+            body = jsonDecode(request.body);
+          } catch (_) {
+            body = request.body;
+          }
+        }
+        recorded.add(_RecordedRequest(request.method, request.url, body));
+        const row = {
+          'id': 'kpi-1',
+          'company_id': 'co-1',
+          'name': 'Return Rate',
+          'is_active': true,
+          'cadence': 'WEEKLY',
+          'unit': null,
+        };
+        if (request.url.path.endsWith('/role_scorecard_kpis')) {
+          return http.Response('[]', 200, request: request);
+        }
+        return http.Response(
+          jsonEncode(request.method == 'GET' ? [row] : row),
+          200,
+          request: request,
+        );
+      });
+      final client = SupabaseClient(
+        'https://stub.supabase.co',
+        'stub-anon-key',
+        httpClient: mock,
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+      );
+      final repo = RoleScorecardRepository(client);
+
+      await repo.saveLibraryKpi(
+        id: 'kpi-1',
+        companyId: 'co-1',
+        name: 'Return Rate',
+        level: level,
+        parentKpiId: parentKpiId,
+        rollupType: rollupType,
+        dataMethod: dataMethod,
+        targetDirection: targetDirection,
+        targetValue: targetValue,
+        departmentId: departmentId,
+        writeCascade: writeCascade,
+      );
+
+      final patch = recorded.singleWhere(
+        (r) => r.method == 'PATCH' && r.path.endsWith('/kpis'),
+      );
+      return patch.body as Map;
+    }
+
+    test(
+      'writeCascade: false (the default) leaves department_id untouched',
+      () async {
+        final body = await cascadePatchBody(
+          writeCascade: false,
+          departmentId: 'dept-1',
+        );
+        expect(
+          body.containsKey('department_id'),
+          isFalse,
+          reason: 'department_id must be absent, not present-and-null',
+        );
+      },
+    );
+
+    test(
+      'writeCascade: true writes department_id -- the second half of the '
+      'vanishing-department-row defect: KpiFormDialog now collects it, and '
+      'this is where saveLibraryKpi must actually persist it, not just '
+      'accept the parameter',
+      () async {
+        final body = await cascadePatchBody(
+          writeCascade: true,
+          departmentId: 'dept-1',
+        );
+        expect(
+          body.containsKey('department_id'),
+          isTrue,
+          reason: 'department_id must be present',
+        );
+        expect(body['department_id'], 'dept-1');
+      },
+    );
+
+    test(
+      'writeCascade: true writes an explicit null when no department is '
+      'chosen, clearing a previously-set one rather than leaving it alone',
+      () async {
+        final body = await cascadePatchBody(writeCascade: true);
+        expect(body.containsKey('department_id'), isTrue);
+        expect(body['department_id'], isNull);
+      },
+    );
+  });
 }

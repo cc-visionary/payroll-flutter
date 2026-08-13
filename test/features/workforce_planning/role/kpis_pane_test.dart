@@ -61,6 +61,7 @@ class _CapturingRepository extends RoleScorecardRepository {
     String dataMethod = 'MANUAL_PERIODIC',
     String? targetDirection,
     num? targetValue,
+    String? departmentId,
     bool writeCascade = false,
   }) async {
     createdWithDefinition = writeDefinition;

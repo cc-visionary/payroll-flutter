@@ -37,6 +37,46 @@ AppRole _parseRole(String? s) {
   }
 }
 
+/// The inverse of [_parseRole] -- the `app_role` code an [AppRole] was
+/// parsed from. Exists so [kPerformanceAdminRoleCodes] (a set of server-side
+/// role CODES, the vocabulary `auth_app_role()` and RLS policies speak) can
+/// be checked against a client-side [AppRole] without a second, hand-written
+/// mapping that could drift from this one.
+String appRoleCode(AppRole role) => switch (role) {
+  AppRole.SUPER_ADMIN => 'SUPER_ADMIN',
+  AppRole.ADMIN => 'ADMIN',
+  AppRole.PAYROLL_ADMIN => 'PAYROLL_ADMIN',
+  AppRole.HR => 'HR',
+  AppRole.HR_ADMIN => 'HR_ADMIN',
+  AppRole.MANAGER => 'MANAGER',
+  AppRole.FINANCE_MANAGER => 'FINANCE_MANAGER',
+  AppRole.EMPLOYEE => 'EMPLOYEE',
+};
+
+/// The RLS authority for `employee_reviews`/`kpi_results` full-company
+/// visibility -- `auth_is_performance_admin_for_cycle`
+/// (20260717000009_performance_rls_and_cascade_fixes.sql), which grants
+/// SUPER_ADMIN, ADMIN, HR and HR_ADMIN full visibility and nobody else.
+/// PAYROLL_ADMIN and FINANCE_MANAGER are DELIBERATELY excluded: they are
+/// payroll-scoped roles, not performance-management roles, and the RLS
+/// policy this constant must mirror never grants them full-review
+/// visibility -- unlike `auth_is_hr_or_admin()`
+/// (20260423000004_rls_recognize_new_roles.sql), the broader admin-ish-table
+/// authority `isAdmin`/`isHrOrAdmin` below are built from, which DOES
+/// include both.
+///
+/// This is the single source both [UserProfile.isPerformanceAdmin] (gates
+/// the `/kpi-results` route, and therefore Recompute) and
+/// `ReviewCycleRepository._kFullReviewVisibilityRoles` (gates what
+/// `allReviews()` actually returns) are built from -- not two separately
+/// written lists that happen to agree today. A PAYROLL_ADMIN used to pass
+/// the route guard (via `isHrOrAdmin`, which includes PAYROLL_ADMIN) but
+/// fail the review-visibility check (which never did), so `Recompute`
+/// silently overwrote every review-sourced ON_TRACK/OFF_TRACK row with
+/// NO_DATA for that caller. Sharing one Set makes that divergence
+/// structurally impossible rather than merely policed by convention.
+const kPerformanceAdminRoleCodes = {'SUPER_ADMIN', 'ADMIN', 'HR', 'HR_ADMIN'};
+
 class UserProfile {
   final String userId;
   final String email;
@@ -61,6 +101,18 @@ class UserProfile {
       appRole == AppRole.HR_ADMIN;
 
   bool get isHrOrAdmin => isAdmin || appRole == AppRole.HR;
+
+  /// Whether this caller's role is one the server-side RLS authority
+  /// (`auth_is_performance_admin_for_cycle`) grants full-company
+  /// `employee_reviews` visibility -- see [kPerformanceAdminRoleCodes]'s doc
+  /// comment. Narrower than [isHrOrAdmin]: PAYROLL_ADMIN passes
+  /// [isHrOrAdmin] but not this, on purpose. Gates the `/kpi-results` route
+  /// (`app/router.dart`), because that screen's Recompute action silently
+  /// mis-scores every review-sourced KPI result for a caller this returns
+  /// false for -- narrower access here is what prevents that, not merely
+  /// what documents it.
+  bool get isPerformanceAdmin =>
+      kPerformanceAdminRoleCodes.contains(appRoleCode(appRole));
 
   bool get canManageEmployees => isHrOrAdmin;
   bool get canRunPayroll => isHrOrAdmin || appRole == AppRole.PAYROLL_ADMIN;

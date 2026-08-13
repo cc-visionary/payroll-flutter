@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:payroll_flutter/data/models/department.dart';
 import 'package:payroll_flutter/data/models/kpi.dart';
+import 'package:payroll_flutter/data/repositories/department_repository.dart';
 import 'package:payroll_flutter/data/repositories/role_scorecard_repository.dart';
 import 'package:payroll_flutter/features/auth/profile_provider.dart';
 import 'package:payroll_flutter/features/kpi_library/kpi_form_dialog.dart';
@@ -9,7 +11,7 @@ import 'package:payroll_flutter/features/kpi_library/kpi_library_screen.dart';
 
 /// Task 6: the KPI Library speaks the cascade.
 ///
-/// Three things this suite exists to prove, none of which any other suite
+/// Four things this suite exists to prove, none of which any other suite
 /// covers:
 ///  * the level filter actually narrows the list, and "all" restores it;
 ///  * the parent picker refuses a same-level pick using `kpiParentError`'s
@@ -21,12 +23,15 @@ import 'package:payroll_flutter/features/kpi_library/kpi_library_screen.dart';
 ///    reconstruction, harmless only because `saveLibraryKpi`'s save map never
 ///    wrote them either. Now that both sides carry them, a dropped field
 ///    would be silently written back as a reset, not merely absent.
-///  * `departmentId` — the seventh field the same reconstruction used to
-///    drop, deferred out of Task 6 as harmless because `saveLibraryKpi` never
-///    writes `department_id` either — now survives too. Threaded, not
-///    collected: this dialog has no department control, so the only way to
-///    prove it survives is to pop the dialog directly and read the value off
-///    the returned [Kpi], never through `saveLibraryKpi`'s recorded call.
+///  * `departmentId` — the final fix wave's own defect. This dialog used to
+///    have no department control at all (`department_id` stayed null for
+///    EVERY KPI created or edited in-app, silently producing zero
+///    DEPARTMENT rows), and even the round-trip-on-an-untouched-edit
+///    behaviour only worked by accident because `saveLibraryKpi` never wrote
+///    the column either. Both halves are exercised below: picking a
+///    department through the new dropdown and having it reach
+///    `saveLibraryKpi`, and an edit that never touches the picker still
+///    round-tripping whatever department was already set.
 Kpi _kpi(
   String id,
   String name, {
@@ -36,6 +41,7 @@ Kpi _kpi(
   String dataMethod = 'MANUAL_PERIODIC',
   String? targetDirection,
   num? targetValue,
+  String? departmentId,
 }) => Kpi(
   id: id,
   companyId: 'co-1',
@@ -46,6 +52,7 @@ Kpi _kpi(
   dataMethod: dataMethod,
   targetDirection: targetDirection,
   targetValue: targetValue,
+  departmentId: departmentId,
 );
 
 class _RecordedSave {
@@ -57,6 +64,7 @@ class _RecordedSave {
   final String dataMethod;
   final String? targetDirection;
   final num? targetValue;
+  final String? departmentId;
   final bool writeCascade;
   _RecordedSave({
     required this.id,
@@ -67,6 +75,7 @@ class _RecordedSave {
     required this.dataMethod,
     required this.targetDirection,
     required this.targetValue,
+    required this.departmentId,
     required this.writeCascade,
   });
 }
@@ -102,6 +111,7 @@ class _RecordingRepo implements RoleScorecardRepository {
     String dataMethod = 'MANUAL_PERIODIC',
     String? targetDirection,
     num? targetValue,
+    String? departmentId,
     bool writeCascade = false,
   }) async {
     saves.add(
@@ -114,6 +124,7 @@ class _RecordingRepo implements RoleScorecardRepository {
         dataMethod: dataMethod,
         targetDirection: targetDirection,
         targetValue: targetValue,
+        departmentId: departmentId,
         writeCascade: writeCascade,
       ),
     );
@@ -257,7 +268,7 @@ void main() {
 
   testWidgets(
     'editing only the name still round-trips level, parent, roll-up type, '
-    'data method and default target through saveLibraryKpi',
+    'data method, default target and department through saveLibraryKpi',
     (tester) async {
       tester.view.physicalSize = const Size(1400, 1400);
       tester.view.devicePixelRatio = 1.0;
@@ -274,6 +285,7 @@ void main() {
         dataMethod: 'AUTOMATIC',
         targetDirection: 'HIGHER',
         targetValue: 42,
+        departmentId: 'dept-1',
       );
 
       await tester.pumpWidget(
@@ -287,15 +299,27 @@ void main() {
               (ref) async => const <String, List<KpiAssignee>>{},
             ),
             userProfileProvider.overrideWith((ref) async => _hrProfile),
+            departmentListProvider.overrideWith(
+              (ref) async => const [
+                Department(
+                  id: 'dept-1',
+                  companyId: 'co-1',
+                  code: 'OPS',
+                  name: 'Operations',
+                ),
+              ],
+            ),
           ],
           child: const MaterialApp(home: KpiLibraryScreen()),
         ),
       );
       await tester.pumpAndSettle();
 
-      // "Company Parent" < "Return Rate" alphabetically, so Return Rate's
-      // edit button is the second (last) one.
-      await tester.tap(find.byTooltip('Edit').last);
+      // The library groups by department first, "No department" last
+      // (kpi_rows.dart's groupKpisByDepartment) -- "Return Rate" now has
+      // dept-1/Operations and "Company Parent" has none, so Return Rate's
+      // group renders first and its edit button is the first (not last) one.
+      await tester.tap(find.byTooltip('Edit').first);
       await tester.pumpAndSettle();
       expect(find.text('Edit KPI'), findsOneWidget);
 
@@ -327,6 +351,11 @@ void main() {
       expect(saved.targetDirection, 'HIGHER');
       expect(saved.targetValue, 42);
       expect(
+        saved.departmentId,
+        'dept-1',
+        reason: 'department must survive an edit that never touched it',
+      );
+      expect(
         saved.writeCascade,
         isTrue,
         reason:
@@ -337,8 +366,91 @@ void main() {
   );
 
   testWidgets(
-    'editing only the name still round-trips departmentId in the Kpi the '
-    'dialog pops, even though no control on the form ever shows it',
+    'picking a department in the Cascade section reaches saveLibraryKpi -- '
+    'the actual defect: a KPI created or edited in-app could never set '
+    'department_id at all, because no control ever collected it',
+    (tester) async {
+      tester.view.physicalSize = const Size(1400, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final repo = _RecordingRepo();
+      final existing = _kpi(
+        'kpi-dept',
+        'Fill Rate',
+        level: 'DEPARTMENT',
+        rollupType: 'DIRECT',
+        // Starts with no department -- exactly the shape that used to
+        // resolve to zero DEPARTMENT rows in compute_kpi_results.dart no
+        // matter what anyone did in this dialog.
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            roleScorecardRepositoryProvider.overrideWithValue(repo),
+            kpiLibraryProvider.overrideWith((ref) async => [existing]),
+            kpiAssignedEmployeesProvider.overrideWith(
+              (ref) async => const <String, List<KpiAssignee>>{},
+            ),
+            userProfileProvider.overrideWith((ref) async => _hrProfile),
+            departmentListProvider.overrideWith(
+              (ref) async => const [
+                Department(
+                  id: 'dept-1',
+                  companyId: 'co-1',
+                  code: 'OPS',
+                  name: 'Operations',
+                ),
+                Department(
+                  id: 'dept-2',
+                  companyId: 'co-1',
+                  code: 'SLS',
+                  name: 'Sales',
+                ),
+              ],
+            ),
+          ],
+          child: const MaterialApp(home: KpiLibraryScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Edit').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Edit KPI'), findsOneWidget);
+
+      // The closed dropdown currently shows its "no department" state --
+      // unique text among this dialog's dropdowns, so this also locates the
+      // Department field without depending on widget order.
+      await tester.tap(
+        find.widgetWithText(
+          DropdownButtonFormField<String?>,
+          'No department (company-wide)',
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OPS — Operations').last);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(repo.saves, hasLength(1));
+      expect(
+        repo.saves.single.departmentId,
+        'dept-1',
+        reason:
+            'the dialog must actually collect a department choice and hand '
+            'it to saveLibraryKpi -- previously no such control existed',
+      );
+    },
+  );
+
+  testWidgets(
+    'editing only the name still round-trips departmentId when the picker '
+    'is never touched',
     (tester) async {
       tester.view.physicalSize = const Size(1400, 1400);
       tester.view.devicePixelRatio = 1.0;
@@ -346,7 +458,7 @@ void main() {
 
       final repo = _RecordingRepo();
       final existing = Kpi(
-        id: 'kpi-dept',
+        id: 'kpi-dept-2',
         companyId: 'co-1',
         name: 'Fill Rate',
         departmentId: 'dept-1',
@@ -359,6 +471,16 @@ void main() {
           overrides: [
             roleScorecardRepositoryProvider.overrideWithValue(repo),
             kpiLibraryProvider.overrideWith((ref) async => [existing]),
+            departmentListProvider.overrideWith(
+              (ref) async => const [
+                Department(
+                  id: 'dept-1',
+                  companyId: 'co-1',
+                  code: 'OPS',
+                  name: 'Operations',
+                ),
+              ],
+            ),
           ],
           child: MaterialApp(
             home: Scaffold(
