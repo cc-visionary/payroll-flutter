@@ -63,13 +63,12 @@ List<AttentionItem> buildNeedsAttention({
   // signal is therefore skipped entirely while either map is absent.
   Map<String, Set<String>>? roleKpiIdsByCard,
   Map<String, Set<String>>? assignedKpiIdsByEmployee,
-  // Seat id -> authored-area count / active-holder count. Empty (the
-  // default) yields zero for both signals below rather than "not loaded" —
-  // unlike roleKpiIdsByCard above, an empty map here is the true zero state
-  // (no seats known yet), not the wrong extreme, so no absent/empty
-  // distinction is needed.
-  Map<String, int> areaCountBySeat = const {},
-  Map<String, int> holderCountBySeat = const {},
+  // Role card id -> how many people currently hold it. Empty (the default)
+  // yields zero for the signal below rather than "not loaded" — unlike
+  // roleKpiIdsByCard above, an empty map here is the true zero state (no
+  // roles known yet), not the wrong extreme, so no absent/empty distinction
+  // is needed.
+  Map<String, int> holderCountByRole = const {},
 }) {
   final items = <AttentionItem>[];
   void add(
@@ -281,31 +280,17 @@ List<AttentionItem> buildNeedsAttention({
     AttentionTarget.kpiLibrary,
   );
 
-  // Same source as the Accountability Chart's boxes: `areaCountBySeat` must
-  // come from the chart's own `areasBySeat()` function in
-  // accountability_chart_screen.dart (authored areas from wp_tasks, not the
-  // card's shared-appended `responsibilities` — see that function's doc
-  // comment for why) — so this count matches what a manager sees after
-  // clicking through.
-  final oversizedSeats = areaCountBySeat.values.where((n) => n > 5).length;
+  // A role nobody holds: real work with an owner on paper and none in
+  // practice. Build `holderCountByRole` with [holderCountByRole] in
+  // role_structure.dart so "holds" means the same thing here as on the
+  // Organization tab — ACTIVE and not soft-deleted. Each unfilled role
+  // counts once, not once per missing person.
+  final unfilledRoles = holderCountByRole.values.where((n) => n == 0).length;
   add(
     AttentionCategory.structure,
     AttentionSeverity.medium,
-    oversizedSeats,
-    '${_plural(oversizedSeats, 'seat', 'seats')} with more than five roles',
-    AttentionTarget.roles,
-  );
-
-  // Same source as `seatBoxes`' notion of an open seat: `holderCountBySeat`
-  // must count ACTIVE, non-deleted holders per seat the way `seatBoxes`
-  // does, so a seat here is "open" in exactly the sense the chart renders
-  // as OPEN SEAT. Each open seat counts once, not once per missing person.
-  final openSeats = holderCountBySeat.values.where((n) => n == 0).length;
-  add(
-    AttentionCategory.structure,
-    AttentionSeverity.medium,
-    openSeats,
-    _plural(openSeats, 'open seat', 'open seats'),
+    unfilledRoles,
+    '${_plural(unfilledRoles, 'role', 'roles')} nobody holds',
     AttentionTarget.roles,
   );
 

@@ -9,8 +9,9 @@ import 'org_tree.dart';
 /// several people who report to nobody).
 ///
 /// Read-only by default (name + title). Optional hooks let feature-specific
-/// consumers layer on a trailing widget (e.g. a load chip) or wrap each box
-/// (e.g. Draggable/DragTarget for the Structure tab).
+/// consumers layer on a trailing widget (e.g. a load chip), add a block under
+/// the job title (e.g. what the person's role owns, on the Organization tab),
+/// or wrap each box (e.g. Draggable/DragTarget for the Organization tab).
 ///
 /// Layout note: each child subtree is measured with [IntrinsicWidth] so the
 /// elbow connector can span exactly that subtree's width and meet its
@@ -22,12 +23,18 @@ class OrgChartView extends StatefulWidget {
     required this.people,
     required this.empById,
     this.trailing,
+    this.details,
     this.nodeWrapper,
   });
 
   final List<({String id, String? parentId})> people;
   final Map<String, Employee> empById;
   final Widget Function(Employee emp)? trailing;
+
+  /// Rendered inside the box, under the job title and above the reports
+  /// footer. Return `SizedBox.shrink()` for nothing — a box with no detail
+  /// keeps its original height.
+  final Widget Function(Employee emp)? details;
   final Widget Function(Employee emp, Widget box)? nodeWrapper;
 
   @override
@@ -161,6 +168,11 @@ class _OrgChartViewState extends State<OrgChartView> {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
+            ),
+          if (emp != null && widget.details != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: widget.details!(emp),
             ),
           if (kids.isNotEmpty)
             Padding(

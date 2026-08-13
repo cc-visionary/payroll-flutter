@@ -111,12 +111,6 @@ final _groups = <_NavGroup>[
       _hrOrAdmin,
     ),
     _NavItem(
-      'Accountability Chart',
-      Icons.account_tree_outlined,
-      '/accountability-chart',
-      _hrOrAdmin,
-    ),
-    _NavItem(
       'Performance',
       Icons.stacked_line_chart_outlined,
       '/performance',

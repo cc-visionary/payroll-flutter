@@ -5,7 +5,7 @@ import '../../app/shell.dart';
 import 'tabs/balance_tab.dart';
 import 'tabs/drivers_scenario_tab.dart';
 import 'tabs/role_view_tab.dart';
-import 'tabs/structure_tab.dart';
+import 'tabs/organization_tab.dart';
 import 'tabs/tasks_tab.dart';
 import 'tabs/unassigned_tab.dart';
 
@@ -71,7 +71,7 @@ class WorkforcePlanningScreen extends StatelessWidget {
             tabs: [
               Tab(text: 'Balance'),
               Tab(text: 'Roles'),
-              Tab(text: 'Structure'),
+              Tab(text: 'Organization'),
               Tab(text: 'Tasks'),
               Tab(text: 'Unassigned'),
             ],
@@ -81,7 +81,7 @@ class WorkforcePlanningScreen extends StatelessWidget {
           children: [
             BalanceTab(),
             RoleViewTab(),
-            StructureTab(),
+            OrganizationTab(),
             TasksTab(),
             UnassignedTab(),
           ],

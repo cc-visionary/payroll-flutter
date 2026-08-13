@@ -248,15 +248,15 @@ void main() {
     },
   );
 
-  // Guards the wiring itself: `areaCountBySeat` and `holderCountBySeat` are
-  // computed in NeedsAttentionStrip from `areasBySeat(tasks)` and
-  // `seatBoxes(...)` and passed to buildNeedsAttention. If that wiring were
-  // ever dropped (both args replaced with `const {}`), buildNeedsAttention's
-  // defaults would silently read zero and this test must fail.
-  final oversizedCard = RoleScorecard(
+  // Guards the wiring itself: `holderCountByRole` is computed in
+  // NeedsAttentionStrip from holderCountByRole(...) and passed to
+  // buildNeedsAttention. If that wiring were ever dropped (the arg replaced
+  // with `const {}`), buildNeedsAttention's default would silently read zero
+  // and this test must fail.
+  final heldCard = RoleScorecard(
     id: 'rs1',
     companyId: 'c',
-    jobTitle: 'Oversized Seat',
+    jobTitle: 'Held Role',
     missionStatement: '',
     responsibilities: const [],
     kpis: const [],
@@ -266,10 +266,10 @@ void main() {
     isActive: true,
     effectiveDate: DateTime(2026),
   );
-  final openCard = RoleScorecard(
+  final unfilledCard = RoleScorecard(
     id: 'rs2',
     companyId: 'c',
-    jobTitle: 'Open Seat',
+    jobTitle: 'Unfilled Role',
     missionStatement: '',
     responsibilities: const [],
     kpis: const [],
@@ -279,7 +279,7 @@ void main() {
     isActive: true,
     effectiveDate: DateTime(2026),
   );
-  final oversizedHolder = Employee(
+  final holder = Employee(
     id: 'h1',
     companyId: 'c',
     employeeNumber: 'h1',
@@ -300,34 +300,19 @@ void main() {
   );
 
   testWidgets(
-    'flags a seat with more than five authored roles, and a seat with no '
-    'ACTIVE holder, with their real counts',
+    'flags a role with no ACTIVE holder, with its real count',
     (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             wpPersonLoadsProvider.overrideWith((ref) async => const []),
-            // rs1 authors 6 distinct responsibility areas -> oversized.
-            // rs2 authors none, and (below) has no holder -> open.
-            wpTasksProvider.overrideWith(
-              (ref) async => [
-                for (var i = 1; i <= 6; i++)
-                  WpTask(
-                    id: 't$i',
-                    companyId: 'c',
-                    name: 'Task $i',
-                    roleScorecardId: 'rs1',
-                    responsibilityArea: 'Area $i',
-                  ),
-              ],
-            ),
-            // rs1 is staffed (so it trips ONLY the oversized signal); rs2 has
-            // no holder at all (so it trips ONLY the open-seat signal).
-            wpActiveEmployeesProvider.overrideWith(
-              (ref) async => [oversizedHolder],
-            ),
+            wpTasksProvider.overrideWith((ref) async => const []),
+            // rs1 is staffed; rs2 has no holder at all, so exactly one role
+            // is unfilled -- a count of 2 would mean the filter is ignoring
+            // holders, and 0 would mean the wiring was dropped.
+            wpActiveEmployeesProvider.overrideWith((ref) async => [holder]),
             roleScorecardListProvider.overrideWith(
-              (ref) async => [oversizedCard, openCard],
+              (ref) async => [heldCard, unfilledCard],
             ),
             kpiLibraryProvider.overrideWith((ref) async => const []),
             kpiAssignedEmployeesProvider.overrideWith((ref) async => const {}),
@@ -343,8 +328,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('1 seat with more than five roles'), findsOneWidget);
-      expect(find.text('1 open seat'), findsOneWidget);
+      expect(find.text('1 role nobody holds'), findsOneWidget);
     },
   );
 }

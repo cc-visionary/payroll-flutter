@@ -105,8 +105,7 @@ List<AttentionItem> _run({
   Map<String, List<WpTaskAssignment>> assignmentsByTask = const {},
   Map<String, Set<String>>? roleKpiIdsByCard,
   Map<String, Set<String>>? assignedKpiIdsByEmployee,
-  Map<String, int> areaCountBySeat = const {},
-  Map<String, int> holderCountBySeat = const {},
+  Map<String, int> holderCountByRole = const {},
 }) => buildNeedsAttention(
   loads: loads,
   tasks: tasks,
@@ -117,8 +116,7 @@ List<AttentionItem> _run({
   assignmentsByTask: assignmentsByTask,
   roleKpiIdsByCard: roleKpiIdsByCard,
   assignedKpiIdsByEmployee: assignedKpiIdsByEmployee,
-  areaCountBySeat: areaCountBySeat,
-  holderCountBySeat: holderCountBySeat,
+  holderCountByRole: holderCountByRole,
 );
 
 WpTaskAssignment _a(String id, String taskId, double pct) => WpTaskAssignment(
@@ -358,34 +356,19 @@ void main() {
     expect(items.where((i) => i.label.contains('no KPI set')), isEmpty);
   });
 
-  test('a seat with more than five roles is flagged; exactly five is not', () {
-    final over = _run(areaCountBySeat: const {'rs1': 6, 'rs2': 5});
-    final item = over.singleWhere((i) => i.label.contains('more than five'));
-    expect(item.count, 1); // only rs1 — rs2's exactly-5 does not qualify
-    expect(item.category, AttentionCategory.structure);
-    expect(item.target, AttentionTarget.roles);
-
-    final atFive = _run(areaCountBySeat: const {'rs2': 5});
-    expect(atFive.where((i) => i.label.contains('more than five')), isEmpty);
-  });
-
-  test('an open seat is flagged once, not once per missing holder', () {
+  test('an unfilled role is flagged once, not once per missing holder', () {
     final items = _run(
-      holderCountBySeat: const {'rs1': 0, 'rs2': 2, 'rs3': 0},
+      holderCountByRole: const {'rs1': 0, 'rs2': 2, 'rs3': 0},
     );
-    final item = items.singleWhere((i) => i.label.contains('open seat'));
+    final item = items.singleWhere((i) => i.label.contains('nobody holds'));
     expect(item.count, 2); // rs1 and rs3 — rs2 has holders
     expect(item.category, AttentionCategory.structure);
     expect(item.target, AttentionTarget.roles);
   });
 
-  test('no open/oversized seats -> neither structure signal appears', () {
-    final items = _run(
-      areaCountBySeat: const {'rs1': 3},
-      holderCountBySeat: const {'rs1': 1},
-    );
-    expect(items.where((i) => i.label.contains('more than five')), isEmpty);
-    expect(items.where((i) => i.label.contains('open seat')), isEmpty);
+  test('every role held -> the signal does not appear', () {
+    final items = _run(holderCountByRole: const {'rs1': 1, 'rs2': 3});
+    expect(items.where((i) => i.label.contains('nobody holds')), isEmpty);
   });
 
   test('high-severity items rank before medium', () {
