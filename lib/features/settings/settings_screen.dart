@@ -7,6 +7,7 @@ import '../../app/shell.dart';
 import '../auth/profile_provider.dart';
 import 'shifts/shift_templates_screen.dart';
 import 'holidays/holidays_settings_screen.dart';
+import 'leave_types/leave_types_settings_screen.dart';
 import 'about/about_settings_screen.dart';
 import 'bank_accounts/company_bank_accounts_screen.dart';
 import 'departments/departments_settings_screen.dart';
@@ -47,6 +48,12 @@ enum _Tab {
     'Holidays',
     'Holiday calendar for payroll',
     Icons.event_outlined,
+  ),
+  leaveTypes(
+    'leave-types',
+    'Leave Types',
+    'Which leave payroll pays for',
+    Icons.beach_access_outlined,
   ),
   lark('lark', 'Integrations', 'Attendance source & Lark sync', Icons.sync),
   about('about', 'About', 'Version and appearance', Icons.info_outline);
@@ -116,6 +123,7 @@ class _State extends ConsumerState<SettingsScreen> {
               const Divider(height: 24, indent: 16, endIndent: 16),
               _tile(_Tab.shifts),
               _tile(_Tab.holidays),
+              _tile(_Tab.leaveTypes),
               _tile(_Tab.lark),
               const Divider(height: 24, indent: 16, endIndent: 16),
               _tile(_Tab.about),
@@ -204,6 +212,8 @@ class _State extends ConsumerState<SettingsScreen> {
           return const Center(child: Text('Super Admins only.'));
         }
         return const UsersSettingsScreen();
+      case _Tab.leaveTypes:
+        return const LeaveTypesSettingsScreen();
       case _Tab.shifts:
         return const ShiftTemplatesScreen();
       case _Tab.holidays:

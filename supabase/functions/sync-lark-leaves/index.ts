@@ -14,6 +14,10 @@ import {
   userIdFromAuthHeader,
   json,
 } from '../_shared/lark.ts';
+import {
+  buildLarkLeaveTypeRow,
+  larkLeaveTypeName,
+} from '../_shared/leave_type_row.ts';
 
 interface Body { company_id?: string; from?: string; to?: string }
 
@@ -106,30 +110,24 @@ Deno.serve(async (req) => {
         if (!ltId) {
           // Auto-create a local leave_type row keyed by Lark's uniq_id so
           // subsequent syncs find it. Name from i18n_names[default_locale].
-          const names = (lv.i18n_names ?? {}) as Record<string, string>;
-          const locale = lv.default_locale ?? 'en_us';
-          const displayName = (names[locale] ?? names['en_us'] ?? names['zh_cn'] ?? candidateKey).toString().slice(0, 100);
-          // Prefer a readable code derived from the display name; fall back to
-          // the Lark id. Two different Lark ids can collapse to the same
-          // 20-char slice, so retry with -2/-3/… on unique-violation.
-          const baseSource = (displayName || candidateKey.toString())
-              .toUpperCase()
-              .replace(/[^A-Z0-9]+/g, '_')
-              .replace(/^_+|_+$/g, '');
-          const baseCode = (baseSource || 'LARK').slice(0, 18); // leave room for "-N"
+          const displayName = larkLeaveTypeName(
+            lv.i18n_names as Record<string, string> | undefined,
+            lv.default_locale,
+            candidateKey.toString(),
+          );
+          // Row shape (including is_paid: false) lives in _shared so it can be
+          // tested. It used to be an object literal here that omitted is_paid,
+          // and the column default silently paid every Lark leave type.
           let ltErrLast: { message: string } | null = null;
           for (let attempt = 0; attempt < 25 && !ltId; attempt++) {
-            const code = attempt === 0 ? baseCode : `${baseCode.slice(0, 18)}-${attempt + 1}`;
             const { data: newLt, error: ltErr } = await supabase
               .from('leave_types')
-              .insert({
-                company_id: companyId,
-                code: code.slice(0, 20),
-                name: displayName || code,
-                lark_leave_type_id: candidateKey.toString().slice(0, 100),
-                accrual_type: 'NONE',
-                is_active: true,
-              })
+              .insert(buildLarkLeaveTypeRow({
+                companyId,
+                displayName,
+                larkLeaveTypeId: candidateKey.toString(),
+                attempt,
+              }))
               .select('id')
               .single();
             if (!ltErr) {
