@@ -122,6 +122,20 @@ void main() {
         KpiStatus.noData,
       );
     });
+
+    test('BETWEEN with impossible band (max < min) is NO_DATA, not a miss', () {
+      // A configuration error is not a real failure to report to the employee.
+      expect(
+        run(
+          valueType: 'COUNT',
+          numerator: 5,
+          target: 10,
+          targetMax: 6,
+          direction: GoalDirection.between,
+        ).status,
+        KpiStatus.noData,
+      );
+    });
   });
 
   group('value derivation by type', () {
@@ -151,6 +165,35 @@ void main() {
             .status,
         KpiStatus.onTrack,
       );
+    });
+
+    test('PERCENT without denominator is a real value, not NO_DATA', () {
+      // PERCENT never acquires a denominator through any UI — it behaves like
+      // COUNT. A PERCENT KPI can never become permanently NO_DATA because the
+      // app never asks for a denominator. The codebase treats PERCENT like COUNT,
+      // not like RATIO.
+      final r = run(
+        valueType: 'PERCENT',
+        numerator: 95,
+        target: 90,
+      );
+      expect(r.value, 95);
+      expect(r.status, KpiStatus.onTrack);
+    });
+  });
+
+  group('floating-point tolerance', () {
+    test('a division landing exactly on target within epsilon is on track', () {
+      // 398 / 400 = 0.995, which with epsilon tolerance matches a target of
+      // 0.995 exactly (the difference is machine-precision rounding, not a real
+      // miss). This motivates the 1e-9 epsilon.
+      final r = run(
+        numerator: 398,
+        denominator: 400,
+        target: 0.995,
+      );
+      expect(r.value, closeTo(0.995, 0.0001));
+      expect(r.status, KpiStatus.onTrack);
     });
   });
 }
