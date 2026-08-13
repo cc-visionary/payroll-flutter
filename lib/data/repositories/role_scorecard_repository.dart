@@ -755,6 +755,24 @@ class RoleScorecardRepository {
     }
     return out;
   }
+
+  /// kpiId -> every role_scorecard_id whose card links it. The inverse of
+  /// the per-role map [assignedEmployeesByKpi] builds internally (this one
+  /// keys by KPI first) -- `computeResults`' `roleKpiLinks` parameter
+  /// (compute_kpi_results.dart, Task 7) asks "which roles inherit KPI X",
+  /// which is this direction, not "which KPIs does role Y inherit".
+  Future<Map<String, Set<String>>> roleIdsByKpi() async {
+    final rows = await _client
+        .from('role_scorecard_kpis')
+        .select('kpi_id, role_scorecard_id');
+    final out = <String, Set<String>>{};
+    for (final r in (rows as List).cast<Map<String, dynamic>>()) {
+      (out[r['kpi_id'] as String] ??= {}).add(
+        r['role_scorecard_id'] as String,
+      );
+    }
+    return out;
+  }
 }
 
 final roleScorecardRepositoryProvider = Provider<RoleScorecardRepository>(
@@ -804,6 +822,14 @@ final kpiAssignedEmployeesProvider =
 /// it yet — see [RoleScorecardRepository.roleTitlesByKpi].
 final kpiRoleTitlesProvider = FutureProvider<Map<String, List<String>>>((ref) {
   return ref.watch(roleScorecardRepositoryProvider).roleTitlesByKpi();
+});
+
+/// kpiId -> role_scorecard_ids, for `computeResults`' `roleKpiLinks`
+/// parameter -- see [RoleScorecardRepository.roleIdsByKpi].
+final kpiRoleIdsByKpiProvider = FutureProvider<Map<String, Set<String>>>((
+  ref,
+) {
+  return ref.watch(roleScorecardRepositoryProvider).roleIdsByKpi();
 });
 
 final roleKpisProvider = FutureProvider.family<List<RoleKpi>, String>((

@@ -105,6 +105,12 @@ final _groups = <_NavGroup>[
     ),
     _NavItem('KPI Library', Icons.speed_outlined, '/kpi-library', _hrOrAdmin),
     _NavItem(
+      'KPI Results',
+      Icons.query_stats_outlined,
+      '/kpi-results',
+      _hrOrAdmin,
+    ),
+    _NavItem(
       'Workforce Planning',
       Icons.insights_outlined,
       '/workforce-planning',

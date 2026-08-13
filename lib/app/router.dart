@@ -37,6 +37,7 @@ import '../features/hiring/applicant_detail_screen.dart';
 import '../features/hiring/listing_form_screen.dart';
 import '../features/hiring/listing_detail_screen.dart';
 import '../features/kpi_library/kpi_library_screen.dart';
+import '../features/kpi_results/kpi_results_screen.dart';
 import '../features/performance/performance_screen.dart';
 import '../features/performance/performance_check_in_screen.dart';
 import '../features/performance/employee_review_detail_screen.dart';
@@ -105,6 +106,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (loc.startsWith('/kpi-library') && !profile.isHrOrAdmin) {
           return '/dashboard';
         }
+        // '/kpi-library' does not prefix-match '/kpi-results' (different
+        // literal strings, same as the '/workforce-planning' vs
+        // '/accountability-chart' near-miss this plan's briefs keep citing)
+        // -- no existing clause covers this path, so it gets its own.
+        if (loc.startsWith('/kpi-results') && !profile.isHrOrAdmin) {
+          return '/dashboard';
+        }
         if (loc.startsWith('/workforce-planning') && !profile.isHrOrAdmin) {
           return '/dashboard';
         }
@@ -170,6 +178,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/kpi-library',
             builder: (c, s) => const KpiLibraryScreen(),
+          ),
+          GoRoute(
+            path: '/kpi-results',
+            builder: (c, s) => const KpiResultsScreen(),
           ),
           GoRoute(
             path: '/attendance',
