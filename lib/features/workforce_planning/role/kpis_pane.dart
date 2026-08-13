@@ -270,10 +270,14 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
     ref.invalidate(roleOutcomesProvider(widget.cardId));
     // Same reasoning as _invalidateAfterSave: a resync means this card's
     // on-role KPI set may have changed underneath us (e.g. another session's
-    // edit), so the KPI Library's people/roles counts must not survive this
-    // reload stale. (The Needs-attention strip's "N roles with no KPI"
-    // signal reads `card.kpis` off roleScorecardListProvider, invalidated
-    // above.)
+    // edit). Unlike _invalidateAfterSave, nothing here invalidates
+    // roleScorecardListProvider by another path, so it is invalidated
+    // explicitly — the Needs-attention strip's "N roles with no KPI" signal
+    // reads `card.kpis` straight off it, and would otherwise show this
+    // card's PRE-resync KPI count until something else happened to refresh
+    // it. The KPI Library's people/roles counts are read fresh from their
+    // own providers for the same reason.
+    ref.invalidate(roleScorecardListProvider);
     ref.invalidate(kpiAssignedEmployeesProvider);
     ref.invalidate(kpiRoleTitlesProvider);
     setState(() => _captured = false);
@@ -300,6 +304,24 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
       ),
       data: (kpis) {
         if (!_captured) _captureFrom(kpis);
+        // Pure inheritance sharpens what used to be `validateKpiSet`'s job:
+        // that function refused to let an EMPLOYEE be curated onto an
+        // unmeasurable KPI. There is no curation step left to refuse at —
+        // linking a KPI to a role now assigns it to every holder the moment
+        // this saves. Scoped to links ADDED this session (absent from
+        // `_baseline`), not every link on the card: a legacy card can carry
+        // KPIs that only ever had a typed prose target and no library
+        // definition (see the sibling-preservation save path below), and
+        // requiring the whole card to become measurable before an unrelated
+        // edit could be saved would make that legacy content un-editable.
+        // The new debt this actually guards against is a manager adding a
+        // brand-new, still-undefined KPI today and it landing on every
+        // holder with zero friction.
+        final blockedLinks = _links.where((d) {
+          if (_baseline.any((b) => b.kpiId == d.kpiId)) return false;
+          final gaps = _definitionGaps(d, libraryById);
+          return !isMeasurableForRole(defined: gaps.isEmpty, goal: d.goal);
+        }).length;
         return Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -351,12 +373,24 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
                   const SizedBox(height: 12),
                   Text(_error!, style: const TextStyle(color: Colors.red)),
                 ],
+                if (blockedLinks > 0) ...[
+                  const SizedBox(height: 12),
+                  _hint(
+                    context,
+                    StatusTone.danger,
+                    '$blockedLinks newly added KPI(s) are not measurable yet '
+                    '— every holder of this role would inherit it the moment '
+                    'this saves. Give it a goal and a complete definition, '
+                    'or remove it, before saving.',
+                  ),
+                ],
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     FilledButton(
-                      onPressed: _saving ? null : _save,
+                      key: const ValueKey('kpis-pane-save'),
+                      onPressed: (_saving || blockedLinks > 0) ? null : _save,
                       child: _saving
                           ? const SizedBox(
                               height: 18,
@@ -585,7 +619,7 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
           // never at the area (see [RoleOutcome]'s doc comment on why an
           // area is not a row this could point to instead).
           enabled: false,
-          value: ' header:${entry.key}',
+          value: ' header:${entry.key}',
           child: Text(
             entry.key,
             style: Theme.of(context).textTheme.labelSmall?.copyWith(

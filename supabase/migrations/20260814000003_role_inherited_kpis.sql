@@ -126,19 +126,30 @@ $$;
 -- hand via `supabase db push`, not through CI, so the person applying it is
 -- the last line of defence -- they should see the size of what they are
 -- about to discard.
+--
+-- Guarded so a RE-RUN (e.g. a retried `db push` after this already applied
+-- successfully) does not itself fail: without the guard, `employee_kpis`
+-- would already be gone and the bare `select ... from employee_kpis` would
+-- raise 42P01 (undefined_table) before ever reaching `drop table if
+-- exists` below -- a migration marked idempotent must not error out on its
+-- own second run.
 do $$
 declare
   v_rows int;
   v_employees int;
 begin
-  select count(*), count(distinct employee_id)
-    into v_rows, v_employees
-    from employee_kpis;
-  raise notice
-    'employee_kpis: about to drop % row(s) covering % distinct employee(s). '
-    'This is irreversible -- every employee with a curated subset widens to '
-    'their full role set.',
-    v_rows, v_employees;
+  if to_regclass('public.employee_kpis') is not null then
+    select count(*), count(distinct employee_id)
+      into v_rows, v_employees
+      from employee_kpis;
+    raise notice
+      'employee_kpis: about to drop % row(s) covering % distinct employee(s). '
+      'This is irreversible -- every employee with a curated subset widens to '
+      'their full role set.',
+      v_rows, v_employees;
+  else
+    raise notice 'employee_kpis already dropped -- nothing to announce.';
+  end if;
 end $$;
 
 drop table if exists employee_kpis;
