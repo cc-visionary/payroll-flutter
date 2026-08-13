@@ -15,7 +15,9 @@ import '../kpi_results/kpi_results_screen.dart'
     show periodOf, startOfPeriod, kpiStatusLabel, kpiStatusTone, fmtKpiValue;
 
 /// The employee whose own results this is, and the period the trailing
-/// three-month window ends at.
+/// three-month window ends at. [anchorPeriod] must be derived from the
+/// check-in's OWN period (`CheckInPeriod.endDate`), never from the check-in
+/// row's `createdAt` -- see [_KpiHistorySection]'s doc comment for why.
 typedef PersonalHistoryKey = ({String employeeId, String anchorPeriod});
 
 /// The three periods (oldest first) ending at [anchorPeriod], inclusive.
@@ -781,20 +783,7 @@ class _KpiHistorySection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Anchored to the check-in's own creation date, not wall-clock "now" --
-    // so reopening an old check-in always shows the three months that check-in
-    // was actually about, regardless of when it's viewed.
-    final anchorPeriod = periodOf(c.createdAt);
-    final historyAsync = ref.watch(
-      personalKpiHistoryProvider((
-        employeeId: c.employeeId,
-        anchorPeriod: anchorPeriod,
-      )),
-    );
-    final kpisAsync = ref.watch(kpiLibraryAllProvider);
-    final kpiById = <String, Kpi>{
-      for (final k in kpisAsync.asData?.value ?? const <Kpi>[]) k.id: k,
-    };
+    final periodAsync = ref.watch(checkInPeriodByIdProvider(c.periodId));
 
     return Card(
       child: Padding(
@@ -820,35 +809,101 @@ class _KpiHistorySection extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 12),
-            historyAsync.when(
+            periodAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) =>
                   Text('Error: $e', style: const TextStyle(color: Colors.red)),
-              data: (rows) {
-                if (rows.isEmpty) {
-                  return const Text('No KPI results recorded yet.');
+              data: (period) {
+                // The window shown is the cycle THIS check-in is actually
+                // about -- its period's `endDate` -- never the check-in
+                // row's own `createdAt`. Check-in generation is manual and
+                // off-cycle (`auto_generate.dart`: an admin picks a
+                // year/quarter and can run it whenever), so a Q1 check-in
+                // generated in April has `createdAt` in April; anchoring on
+                // that would show Feb/Mar/Apr instead of Jan/Feb/Mar on the
+                // one screen where a person reviews their own numbers with
+                // their manager.
+                //
+                // If the period can't be resolved, this deliberately shows
+                // no history rather than silently falling back to
+                // `createdAt` and rendering a plausible but wrong quarter --
+                // this plan has already shipped six defects that were all a
+                // fallback producing something plausible instead of
+                // nothing.
+                if (period == null) {
+                  return const Text(
+                    "KPI history unavailable -- this check-in's period "
+                    'could not be loaded.',
+                  );
                 }
-                String nameOf(KpiResult r) => kpiById[r.kpiId]?.name ?? r.kpiId;
-                final sorted = [...rows]..sort((a, b) {
-                  final byPeriod = a.period.compareTo(b.period);
-                  if (byPeriod != 0) return byPeriod;
-                  return nameOf(a).compareTo(nameOf(b));
-                });
-                return Column(
-                  children: [
-                    for (final r in sorted)
-                      _KpiHistoryRow(
-                        name: nameOf(r),
-                        result: r,
-                        kpi: kpiById[r.kpiId],
-                      ),
-                  ],
+                return _KpiHistoryBody(
+                  employeeId: c.employeeId,
+                  anchorPeriod: periodOf(period.endDate),
                 );
               },
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _KpiHistoryBody extends ConsumerWidget {
+  final String employeeId;
+  final String anchorPeriod;
+  const _KpiHistoryBody({
+    required this.employeeId,
+    required this.anchorPeriod,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final historyAsync = ref.watch(
+      personalKpiHistoryProvider((
+        employeeId: employeeId,
+        anchorPeriod: anchorPeriod,
+      )),
+    );
+    final kpisAsync = ref.watch(kpiLibraryAllProvider);
+    final kpiById = <String, Kpi>{
+      for (final k in kpisAsync.asData?.value ?? const <Kpi>[]) k.id: k,
+    };
+
+    return historyAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) =>
+          Text('Error: $e', style: const TextStyle(color: Colors.red)),
+      // Deliberately NOT re-sorted here. `rows` already arrives in a
+      // determined order without any client-side tiebreak, for the same
+      // reason `kpi_dashboard_screen.dart`/`kpi_results_screen.dart` don't
+      // invent one either (see those files' own doc comments): a sort here
+      // would either duplicate an existing guarantee (drift risk) or, worse,
+      // be untested dead weight that happens to look right on ordered
+      // fixture data -- exactly the tautology shape this plan has caught
+      // repeatedly. The two guarantees that together make `rows` ordered:
+      //  1. Across periods: `personalKpiHistoryProvider` appends each of
+      //     `_lastThreeMonths`' three periods' rows in that list's order
+      //     (oldest to newest) -- proven load-bearing below by reversing
+      //     that loop and watching the order test fail.
+      //  2. Within one period, across different KPIs:
+      //     `KpiResultRepository.listByPeriod`'s own query carries an
+      //     explicit `ORDER BY kpi_id ascending` (see its doc comment) --
+      //     an UNTESTED SEAM from here, same as Task 9's dashboard sort:
+      //     a widget test cannot observe what order Postgres itself
+      //     returns rows in, only that the repository ASKS for one.
+      data: (rows) {
+        if (rows.isEmpty) {
+          return const Text('No KPI results recorded yet.');
+        }
+        String nameOf(KpiResult r) => kpiById[r.kpiId]?.name ?? r.kpiId;
+        return Column(
+          children: [
+            for (final r in rows)
+              _KpiHistoryRow(name: nameOf(r), result: r, kpi: kpiById[r.kpiId]),
+          ],
+        );
+      },
     );
   }
 }
@@ -870,11 +925,17 @@ class _KpiHistoryRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(flex: 2, child: Text(name)),
-          SizedBox(width: 80, child: Text(result.period)),
           SizedBox(
-            width: 100,
-            child: Text(fmtKpiValue(result.value, kpi)),
+            width: 80,
+            // Keyed (not typed) so a widget test can pull every rendered
+            // period in DOM order and assert on the sequence itself --
+            // proves the sort is real rather than merely present. Reusing
+            // one Key value across sibling rows mirrors
+            // `kpi_dashboard_screen.dart`'s `StatusChip.labelKey` pattern;
+            // Flutter only rejects duplicate GlobalKeys, not ValueKeys.
+            child: Text(result.period, key: const ValueKey('kpi-history-period')),
           ),
+          SizedBox(width: 100, child: Text(fmtKpiValue(result.value, kpi))),
           StatusChip(
             label: kpiStatusLabel(result.status),
             tone: kpiStatusTone(result.status),
