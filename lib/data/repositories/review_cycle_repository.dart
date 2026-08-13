@@ -262,6 +262,37 @@ class ReviewCycleRepository {
     return row == null ? null : EmployeeReview.fromRow(row);
   }
 
+  /// Every `employee_reviews` row visible to the caller, unfiltered by cycle
+  /// or employee — the bare list `ReviewsCompletedOnTimeSource`
+  /// (`kpi_results/automatic_sources.dart`) needs, since it does its own
+  /// period/employee filtering over `reviewPeriodEnd` and `finalizedAt`.
+  ///
+  /// [dashboard] already reads every row for the same reason (its own
+  /// counters need the whole table), but bundles cycles, goals and
+  /// setup-gap counts around it — work this caller has no use for. A narrow
+  /// method matching the KPI source's own `EmployeeReviewsReader` typedef
+  /// tears off cleanly for production wiring without pulling in the rest of
+  /// that snapshot.
+  ///
+  /// Paginated via [fetchAllPages] for the same reason [dashboard] is:
+  /// `employee_reviews` grows per employee per cycle and can outrun
+  /// PostgREST's `max_rows` cap, and a naive `.select()` here would
+  /// silently truncate — this KPI source undercounting "reviews due" is
+  /// exactly the kind of quiet under-report this whole plan exists to rule
+  /// out (see `_status`/attendance's own pagination history for the same
+  /// trap in another table).
+  Future<List<EmployeeReview>> allReviews() async {
+    final rows = await fetchAllPages<Map<String, dynamic>>((from, to) async {
+      final page = await _client
+          .from('employee_reviews')
+          .select()
+          .order('review_period_end', ascending: false)
+          .range(from, to);
+      return (page as List<dynamic>).cast<Map<String, dynamic>>();
+    });
+    return rows.map(EmployeeReview.fromRow).toList();
+  }
+
   Future<List<ReviewKpiResult>> kpisForReview(String reviewId) async {
     final rows = await _client
         .from('review_kpi_results')
