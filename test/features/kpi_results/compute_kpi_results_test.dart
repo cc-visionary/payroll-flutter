@@ -643,6 +643,53 @@ void main() {
     );
 
     test(
+      'an unattributed row in a DIFFERENT month does not taint this '
+      "period's PERSONAL result",
+      () async {
+        final kpi = _kpi(
+          id: 'k-personal-exc-2',
+          level: 'PERSONAL',
+          rollupType: 'ALIGNED',
+          dataMethod: 'MANUAL_EXCEPTION',
+          valueType: 'COUNT',
+          targetDirection: 'LOWER',
+          targetValue: 5,
+        );
+        final roles = [_role('r-ops')];
+        final employees = [_employee('alice', roleId: 'r-ops')];
+        // The only exception is unattributed AND in August. September has
+        // nothing at all for this kpi and must read a clean NO_DATA/COMPLETE
+        // rather than carrying August's MISSING_SOURCE forward.
+        final exceptions = [
+          _exception(
+            kpiId: kpi.id,
+            occurredOn: '2026-08-05',
+            quantity: 3,
+            confirmedAt: DateTime(2026, 8, 6),
+          ),
+        ];
+
+        final rows = await computeResults(
+          period: '2026-09',
+          kpis: [kpi],
+          employees: employees,
+          roles: roles,
+          registry: const {},
+          exceptions: exceptions,
+          readings: const [],
+          roleKpiLinks: {
+            'k-personal-exc-2': {'r-ops'},
+          },
+        );
+
+        final row = _only(rows, KpiScope.personal, employeeId: 'alice');
+        expect(row.numerator, isNull);
+        expect(row.status, KpiStatus.noData);
+        expect(row.sourceCompleteness, SourceCompleteness.complete);
+      },
+    );
+
+    test(
       'mixed attributed and unattributed rows both count at DEPARTMENT '
       'scope',
       () async {

@@ -322,6 +322,10 @@ Future<_Inputs> _inputsFor({
             completeness: SourceCompleteness.missingSource,
           );
         }
+        // _confirmedSum's own SUM was already period-safe — confirmedCountFor
+        // buckets by occurred_on internally regardless of what it is handed
+        // — but it still routes through _scopedExceptions, which is why that
+        // function (not this call site) needed the period fix below.
         final confirmed = _confirmedSum(
           kpi: kpi,
           kpiExceptions: kpiExceptions,
@@ -341,12 +345,14 @@ Future<_Inputs> _inputsFor({
         final scoped = _scopedExceptions(
           kpi: kpi,
           kpiExceptions: kpiExceptions,
+          period: period,
           scope: scope,
           population: population,
         );
-        final forPeriod = scoped.counted
-            .where((e) => _periodOf(e.occurredOn) == period)
-            .toList();
+        // Already period-scoped by _scopedExceptions — kept as its own name
+        // here rather than inlined so the rest of this branch reads the
+        // same as before the period filter moved.
+        final forPeriod = scoped.counted;
         final reading = _readingFor(
           kpiReadings,
           period: period,
@@ -420,16 +426,25 @@ Future<_Inputs> _inputsFor({
 }
 
 /// Which of [kpiExceptions] (already filtered to one `kpi.id` by the caller)
-/// belong to this row, plus whether any UNATTRIBUTED row (`employee_id` is
-/// null — a Lark lookup miss, or an incident recorded against a team rather
-/// than a person; `kpi_exceptions.employee_id` is nullable and
-/// `recordException` accepts it) was excluded from [counted].
+/// belong to this row IN [period], plus whether any UNATTRIBUTED row
+/// (`employee_id` is null — a Lark lookup miss, or an incident recorded
+/// against a team rather than a person; `kpi_exceptions.employee_id` is
+/// nullable and `recordException` accepts it) was excluded from [counted].
+///
+/// The period filter is applied ONCE, here, before either [counted] or
+/// [excludedUnattributed] is derived — both must see the same period-scoped
+/// set, or a row in one month can taint every other month's verdict for the
+/// same KPI. That exact drift shipped once already: [counted] went through
+/// a downstream period filter at the call site while the unattributed check
+/// read [kpiExceptions] directly, so a single unattributed row in August
+/// made every other month read MISSING_SOURCE forever, including months
+/// with no exceptions at all.
 ///
 /// At [KpiScope.personal] an unattributed row has nobody to attribute it
 /// to, so it is excluded — but [excludedUnattributed] says so, so a row
 /// that would otherwise read "nothing happened" (COMPLETE) can instead say
-/// "something happened, unattributed" (MISSING_SOURCE) rather than assert a
-/// confident, wrong zero.
+/// "something happened THIS PERIOD, unattributed" (MISSING_SOURCE) rather
+/// than assert a confident, wrong zero.
 ///
 /// At [KpiScope.department] or [KpiScope.company], an unattributed row
 /// counts directly — no attribution is needed for a wider-than-one-person
@@ -444,15 +459,19 @@ Future<_Inputs> _inputsFor({
 ({List<KpiException> counted, bool excludedUnattributed}) _scopedExceptions({
   required Kpi kpi,
   required List<KpiException> kpiExceptions,
+  required String period,
   required KpiScope scope,
   required List<String> population,
 }) {
-  final unattributed = kpiExceptions.where((e) => e.employeeId == null);
+  final forPeriod = kpiExceptions.where(
+    (e) => _periodOf(e.occurredOn) == period,
+  );
+  final unattributed = forPeriod.where((e) => e.employeeId == null);
   final attributed = kpi.level == 'PERSONAL'
-      ? kpiExceptions.where(
+      ? forPeriod.where(
           (e) => e.employeeId != null && population.contains(e.employeeId),
         )
-      : kpiExceptions.where((e) => e.employeeId != null);
+      : forPeriod.where((e) => e.employeeId != null);
 
   if (scope == KpiScope.personal) {
     return (
@@ -480,6 +499,7 @@ num _confirmedSum({
   exceptions: _scopedExceptions(
     kpi: kpi,
     kpiExceptions: kpiExceptions,
+    period: period,
     scope: scope,
     population: population,
   ).counted,
