@@ -55,6 +55,13 @@ class _CapturingRepository extends RoleScorecardRepository {
     String cadence = 'WEEKLY',
     String? proofType,
     bool writeDefinition = false,
+    String level = 'PERSONAL',
+    String? parentKpiId,
+    String rollupType = 'INDEPENDENT',
+    String dataMethod = 'MANUAL_PERIODIC',
+    String? targetDirection,
+    num? targetValue,
+    bool writeCascade = false,
   }) async {
     createdWithDefinition = writeDefinition;
     return createdLibraryKpi = Kpi(

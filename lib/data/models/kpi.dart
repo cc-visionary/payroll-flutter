@@ -9,6 +9,10 @@ const kKpiDataMethods = [
   'MANUAL_PERIODIC',
 ];
 
+/// Matches the `target_direction` check constraint in
+/// `20260814000001_kpi_cascade_fields.sql`.
+const kKpiTargetDirections = ['HIGHER', 'LOWER'];
+
 class Kpi {
   final String id;
   final String companyId;

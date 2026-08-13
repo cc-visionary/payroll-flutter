@@ -54,6 +54,7 @@ class KpiFilter {
     this.category,
     this.assignment,
     this.showInactive = false,
+    this.level,
   });
 
   /// Matched case-insensitively against name, category and measurement.
@@ -69,12 +70,19 @@ class KpiFilter {
   /// can act on.
   final bool showInactive;
 
+  /// PERSONAL | DEPARTMENT | COMPANY (see `kKpiLevels`), or null for all
+  /// levels. The intended authoring order is company first, then department,
+  /// then role — this is what makes a person narrow the library down to just
+  /// the level they are about to author.
+  final String? level;
+
   bool get isEmpty =>
       query.trim().isEmpty &&
       department == null &&
       category == null &&
       assignment == null &&
-      !showInactive;
+      !showInactive &&
+      level == null;
 }
 
 List<Kpi> applyKpiFilter(
@@ -96,7 +104,8 @@ List<Kpi> applyKpiFilter(
               kpiDepartmentOf(k, departmentNameById) == f.department) &&
           (f.category == null || kpiCategoryOf(k) == f.category) &&
           (f.assignment == null ||
-              kpiIsAssigned(k, assignedByKpi) == f.assignment))
+              kpiIsAssigned(k, assignedByKpi) == f.assignment) &&
+          (f.level == null || k.level == f.level))
         k,
   ];
 }

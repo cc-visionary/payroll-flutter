@@ -247,7 +247,35 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
                 category: _filter.category,
                 assignment: _filter.assignment,
                 showInactive: _filter.showInactive,
+                level: _filter.level,
               ),
+            ),
+          ),
+        ),
+        // The cascade's own axis, ahead of department/category: the intended
+        // authoring order is company first, then department, then role, and
+        // narrowing to one level is what makes that order possible on a
+        // library that otherwise interleaves all three.
+        DropdownButton<String?>(
+          value: _filter.level,
+          hint: const Text('All levels'),
+          underline: const SizedBox.shrink(),
+          items: [
+            const DropdownMenuItem<String?>(
+              value: null,
+              child: Text('All levels'),
+            ),
+            for (final l in kKpiLevels)
+              DropdownMenuItem<String?>(value: l, child: Text(l)),
+          ],
+          onChanged: (v) => set(
+            KpiFilter(
+              query: _filter.query,
+              department: _filter.department,
+              category: _filter.category,
+              assignment: _filter.assignment,
+              showInactive: _filter.showInactive,
+              level: v,
             ),
           ),
         ),
@@ -270,6 +298,7 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
               category: _filter.category,
               assignment: _filter.assignment,
               showInactive: _filter.showInactive,
+              level: _filter.level,
             ),
           ),
         ),
@@ -292,6 +321,7 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
               category: v,
               assignment: _filter.assignment,
               showInactive: _filter.showInactive,
+              level: _filter.level,
             ),
           ),
         ),
@@ -320,6 +350,7 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
               category: _filter.category,
               assignment: v,
               showInactive: _filter.showInactive,
+              level: _filter.level,
             ),
           ),
         ),
@@ -333,6 +364,7 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
               category: _filter.category,
               assignment: _filter.assignment,
               showInactive: v,
+              level: _filter.level,
             ),
           ),
         ),
@@ -457,6 +489,17 @@ class _KpiLibraryScreenState extends ConsumerState<KpiLibraryScreen> {
             // KpiDefinitionForm, so it finally has an opinion on them — see
             // saveLibraryKpi's doc comment for why this stayed false before.
             writeDefinition: true,
+            level: result.level,
+            parentKpiId: result.parentKpiId,
+            rollupType: result.rollupType,
+            dataMethod: result.dataMethod,
+            targetDirection: result.targetDirection,
+            targetValue: result.targetValue,
+            // Same reasoning as writeDefinition above: the dialog now renders
+            // and submits level/parent/roll-up type/data method/default
+            // target too, so this is where saveLibraryKpi finally gets told
+            // to write them instead of leaving them at their defaults.
+            writeCascade: true,
           );
     } catch (e) {
       if (!context.mounted) return;

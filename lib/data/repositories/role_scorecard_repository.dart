@@ -291,6 +291,19 @@ class RoleScorecardRepository {
     // renames a KPI without also resending its formula. Only flip this to
     // true from a caller that actually renders and submits those fields.
     bool writeDefinition = false,
+    String level = 'PERSONAL',
+    String? parentKpiId,
+    String rollupType = 'INDEPENDENT',
+    String dataMethod = 'MANUAL_PERIODIC',
+    String? targetDirection,
+    num? targetValue,
+    // Same guard as [writeDefinition], and for the same reason: the KPI
+    // Library dialog is the only caller that renders level/parent/roll-up
+    // type/data method/default target today, so a caller with no opinion on
+    // the cascade (a future rename-only editor, say) must not silently reset
+    // an existing KPI back to PERSONAL/INDEPENDENT/MANUAL_PERIODIC with no
+    // parent the moment it saves a name change.
+    bool writeCascade = false,
   }) async {
     String? blank(String? v) =>
         (v == null || v.trim().isEmpty) ? null : v.trim();
@@ -309,6 +322,14 @@ class RoleScorecardRepository {
         'unit': blank(unit),
         'cadence': cadence,
         'proof_type': blank(proofType),
+      },
+      if (writeCascade) ...{
+        'level': level,
+        'parent_kpi_id': parentKpiId,
+        'rollup_type': rollupType,
+        'data_method': dataMethod,
+        'target_direction': targetDirection,
+        'target_value': targetValue,
       },
     };
     if (id != null && id.isNotEmpty) {
