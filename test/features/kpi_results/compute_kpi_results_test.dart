@@ -196,6 +196,7 @@ void main() {
           registry: registry,
           exceptions: exceptions,
           readings: const [],
+          roleKpiLinks: const {},
         );
 
         final row = _only(rows, KpiScope.company);
@@ -243,6 +244,7 @@ void main() {
           registry: registry,
           exceptions: exceptions,
           readings: const [],
+          roleKpiLinks: const {},
         );
 
         final row = _only(rows, KpiScope.company);
@@ -290,6 +292,9 @@ void main() {
         registry: registry,
         exceptions: const [],
         readings: const [],
+        roleKpiLinks: {
+          'k-vol': {'r-ops'},
+        },
       );
 
       final alice = _only(rows, KpiScope.personal, employeeId: 'alice');
@@ -319,6 +324,45 @@ void main() {
     },
   );
 
+  test(
+    'a PERSONAL row exists only for a holder whose role links the KPI',
+    () async {
+      final kpi = _kpi(
+        id: 'k-linked',
+        level: 'PERSONAL',
+        rollupType: 'ALIGNED',
+        dataMethod: 'MANUAL_PERIODIC',
+        departmentId: 'd-ops',
+      );
+      final roles = [
+        _role('r-linked', deptId: 'd-ops'),
+        _role('r-unlinked', deptId: 'd-ops'),
+      ];
+      final employees = [
+        _employee('holder', roleId: 'r-linked'),
+        _employee('bystander', roleId: 'r-unlinked'),
+      ];
+
+      final rows = await computeResults(
+        period: '2026-08',
+        kpis: [kpi],
+        employees: employees,
+        roles: roles,
+        registry: const {},
+        exceptions: const [],
+        readings: const [],
+        // Only r-linked links this KPI — pure inheritance: a person's KPIs
+        // are their role's KPIs, so bystander (r-unlinked) gets no row.
+        roleKpiLinks: {
+          'k-linked': {'r-linked'},
+        },
+      );
+
+      final personalRows = rows.where((r) => r.scope == KpiScope.personal);
+      expect(personalRows.map((r) => r.employeeId), ['holder']);
+    },
+  );
+
   test('a SHARED KPI produces no personal row', () async {
     final kpi = _kpi(
       id: 'k-shared',
@@ -338,6 +382,7 @@ void main() {
       registry: const {},
       exceptions: const [],
       readings: const [],
+      roleKpiLinks: const {},
     );
 
     expect(rows.any((r) => r.scope == KpiScope.personal), isFalse);
@@ -363,6 +408,7 @@ void main() {
           // unused by this KPI's id below; keep readings empty and let the
           // row be NO_DATA — only the snapshot matters for this test.
         ],
+        roleKpiLinks: const {},
       );
       expect(_only(beforeRows, KpiScope.company).targetSnapshot, 10);
 
@@ -378,6 +424,7 @@ void main() {
         registry: const {},
         exceptions: const [],
         readings: const [],
+        roleKpiLinks: const {},
       );
       expect(_only(afterRows, KpiScope.company).targetSnapshot, 25);
 
@@ -413,6 +460,7 @@ void main() {
         registry: const {},
         exceptions: const [],
         readings: readings,
+        roleKpiLinks: const {},
       );
 
       final row = _only(rows, KpiScope.company);
@@ -440,6 +488,7 @@ void main() {
         registry: const {},
         exceptions: const [],
         readings: const [],
+        roleKpiLinks: const {},
       );
       final row = _only(rows, KpiScope.company);
       expect(row.numerator, isNull);
@@ -468,6 +517,7 @@ void main() {
           registry: const {},
           exceptions: exceptions,
           readings: const [],
+          roleKpiLinks: const {},
         );
         final row = _only(rows, KpiScope.company);
         expect(row.numerator, isNull);
@@ -501,11 +551,145 @@ void main() {
           registry: const {},
           exceptions: exceptions,
           readings: const [],
+          roleKpiLinks: const {},
         );
         final row = _only(rows, KpiScope.company);
         expect(row.numerator, 0);
         expect(row.status, KpiStatus.onTrack); // 0 <= target of 0.
         expect(row.sourceCompleteness, SourceCompleteness.complete);
+      },
+    );
+  });
+
+  group('MANUAL_EXCEPTION: unattributed rows (no employee_id)', () {
+    test(
+      'unattributed-only at COMPANY scope is a real number, not NO_DATA',
+      () async {
+        final kpi = _kpi(
+          dataMethod: 'MANUAL_EXCEPTION',
+          valueType: 'COUNT',
+          targetDirection: 'LOWER',
+          targetValue: 5,
+        );
+        final exceptions = [
+          // employeeId omitted: a Lark lookup miss, or a team-level incident.
+          _exception(
+            kpiId: kpi.id,
+            occurredOn: '2026-08-05',
+            quantity: 3,
+            confirmedAt: DateTime(2026, 8, 6),
+          ),
+        ];
+
+        final rows = await computeResults(
+          period: '2026-08',
+          kpis: [kpi],
+          employees: [_employee('a')],
+          roles: const [],
+          registry: const {},
+          exceptions: exceptions,
+          readings: const [],
+          roleKpiLinks: const {},
+        );
+
+        final row = _only(rows, KpiScope.company);
+        expect(row.numerator, 3);
+        expect(row.sourceCompleteness, SourceCompleteness.complete);
+      },
+    );
+
+    test(
+      'unattributed-only at PERSONAL scope is NO_DATA/MISSING_SOURCE, not '
+      'a confident zero',
+      () async {
+        final kpi = _kpi(
+          id: 'k-personal-exc',
+          level: 'PERSONAL',
+          rollupType: 'ALIGNED',
+          dataMethod: 'MANUAL_EXCEPTION',
+          valueType: 'COUNT',
+          targetDirection: 'LOWER',
+          targetValue: 5,
+        );
+        final roles = [_role('r-ops')];
+        final employees = [_employee('alice', roleId: 'r-ops')];
+        final exceptions = [
+          _exception(
+            kpiId: kpi.id,
+            occurredOn: '2026-08-05',
+            quantity: 3,
+            confirmedAt: DateTime(2026, 8, 6),
+          ),
+        ];
+
+        final rows = await computeResults(
+          period: '2026-08',
+          kpis: [kpi],
+          employees: employees,
+          roles: roles,
+          registry: const {},
+          exceptions: exceptions,
+          readings: const [],
+          roleKpiLinks: {
+            'k-personal-exc': {'r-ops'},
+          },
+        );
+
+        final row = _only(rows, KpiScope.personal, employeeId: 'alice');
+        expect(row.numerator, isNull);
+        expect(row.status, KpiStatus.noData);
+        expect(row.sourceCompleteness, SourceCompleteness.missingSource);
+      },
+    );
+
+    test(
+      'mixed attributed and unattributed rows both count at DEPARTMENT '
+      'scope',
+      () async {
+        final kpi = _kpi(
+          id: 'k-dept-exc',
+          level: 'PERSONAL',
+          rollupType: 'DIRECT',
+          dataMethod: 'MANUAL_EXCEPTION',
+          valueType: 'COUNT',
+          departmentId: 'd-ops',
+          targetDirection: 'LOWER',
+          targetValue: 5,
+        );
+        final roles = [_role('r-ops', deptId: 'd-ops')];
+        final employees = [_employee('alice', roleId: 'r-ops')];
+        final exceptions = [
+          _exception(
+            kpiId: kpi.id,
+            employeeId: 'alice',
+            occurredOn: '2026-08-05',
+            quantity: 2,
+            confirmedAt: DateTime(2026, 8, 6),
+          ),
+          _exception(
+            kpiId: kpi.id,
+            occurredOn: '2026-08-07',
+            quantity: 3,
+            confirmedAt: DateTime(2026, 8, 8),
+          ),
+        ];
+
+        final rows = await computeResults(
+          period: '2026-08',
+          kpis: [kpi],
+          employees: employees,
+          roles: roles,
+          registry: const {},
+          exceptions: exceptions,
+          readings: const [],
+          roleKpiLinks: {
+            'k-dept-exc': {'r-ops'},
+          },
+        );
+
+        final dept = _only(rows, KpiScope.department);
+        expect(dept.numerator, 5); // 2 (alice) + 3 (unattributed).
+        expect(dept.sourceCompleteness, SourceCompleteness.complete);
       },
     );
   });

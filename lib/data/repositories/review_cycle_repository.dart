@@ -90,6 +90,19 @@ class PerformanceDashboardSnapshot {
       .length;
 }
 
+/// The testable core of [ReviewCycleRepository.allReviews]: walks [readPage]
+/// via [fetchAllPages] and maps every raw row to an [EmployeeReview].
+/// Extracted to a plain, non-private top-level function — rather than left
+/// inline against `_client` — so a test can exercise real multi-page
+/// concatenation and row-mapping with a fake [readPage] instead of a live
+/// Supabase client, which this repository has no seam for otherwise.
+Future<List<EmployeeReview>> pagedEmployeeReviews(
+  Future<List<Map<String, dynamic>>> Function(int from, int to) readPage,
+) async {
+  final rows = await fetchAllPages<Map<String, dynamic>>(readPage);
+  return rows.map(EmployeeReview.fromRow).toList();
+}
+
 class ReviewCycleRepository {
   final SupabaseClient _client;
   ReviewCycleRepository(this._client);
@@ -281,17 +294,17 @@ class ReviewCycleRepository {
   /// exactly the kind of quiet under-report this whole plan exists to rule
   /// out (see `_status`/attendance's own pagination history for the same
   /// trap in another table).
-  Future<List<EmployeeReview>> allReviews() async {
-    final rows = await fetchAllPages<Map<String, dynamic>>((from, to) async {
-      final page = await _client
-          .from('employee_reviews')
-          .select()
-          .order('review_period_end', ascending: false)
-          .range(from, to);
-      return (page as List<dynamic>).cast<Map<String, dynamic>>();
-    });
-    return rows.map(EmployeeReview.fromRow).toList();
-  }
+  Future<List<EmployeeReview>> allReviews() => pagedEmployeeReviews((
+    from,
+    to,
+  ) async {
+    final page = await _client
+        .from('employee_reviews')
+        .select()
+        .order('review_period_end', ascending: false)
+        .range(from, to);
+    return (page as List<dynamic>).cast<Map<String, dynamic>>();
+  });
 
   Future<List<ReviewKpiResult>> kpisForReview(String reviewId) async {
     final rows = await _client

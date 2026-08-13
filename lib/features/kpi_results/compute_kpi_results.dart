@@ -35,18 +35,27 @@ import 'kpi_status.dart';
 ///    repurposes the same column to hold a registry key instead. No new
 ///    column, no migration.
 /// 2. **A DEPARTMENT scope needs exactly one department, from
-///    `kpi.departmentId`.** A KPI whose own level is DEPARTMENT, or a
-///    PERSONAL KPI rolling up to DEPARTMENT, has no per-employee assignment
-///    list to consult here (`role_scorecard_kpis` is not one of this
-///    function's inputs — see the task-6 carry-forward note this task
-///    inherits, which is about a different gap in the same shape). Rather
-///    than guess by iterating every department in [roles] — the wide,
-///    plausible-looking answer this whole plan has repeatedly rejected — a
-///    KPI with no `departmentId` produces NO department row. This also
-///    fixes who is eligible for a PERSONAL row: a KPI with a `departmentId`
-///    is personal-scoped to that department's roster; one without is
-///    personal-scoped to the whole company. `scopesFor` still decides
-///    WHETHER a department row exists; this only decides WHICH department.
+///    `kpi.departmentId`.** `role_scorecard_kpis` (via [roleKpiLinks] below)
+///    says WHO holds a KPI, never which department a rolled-up row belongs
+///    to — a role, and therefore its KPIs, can sit in any department.
+///    Rather than guess by iterating every department in [roles] — the
+///    wide, plausible-looking answer this whole plan has repeatedly
+///    rejected — a KPI with no `departmentId` produces NO department row.
+///    This also bounds who is a CANDIDATE for a PERSONAL row (before
+///    [roleKpiLinks] narrows it further): a KPI with a `departmentId`
+///    considers only that department's roster; one without considers the
+///    whole company. `scopesFor` still decides WHETHER a department row
+///    exists; this only decides WHICH department.
+///
+/// **Dedupe is by construction, not enforced.** Each `(kpi, scope,
+/// employeeId, departmentId)` combination is visited exactly once per call
+/// — company: once; department: once, gated on `departmentId`; personal:
+/// once per distinct id in the resolved, role-linked roster — so the output
+/// never repeats a key on its own. That guarantee assumes [kpis] and
+/// [employees] each carry no duplicate `id`; a caller that hands in a
+/// repeated `Kpi.id` or a duplicated `Employee` gets two rows on the same
+/// key, which is exactly the collision `KpiResultRepository.upsertAll`'s
+/// own doc comment says it does not handle safely.
 Future<List<KpiResult>> computeResults({
   required String period,
   required List<Kpi> kpis,
@@ -55,8 +64,19 @@ Future<List<KpiResult>> computeResults({
   required Map<String, KpiSource> registry,
   required List<KpiException> exceptions,
   required List<KpiReading> readings,
+  // kpiId -> the role_scorecard_ids that link it, i.e. `role_scorecard_kpis`
+  // read one KPI's own way ("a person's KPIs are their role's KPIs" — the
+  // definitions half's pure-inheritance rule this personal loop exists to
+  // honour). `RoleScorecard.kpis` (a `List<KpiItem>`) cannot answer this: it
+  // is legacy display text with no `kpiId`, per the review that caught this
+  // signature omitting the link table entirely. Required, not
+  // optional-with-a-default — an empty default would silently reproduce
+  // "every active employee gets a row" in reverse ("nobody does"), and this
+  // plan has had enough defects shaped like a plausible-looking fallback.
+  required Map<String, Set<String>> roleKpiLinks,
 }) async {
   final rows = <KpiResult>[];
+  final employeeById = {for (final e in employees) e.id: e};
 
   for (final kpi in kpis) {
     final scopes = scopesFor(level: kpi.level, rollupType: kpi.rollupType);
@@ -124,7 +144,15 @@ Future<List<KpiResult>> computeResults({
             )
           : populationFor(scope: KpiScope.company, employees: employees, roles: roles);
 
+      final linkedRoleIds = roleKpiLinks[kpi.id] ?? const <String>{};
       for (final employeeId in roster) {
+        // Pure inheritance: a person's KPIs are their role's KPIs. A holder
+        // whose role does not link this KPI (or who somehow has no role at
+        // all) gets no personal row for it, full stop — not a plausible
+        // number nobody asked for.
+        final roleId = employeeById[employeeId]?.roleScorecardId;
+        if (roleId == null || !linkedRoleIds.contains(roleId)) continue;
+
         final population = populationFor(
           scope: KpiScope.personal,
           employeeId: employeeId,
@@ -298,6 +326,7 @@ Future<_Inputs> _inputsFor({
           kpi: kpi,
           kpiExceptions: kpiExceptions,
           period: period,
+          scope: scope,
           population: population,
         );
         return (
@@ -312,9 +341,10 @@ Future<_Inputs> _inputsFor({
         final scoped = _scopedExceptions(
           kpi: kpi,
           kpiExceptions: kpiExceptions,
+          scope: scope,
           population: population,
         );
-        final forPeriod = scoped
+        final forPeriod = scoped.counted
             .where((e) => _periodOf(e.occurredOn) == period)
             .toList();
         final reading = _readingFor(
@@ -330,12 +360,17 @@ Future<_Inputs> _inputsFor({
         // "nothing happened" from "nothing confirmed yet" from "confirmed,
         // and it was zero".
         if (forPeriod.isEmpty) {
-          // No exception rows at all: nothing to report, and nothing wrong
-          // with the source either.
+          // No exception rows at all: nothing to report. UNLESS this is a
+          // personal row and unattributed rows exist for this kpi/period
+          // that got excluded (see _scopedExceptions) — then something DID
+          // happen, we just cannot say it happened to THIS person, and the
+          // row must say so rather than claim a clean COMPLETE zero.
           return (
             numerator: null,
             denominator: reading?.denominator,
-            completeness: SourceCompleteness.complete,
+            completeness: scoped.excludedUnattributed
+                ? SourceCompleteness.missingSource
+                : SourceCompleteness.complete,
           );
         }
         if (!forPeriod.any((e) => e.confirmedAt != null)) {
@@ -385,26 +420,50 @@ Future<_Inputs> _inputsFor({
 }
 
 /// Which of [kpiExceptions] (already filtered to one `kpi.id` by the caller)
-/// belong to this row's population.
+/// belong to this row, plus whether any UNATTRIBUTED row (`employee_id` is
+/// null — a Lark lookup miss, or an incident recorded against a team rather
+/// than a person; `kpi_exceptions.employee_id` is nullable and
+/// `recordException` accepts it) was excluded from [counted].
 ///
-/// A PERSONAL-level KPI can be adopted by roles in more than one department
-/// (`kpis.department_id` is "organisational only" — see `kpi.dart`), so its
-/// exceptions are attributed per employee and must be restricted to the
-/// row's own [population] or a wider-scoped row would silently absorb
-/// another department's numbers. A DEPARTMENT/COMPANY-level KPI has exactly
-/// one department row (decision 2 on `computeResults`), so every exception
-/// filed against it already belongs there, attributed to an employee or not
-/// — no population restriction is possible or needed.
-List<KpiException> _scopedExceptions({
+/// At [KpiScope.personal] an unattributed row has nobody to attribute it
+/// to, so it is excluded — but [excludedUnattributed] says so, so a row
+/// that would otherwise read "nothing happened" (COMPLETE) can instead say
+/// "something happened, unattributed" (MISSING_SOURCE) rather than assert a
+/// confident, wrong zero.
+///
+/// At [KpiScope.department] or [KpiScope.company], an unattributed row
+/// counts directly — no attribution is needed for a wider-than-one-person
+/// number to be correct. Attributed rows are still restricted to this row's
+/// [population] when the KPI's own level is PERSONAL, since such a KPI can
+/// be adopted by roles in more than one department (`kpis.department_id` is
+/// "organisational only" — see `kpi.dart`) and an unrestricted attributed
+/// row would let one department's numbers leak into another's. A
+/// DEPARTMENT/COMPANY-level KPI has exactly one department row (decision 2
+/// on `computeResults`), so every exception filed against it — attributed
+/// or not — already belongs there; nothing needs restricting.
+({List<KpiException> counted, bool excludedUnattributed}) _scopedExceptions({
   required Kpi kpi,
   required List<KpiException> kpiExceptions,
+  required KpiScope scope,
   required List<String> population,
 }) {
-  if (kpi.level != 'PERSONAL') return kpiExceptions;
-  final ids = population.toSet();
-  return kpiExceptions
-      .where((e) => e.employeeId != null && ids.contains(e.employeeId))
-      .toList();
+  final unattributed = kpiExceptions.where((e) => e.employeeId == null);
+  final attributed = kpi.level == 'PERSONAL'
+      ? kpiExceptions.where(
+          (e) => e.employeeId != null && population.contains(e.employeeId),
+        )
+      : kpiExceptions.where((e) => e.employeeId != null);
+
+  if (scope == KpiScope.personal) {
+    return (
+      counted: attributed.toList(),
+      excludedUnattributed: unattributed.isNotEmpty,
+    );
+  }
+  return (
+    counted: [...attributed, ...unattributed],
+    excludedUnattributed: false,
+  );
 }
 
 /// The confirmed sum for this row, restricted to [population] the same way
@@ -415,13 +474,15 @@ num _confirmedSum({
   required Kpi kpi,
   required List<KpiException> kpiExceptions,
   required String period,
+  required KpiScope scope,
   required List<String> population,
 }) => confirmedCountFor(
   exceptions: _scopedExceptions(
     kpi: kpi,
     kpiExceptions: kpiExceptions,
+    scope: scope,
     population: population,
-  ),
+  ).counted,
   period: period,
 );
 
