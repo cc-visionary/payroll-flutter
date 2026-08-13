@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/kpi.dart';
 import '../models/kpi_goal.dart';
 import '../models/role_kpi.dart';
+import '../models/role_outcome.dart';
 import '../models/role_scorecard.dart';
 import '../models/workforce_planning.dart';
 
@@ -634,6 +635,35 @@ class RoleScorecardRepository {
         .cast<Map<String, dynamic>>()
         .map(RoleKpi.fromRow)
         .toList();
+  }
+
+  /// A role's desired outcomes, in author order. See [RoleOutcome] for why
+  /// [RoleOutcome.responsibilityArea] is a plain string match rather than a
+  /// foreign key.
+  Future<List<RoleOutcome>> outcomes(String roleId) async {
+    final rows = await _client
+        .from('role_outcomes')
+        .select()
+        .eq('role_scorecard_id', roleId)
+        .order('sort_order');
+    return rows.cast<Map<String, dynamic>>().map(RoleOutcome.fromRow).toList();
+  }
+
+  /// Upserts [outcomes] for [roleId], writing `sort_order` from each entry's
+  /// list position — the same rule [saveRoleScorecardKpis] uses for its
+  /// links. Rows dropped from [outcomes] are NOT deleted here; the caller
+  /// removes them explicitly via [deleteOutcome].
+  Future<void> saveOutcomes(String roleId, List<RoleOutcome> outcomes) async {
+    if (outcomes.isEmpty) return;
+    final rows = [
+      for (var i = 0; i < outcomes.length; i++)
+        {...outcomes[i].toUpsertPayload(), 'sort_order': i},
+    ];
+    await _client.from('role_outcomes').upsert(rows);
+  }
+
+  Future<void> deleteOutcome(String id) async {
+    await _client.from('role_outcomes').delete().eq('id', id);
   }
 
   Future<Set<String>> employeeAssignedKpiIds(String employeeId) async {
