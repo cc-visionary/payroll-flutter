@@ -188,6 +188,16 @@ class _OutcomesPaneState extends ConsumerState<OutcomesPane> {
         await repo.saveOutcomes(widget.cardId, current);
       }
       ref.invalidate(roleOutcomesProvider(widget.cardId));
+      // A renamed or deleted outcome changes what `KpisPane`'s outcome picker
+      // shows for this card — a delete also nulls `outcome_id` on any KPI
+      // that pointed at it (`role_scorecard_kpis.outcome_id` is `on delete
+      // set null`). `KpisPane` holds its own captured `RoleKpi` list and
+      // would not otherwise learn either fact: without this, a KPI whose
+      // outcome this save just deleted would keep showing that outcome's
+      // text in the picker (stuck behind a defensive placeholder, since the
+      // id no longer resolves) instead of reverting to "— none —" the way
+      // the server now has it.
+      ref.invalidate(roleKpisProvider(widget.cardId));
       _captured = false;
       if (mounted) {
         ScaffoldMessenger.of(
@@ -235,6 +245,10 @@ class _OutcomesPaneState extends ConsumerState<OutcomesPane> {
     }
     ref.invalidate(wpTasksProvider);
     ref.invalidate(roleOutcomesProvider(widget.cardId));
+    // Same reasoning as the save path above: a resync means this card's
+    // outcomes may have changed underneath us (another session's edit), and
+    // KpisPane's picker needs to see that too.
+    ref.invalidate(roleKpisProvider(widget.cardId));
     setState(() => _captured = false);
   }
 

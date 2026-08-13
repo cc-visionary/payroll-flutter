@@ -548,6 +548,14 @@ class RoleScorecardRepository {
             (r.link.frequency.trim().isEmpty
                 ? null
                 : r.link.frequency.trim()),
+        // Present on every row in every batch (like the three keys above),
+        // never conditionally omitted — omitting it on some rows but not
+        // others within the same upsert batch is exactly the trap this
+        // method's class comment documents: PostgREST would still write NULL
+        // for the rows that omitted it, because the `?columns=` list is the
+        // UNION across the whole batch. Being unconditional here is what
+        // makes it safe.
+        'outcome_id': r.link.outcomeId,
       };
       if (r.link.ownsGoal) {
         // `target` still comes from the goal whenever there IS one. With no
@@ -627,7 +635,7 @@ class RoleScorecardRepository {
     final rows = await _client
         .from('role_scorecard_kpis')
         .select(
-          'kpi_id, target, frequency, goal_direction, goal_value, goal_value_max, kpis(name, unit, cadence)',
+          'kpi_id, target, frequency, goal_direction, goal_value, goal_value_max, outcome_id, kpis(name, unit, cadence)',
         )
         .eq('role_scorecard_id', roleScorecardId)
         .order('sort_order');

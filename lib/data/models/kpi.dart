@@ -195,6 +195,19 @@ class KpiLinkInput {
   /// opinion by definition.
   final bool writeGoal;
 
+  /// The `role_outcomes` row this link proves — see role_outcomes
+  /// (20260814000002). Null means "no outcome picked yet", which is a legal,
+  /// permanent state, not merely a transient one: a KPI with no outcome must
+  /// stay valid.
+  ///
+  /// Always written on save, the same way [frequency]/[kpiId] are: `KpisPane`
+  /// saves the whole card's link set on every call, and there is no separate
+  /// "no opinion" mode for this field the way [writeGoal] gives one for the
+  /// goal columns — so a null here is read as "this role has no outcome for
+  /// this KPI" and clears the column, not as "leave whatever is stored
+  /// alone".
+  final String? outcomeId;
+
   const KpiLinkInput({
     this.kpiId,
     required this.name,
@@ -206,6 +219,7 @@ class KpiLinkInput {
     this.unit,
     this.cadence,
     this.writeGoal = false,
+    this.outcomeId,
   });
 
   /// True when the repository must write the four goal columns for this link.

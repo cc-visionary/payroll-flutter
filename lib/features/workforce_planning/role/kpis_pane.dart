@@ -5,6 +5,7 @@ import '../../../app/status_colors.dart';
 import '../../../data/models/kpi.dart';
 import '../../../data/models/kpi_goal.dart';
 import '../../../data/models/role_kpi.dart';
+import '../../../data/models/role_outcome.dart';
 import '../../../data/repositories/role_scorecard_repository.dart';
 import '../../documents/providers.dart' show roleScorecardByIdProvider;
 import '../../kpi_library/kpi_definition_form.dart';
@@ -179,6 +180,11 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
             // currently the only caller, so that branch has no live user —
             // see saveRoleScorecardKpis for why it is nonetheless kept.
             writeGoal: true,
+            // Always sent, never conditionally omitted — see
+            // KpiLinkInput.outcomeId. This pane saves every link on the card
+            // in every call, so a null here must mean "no outcome", not "no
+            // opinion".
+            outcomeId: d.outcomeId,
           ),
       ];
       await ref
@@ -259,6 +265,11 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
       if (!mounted) return;
     }
     ref.invalidate(roleKpisProvider(widget.cardId));
+    // The outcome picker's options come from this provider too — a resync
+    // means the role's outcomes may have changed underneath us as well (e.g.
+    // OutcomesPane, or another session), and a stale option list could name
+    // an outcome that no longer exists.
+    ref.invalidate(roleOutcomesProvider(widget.cardId));
     // Same reasoning as _invalidateAfterSave: a resync means this card's
     // on-role KPI set may have changed underneath us (e.g. another session's
     // edit), so the strip's cached view of it must not survive this reload.
@@ -276,6 +287,9 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
     final library =
         ref.watch(kpiLibraryProvider).asData?.value ?? const <Kpi>[];
     final libraryById = {for (final k in library) k.id: k};
+    final outcomes =
+        ref.watch(roleOutcomesProvider(widget.cardId)).asData?.value ??
+        const <RoleOutcome>[];
 
     return kpisAsync.when(
       loading: () => const Padding(
@@ -334,7 +348,7 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
                   )
                 else
                   for (final draft in _links)
-                    _buildRow(context, draft, libraryById),
+                    _buildRow(context, draft, libraryById, outcomes),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   Text(_error!, style: const TextStyle(color: Colors.red)),
@@ -410,6 +424,7 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
     BuildContext context,
     _KpiLinkDraft draft,
     Map<String, Kpi> libraryById,
+    List<RoleOutcome> outcomes,
   ) {
     final key = identityHashCode(draft);
     // Computed even when there is no goal: the hint below names every gap,
@@ -474,6 +489,8 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
           ),
           const SizedBox(height: 8),
           _goalEditor(context, draft, key),
+          const SizedBox(height: 8),
+          _outcomePicker(context, draft, key, outcomes),
           const SizedBox(height: 6),
           if (draft.goal != null)
             Text(
@@ -534,6 +551,88 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
   Widget _hint(BuildContext context, StatusTone tone, String text) {
     final color = StatusPalette.of(context, tone).foreground;
     return Text(text, style: TextStyle(fontSize: 12, color: color));
+  }
+
+  /// Which `role_outcomes` row this link proves. Lists every outcome AUTHORED
+  /// ON THIS ROLE — including one whose stored area matches none of the
+  /// role's current responsibility areas (`OutcomesPane`'s "orphan" case) —
+  /// grouped by the area string each outcome is filed under, plus a
+  /// "— none —" option.
+  ///
+  /// Deliberately not filtered down to only outcomes on the role's CURRENT
+  /// areas: an outcome does not stop existing just because the area it was
+  /// written under got renamed on the Responsibilities tab, and a picker that
+  /// hid it would not make that KPI's proof go away — it would just make a
+  /// manager who can no longer find it recreate a duplicate. `OutcomesPane`
+  /// makes the same call for its own orphan section, for the same reason.
+  Widget _outcomePicker(
+    BuildContext context,
+    _KpiLinkDraft draft,
+    int key,
+    List<RoleOutcome> outcomes,
+  ) {
+    final byArea = <String, List<RoleOutcome>>{};
+    for (final o in outcomes) {
+      (byArea[o.responsibilityArea] ??= []).add(o);
+    }
+    final ids = outcomes.map((o) => o.id).toSet();
+    final items = <DropdownMenuItem<String?>>[
+      const DropdownMenuItem<String?>(value: null, child: Text('— none —')),
+    ];
+    for (final entry in byArea.entries) {
+      items.add(
+        DropdownMenuItem<String?>(
+          // A header, not a choice — this pane groups by area for
+          // readability only; the link still points straight at the outcome,
+          // never at the area (see [RoleOutcome]'s doc comment on why an
+          // area is not a row this could point to instead).
+          enabled: false,
+          value: ' header:${entry.key}',
+          child: Text(
+            entry.key,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      );
+      for (final o in entry.value) {
+        items.add(
+          DropdownMenuItem<String?>(value: o.id, child: Text('  ${o.text}')),
+        );
+      }
+    }
+    // Defensive: `roleOutcomesProvider` and `roleKpisProvider` resolve
+    // independently, so the very first frame can show a KPI whose stored
+    // outcomeId isn't in [outcomes] yet (still loading) — or, more
+    // permanently, one that pointed at an outcome since deleted elsewhere.
+    // `outcome_id` is `on delete set null`, so the latter self-heals on the
+    // next load; either way, a value with no matching item throws inside
+    // DropdownButtonFormField (it asserts exactly one match), so give it a
+    // placeholder entry rather than crash the pane.
+    if (draft.outcomeId != null && !ids.contains(draft.outcomeId)) {
+      items.add(
+        DropdownMenuItem<String?>(
+          value: draft.outcomeId,
+          child: const Text('(loading outcome…)'),
+        ),
+      );
+    }
+    return SizedBox(
+      width: 360,
+      child: DropdownButtonFormField<String?>(
+        key: ValueKey('kpi-outcome-picker-$key'),
+        initialValue: draft.outcomeId,
+        isExpanded: true,
+        decoration: const InputDecoration(
+          labelText: 'Proves outcome',
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+        items: items,
+        onChanged: (v) => setState(() => draft.outcomeId = v),
+      ),
+    );
   }
 
   Widget _goalEditor(BuildContext context, _KpiLinkDraft draft, int key) {
@@ -712,6 +811,10 @@ class _KpiLinkDraft {
   String? legacyTarget;
   String? legacyFrequency;
 
+  /// The `role_outcomes` row this link proves, or null for "none picked".
+  /// See role_outcomes (20260814000002).
+  String? outcomeId;
+
   /// Whether this link already carried a structured goal when it was loaded.
   ///
   /// A load-time fact, never edited — clearing the goal editor does not make
@@ -751,6 +854,7 @@ class _KpiLinkDraft {
     this.denominatorSource,
     this.legacyTarget,
     this.legacyFrequency,
+    this.outcomeId,
     this.hadStoredGoal = false,
     this.direction,
     String? initialValue,
@@ -773,6 +877,7 @@ class _KpiLinkDraft {
     cadence: kpi.cadence,
     legacyTarget: kpi.target,
     legacyFrequency: kpi.frequency,
+    outcomeId: kpi.outcomeId,
     hadStoredGoal: kpi.goal != null,
     direction: kpi.goal?.direction,
     initialValue: kpi.goal == null ? '' : _trim(kpi.goal!.value),
@@ -810,6 +915,7 @@ class _DraftSnapshot {
   final GoalDirection? direction;
   final String value;
   final String valueMax;
+  final String? outcomeId;
 
   const _DraftSnapshot({
     required this.kpiId,
@@ -817,6 +923,7 @@ class _DraftSnapshot {
     required this.direction,
     required this.value,
     required this.valueMax,
+    required this.outcomeId,
   });
 
   factory _DraftSnapshot.of(_KpiLinkDraft d) => _DraftSnapshot(
@@ -825,6 +932,7 @@ class _DraftSnapshot {
     direction: d.direction,
     value: d.value,
     valueMax: d.valueMax,
+    outcomeId: d.outcomeId,
   );
 
   @override
@@ -834,10 +942,12 @@ class _DraftSnapshot {
       other.name == name &&
       other.direction == direction &&
       other.value == value &&
-      other.valueMax == valueMax;
+      other.valueMax == valueMax &&
+      other.outcomeId == outcomeId;
 
   @override
-  int get hashCode => Object.hash(kpiId, name, direction, value, valueMax);
+  int get hashCode =>
+      Object.hash(kpiId, name, direction, value, valueMax, outcomeId);
 }
 
 class _AddKpiResult {
