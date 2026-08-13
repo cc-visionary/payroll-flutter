@@ -8,8 +8,11 @@ import 'package:http/testing.dart';
 import 'package:payroll_flutter/data/models/kpi.dart';
 import 'package:payroll_flutter/data/models/role_kpi.dart';
 import 'package:payroll_flutter/data/models/role_outcome.dart';
+import 'package:payroll_flutter/data/models/workforce_planning.dart';
 import 'package:payroll_flutter/data/repositories/role_scorecard_repository.dart';
 import 'package:payroll_flutter/features/workforce_planning/role/kpis_pane.dart';
+import 'package:payroll_flutter/features/workforce_planning/role/outcomes_pane.dart';
+import 'package:payroll_flutter/features/workforce_planning/wp_providers.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../support/supabase_stub.dart';
@@ -44,6 +47,36 @@ RoleOutcome _outcome({required String id, required String area, required String 
       responsibilityArea: area,
       text: text,
     );
+
+WpTask _task({required String id, required String name, required String area}) =>
+    WpTask(
+      id: id,
+      companyId: 'co-1',
+      name: name,
+      roleScorecardId: 'card-1',
+      responsibilityArea: area,
+      areaSort: 0,
+      taskSort: 0,
+      timesSource: 'manual',
+      minutesSource: 'manual',
+      driverFactor: 1,
+      isEssential: true,
+      isExpectation: false,
+      status: 'ACTIVE',
+    );
+
+/// Captures what `OutcomesPane` sends/drops instead of hitting the network —
+/// mirrors `outcomes_pane_test.dart`'s own `_CapturingRepository`, duplicated
+/// here (it is private to that file) because this group needs it too.
+class _OutcomeCapturingRepository extends RoleScorecardRepository {
+  _OutcomeCapturingRepository() : super(Supabase.instance.client);
+
+  @override
+  Future<void> saveOutcomes(String roleId, List<RoleOutcome> outcomes) async {}
+
+  @override
+  Future<void> deleteOutcome(String id) async {}
+}
 
 class _CapturingRepository extends RoleScorecardRepository {
   _CapturingRepository() : super(Supabase.instance.client);
@@ -265,4 +298,128 @@ void main() {
       },
     );
   });
+
+  group(
+    "OutcomesPane invalidates roleKpisProvider — KpisPane's picker data",
+    () {
+      // Pins the fix in outcomes_pane.dart's _save()/_resync(): renaming or
+      // deleting an outcome there must refetch `roleKpisProvider(cardId)`, or
+      // KpisPane's picker (a second, independent consumer of that provider —
+      // see role.RoleKpi.outcomeId) is left showing stale text, or a stuck
+      // "(loading outcome…)" placeholder for a link whose outcome the server
+      // just nulled out. Neither the diff nor `outcomes_pane_test.dart` had
+      // anything pinning this before — this group is what does.
+      //
+      // `ref.invalidate` on a `FutureProvider` only actually recomputes the
+      // provider if something is watching it — with nothing subscribed, an
+      // invalidated-but-unwatched provider just sits dirty until the next
+      // read, and a test that never forces a re-read would pass whether or
+      // not the invalidate call is there. `_kpiWatcher` below is that active
+      // subscriber, standing in for `KpisPane`'s own `ref.watch` on the same
+      // provider, so a fetch-count assertion here actually depends on the
+      // invalidate call existing.
+      Widget kpiWatcher() => Consumer(
+        builder: (context, ref, _) {
+          ref.watch(roleKpisProvider('card-1'));
+          return const SizedBox.shrink();
+        },
+      );
+
+      Future<void> pump(
+        WidgetTester tester, {
+        required void Function() onKpiFetch,
+        List<WpTask> tasks = const [],
+        List<RoleOutcome> outcomes = const [],
+      }) async {
+        tester.view.physicalSize = const Size(1400, 4000);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              wpTasksProvider.overrideWith((ref) async => tasks),
+              roleOutcomesProvider(
+                'card-1',
+              ).overrideWith((ref) async => outcomes),
+              roleKpisProvider('card-1').overrideWith((ref) async {
+                onKpiFetch();
+                return const <RoleKpi>[];
+              }),
+              roleScorecardRepositoryProvider.overrideWithValue(
+                _OutcomeCapturingRepository(),
+              ),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      const OutcomesPane(cardId: 'card-1', companyId: 'co-1'),
+                      kpiWatcher(),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('saving an outcome refetches this card\'s roleKpisProvider', (
+        tester,
+      ) async {
+        var fetches = 0;
+        await pump(
+          tester,
+          onKpiFetch: () => fetches++,
+          tasks: [_task(id: 't1', name: 'Pack orders', area: 'Fulfillment')],
+        );
+        expect(fetches, 1, reason: 'the initial mount fetches once');
+
+        await tester.tap(find.widgetWithText(TextButton, 'Add outcome'));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byType(TextFormField).last,
+          'Orders ship complete and undamaged',
+        );
+        await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+        await tester.pumpAndSettle();
+
+        expect(
+          fetches,
+          2,
+          reason:
+              'saving an outcome must invalidate roleKpisProvider for this '
+              'card, so an active watcher (KpisPane, in production) refetches',
+        );
+      });
+
+      testWidgets('resync refetches this card\'s roleKpisProvider', (
+        tester,
+      ) async {
+        var fetches = 0;
+        await pump(
+          tester,
+          onKpiFetch: () => fetches++,
+          tasks: [_task(id: 't1', name: 'Pack orders', area: 'Fulfillment')],
+        );
+        expect(fetches, 1, reason: 'the initial mount fetches once');
+
+        // Pristine (nothing edited), so resync reloads without the
+        // discard-confirmation dialog.
+        await tester.tap(find.byKey(const ValueKey('outcomes-pane-resync')));
+        await tester.pumpAndSettle();
+
+        expect(
+          fetches,
+          2,
+          reason:
+              'resync must invalidate roleKpisProvider for this card too — '
+              'a separate call site from save, and the more likely one to '
+              'regress alone',
+        );
+      });
+    },
+  );
 }
