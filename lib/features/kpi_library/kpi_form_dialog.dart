@@ -149,6 +149,7 @@ class _KpiFormDialogState extends ConsumerState<KpiFormDialog> {
           ? null
           : _description.text.trim(),
       isActive: widget.existing?.isActive ?? true,
+      departmentId: widget.existing?.departmentId,
       valueType: _definition.valueType,
       numeratorLabel: _definition.numeratorLabel,
       numeratorSource: _definition.numeratorSource,

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/data/models/kpi.dart';
 import 'package:payroll_flutter/data/repositories/role_scorecard_repository.dart';
 import 'package:payroll_flutter/features/auth/profile_provider.dart';
+import 'package:payroll_flutter/features/kpi_library/kpi_form_dialog.dart';
 import 'package:payroll_flutter/features/kpi_library/kpi_library_screen.dart';
 
 /// Task 6: the KPI Library speaks the cascade.
@@ -20,6 +21,12 @@ import 'package:payroll_flutter/features/kpi_library/kpi_library_screen.dart';
 ///    reconstruction, harmless only because `saveLibraryKpi`'s save map never
 ///    wrote them either. Now that both sides carry them, a dropped field
 ///    would be silently written back as a reset, not merely absent.
+///  * `departmentId` — the seventh field the same reconstruction used to
+///    drop, deferred out of Task 6 as harmless because `saveLibraryKpi` never
+///    writes `department_id` either — now survives too. Threaded, not
+///    collected: this dialog has no department control, so the only way to
+///    prove it survives is to pop the dialog directly and read the value off
+///    the returned [Kpi], never through `saveLibraryKpi`'s recorded call.
 Kpi _kpi(
   String id,
   String name, {
@@ -325,6 +332,77 @@ void main() {
         reason:
             'the dialog now collects the cascade fields, so the library '
             'screen must ask saveLibraryKpi to write them',
+      );
+    },
+  );
+
+  testWidgets(
+    'editing only the name still round-trips departmentId in the Kpi the '
+    'dialog pops, even though no control on the form ever shows it',
+    (tester) async {
+      tester.view.physicalSize = const Size(1400, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final repo = _RecordingRepo();
+      final existing = Kpi(
+        id: 'kpi-dept',
+        companyId: 'co-1',
+        name: 'Fill Rate',
+        departmentId: 'dept-1',
+      );
+
+      Kpi? popped;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            roleScorecardRepositoryProvider.overrideWithValue(repo),
+            kpiLibraryProvider.overrideWith((ref) async => [existing]),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () async {
+                    popped = await showDialog<Kpi>(
+                      context: context,
+                      builder: (_) => KpiFormDialog(existing: existing),
+                    );
+                  },
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(find.text('Edit KPI'), findsOneWidget);
+
+      await tester.enterText(
+        find.ancestor(
+          of: find.text('Name'),
+          matching: find.byType(TextField),
+        ),
+        'Fill Rate v2',
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      // Asserts the VALUE, not key presence — a Kpi built with the buggy
+      // reconstruction still carries a `departmentId` key, just defaulted to
+      // null. Only checking the value catches that.
+      expect(
+        popped?.departmentId,
+        'dept-1',
+        reason: 'departmentId must survive an edit that never touched it',
       );
     },
   );
