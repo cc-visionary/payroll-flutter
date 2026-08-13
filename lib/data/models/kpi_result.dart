@@ -22,13 +22,16 @@ const kpiStatusCodes = {
   KpiStatus.noData: 'NO_DATA',
 };
 
-KpiScope _kpiScopeFromCode(String? code) => switch (code) {
+/// Shared with `kpi_input.dart` — `kpi_exceptions`/`kpi_readings` reuse the
+/// same `scope` vocabulary and CHECK constraint as `kpi_results`.
+KpiScope kpiScopeFromCode(String? code) => switch (code) {
   'PERSONAL' => KpiScope.personal,
   'DEPARTMENT' => KpiScope.department,
   'COMPANY' => KpiScope.company,
-  // scope is NOT NULL with a CHECK constraint in kpi_results, so a real row
-  // can never carry anything else. Throwing loudly here beats guessing a
-  // scope for a row whose actual scope is unknown.
+  // scope is NOT NULL with a CHECK constraint in kpi_results (and mirrored
+  // in kpi_readings), so a real row can never carry anything else. Throwing
+  // loudly here beats guessing a scope for a row whose actual scope is
+  // unknown.
   _ => throw ArgumentError('unrecognized kpi_results.scope: $code'),
 };
 
@@ -125,7 +128,7 @@ class KpiResult {
     companyId: r['company_id'] as String,
     kpiId: r['kpi_id'] as String,
     period: r['period'] as String,
-    scope: _kpiScopeFromCode(r['scope'] as String?),
+    scope: kpiScopeFromCode(r['scope'] as String?),
     employeeId: r['employee_id'] as String?,
     departmentId: r['department_id'] as String?,
     numerator: _num(r['numerator']),

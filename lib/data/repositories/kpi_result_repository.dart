@@ -1,11 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../models/kpi_input.dart';
 import '../models/kpi_result.dart';
 
-/// Reads and writes `kpi_results` (supabase/migrations/20260814000004_kpi_results.sql).
+/// Reads and writes `kpi_results` (supabase/migrations/20260814000004_kpi_results.sql),
+/// plus the two ingestion-boundary tables results are derived from,
+/// `kpi_exceptions` and `kpi_readings`
+/// (supabase/migrations/20260814000005_kpi_inputs.sql) — see the class's
+/// ingestion-boundary methods near the bottom of this file.
 ///
-/// The table's real uniqueness constraint is a functional (expression) index
+/// The results table's real uniqueness constraint is a functional (expression) index
 /// on `coalesce(employee_id, ...)` / `coalesce(department_id, ...)` — Postgres
 /// treats NULLs as distinct, so a plain unique constraint over the nullable
 /// scope columns would let unlimited duplicate COMPANY rows through.
@@ -121,6 +126,106 @@ class KpiResultRepository {
     employeeId ?? '',
     departmentId ?? '',
   ].join('|');
+
+  // ===========================================================================
+  // The ingestion boundary (supabase/migrations/20260814000005_kpi_inputs.sql)
+  //
+  // kpi_exceptions and kpi_readings are where manually-reported data lands —
+  // the raw material kpi_results is derived FROM. recordException and
+  // recordReading both write whatever `reported_via` / `external_ref` the
+  // caller's model already carries; neither method decides provenance
+  // itself. A future Lark sync is simply another caller of these same two
+  // methods, passing `reportedVia: ReportedVia.lark` and an `externalRef`
+  // (the Bitable record id) so a re-sync is idempotent against
+  // kpi_exceptions' `unique (kpi_id, external_ref)` index — the same
+  // pattern `supabase/functions/sync-lark-self-evals` already uses for
+  // `lark_self_eval_responses`.
+  // ===========================================================================
+
+  /// Writes one exception occurrence. See the class-level note above on
+  /// provenance and idempotency.
+  Future<void> recordException(KpiException e) async {
+    await _client.from('kpi_exceptions').insert(e.toInsertPayload());
+  }
+
+  /// Marks exception [id] confirmed by [confirmedBy] (a `users.id`), stamping
+  /// `confirmed_at` to now. Until this runs, the row is inert:
+  /// `confirmedCountFor` (exception_aggregation.dart) only sums exceptions
+  /// with a non-null `confirmed_at` — an unconfirmed report must never move
+  /// a KPI.
+  Future<void> confirmException(
+    String id, {
+    required String confirmedBy,
+  }) async {
+    await _client
+        .from('kpi_exceptions')
+        .update({
+          'confirmed_at': DateTime.now().toUtc().toIso8601String(),
+          'confirmed_by': confirmedBy,
+        })
+        .eq('id', id);
+  }
+
+  /// Writes one period reading. See the class-level note above on
+  /// provenance and idempotency.
+  ///
+  /// A single insert, not an upsert: unlike [upsertAll], this task does not
+  /// define correction/replace semantics for an existing
+  /// kpi/period/scope/employee/department reading — a second call for the
+  /// same identity fails against `kpi_readings_identity`, the same
+  /// coalesce-based unique index `kpi_results` uses, by design.
+  Future<void> recordReading(KpiReading r) async {
+    await _client.from('kpi_readings').insert(r.toInsertPayload());
+  }
+
+  /// Every exception row for [kpiId] whose `occurred_on` falls within
+  /// [period] (`YYYY-MM`) — confirmed and unconfirmed alike. Filtering to
+  /// confirmed-only is [confirmedCountFor]'s job (exception_aggregation.dart),
+  /// not this read's; a caller that wants "how many happened at all"
+  /// (confirmed or not) needs the unconfirmed rows too.
+  Future<List<KpiException>> exceptionsFor(String kpiId, String period) async {
+    final (start, end) = _periodBounds(period);
+    final rows = await _client
+        .from('kpi_exceptions')
+        .select()
+        .eq('kpi_id', kpiId)
+        .gte('occurred_on', start)
+        .lt('occurred_on', end);
+    return (rows as List)
+        .cast<Map<String, dynamic>>()
+        .map(KpiException.fromRow)
+        .toList();
+  }
+
+  /// Every reading row for [period], across every KPI and scope. RLS (not
+  /// this filter) is what scopes the result to the caller's company —
+  /// mirrors [listByPeriod] above.
+  Future<List<KpiReading>> readingsFor(String period) async {
+    final rows = await _client
+        .from('kpi_readings')
+        .select()
+        .eq('period', period);
+    return (rows as List)
+        .cast<Map<String, dynamic>>()
+        .map(KpiReading.fromRow)
+        .toList();
+  }
+
+  /// The inclusive start and exclusive end date (`YYYY-MM-DD`) of [period]
+  /// (`YYYY-MM`), for a `gte`/`lt` range filter over a `date` column.
+  (String start, String end) _periodBounds(String period) {
+    final parts = period.split('-');
+    final year = int.parse(parts[0]);
+    final month = int.parse(parts[1]);
+    final start = '$period-01';
+    final nextMonth = month == 12
+        ? DateTime.utc(year + 1, 1, 1)
+        : DateTime.utc(year, month + 1, 1);
+    final end =
+        '${nextMonth.year.toString().padLeft(4, '0')}-'
+        '${nextMonth.month.toString().padLeft(2, '0')}-01';
+    return (start, end);
+  }
 }
 
 final kpiResultRepositoryProvider = Provider<KpiResultRepository>(
