@@ -128,6 +128,26 @@ class _FixedSource implements KpiSource {
 /// source (attendance, reviews) actually has. This is what makes a
 /// department row a genuine recompute rather than an average of its
 /// employees' personal rows.
+/// A registry source that always throws -- simulating an RPC outage, a
+/// transient network error, or any other failure a real external source
+/// (attendance, reviews) can hit mid-read.
+class _ThrowingSource implements KpiSource {
+  _ThrowingSource(this._key);
+  final String _key;
+
+  @override
+  String get key => _key;
+
+  @override
+  Future<KpiSourceInput> read({
+    required KpiScope scope,
+    required String period,
+    List<String> employeeIds = const [],
+  }) async {
+    throw StateError('source unavailable');
+  }
+}
+
 class _VolumeSource implements KpiSource {
   _VolumeSource(this._key, this._perEmployee);
   final String _key;
@@ -251,6 +271,92 @@ void main() {
         expect(row.numerator, isNull);
         expect(row.status, KpiStatus.noData);
         expect(row.sourceCompleteness, SourceCompleteness.missingSource);
+      },
+    );
+  });
+
+  group('a source that throws is contained to its own KPI', () {
+    test(
+      'the failing KPI reports NO_DATA/MISSING_SOURCE, not an exception',
+      () async {
+        final broken = _kpi(
+          id: 'k-broken',
+          dataMethod: 'AUTOMATIC',
+          valueType: 'COUNT',
+          numeratorSource: 'test.broken',
+        );
+        final registry = {'test.broken': _ThrowingSource('test.broken')};
+
+        final rows = await computeResults(
+          period: '2026-08',
+          kpis: [broken],
+          employees: [_employee('a')],
+          roles: const [],
+          registry: registry,
+          exceptions: const [],
+          readings: const [],
+          roleKpiLinks: const {},
+        );
+
+        final row = _only(rows, KpiScope.company);
+        expect(row.numerator, isNull);
+        expect(row.status, KpiStatus.noData);
+        expect(row.sourceCompleteness, SourceCompleteness.missingSource);
+      },
+    );
+
+    test(
+      'the OTHER KPI in the same call still produces a real row -- '
+      'containment, not merely catching',
+      () async {
+        final broken = _kpi(
+          id: 'k-broken',
+          dataMethod: 'AUTOMATIC',
+          valueType: 'COUNT',
+          numeratorSource: 'test.broken',
+        );
+        final healthy = _kpi(
+          id: 'k-healthy',
+          dataMethod: 'AUTOMATIC',
+          valueType: 'COUNT',
+          numeratorSource: 'test.healthy',
+        );
+        final registry = {
+          'test.broken': _ThrowingSource('test.broken'),
+          'test.healthy': _FixedSource(
+            'test.healthy',
+            (_) => (numerator: 5, denominator: null),
+          ),
+        };
+
+        final rows = await computeResults(
+          period: '2026-08',
+          kpis: [broken, healthy],
+          employees: [_employee('a')],
+          roles: const [],
+          registry: registry,
+          exceptions: const [],
+          readings: const [],
+          roleKpiLinks: const {},
+        );
+
+        final brokenRow = rows.singleWhere(
+          (r) => r.kpiId == 'k-broken' && r.scope == KpiScope.company,
+        );
+        final healthyRow = rows.singleWhere(
+          (r) => r.kpiId == 'k-healthy' && r.scope == KpiScope.company,
+        );
+
+        expect(brokenRow.status, KpiStatus.noData);
+        expect(brokenRow.sourceCompleteness, SourceCompleteness.missingSource);
+
+        // The assertion that actually matters: the OTHER KPI's row carries
+        // its real numerator/value/status, not something swallowed or
+        // defaulted along with the failing one.
+        expect(healthyRow.numerator, 5);
+        expect(healthyRow.value, 5);
+        expect(healthyRow.status, KpiStatus.onTrack);
+        expect(healthyRow.sourceCompleteness, SourceCompleteness.complete);
       },
     );
   });

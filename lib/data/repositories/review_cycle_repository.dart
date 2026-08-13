@@ -314,9 +314,19 @@ class ReviewCycleRepository {
   /// `auth_app_role()` carries no explicit revoke, so it keeps Postgres'
   /// default PUBLIC execute grant and is callable via `.rpc(...)` with no
   /// migration.
+  ///
+  /// Fails toward `false`, not toward an exception: an RPC outage, a
+  /// transient network error, or an unexpected response shape must degrade
+  /// this to "cannot certify" (which already routes to NO_DATA downstream),
+  /// never propagate and abort an entire recompute over a single role check
+  /// for one KPI's one automatic source.
   Future<bool> callerSeesAllReviews() async {
-    final role = await _client.rpc('auth_app_role') as String?;
-    return _kFullReviewVisibilityRoles.contains(role);
+    try {
+      final role = await _client.rpc('auth_app_role') as String?;
+      return _kFullReviewVisibilityRoles.contains(role);
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Every review row in the caller's company -- but ONLY once

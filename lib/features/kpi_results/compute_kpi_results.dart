@@ -252,6 +252,32 @@ Future<KpiResult> _row({
 
 typedef _Inputs = ({num? numerator, num? denominator, SourceCompleteness completeness});
 
+/// Runs one [KpiSource]'s `read`, containing any exception it throws to
+/// THIS KPI's row instead of letting it propagate out of [computeResults]
+/// and abort every other KPI in the same call. A source is an external
+/// dependency (an RPC, a network call, a repository read) -- the engine
+/// already has a vocabulary for "could not answer"
+/// ([SourceCompleteness.missingSource]); a throw is funneled into exactly
+/// that, the same as a source that returned a null numerator on purpose.
+/// Returns `null` on any failure, which both callers below treat the same
+/// way they already treat a source's own "I don't know" answer.
+Future<KpiSourceInput?> _readSource(
+  KpiSource source, {
+  required KpiScope scope,
+  required String period,
+  required List<String> population,
+}) async {
+  try {
+    return await source.read(
+      scope: scope,
+      period: period,
+      employeeIds: population,
+    );
+  } catch (_) {
+    return null;
+  }
+}
+
 /// Input precedence by `data_method` (see the class-level table in the
 /// task brief this implements):
 ///
@@ -283,11 +309,22 @@ Future<_Inputs> _inputsFor({
             completeness: SourceCompleteness.missingSource,
           );
         }
-        final input = await source.read(
+        final input = await _readSource(
+          source,
           scope: scope,
           period: period,
-          employeeIds: population,
+          population: population,
         );
+        if (input == null) {
+          // The source THREW (network blip, RPC outage, unexpected shape) --
+          // contained to this KPI's row, same as a source that answered
+          // "I don't know". See _readSource's doc comment.
+          return (
+            numerator: null,
+            denominator: null,
+            completeness: SourceCompleteness.missingSource,
+          );
+        }
         return (
           numerator: input.numerator,
           denominator: input.denominator,
@@ -307,18 +344,20 @@ Future<_Inputs> _inputsFor({
             completeness: SourceCompleteness.missingSource,
           );
         }
-        final input = await source.read(
+        final input = await _readSource(
+          source,
           scope: scope,
           period: period,
-          employeeIds: population,
+          population: population,
         );
-        // MISSING MUST NEVER BECOME ZERO: a null registry numerator stays
-        // null here. Subtracting confirmed exceptions from it would turn
+        // MISSING MUST NEVER BECOME ZERO: a null registry numerator (or a
+        // source that threw, which _readSource also reports as `null` here)
+        // stays null. Subtracting confirmed exceptions from it would turn
         // "we don't know" into a confident negative.
-        if (input.numerator == null) {
+        if (input == null || input.numerator == null) {
           return (
             numerator: null,
-            denominator: input.denominator,
+            denominator: input?.denominator,
             completeness: SourceCompleteness.missingSource,
           );
         }
