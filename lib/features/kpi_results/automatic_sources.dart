@@ -191,13 +191,14 @@ class ReviewsCompletedOnTimeSource implements KpiSource {
 /// any of the existing sources to make room for it.
 ///
 /// `app.hiring.critical_vacancy_aging` and
-/// `app.employees.documentation_complete` are deliberately absent. Both
-/// depend on a business definition — what makes a vacancy "critical", what
-/// counts as a "complete" employee record — that does not exist anywhere in
-/// this schema today and is with the product owner, not this codebase. Their
-/// absence here is a pending follow-up task, not an oversight: do not fill
-/// either in without that decision landing first, and do not invent a
-/// threshold to make the table look complete.
+/// `app.employees.documentation_complete` were planned and then **dropped by
+/// the owner on 2026-08-15**, not deferred. Each needed a business definition
+/// that does not exist anywhere in this schema: nothing marks a job listing
+/// critical and no target age is stored; `employees` holds no documentation
+/// fields at all, only generated PDFs in `employee_documents`. Rather than
+/// invent a threshold to make the table look complete, the owner removed both
+/// KPIs. If either returns it arrives with its definition and, probably, a
+/// migration — it is not a gap to quietly fill in.
 Map<String, KpiSource> buildSourceRegistry({
   required AttendanceRangeReader attendanceRangeReader,
   required EmployeeReviewsReader employeeReviewsReader,

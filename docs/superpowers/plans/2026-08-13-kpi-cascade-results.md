@@ -1051,8 +1051,8 @@ The four sources come from data the app already owns, so the HR Manager's whole 
 |---|---|---|---|
 | `app.attendance.present_days` | Present days in the period | Scheduled days | `AttendanceRepository.listByRange` |
 | `app.reviews.completed_on_time` | Reviews completed by their period end | Reviews due | `employee_reviews` |
-| `app.hiring.critical_vacancy_aging` | Open critical listings past target age | — (`COUNT`) | `job_listings` |
-| `app.employees.documentation_complete` | Employees with a complete record | Active employees | `employees` |
+| ~~`app.hiring.critical_vacancy_aging`~~ | DROPPED 2026-08-15 — `job_listings` has no criticality flag and no target age is stored anywhere | | |
+| ~~`app.employees.documentation_complete`~~ | DROPPED 2026-08-15 — `employees` holds no documentation fields; only generated PDFs in `employee_documents` | | |
 
 - [ ] **Step 1: Write the failing test** — each source against fake rows, asserting the pair it returns. Cover, per source: an empty period returns `(null, null)` and NOT `(0, 0)`, because zero scheduled days is missing data rather than a perfect score; and a source restricted to `employeeIds` ignores rows outside the population.
 
@@ -1362,7 +1362,7 @@ If the decision has not been made when the previous ten tasks are done, **stop a
 
 - Status, population, roll-up eligibility and exception aggregation are pure Dart with unit tests, and `NO_DATA` is provably distinct from `OFF_TRACK` in both the rule and the UI.
 - A month's results exist at every eligible scope, with department and company recomputed over their own population rather than averaged from children.
-- The four automatic sources compute without anyone entering a number.
+- The automatic sources compute without anyone entering a number. TWO ship: attendance present-days and review completion. `critical_vacancy_aging` and `documentation_complete` were DROPPED by the owner on 2026-08-15 — neither had a definition the schema could answer.
 - Exceptions and readings are written through one repository boundary that stamps provenance, with no caller above it knowing which surface produced the record.
 - The dashboard shows off-track first and an empty month as empty, not as failure.
 - The quarterly check-in shows that person's last three months from the same records the dashboard reads.
