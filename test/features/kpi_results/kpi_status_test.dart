@@ -202,18 +202,18 @@ void main() {
     });
 
     test('a computed LTE value landing above target needs epsilon', () {
-      // Mirror of the GTE case: a computed value that rounds up slightly
-      // must still pass an "at most" target. Task 7 feeds CURRENCY KPIs
-      // from rate * quantity: 4.35 * 100 = 434.99999...
-      final computed = 4.35 * 100; // 434.99999999999994316
+      // GTE fails when value lands LOW. LTE fails when value lands HIGH.
+      // 0.1 + 0.2 = 0.30000000000000004441, which is ABOVE 0.3 due to float
+      // representation error. Against an "at most 0.3" target: without epsilon,
+      // 0.3000000000000000444 <= 0.3 is false -> off track (WRONG). With epsilon,
+      // 0.3000000000000000444 <= 0.3 + 1e-9 is true -> on track (CORRECT).
+      final computed = 0.1 + 0.2; // 0.30000000000000004441
       final r = run(
-        valueType: 'CURRENCY',
+        valueType: 'PERCENT',
         numerator: computed,
-        target: 435,
+        target: 0.3,
         direction: GoalDirection.lte,
       );
-      // Without epsilon: computed > target due to float error -> off track (WRONG)
-      // With epsilon: computed <= target + 1e-9 -> on track (CORRECT)
       expect(r.status, KpiStatus.onTrack);
     });
   });
