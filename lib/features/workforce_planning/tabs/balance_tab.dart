@@ -263,7 +263,7 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
                             'The original capacity-model rows. Their hours were '
                             'transferred onto the role-card responsibilities, so they are '
                             'a reference copy and are NOT counted anywhere. Delete them '
-                            'from the Tasks tab once these numbers are trusted.',
+                            'from the Responsibilities tab once these numbers are trusted.',
                         child: Text(
                           '${orphans.legacyReference.toStringAsFixed(0)}h reference (not counted)',
                           style: TextStyle(
@@ -723,7 +723,7 @@ class _BalanceTabState extends ConsumerState<BalanceTab> {
                         context,
                         '${toCost.length} still to cost',
                         'No hours yet, so moving one would change nothing. '
-                            'Cost them on the Tasks tab.',
+                            'Cost them on the Responsibilities tab.',
                         StatusTone.warning,
                       ),
                       for (final r in toCost) _taskCard(context, r),

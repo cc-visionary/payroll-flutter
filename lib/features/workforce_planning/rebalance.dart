@@ -524,7 +524,7 @@ String? moveError({
   final c = computedByTaskId[task.id];
   if (c == null || c.hoursPerMonthBase <= 0) {
     return 'This responsibility is not costed yet, so moving it changes no load. '
-        'Cost it on the Tasks tab first.';
+        'Cost it on the Responsibilities tab first.';
   }
   return null;
 }

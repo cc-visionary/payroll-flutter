@@ -4,7 +4,7 @@ import '../../data/models/workforce_planning.dart';
 import 'task_costing.dart';
 import 'tasks_rows.dart';
 
-/// What subset of the inventory the Tasks tab is showing.
+/// What subset of the inventory the Responsibilities tab is showing.
 ///
 /// Scope narrows *before* paging, so "Operations Manager" is 38 rows on one
 /// page rather than page 2-of-6 of everything.

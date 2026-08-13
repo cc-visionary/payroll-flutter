@@ -1,6 +1,6 @@
 import '../../data/models/workforce_planning.dart';
 
-/// One row's in-progress costing edit on the Tasks tab's bulk grid.
+/// One row's in-progress costing edit on the Responsibilities tab's bulk grid.
 ///
 /// Mirrors the four `wp_tasks` columns that decide a task's hours, so the grid
 /// can show a live hours/month figure without a round trip. Everything here is

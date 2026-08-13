@@ -29,7 +29,7 @@ import '../wp_providers.dart';
 /// order those documents do.
 ///
 /// A row's name renders as plain text; renaming goes through the same "Edit"
-/// dialog as costing (`⋮` → Edit), which the Tasks tab already uses for the
+/// dialog as costing (`⋮` → Edit), which the Responsibilities tab already uses for the
 /// full costing model — a second costing form is exactly what this pane
 /// avoids building. "Add" and "Link existing task" reuse that same dialog
 /// (Add) or `diffResponsibilities` + `saveResponsibilities` (Link, and a
@@ -122,7 +122,7 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
     _captured = true;
   }
 
-  /// Mirrors `tasks_tab.dart`'s `_invalidateAfterTaskChange` exactly (a
+  /// Mirrors `responsibilities_tab.dart`'s `_invalidateAfterTaskChange` exactly (a
   /// card-linked task IS a role-card responsibility, so touching one here
   /// changes what Balance, Role View and the card's own detail/PDF/Annex A
   /// read), plus `roleScorecardByIdProvider(cardId)` for THIS card — always,
@@ -147,7 +147,7 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
   /// Explicit resync: `wpTasksProvider` is watched, but [_captured] only
   /// flips false right after THIS pane's own mutations (see its doc
   /// comment), so another screen changing the same card's tasks — e.g. the
-  /// Tasks tab editing one directly, or a different workbench tab — would
+  /// Responsibilities tab editing one directly, or a different workbench tab — would
   /// otherwise leave [_areas]/[_existingRows] silently stale.
   ///
   /// Unlike `KpisPane._resync`, this never confirms before discarding
@@ -314,9 +314,9 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
     ]);
   }
 
-  /// Opens the Tasks tab's own costing dialog for a brand-new responsibility.
-  /// Mirrors `tasks_tab.dart`'s `_openForm(existing: null)` exactly — the
-  /// user picks this card and an area the same way the Tasks tab's "New
+  /// Opens the Responsibilities tab's own costing dialog for a brand-new responsibility.
+  /// Mirrors `responsibilities_tab.dart`'s `_openForm(existing: null)` exactly — the
+  /// user picks this card and an area the same way the Responsibilities tab's "New
   /// task" button does — plus [TaskFormDialog.duplicateCheckPool], since this
   /// is the pane's other path from a typed name to a new `wp_tasks` row.
   Future<void> _addTask({

@@ -264,7 +264,7 @@ class WpTask {
       'status': status,
       // Position is load-bearing: the role-card PDF and contract Annex A render
       // responsibilities in this order. Omitting these left every row created
-      // from the Tasks tab at 0/0 — jumping ahead of the card's first
+      // from the Responsibilities tab at 0/0 — jumping ahead of the card's first
       // responsibility.
       'area_sort': areaSort, 'task_sort': taskSort,
     };

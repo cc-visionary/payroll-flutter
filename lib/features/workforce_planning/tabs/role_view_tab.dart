@@ -196,7 +196,7 @@ class _RoleLens extends ConsumerWidget {
           Expanded(
             child: Text(
               '${t.uncosted} of ${t.responsibilities} responsibilities are not costed, '
-              'so hours and load are incomplete. Cost them on the Tasks tab.',
+              'so hours and load are incomplete. Cost them on the Responsibilities tab.',
               style: TextStyle(color: cs.onSurfaceVariant),
             ),
           ),

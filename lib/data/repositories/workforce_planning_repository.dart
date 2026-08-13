@@ -265,7 +265,7 @@ class WorkforcePlanningRepository {
   Future<void> deleteTask(String id) async =>
       _client.from('wp_tasks').delete().eq('id', id);
 
-  /// Writes only the costing columns for a batch of tasks (the Tasks tab's bulk
+  /// Writes only the costing columns for a batch of tasks (the Responsibilities tab's bulk
   /// grid). Deliberately NOT a full `toUpsert` — that would round-trip every
   /// other column and let a stale in-memory row clobber a concurrent edit to,
   /// say, the owner or the responsibility area.

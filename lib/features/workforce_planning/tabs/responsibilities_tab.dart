@@ -32,14 +32,14 @@ import 'task_form_dialog.dart';
 /// "From capacity model" bucket for legacy imports, and an "Unattributed"
 /// bucket that is the true complement of the first two — never just "no
 /// owner" — so a task is never silently dropped from the inventory.
-class TasksTab extends ConsumerStatefulWidget {
-  const TasksTab({super.key});
+class ResponsibilitiesTab extends ConsumerStatefulWidget {
+  const ResponsibilitiesTab({super.key});
 
   @override
-  ConsumerState<TasksTab> createState() => _TasksTabState();
+  ConsumerState<ResponsibilitiesTab> createState() => _ResponsibilitiesTabState();
 }
 
-class _TasksTabState extends ConsumerState<TasksTab> {
+class _ResponsibilitiesTabState extends ConsumerState<ResponsibilitiesTab> {
   /// Bulk-costing mode: rows become editable so a long uncosted backlog can be
   /// filled in one pass instead of one dialog at a time.
   bool _costMode = false;

@@ -23,7 +23,7 @@ import 'tab_intro.dart';
 /// staffed role card, or draft a brand-new (inactive) card seeded with the
 /// whole cluster's tasks.
 ///
-/// Mirrors `TasksTab`'s provider-watch/spinner/error shape and its
+/// Mirrors `ResponsibilitiesTab`'s provider-watch/spinner/error shape and its
 /// archive-confirm + invalidate pattern (see `_invalidateAfterTaskChange`
 /// there) so the two tabs never drift into different conventions for the
 /// same underlying `wp_tasks` mutations.
@@ -306,7 +306,7 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
     UnassignedCluster cluster,
     String? companyId,
   ) async {
-    // Local var + onChanged (not a TextEditingController) mirrors TasksTab's
+    // Local var + onChanged (not a TextEditingController) mirrors ResponsibilitiesTab's
     // `_fillArea` dialog — no controller to dispose once the dialog pops.
     var jobTitle = cluster.label;
     final title = await showDialog<String>(
@@ -367,7 +367,7 @@ class _UnassignedTabState extends ConsumerState<UnassignedTab> {
     context.push('/workforce-planning/roles/$newId');
   }
 
-  /// Mirrors `TasksTab._invalidateAfterTaskChange`: any mutation here moves a
+  /// Mirrors `ResponsibilitiesTab._invalidateAfterTaskChange`: any mutation here moves a
   /// task off a card, onto a card, or out of the ACTIVE set entirely, all of
   /// which the Balance and Role View tabs derive their numbers from.
   void _invalidate([Iterable<String?> cardIds = const []]) {

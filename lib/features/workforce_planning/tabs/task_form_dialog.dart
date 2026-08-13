@@ -129,7 +129,7 @@ class TaskFormDialog extends StatefulWidget {
   final List<Employee> employees;
 
   /// Role cards, for linking this task to a card + responsibility area. A task
-  /// IS a card responsibility, so this is what makes the Tasks tab a peer of the
+  /// IS a card responsibility, so this is what makes the Responsibilities tab a peer of the
   /// card editor rather than a read-mostly view.
   final List<RoleScorecard> cards;
 
@@ -552,7 +552,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
                           ? false
                           : _essential,
                       // An expectation is locked to non-essential (the DB invariant);
-                      // toggle it via the flag action on the Tasks tab, not here.
+                      // toggle it via the flag action on the Responsibilities tab, not here.
                       onChanged: widget.existing?.isExpectation == true
                           ? null
                           : (v) => setState(() => _essential = v),

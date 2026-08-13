@@ -5,7 +5,7 @@ import 'package:payroll_flutter/data/models/role_scorecard.dart';
 import 'package:payroll_flutter/data/models/workforce_planning.dart';
 import 'package:payroll_flutter/data/repositories/role_scorecard_repository.dart';
 import 'package:payroll_flutter/features/workforce_planning/tabs/task_form_dialog.dart';
-import 'package:payroll_flutter/features/workforce_planning/tabs/tasks_tab.dart';
+import 'package:payroll_flutter/features/workforce_planning/tabs/responsibilities_tab.dart';
 import 'package:payroll_flutter/features/workforce_planning/wp_providers.dart';
 
 RoleScorecard _card(String id, String jobTitle) => RoleScorecard(
@@ -51,7 +51,7 @@ void main() {
           wpActiveEmployeesProvider.overrideWith((ref) async => const []),
           roleScorecardListProvider.overrideWith((ref) async => const []),
         ],
-        child: const MaterialApp(home: Scaffold(body: TasksTab())),
+        child: const MaterialApp(home: Scaffold(body: ResponsibilitiesTab())),
       ),
     );
     await tester.pumpAndSettle();
@@ -84,7 +84,7 @@ void main() {
             (ref) async => [_card('rc1', 'Ops Lead')],
           ),
         ],
-        child: const MaterialApp(home: Scaffold(body: TasksTab())),
+        child: const MaterialApp(home: Scaffold(body: ResponsibilitiesTab())),
       ),
     );
     await tester.pumpAndSettle();
@@ -114,7 +114,7 @@ void main() {
           wpActiveEmployeesProvider.overrideWith((ref) async => const []),
           roleScorecardListProvider.overrideWith((ref) async => const []),
         ],
-        child: const MaterialApp(home: Scaffold(body: TasksTab())),
+        child: const MaterialApp(home: Scaffold(body: ResponsibilitiesTab())),
       ),
     );
     await tester.pumpAndSettle();
@@ -138,7 +138,7 @@ void main() {
             wpActiveEmployeesProvider.overrideWith((ref) async => const []),
             roleScorecardListProvider.overrideWith((ref) async => const []),
           ],
-          child: const MaterialApp(home: Scaffold(body: TasksTab())),
+          child: const MaterialApp(home: Scaffold(body: ResponsibilitiesTab())),
         ),
       );
       await tester.pumpAndSettle();

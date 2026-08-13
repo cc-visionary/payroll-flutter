@@ -148,7 +148,7 @@ void main() {
     (tester) async {
       // `_captured` only clears itself after this pane's OWN mutations (see
       // its doc comment), so watching `wpTasksProvider` alone is not enough —
-      // another screen (e.g. the Tasks tab, or a different workbench tab
+      // another screen (e.g. the Responsibilities tab, or a different workbench tab
       // touching the same card) changing this card's tasks would otherwise
       // sit invisible behind the captured draft forever, even though the
       // pane's own hours/computed figures (not gated by `_captured`) already

@@ -5,7 +5,7 @@ import 'package:payroll_flutter/data/models/role_scorecard.dart';
 import 'package:payroll_flutter/data/models/workforce_planning.dart';
 import 'package:payroll_flutter/data/repositories/role_scorecard_repository.dart';
 import 'package:payroll_flutter/data/repositories/workforce_planning_repository.dart';
-import 'package:payroll_flutter/features/workforce_planning/tabs/tasks_tab.dart';
+import 'package:payroll_flutter/features/workforce_planning/tabs/responsibilities_tab.dart';
 import 'package:payroll_flutter/features/workforce_planning/wp_providers.dart';
 
 /// Records what the grid actually sends, so the tests can assert the patch —
@@ -77,7 +77,7 @@ Widget _host(_FakeRepo repo) => ProviderScope(
     roleScorecardListProvider.overrideWith((ref) async => [_card]),
     workforcePlanningRepositoryProvider.overrideWithValue(repo),
   ],
-  child: const MaterialApp(home: Scaffold(body: TasksTab())),
+  child: const MaterialApp(home: Scaffold(body: ResponsibilitiesTab())),
 );
 
 Future<void> _enterCostMode(WidgetTester tester) async {
@@ -139,7 +139,7 @@ void main() {
             roleScorecardListProvider.overrideWith((ref) async => [_card]),
             workforcePlanningRepositoryProvider.overrideWithValue(_FakeRepo()),
           ],
-          child: const MaterialApp(home: Scaffold(body: TasksTab())),
+          child: const MaterialApp(home: Scaffold(body: ResponsibilitiesTab())),
         ),
       );
       await tester.pumpAndSettle();

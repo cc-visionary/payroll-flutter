@@ -26,7 +26,7 @@ class TaskCardGroup {
   });
 }
 
-/// Result of bucketing every `wp_tasks` row for the Tasks tab.
+/// Result of bucketing every `wp_tasks` row for the Responsibilities tab.
 class TaskGroups {
   final List<TaskCardGroup> cardGroups;
   final List<WpTask> legacy;
@@ -264,7 +264,7 @@ EffectiveOwner resolveEffectiveOwner({
 /// The role-card PDF and the employment-contract Annex A render
 /// responsibilities in `area_sort` / `task_sort` order, so position is not
 /// cosmetic — it decides the wording of a document. `WpTask.toUpsert` used to
-/// omit these columns, which left every row created from the Tasks tab at 0/0,
+/// omit these columns, which left every row created from the Responsibilities tab at 0/0,
 /// i.e. jumping to the TOP of its area ahead of the responsibility the card
 /// author put first.
 ///

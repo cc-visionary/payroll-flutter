@@ -437,7 +437,7 @@ class _AssignmentPanelState extends ConsumerState<AssignmentPanel> {
     }
   }
 
-  /// Mirrors `UnassignedTab._invalidate` / `TasksTab._invalidateAfterTaskChange`
+  /// Mirrors `UnassignedTab._invalidate` / `ResponsibilitiesTab._invalidateAfterTaskChange`
   /// — an allocation write moves hours between holders, which Balance,
   /// Role View, and the role cards themselves all derive numbers from.
   void _invalidate([Iterable<String?> cardIds = const []]) {
