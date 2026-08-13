@@ -66,6 +66,23 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
   /// Never sent anywhere; this is UI-only bookkeeping.
   List<_DraftSnapshot> _baseline = const [];
 
+  /// Whether each baseline link (by kpiId) was measurable AT THE MOMENT it
+  /// was captured — i.e. the same `isMeasurableForRole` reading `_buildRow`
+  /// renders, taken once and frozen. Absent (no entry) means "unknown": the
+  /// library hadn't finished loading yet when this capture ran, so nothing
+  /// meaningful was recorded rather than a guessed true/false that could
+  /// later read as a false regression once the library actually resolves.
+  ///
+  /// This is what lets the Save guard (see `build`'s `blockedLinks`) tell
+  /// "always-been-unmeasurable legacy debt" (grandfathered — see the
+  /// sibling-preservation test) apart from "became unmeasurable since this
+  /// pane last captured" (blocked — e.g. the KPI Library dialog stripped its
+  /// formula or source while this pane sat open with the same baseline).
+  /// `_DraftSnapshot` deliberately does not carry this: that snapshot drives
+  /// `_isDirty`, which is about USER-EDITED fields, and measurability is
+  /// never user-edited directly.
+  Map<String, bool> _baselineMeasurableByKpiId = {};
+
   bool _saving = false;
   String? _error;
 
@@ -77,7 +94,11 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
     super.dispose();
   }
 
-  void _captureFrom(List<RoleKpi> kpis) {
+  void _captureFrom(
+    List<RoleKpi> kpis,
+    Map<String, Kpi> libraryById, {
+    required bool libraryLoaded,
+  }) {
     // Recapturing replaces every draft wholesale (initial load, post-save,
     // or an explicit resync) — the outgoing drafts' controllers are not
     // referenced anywhere else, so they must be disposed here rather than
@@ -89,6 +110,16 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
       ..clear()
       ..addAll(kpis.map(_KpiLinkDraft.fromRoleKpi));
     _baseline = _links.map(_DraftSnapshot.of).toList();
+    _baselineMeasurableByKpiId = libraryLoaded
+        ? {
+            for (final d in _links)
+              if (d.kpiId != null)
+                d.kpiId!: isMeasurableForRole(
+                  defined: _definitionGaps(d, libraryById).isEmpty,
+                  goal: d.goal,
+                ),
+          }
+        : const {};
     _captured = true;
   }
 
@@ -286,8 +317,8 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
   @override
   Widget build(BuildContext context) {
     final kpisAsync = ref.watch(roleKpisProvider(widget.cardId));
-    final library =
-        ref.watch(kpiLibraryProvider).asData?.value ?? const <Kpi>[];
+    final libraryAsync = ref.watch(kpiLibraryProvider);
+    final library = libraryAsync.asData?.value ?? const <Kpi>[];
     final libraryById = {for (final k in library) k.id: k};
     final outcomes =
         ref.watch(roleOutcomesProvider(widget.cardId)).asData?.value ??
@@ -303,24 +334,45 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
         child: Text('Could not load KPIs: $e'),
       ),
       data: (kpis) {
-        if (!_captured) _captureFrom(kpis);
+        if (!_captured) {
+          _captureFrom(kpis, libraryById, libraryLoaded: libraryAsync.hasValue);
+        }
         // Pure inheritance sharpens what used to be `validateKpiSet`'s job:
         // that function refused to let an EMPLOYEE be curated onto an
         // unmeasurable KPI. There is no curation step left to refuse at —
         // linking a KPI to a role now assigns it to every holder the moment
-        // this saves. Scoped to links ADDED this session (absent from
-        // `_baseline`), not every link on the card: a legacy card can carry
-        // KPIs that only ever had a typed prose target and no library
-        // definition (see the sibling-preservation save path below), and
-        // requiring the whole card to become measurable before an unrelated
-        // edit could be saved would make that legacy content un-editable.
-        // The new debt this actually guards against is a manager adding a
-        // brand-new, still-undefined KPI today and it landing on every
-        // holder with zero friction.
+        // this saves.
+        //
+        // Not a blanket "every link must be measurable" gate: a legacy card
+        // can carry KPIs that only ever had a typed prose target and no
+        // library definition (see the sibling-preservation save path
+        // below), and requiring the whole card to become measurable before
+        // an unrelated edit could be saved would make that legacy content
+        // un-editable. A currently-unmeasurable link is only blocked when:
+        //   (a) it is NEW this session (absent from `_baseline` — a manager
+        //       adding a brand-new, still-undefined KPI today, landing on
+        //       every holder with zero friction), or
+        //   (b) it REGRESSED since this pane's last capture — it read as
+        //       measurable then (`_baselineMeasurableByKpiId[kpiId] ==
+        //       true`) and does not now. This is the case a blanket "skip
+        //       everything in baseline" gate missed: the KPI Library dialog
+        //       can strip a formula or source from a KPI already linked to
+        //       this role, at any time, from a completely different screen,
+        //       and this pane must not keep saving that link as if nothing
+        //       changed just because it predates this editing session.
+        // An always-been-unmeasurable link (`_baselineMeasurableByKpiId
+        // [kpiId] == false`) or one with no recorded baseline reading at all
+        // (library hadn't loaded at capture time — unknown, not false) is
+        // grandfathered: nothing proves it got WORSE, so an unrelated save
+        // must still go through.
         final blockedLinks = _links.where((d) {
-          if (_baseline.any((b) => b.kpiId == d.kpiId)) return false;
           final gaps = _definitionGaps(d, libraryById);
-          return !isMeasurableForRole(defined: gaps.isEmpty, goal: d.goal);
+          if (isMeasurableForRole(defined: gaps.isEmpty, goal: d.goal)) {
+            return false;
+          }
+          final isNew = !_baseline.any((b) => b.kpiId == d.kpiId);
+          if (isNew) return true;
+          return _baselineMeasurableByKpiId[d.kpiId] == true;
         }).length;
         return Card(
           child: Padding(

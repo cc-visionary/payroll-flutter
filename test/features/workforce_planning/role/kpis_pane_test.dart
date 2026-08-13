@@ -1084,4 +1084,102 @@ void main() {
       },
     );
   });
+
+  group(
+    'an already-linked KPI that regresses after capture blocks Save too',
+    () {
+      // Not hypothetical: the KPI Library dialog (Task 6) can strip a
+      // formula or source from a KPI already linked to a role, from a
+      // completely different screen, at any time. Round 1's guard only
+      // checked whether a link was NEW this session -- a link present at
+      // capture was skipped unconditionally, forever, even if it had since
+      // become unmeasurable. This is the gap: k1 reads as measurable when
+      // this pane captures its baseline, then its library row loses its
+      // numerator elsewhere, discovered here WITHOUT an explicit resync
+      // (resync would recapture a fresh baseline from the already-stripped
+      // state, which is a different, already-covered scenario --
+      // "always-been-unmeasurable" legacy debt, not a regression).
+      testWidgets(
+        'blocks Save once a captured-measurable KPI is discovered to be '
+        'unmeasurable at save time',
+        (tester) async {
+          final repo = _CapturingRepository();
+          var library = const [
+            Kpi(
+              id: 'k1',
+              companyId: 'co-1',
+              name: 'Return Rate',
+              unit: '%',
+              numeratorLabel: 'Returns',
+              numeratorSource: 'BigSeller',
+            ),
+          ];
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                roleKpisProvider('card-1').overrideWith(
+                  (ref) async => const [
+                    RoleKpi(
+                      kpiId: 'k1',
+                      name: 'Return Rate',
+                      goal: KpiGoal(direction: GoalDirection.lte, value: 3),
+                      unit: '%',
+                      cadence: 'WEEKLY',
+                    ),
+                  ],
+                ),
+                kpiLibraryProvider.overrideWith((ref) async => library),
+                roleScorecardRepositoryProvider.overrideWithValue(repo),
+              ],
+              child: const MaterialApp(
+                home: Scaffold(
+                  body: SingleChildScrollView(
+                    child: KpisPane(cardId: 'card-1', companyId: 'co-1'),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          final saveButton = find.byKey(const ValueKey('kpis-pane-save'));
+          expect(
+            tester.widget<FilledButton>(saveButton).onPressed,
+            isNotNull,
+            reason: 'k1 is fully defined and goaled at capture -- Save must '
+                'start enabled',
+          );
+
+          // Simulate the Library dialog stripping k1's definition from a
+          // different screen in the same session, then that change being
+          // discovered here — not via this pane's own resync button (that
+          // would recapture baseline from the post-edit state instead, a
+          // different scenario), but the way an independently-invalidated
+          // provider actually surfaces: the next time something reads it.
+          library = const [
+            Kpi(id: 'k1', companyId: 'co-1', name: 'Return Rate', unit: '%'),
+          ];
+          final container = ProviderScope.containerOf(
+            tester.element(find.byType(KpisPane)),
+          );
+          container.invalidate(kpiLibraryProvider);
+          await tester.pumpAndSettle();
+
+          expect(find.textContaining('not measurable yet'), findsWidgets);
+          expect(
+            tester.widget<FilledButton>(saveButton).onPressed,
+            isNull,
+            reason:
+                'k1 regressed from measurable to not since capture -- '
+                'saving now would keep assigning an undefined KPI to every '
+                'holder',
+          );
+
+          await tester.tap(saveButton);
+          await tester.pumpAndSettle();
+          expect(repo.captured, isNull, reason: 'a disabled Save must not save');
+        },
+      );
+    },
+  );
 }
