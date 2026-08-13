@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-13-kpi-cascade-design.md` — read it first, especially "How results are produced", "The ingestion boundary" and "Pure logic, tested apart from the UI".
 
-**Depends on:** `docs/superpowers/plans/2026-08-13-kpi-cascade-definitions.md` must land first. This plan reads `kpis.level`, `kpis.rollup_type`, `kpis.data_method` and the default target that plan adds. Do not start until its three migrations are committed.
+**Depends on:** `docs/superpowers/plans/2026-08-13-kpi-cascade-definitions.md` — **landed and merged** at `bf05079`. Its three migrations (`20260814000001..3`) are committed and UNAPPLIED, as is `20260811000001`. `employee_kpis` no longer exists in the schema this plan targets: a person's KPIs are their role's KPIs.
 
 ## Global Constraints
 
@@ -20,10 +20,10 @@
 - **Migrations are applied by the user, never by an implementer.** You have no authority to run `supabase db push` or any database command. Commit the file and hand it over.
 - Migrations must be idempotent in this repo's style: `add column if not exists`, `create table if not exists`, `drop policy if exists` before `create policy`. Read a recent migration before writing yours.
 - Widget tests use `initSupabaseStub()` from `test/support/supabase_stub.dart`.
-- Baseline: **1359 passing, 1 skipped**; `flutter analyze lib test` 0 errors / 0 warnings / 192 infos. Do not regress it.
+- Baseline: **1370 passing, 1 skipped**; `flutter analyze lib test` 0 errors / 0 warnings / 192 infos. Do not regress it.
 - Vocabulary is **role**, never "seat". EOS is not the framework here.
 - Existing enum values you must match exactly, not invent: `kpis.value_type` is `COUNT | RATIO | CURRENCY | PERCENT | DURATION`; `role_scorecard_kpis.goal_direction` is `GTE | LTE | EQ | BETWEEN`, modelled as `GoalDirection { gte, lte, eq, between }` in `lib/data/models/kpi_goal.dart`.
-- Migration numbering continues from the definitions plan: it uses `20260814000001` through `20260814000003`. This plan starts at `20260814000004`.
+- Migration numbering: the definitions plan used `20260814000001..3` and an unrelated leave fix took `20260815000001`. `20260814000004` and `...005` are still free and are what this plan uses, so its migrations sort BEFORE the leave fix. That is harmless — the two touch different tables — but do not renumber to "look newer".
 
 ## A spec gap this plan fills, deliberately
 
