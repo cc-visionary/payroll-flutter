@@ -301,6 +301,34 @@ void main() {
       expect(result, (numerator: null, denominator: null));
       expect(called, isFalse);
     });
+
+    test(
+      'a caller that cannot be certified to see every review reports NO_DATA, not a partial count',
+      () async {
+        // Unlike the empty-population case above, the reader here IS
+        // called (a non-empty population) and DOES return -- just `null`,
+        // meaning ReviewCycleRepository.allReviews() could not certify the
+        // caller sees the whole company's reviews (RLS would otherwise
+        // silently narrow to self/direct-report rows). If the null check
+        // in `read` were ever removed, this would not quietly pass with a
+        // wrong number -- iterating a null list throws -- so the guard is
+        // load-bearing, not decorative.
+        var called = false;
+        final source = ReviewsCompletedOnTimeSource(() async {
+          called = true;
+          return null;
+        });
+
+        final result = await source.read(
+          scope: KpiScope.department,
+          period: '2026-08',
+          employeeIds: ['e1'],
+        );
+
+        expect(called, isTrue);
+        expect(result, (numerator: null, denominator: null));
+      },
+    );
   });
 
   group('buildSourceRegistry', () {

@@ -18,6 +18,16 @@ import '../models/kpi_result.dart';
 /// list, not an expression index, so [upsertAll] deliberately never calls
 /// `.upsert(...)`. See the note on `upsertKpi` in role_scorecard_repository.dart
 /// for the first place this repo hit the same trap.
+///
+/// **Not paginated.** [listByPeriod] reads (and [upsertAll]'s find-then-insert
+/// path re-reads) a whole period in one PostgREST call, so both are exposed to
+/// the same `max_rows` truncation already tracked for attendance
+/// (`attendance_repository.dart`'s `fetchAllPages`) and flagged as an open
+/// decision for payroll_repository. A company with enough KPIs x scopes x
+/// employees to exceed the cap in one period would silently see a partial
+/// results screen and, worse, a recompute that "updates" rows it never
+/// re-read (falling through to a duplicate insert instead). Not fixed here --
+/// recorded so the next reader doesn't have to rediscover it.
 class KpiResultRepository {
   KpiResultRepository(this._client);
 

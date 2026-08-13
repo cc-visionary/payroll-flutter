@@ -231,15 +231,15 @@ class _KpiResultsScreenState extends ConsumerState<KpiResultsScreen> {
       final reviewRepo = ref.read(reviewCycleRepositoryProvider);
       final registry = buildSourceRegistry(
         attendanceRangeReader: attendanceRepo.listByRange,
-        // HR-scoped by construction: this screen's route redirects anyone
-        // who is not HR/Admin (app/router.dart), and employee_reviews'
-        // read policy grants an HR/Admin caller every row in the company --
-        // not just self/direct-report rows -- via
-        // auth_is_performance_admin_for_cycle
-        // (20260717000009_performance_rls_and_cascade_fixes.sql). A caller
-        // without that role would silently undercount instead of erroring,
-        // which is exactly why Task 7 left `allReviews()` unwired and named
-        // this as a Task 8/9 concern rather than binding it blind.
+        // `allReviews()` is safe to wire from ANY caller, HR-gated route or
+        // not: it now checks the caller's actual DB role
+        // (`callerSeesAllReviews`, review_cycle_repository.dart) and returns
+        // `null` instead of RLS's own silently narrowed self/direct-report
+        // subset when that role does not grant full-company visibility.
+        // `ReviewsCompletedOnTimeSource` reads `null` as NO_DATA, never as a
+        // plausible partial count. This screen's own `/kpi-results` route
+        // guard (app/router.dart) is a client-side navigation gate and was
+        // never the thing making this call safe.
         employeeReviewsReader: reviewRepo.allReviews,
       );
 

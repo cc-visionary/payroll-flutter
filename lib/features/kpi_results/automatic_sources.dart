@@ -132,7 +132,14 @@ class AttendancePresentDaysSource implements KpiSource {
 /// Production wiring supplies this from whatever review repository method
 /// reads the full table (paginated); tests pass a plain function. Neither
 /// touches Supabase.
-typedef EmployeeReviewsReader = Future<List<EmployeeReview>> Function();
+///
+/// `null` means the caller could not be certified to see every review in the
+/// company — `ReviewCycleRepository.allReviews()` returns `null` rather than
+/// RLS's own silently narrowed self/direct-report subset when the caller's
+/// role does not grant full-company visibility. [ReviewsCompletedOnTimeSource]
+/// treats that the same as "cannot answer", never as "zero reviews due":
+/// see its own `read` for why a partial count must not read as a real one.
+typedef EmployeeReviewsReader = Future<List<EmployeeReview>?> Function();
 
 /// `app.reviews.completed_on_time` — reviews finalized by their period end,
 /// over reviews due.
@@ -160,9 +167,17 @@ class ReviewsCompletedOnTimeSource implements KpiSource {
   }) async {
     if (employeeIds.isEmpty) return _noData;
 
-    final population = employeeIds.toSet();
     final reviews = await _listReviews();
+    // A `null` reader result means the caller could not be certified to see
+    // every review in the company (see EmployeeReviewsReader's doc comment).
+    // Reporting NO_DATA here is the only honest answer -- a caller whose
+    // visibility is narrowed to self/direct-report rows would otherwise
+    // report a real-looking "due"/"completed" pair that is actually a slice
+    // of the company, indistinguishable from a genuine number by anything
+    // downstream of this source.
+    if (reviews == null) return _noData;
 
+    final population = employeeIds.toSet();
     num due = 0;
     num completedOnTime = 0;
     for (final review in reviews) {

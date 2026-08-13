@@ -294,17 +294,52 @@ class ReviewCycleRepository {
   /// exactly the kind of quiet under-report this whole plan exists to rule
   /// out (see `_status`/attendance's own pagination history for the same
   /// trap in another table).
-  Future<List<EmployeeReview>> allReviews() => pagedEmployeeReviews((
-    from,
-    to,
-  ) async {
-    final page = await _client
-        .from('employee_reviews')
-        .select()
-        .order('review_period_end', ascending: false)
-        .range(from, to);
-    return (page as List<dynamic>).cast<Map<String, dynamic>>();
-  });
+  /// Roles `employee_reviews_read`'s own RLS policy
+  /// (`auth_is_performance_admin_for_cycle`,
+  /// 20260717000009_performance_rls_and_cascade_fixes.sql) treats as seeing
+  /// every review in the company, not just self/direct-report rows.
+  static const _kFullReviewVisibilityRoles = {
+    'ADMIN',
+    'HR',
+    'HR_ADMIN',
+    'SUPER_ADMIN',
+  };
+
+  /// Whether the CURRENT caller's `app_role` grants full-company visibility
+  /// on `employee_reviews`. A caller outside [_kFullReviewVisibilityRoles]
+  /// does not get an error from [allReviews] -- RLS silently narrows the
+  /// result to that caller's own self/direct-report rows instead of every
+  /// row -- so this is the one place that can actually tell "the company has
+  /// zero reviews due" apart from "I only saw a slice of what exists".
+  /// `auth_app_role()` carries no explicit revoke, so it keeps Postgres'
+  /// default PUBLIC execute grant and is callable via `.rpc(...)` with no
+  /// migration.
+  Future<bool> callerSeesAllReviews() async {
+    final role = await _client.rpc('auth_app_role') as String?;
+    return _kFullReviewVisibilityRoles.contains(role);
+  }
+
+  /// Every review row in the caller's company -- but ONLY once
+  /// [callerSeesAllReviews] confirms the caller's role actually grants
+  /// full-company visibility. A narrower caller gets `null`, not RLS's own
+  /// silently truncated self/direct-report subset:
+  /// `ReviewsCompletedOnTimeSource` (automatic_sources.dart) reads `null` as
+  /// "cannot certify full visibility" and reports NO_DATA rather than a
+  /// plausible-looking partial number. The check has to live here, at the
+  /// source of the read against the live database role -- a caller three
+  /// files away being reachable only from an HR-gated route is a client-side
+  /// navigation guard, not a guarantee about what this query returns.
+  Future<List<EmployeeReview>?> allReviews() async {
+    if (!await callerSeesAllReviews()) return null;
+    return pagedEmployeeReviews((from, to) async {
+      final page = await _client
+          .from('employee_reviews')
+          .select()
+          .order('review_period_end', ascending: false)
+          .range(from, to);
+      return (page as List<dynamic>).cast<Map<String, dynamic>>();
+    });
+  }
 
   Future<List<ReviewKpiResult>> kpisForReview(String reviewId) async {
     final rows = await _client
