@@ -27,18 +27,23 @@ create trigger _role_outcomes_updated before update on role_outcomes
 
 alter table role_outcomes enable row level security;
 
--- Company-read, admin-write, mirroring kpis (20260718000001:99-105). An
--- outcome is role design, not a judgement about a person, so it carries no
--- personal data and needs no per-employee clause.
+-- Company-read, admin-write, mirroring role_scorecards' current policies
+-- (role_scorecards_company_select / role_scorecards_company_write, last
+-- rewritten by 20260423000004_rls_recognize_new_roles). An outcome is role
+-- design, not a judgement about a person, so it carries no personal data and
+-- needs no per-employee clause. Write uses auth_is_hr_or_admin() rather than
+-- an inline role list, for the same reason 20260423000004 introduced that
+-- helper: a hardcoded ('SUPER_ADMIN','ADMIN','HR',...) list drifts the next
+-- time an admin-ish role is added, silently excluding this table.
 drop policy if exists role_outcomes_company_select on role_outcomes;
 create policy role_outcomes_company_select on role_outcomes for select
   using (company_id = auth_company_id() or auth_app_role() = 'SUPER_ADMIN');
 
 drop policy if exists role_outcomes_company_write on role_outcomes;
 create policy role_outcomes_company_write on role_outcomes for all
-  using (auth_app_role() in ('SUPER_ADMIN','ADMIN','HR','HR_ADMIN')
+  using (auth_is_hr_or_admin()
     and (company_id = auth_company_id() or auth_app_role() = 'SUPER_ADMIN'))
-  with check (auth_app_role() in ('SUPER_ADMIN','ADMIN','HR','HR_ADMIN')
+  with check (auth_is_hr_or_admin()
     and (company_id = auth_company_id() or auth_app_role() = 'SUPER_ADMIN'));
 
 -- Which outcome a role's KPI proves. Nullable: a KPI may exist before anyone
