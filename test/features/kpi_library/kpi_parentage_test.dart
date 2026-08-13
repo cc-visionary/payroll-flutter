@@ -8,6 +8,7 @@ void main() {
     'd1': 'DEPARTMENT',
     'd2': 'DEPARTMENT',
     'c1': 'COMPANY',
+    'u1': 'ARCHIVED', // not in _rank — simulates a mis-tagged/unknown level
   };
   String levelOf(String id) => levels[id]!;
 
@@ -48,10 +49,29 @@ void main() {
     expect(run('d1', 'd1'), "A KPI can't serve itself.");
   });
 
-  test('level rule refuses downward parent', () {
-    // This test verifies the level rule, not cycle detection.
-    // c1 (COMPANY) cannot serve d1 (DEPARTMENT) as parent.
-    expect(run('c1', 'd1'), 'A KPI can only serve a higher level.');
+  test('an unrecognised level on the child refuses', () {
+    expect(
+      run('u1', 'd1'),
+      "A KPI's level isn't recognised, so parentage can't be checked.",
+    );
+  });
+
+  test('an unrecognised level on the parent refuses', () {
+    expect(
+      run('d1', 'u1'),
+      "A KPI's level isn't recognised, so parentage can't be checked.",
+    );
+  });
+
+  test('unrecognised-level refusals use a distinct message', () {
+    // Neither side should be mistaken for the ordinary level-mismatch case —
+    // a corrupt level and a merely-wrong level are different problems and
+    // should not share wording.
+    final childSide = run('u1', 'd1');
+    final parentSide = run('d1', 'u1');
+    expect(childSide, isNot('A KPI can only serve a higher level.'));
+    expect(parentSide, isNot('A KPI can only serve a higher level.'));
+    expect(childSide, parentSide);
   });
 
   test('cycle guard rejects pre-existing loop', () {
