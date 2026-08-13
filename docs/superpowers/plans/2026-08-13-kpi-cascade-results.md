@@ -277,8 +277,8 @@ import '../../data/models/kpi_result.dart';
 /// Derives a period's value and status from raw inputs.
 ///
 /// Pure and total: every combination of inputs returns a record, never throws.
-/// `PERCENT` is treated as a ratio expressed 0..1, the same as `RATIO`; the UI
-/// is what appends a `%`.
+/// `PERCENT` carries its value in the numerator, like `COUNT` — the UI is what
+/// appends a `%`. Only `RATIO` divides.
 ({num? value, KpiStatus status}) evaluateKpi({
   required String valueType,
   num? numerator,
@@ -287,7 +287,12 @@ import '../../data/models/kpi_result.dart';
   GoalDirection? direction,
   num? targetMax,
 }) {
-  final needsDenominator = valueType == 'RATIO' || valueType == 'PERCENT';
+  // ONLY RATIO. PERCENT looks like it should need a denominator and does not:
+  // kpi_reading.dart:15 already treats it like COUNT, the Library form only
+  // populates denominator fields for RATIO, and 20260811000001's own comment
+  // says "RATIO requires both denominator columns". Requiring one here would
+  // make every PERCENT KPI permanently NO_DATA.
+  final needsDenominator = valueType == 'RATIO';
 
   num? value;
   if (numerator == null) {
