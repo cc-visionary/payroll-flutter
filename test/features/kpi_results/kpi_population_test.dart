@@ -150,4 +150,41 @@ void main() {
     );
     expect(ids, ['a', 'z']);
   });
+
+  test('personal scope with an active employeeId returns just them', () {
+    final ids = populationFor(
+      scope: KpiScope.personal,
+      employeeId: 'a',
+      employees: [_e('a', roleId: 'r-ops'), _e('b', roleId: 'r-mkt')],
+      roles: roles,
+    );
+    expect(ids, ['a']);
+  });
+
+  test(
+    'personal scope for a terminated employeeId is empty, not that person',
+    () {
+      final ids = populationFor(
+        scope: KpiScope.personal,
+        employeeId: 'a',
+        employees: [_e('a', roleId: 'r-ops', status: 'TERMINATED')],
+        roles: roles,
+      );
+      expect(ids, isEmpty);
+    },
+  );
+
+  test(
+    'personal scope with no employeeId is empty, not everyone',
+    () {
+      // Same fail-safe as department scope's missing departmentId: an
+      // unconfigured personal result must not silently report the company.
+      final ids = populationFor(
+        scope: KpiScope.personal,
+        employees: [_e('a', roleId: 'r-ops'), _e('b', roleId: 'r-mkt')],
+        roles: roles,
+      );
+      expect(ids, isEmpty);
+    },
+  );
 }
