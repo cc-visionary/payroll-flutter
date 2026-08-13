@@ -2,10 +2,11 @@ import '../../data/models/kpi_result.dart';
 
 const _order = [KpiScope.personal, KpiScope.department, KpiScope.company];
 
-KpiScope _levelScope(String level) => switch (level) {
+KpiScope? _levelScope(String level) => switch (level) {
   'PERSONAL' => KpiScope.personal,
   'DEPARTMENT' => KpiScope.department,
-  _ => KpiScope.company,
+  'COMPANY' => KpiScope.company,
+  _ => null,
 };
 
 /// The scopes a KPI produces rows at.
@@ -19,6 +20,10 @@ KpiScope _levelScope(String level) => switch (level) {
 /// starts at department however it is levelled.
 Set<KpiScope> scopesFor({required String level, required String rollupType}) {
   final own = _levelScope(level);
+  if (own == null) {
+    // An unrecognised level computes nothing, visible as absence not wrong data.
+    return {};
+  }
   switch (rollupType) {
     case 'DIRECT':
       return _order.sublist(_order.indexOf(own)).toSet();

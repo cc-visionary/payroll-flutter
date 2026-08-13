@@ -51,4 +51,16 @@ void main() {
     expect(scopesFor(level: 'PERSONAL', rollupType: 'NONSENSE'),
         {KpiScope.personal});
   });
+
+  test('an unknown level with DIRECT produces no rows', () {
+    // An unrecognised level computes nothing. If the function cannot tell
+    // where a KPI belongs, the honest answer is no rows, visible as absence.
+    expect(scopesFor(level: 'UNKNOWN', rollupType: 'DIRECT'), <KpiScope>{});
+  });
+
+  test('an unknown level with SHARED produces no rows', () {
+    // An unrecognised level computes nothing, even for SHARED. We cannot
+    // determine the floor without knowing the level.
+    expect(scopesFor(level: 'GARBAGE', rollupType: 'SHARED'), <KpiScope>{});
+  });
 }
