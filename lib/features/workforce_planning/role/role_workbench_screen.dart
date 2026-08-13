@@ -5,13 +5,18 @@ import 'package:go_router/go_router.dart';
 import '../../../app/breakpoints.dart';
 import '../../documents/providers.dart';
 import 'kpis_pane.dart';
+import 'outcomes_pane.dart';
 import 'people_pane.dart';
 import 'responsibilities_pane.dart';
 import 'role_details_pane.dart';
 
-/// The one place a role is authored: details, responsibilities, KPIs and the
-/// people holding it. Reached from the Roles tab; the role card screen is the
-/// read-only artifact this produces.
+/// The one place a role is authored: details, responsibilities, desired
+/// outcomes, KPIs and the people holding it. Reached from the Roles tab; the
+/// role card screen is the read-only artifact this produces.
+///
+/// [OutcomesPane] sits between responsibilities and KPIs — the cascade this
+/// screen authors is responsibility → outcome → KPI, and it renders in that
+/// order top to bottom.
 ///
 /// Each pane owns its own save. There is deliberately no single form key
 /// spanning them — a manager fixing one responsibility's hours should not be
@@ -86,6 +91,8 @@ class RoleWorkbenchScreen extends ConsumerWidget {
                 cardId: card.id,
                 companyId: card.companyId,
               ),
+              const SizedBox(height: 16),
+              OutcomesPane(cardId: card.id, companyId: card.companyId),
               const SizedBox(height: 16),
               KpisPane(cardId: card.id, companyId: card.companyId),
               const SizedBox(height: 16),

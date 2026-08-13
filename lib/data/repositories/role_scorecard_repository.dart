@@ -893,6 +893,15 @@ final roleKpisProvider = FutureProvider.family<List<RoleKpi>, String>((
   return ref.watch(roleScorecardRepositoryProvider).roleKpis(roleScorecardId);
 });
 
+/// A role's desired outcomes, in author order. See
+/// [RoleScorecardRepository.outcomes].
+final roleOutcomesProvider = FutureProvider.family<List<RoleOutcome>, String>((
+  ref,
+  roleScorecardId,
+) {
+  return ref.watch(roleScorecardRepositoryProvider).outcomes(roleScorecardId);
+});
+
 final employeeAssignedKpiIdsProvider =
     FutureProvider.family<Set<String>, String>((ref, employeeId) {
       return ref
