@@ -298,7 +298,8 @@ void main() {
     });
 
     test(
-      'a row whose numerator is a string contributes nothing rather than crashing the whole read',
+      'a row whose numerator is a string does not crash, but the malformed '
+      'value still collapses read() to (null, null)',
       () async {
         final source = buildSource(
           fetcher: ({required bindingId, required period}) async => (
@@ -311,11 +312,99 @@ void main() {
             },
           ),
         );
-        // Must not throw, and bob's valid row must still be counted -- a
-        // single bad field does not poison the whole read.
+        // Must not throw -- bob's valid row is still parsed and summed
+        // (readDetailed shows it), but the read()-level pair must NOT
+        // report that partial sum as though it were complete: a wrong-typed
+        // numerator anywhere means the total might be short by an unknown
+        // amount, so `read` (the interface `computeResults` actually
+        // calls) answers the same way every other failure in this class
+        // does.
+        final detailed = await source.readDetailed(
+          scope: KpiScope.company,
+          period: '2026-08',
+        );
+        expect(detailed.numerator, 10); // alice's malformed field contributed nothing
+        expect(detailed.denominator, 80);
+        expect(detailed.hasMalformedValues, isTrue);
+
         final result = await source.read(scope: KpiScope.company, period: '2026-08');
-        expect(result.numerator, 10);
-        expect(result.denominator, 80);
+        expect(result.numerator, isNull);
+        expect(result.denominator, isNull);
+      },
+    );
+  });
+
+  group('malformed values flag the result as incomplete', () {
+    test('a wrong-typed numerator sets the flag', () async {
+      final source = buildSource(
+        fetcher: ({required bindingId, required period}) async => (
+          statusCode: 200,
+          body: {
+            'rows': [_row('alice@x', numerator: 'not-a-number', denominator: 30)],
+          },
+        ),
+      );
+      final detailed = await source.readDetailed(scope: KpiScope.company, period: '2026-08');
+      expect(detailed.hasMalformedValues, isTrue);
+    });
+
+    test('a wrong-typed denominator sets the flag', () async {
+      final source = buildSource(
+        fetcher: ({required bindingId, required period}) async => (
+          statusCode: 200,
+          body: {
+            'rows': [_row('alice@x', numerator: 30, denominator: 'not-a-number')],
+          },
+        ),
+      );
+      final detailed = await source.readDetailed(scope: KpiScope.company, period: '2026-08');
+      expect(detailed.hasMalformedValues, isTrue);
+    });
+
+    test('a clean read does not set the flag', () async {
+      final source = buildSource(
+        fetcher: ({required bindingId, required period}) async => (
+          statusCode: 200,
+          body: {
+            'rows': [
+              _row('alice@x', numerator: 30, denominator: 30),
+              // A genuinely absent denominator (a COUNT KPI) is NOT
+              // malformed -- only a value that arrived as the wrong type
+              // counts.
+              _row('bob@x', numerator: 10, denominator: null),
+            ],
+          },
+        ),
+      );
+      final detailed = await source.readDetailed(scope: KpiScope.company, period: '2026-08');
+      expect(detailed.hasMalformedValues, isFalse);
+      final result = await source.read(scope: KpiScope.company, period: '2026-08');
+      expect(result.numerator, 40);
+      expect(result.denominator, 30);
+    });
+
+    test(
+      'a mapped subject with BOTH numbers malformed still appears (not treated as absent) -- '
+      'it contributes nothing to the sum and is NOT unresolved, but still sets the flag',
+      () async {
+        final source = buildSource(
+          fetcher: ({required bindingId, required period}) async => (
+            statusCode: 200,
+            body: {
+              'rows': [
+                _row('alice@x', numerator: 'bad', denominator: 'also-bad'),
+                _row('bob@x', numerator: 10, denominator: 50),
+              ],
+            },
+          ),
+        );
+        final detailed = await source.readDetailed(scope: KpiScope.company, period: '2026-08');
+        // alice resolved fine (she IS in the subject map) -- she is not
+        // "unresolved", she is "resolved, with no usable figure".
+        expect(detailed.unresolvedSubjectKeys, isEmpty);
+        expect(detailed.hasMalformedValues, isTrue);
+        expect(detailed.numerator, 10); // only bob's row contributes
+        expect(detailed.denominator, 50);
       },
     );
   });

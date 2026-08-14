@@ -37,30 +37,66 @@ typedef ConfiguredSourceFetcher = Future<ConfiguredSourceFetchResult> Function({
 });
 
 /// Everything one [ConfiguredSource.readDetailed] call found: the pair
-/// [KpiSource.read] returns, plus the external `subject_key`s this call
-/// could not map to an employee. [KpiSource.read] itself discards the keys
-/// and returns the pair alone -- the interface's [KpiSourceInput] has no
-/// room for them, and `computeResults` (compute_kpi_results.dart) has no
-/// use for them either. Task 9's Settings surface is the one caller that
-/// needs the ACTUAL KEYS, not just whether any exist (that is why this is a
-/// keyed list, not the boolean `aggregateSourceRows` already exposes as
-/// `unresolvedPresent`) -- it calls [readDetailed] directly, bypassing the
-/// `KpiSource` interface entirely, the same way a caller that needs a
-/// richer answer than an interface promises always does.
+/// [KpiSource.read] returns, plus two DISTINCT reasons that pair might not
+/// be trustworthy as a total:
 ///
-/// Empty on every failure path (the fetcher threw, a non-2xx, a malformed
-/// body, a missing `rows` key) -- there is nothing to report as unresolved
+/// - [unresolvedSubjectKeys] -- external keys no [KpiSubjectMap] row names.
+///   Task 9's Settings surface is the one caller that needs the ACTUAL
+///   KEYS, not just whether any exist (that is why this is a keyed list,
+///   not the boolean `aggregateSourceRows` already exposes as
+///   `unresolvedPresent`) -- it calls [readDetailed] directly, bypassing
+///   the `KpiSource` interface entirely, the same way a caller that needs a
+///   richer answer than an interface promises always does. An admin fixes
+///   this by adding a mapping row.
+/// - [hasMalformedValues] -- at least one row's `numerator` or
+///   `denominator` arrived as something other than a JSON number (a
+///   string, a bool, a list, ...) and was read as null rather than
+///   crashing or being coerced (see [_numOrNull]). Kept as a SEPARATE
+///   boolean rather than folded into [unresolvedSubjectKeys], or into one
+///   combined "not trustworthy" flag, because it names a DIFFERENT problem
+///   with a DIFFERENT fix: a malformed value is a data-quality fault in the
+///   source itself (a column that changed type, a bad export), and no
+///   subject mapping an admin could add would repair it. Folding it into
+///   the keys list would misdirect Task 9's "map this external key" UI at
+///   a problem mapping cannot solve; folding it into one boolean would
+///   destroy the keys [unresolvedSubjectKeys] exists to carry.
+///
+/// [KpiSource.read] discards both -- the interface's [KpiSourceInput] has
+/// no room for either -- but [hasMalformedValues] still reaches
+/// `computeResults` (compute_kpi_results.dart) indirectly: [read] returns
+/// `(null, null)` whenever it is true, the ONLY channel a [KpiSource] has
+/// to say "do not trust this total" (`_inputsFor`'s AUTOMATIC/HYBRID
+/// branches derive `SourceCompleteness` solely from whether the numerator
+/// came back null). This mirrors the rule `_scopedExceptions`
+/// (compute_kpi_results.dart) already applies to an unattributed
+/// exception: a number that is short because something was excluded from
+/// it must not read as a clean, complete answer.
+///
+/// [unresolvedSubjectKeys] and [hasMalformedValues] are each computed over
+/// EVERY row the source returned for the period, not narrowed to the
+/// current [KpiScope] -- the same over-reporting `aggregateSourceRows`'s
+/// own `unresolvedPresent` doc comment defends: a PERSONAL read for one
+/// employee cannot know whether an unrelated row's malformed value would
+/// have belonged to them under a different identity, so it flags rather
+/// than guesses. The known cost is the same one already accepted there:
+/// this over-reports, on purpose, because the alternative is a clean
+/// COMPLETE sitting beside a total that might be quietly short.
+///
+/// Both empty/false on every failure path (the fetcher threw, a non-2xx, a
+/// malformed body, a missing `rows` key) -- there is nothing to report
 /// when nothing was read at all.
 typedef ConfiguredSourceResult = ({
   num? numerator,
   num? denominator,
   List<String> unresolvedSubjectKeys,
+  bool hasMalformedValues,
 });
 
 const _emptyResult = (
   numerator: null,
   denominator: null,
   unresolvedSubjectKeys: <String>[],
+  hasMalformedValues: false,
 );
 
 /// `value` if it is already a [num], `null` otherwise. Deliberately NOT a
@@ -73,6 +109,13 @@ const _emptyResult = (
 /// not the whole read -- matching `SourceRow`'s own doc comment that
 /// numerator and denominator are independently nullable.
 num? _numOrNull(dynamic value) => value is num ? value : null;
+
+/// True for a field that is PRESENT and the WRONG TYPE -- not for a field
+/// that is genuinely absent or explicitly JSON `null`, which is a
+/// legitimate "no denominator at all" (a COUNT KPI) or "this source does
+/// not know", neither of which is malformed. Only a value the source sent
+/// as something other than a number, when it sent something, counts.
+bool _isMalformedNumber(dynamic value) => value != null && value is! num;
 
 /// A [KpiSource] backed entirely by admin configuration -- Task 3's three
 /// tables (`kpi_connections`, `kpi_source_bindings`, `kpi_subject_map`),
@@ -143,6 +186,17 @@ class ConfiguredSource implements KpiSource {
       period: period,
       employeeIds: employeeIds,
     );
+    // A malformed value anywhere in this period's rows means the total
+    // [result] carries may be short by an unknown amount -- the same
+    // "excluded, so do not claim COMPLETE" rule `_scopedExceptions`
+    // applies to an unattributed exception. `read`'s return type has no
+    // room for a completeness flag, so the only way to make
+    // `computeResults` register `MISSING_SOURCE` instead of a confident,
+    // possibly-short number is to answer the same way every OTHER failure
+    // in this class answers: null, not a partial sum.
+    if (result.hasMalformedValues) {
+      return (numerator: null, denominator: null);
+    }
     return (numerator: result.numerator, denominator: result.denominator);
   }
 
@@ -204,16 +258,33 @@ class ConfiguredSource implements KpiSource {
     // `numerator`/`denominator` is the wrong type keeps its `subject_key`
     // (so it can still be counted as "this subject happened, but we don't
     // know its number") with that one field read as null -- see
-    // [_numOrNull].
-    final rows = <SourceRow>[
-      for (final rawRow in rawRows)
-        if (rawRow is Map && rawRow['subject_key'] is String)
-          SourceRow(
-            subjectKey: rawRow['subject_key'] as String,
-            numerator: _numOrNull(rawRow['numerator']),
-            denominator: _numOrNull(rawRow['denominator']),
-          ),
-    ];
+    // [_numOrNull] -- and marks [hasMalformedValues] so the caller does not
+    // mistake the resulting short sum for a complete one. A `subject_key`
+    // that is fine while BOTH numbers are malformed still becomes a row
+    // here: it is "this subject appeared, with no usable figure at all",
+    // which [SourceRow]'s independent-nullability contract already
+    // represents correctly (both fields null, contributing nothing to
+    // `_sum` in source_rows.dart) -- distinct from a row dropped entirely
+    // above, which is "this subject did not appear in a form we could even
+    // read".
+    var hasMalformedValues = false;
+    final rows = <SourceRow>[];
+    for (final rawRow in rawRows) {
+      if (rawRow is! Map || rawRow['subject_key'] is! String) continue;
+      final rawNumerator = rawRow['numerator'];
+      final rawDenominator = rawRow['denominator'];
+      if (_isMalformedNumber(rawNumerator) ||
+          _isMalformedNumber(rawDenominator)) {
+        hasMalformedValues = true;
+      }
+      rows.add(
+        SourceRow(
+          subjectKey: rawRow['subject_key'] as String,
+          numerator: _numOrNull(rawNumerator),
+          denominator: _numOrNull(rawDenominator),
+        ),
+      );
+    }
 
     // Only an EMPLOYEE-kind binding has an identity to resolve at all --
     // DEPARTMENT rows already ARE a department id, and NONE rows have no
@@ -274,6 +345,7 @@ class ConfiguredSource implements KpiSource {
       numerator: aggregate.numerator,
       denominator: aggregate.denominator,
       unresolvedSubjectKeys: unresolved.toList()..sort(),
+      hasMalformedValues: hasMalformedValues,
     );
   }
 }
