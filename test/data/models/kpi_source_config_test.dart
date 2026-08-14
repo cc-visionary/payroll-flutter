@@ -32,6 +32,7 @@ void main() {
         'port': 5432,
         'database': 'cashflow',
         'db_schema': 'public',
+        'db_user': 'cashflow_ro',
         'credential_kind': 'VAULT',
         'credential_ref': 'cashflow_ro_password',
         'is_active': true,
@@ -42,6 +43,7 @@ void main() {
       expect(c.host, 'db.cashflow.internal');
       expect(c.port, 5432);
       expect(c.dbSchema, 'public');
+      expect(c.dbUser, 'cashflow_ro');
       expect(c.credentialKind, 'VAULT');
       expect(c.credentialRef, 'cashflow_ro_password');
       expect(c.isActive, isTrue);
@@ -55,6 +57,7 @@ void main() {
       expect(p['port'], 5432);
       expect(p['database'], 'cashflow');
       expect(p['db_schema'], 'public');
+      expect(p['db_user'], 'cashflow_ro');
       expect(p['credential_kind'], 'VAULT');
       expect(p['credential_ref'], 'cashflow_ro_password');
       expect(p['is_active'], true);
@@ -69,11 +72,44 @@ void main() {
         port: 5432,
         database: 'cashflow',
         dbSchema: 'public',
+        dbUser: 'cashflow_ro',
         credentialKind: 'ENV',
         credentialRef: 'CASHFLOW_RO_PASSWORD',
       );
       expect(c.id, isNull);
       expect(c.toUpsertPayload()['id'], isNull);
+    });
+
+    test('dbUser is not secret and its VALUE survives fromRow -> toUpsertPayload unchanged', () {
+      // Not just "the key is present" -- the actual username string must
+      // round-trip byte-for-byte, the same way the password-bearing
+      // credentialRef does. A round trip that silently dropped, trimmed,
+      // or renamed the username would connect as the wrong role without
+      // ever failing a CHECK constraint.
+      const username = 'cashflow_ro_reader';
+      final c = KpiConnection.fromRow({
+        'id': 'conn-2',
+        'company_id': 'c-1',
+        'name': 'Cashflow',
+        'kind': 'POSTGRES',
+        'host': 'db.cashflow.internal',
+        'port': 5432,
+        'database': 'cashflow',
+        'db_schema': 'public',
+        'db_user': username,
+        'credential_kind': 'ENV',
+        'credential_ref': 'CASHFLOW_RO_PASSWORD',
+        'is_active': true,
+      });
+
+      expect(c.dbUser, username);
+      expect(c.toUpsertPayload()['db_user'], username);
+
+      // And the round trip through a second fromRow/toUpsertPayload pass
+      // (as if the payload were written then read back) still carries the
+      // same value -- not merely present, not coerced, not truncated.
+      final roundTripped = KpiConnection.fromRow(c.toUpsertPayload());
+      expect(roundTripped.dbUser, username);
     });
   });
 

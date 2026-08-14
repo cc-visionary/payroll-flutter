@@ -49,9 +49,22 @@
 --             not self-service from the UI either -- adding a connection
 --             this way still needs an admin with CLI access.
 --
--- Either path, the invariant holds unconditionally: this table stores a
--- NAME, never a password. Nothing granted SELECT on kpi_connections (see
--- RLS below) can ever read a credential through it.
+-- Either path, `credential_ref` names a secret holding the PASSWORD ALONE
+-- -- see `db_user` below for the username, which is not secret and does
+-- not live behind either mechanism. This table never stores the password
+-- itself, only the name of where to find it. Nothing granted SELECT on
+-- kpi_connections (see RLS below) can ever read a credential through it.
+--
+-- ## `db_user` is not secret
+--
+-- Task 5's first pass had no column for the external database's username
+-- and worked around that by packing it into the credential secret as
+-- `user:password`. That was flagged as an assumption needing sign-off, and
+-- on review it was rejected in favour of a real column: a username is
+-- configuration an admin can read at a glance, not something that should
+-- require decrypting a secret to see, and rotating a password should never
+-- require re-typing (and risk mistyping) the username alongside it. Keep
+-- host/port/database/db_schema/db_user together as the non-secret half.
 
 create table if not exists kpi_connections (
   id              uuid primary key default gen_random_uuid(),
@@ -62,13 +75,18 @@ create table if not exists kpi_connections (
   port            integer not null default 5432,
   database        text not null,
   db_schema       text not null default 'public',
-  -- See the credential design note above. Never a password.
+  -- Non-secret. See "`db_user` is not secret" above.
+  db_user         text not null,
+  -- See the credential design note above. Names a secret holding the
+  -- PASSWORD ALONE -- never a password, and never "user:password".
   credential_kind text not null check (credential_kind in ('VAULT', 'ENV')),
   credential_ref  text not null,
   is_active       boolean not null default true,
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now(),
   constraint kpi_connections_name_not_blank check (length(trim(name)) > 0),
+  constraint kpi_connections_db_user_not_blank
+    check (length(trim(db_user)) > 0),
   constraint kpi_connections_credential_ref_not_blank
     check (length(trim(credential_ref)) > 0)
 );

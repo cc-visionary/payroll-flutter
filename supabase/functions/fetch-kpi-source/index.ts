@@ -62,8 +62,8 @@
 // CREDENTIAL RESOLUTION
 // ---------------------------------------------------------------------------
 // `kpi_connections.credential_kind` is 'VAULT' or 'ENV' (migration
-// 20260815000002's header comment). Both paths return a single secret
-// STRING for `credential_ref` to name:
+// 20260815000002's header comment). Both paths return the PASSWORD, and
+// only the password, as a plain string for `credential_ref` to name:
 //   'ENV'   -> Deno.env.get(credential_ref), the same shape authFromEnv()
 //              already uses for Lark (../_shared/lark.ts).
 //   'VAULT' -> `select decrypted_secret from vault.decrypted_secrets where
@@ -78,25 +78,18 @@
 //              connection uses `SUPABASE_DB_URL`, one of the secrets Edge
 //              Functions get automatically — see resolveVaultSecret below.
 //
-// ASSUMPTION THIS TASK HAD TO MAKE, FLAGGED FOR CONFIRMATION:
-// `kpi_connections` has NO column for the external database's username —
-// only host/port/database/db_schema (non-secret) and credential_kind/
-// credential_ref (which name ONE secret). A Postgres connection needs a
-// username as well as a password, and there is nowhere in the schema to
-// put a non-secret one, and this task has no migration to add one.
-// `parseCredentialSecret` below resolves this by requiring the secret
-// VALUE to be `"<user>:<password>"` (split on the first colon) rather than
-// a bare password — the same shape a Postgres connection URI's userinfo
-// already uses. This deviates from migration 20260815000002's own ENV
-// example (`supabase secrets set <credential_ref>=<password>`), which reads
-// as password-only. Deviating was judged the lesser risk: matching that
-// example literally leaves no way to authenticate at all. This needs
-// sign-off from whoever applies the migration and sets the first real
-// secret — and the clean fix, if the `user:password` convention is
-// rejected, is a follow-up migration adding a non-secret `db_user` column
-// to `kpi_connections`. See the report for this task
-// (.superpowers/sdd/2026-08-14-configurable-kpi-sources/task-5-report.md)
-// for the full reasoning.
+// USERNAME: `connection.db_user`, a plain (non-secret) column on
+// `kpi_connections` — NOT part of either credential path above. Fix round
+// 1 resolved a defect from this task's first pass: with no `db_user`
+// column, the secret value was packed as `"<user>:<password>"`, which
+// disagreed with migration 20260815000002's own ENV example
+// (`supabase secrets set <credential_ref>=<password>`, i.e. password-only).
+// On review that convention was rejected — a username is not secret, an
+// admin should be able to read it without decrypting anything, and
+// rotating a password should never require re-typing the username
+// alongside it. The migration now has a real `db_user text not null`
+// column; this file reads it straight off `ConnectionRow` and treats
+// `credential_ref`'s secret as the password, unparsed, unsplit.
 
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { Client as PgClient } from 'https://deno.land/x/postgres@v0.19.3/mod.ts';
@@ -147,6 +140,8 @@ export interface ConnectionRow {
   port: number;
   database: string;
   db_schema: string;
+  /** Not secret — see the CREDENTIAL RESOLUTION doc comment above. */
+  db_user: string;
   credential_kind: string;
   credential_ref: string;
   is_active: boolean;
@@ -160,18 +155,20 @@ export interface ConnectionRow {
 export interface SourceLoader {
   getBinding(bindingId: string): Promise<BindingRow | null>;
   getConnection(connectionId: string): Promise<ConnectionRow | null>;
-  /** Returns the raw secret string, or null if it could not be found. */
+  /** Returns the raw PASSWORD, or null if it could not be found. The
+   * username is never part of this — it's `connection.db_user`. */
   getCredentialSecret(kind: string, ref: string): Promise<string | null>;
 }
 
 /// Runs the already-built, already-validated `sql` against the external
-/// database named by `connection`, using `credential`, with `period` bound
-/// as `$1`. Kept as an injected function (not a method `handleFetchRequest`
-/// calls directly) so tests can prove `buildSourceSelect`'s validation runs
-/// before this is ever invoked, without needing a real network connection.
+/// database named by `connection` (whose `db_user` supplies the username),
+/// using `password`, with `period` bound as `$1`. Kept as an injected
+/// function (not a method `handleFetchRequest` calls directly) so tests can
+/// prove `buildSourceSelect`'s validation runs before this is ever invoked,
+/// without needing a real network connection.
 export type RunQuery = (
   connection: ConnectionRow,
-  credential: { user: string; password: string },
+  password: string,
   sql: string,
   period: string,
 ) => Promise<FetchRow[]>;
@@ -193,23 +190,6 @@ export function parseRequestBody(
     return { ok: false, error: 'period required', code: 'BAD_REQUEST' };
   }
   return { ok: true, bindingId, period };
-}
-
-/// Splits a resolved credential secret into `{ user, password }` on its
-/// first colon — see the CREDENTIAL RESOLUTION doc comment at the top of
-/// this file for why a username has to travel inside the secret value at
-/// all. Throws (never returns a partial result) if the shape doesn't hold,
-/// so a malformed secret fails the same way an unresolvable one does,
-/// rather than connecting with an empty username or password.
-export function parseCredentialSecret(raw: string): {
-  user: string;
-  password: string;
-} {
-  const idx = raw.indexOf(':');
-  if (idx <= 0 || idx === raw.length - 1) {
-    throw new Error('Credential secret is not in "user:password" form');
-  }
-  return { user: raw.slice(0, idx), password: raw.slice(idx + 1) };
 }
 
 /// `null`/`undefined` stay `null` — the one rule this function exists to
@@ -374,26 +354,9 @@ export async function handleFetchRequest(args: {
     };
   }
 
-  let credential: { user: string; password: string };
-  try {
-    credential = parseCredentialSecret(rawSecret);
-  } catch (err) {
-    console.error('[fetch-kpi-source] credential malformed', {
-      connectionId: connection.id,
-      message: (err as Error)?.message,
-    });
-    return {
-      status: 502,
-      body: {
-        error: 'Source credential is malformed',
-        code: 'CREDENTIAL_UNAVAILABLE',
-      },
-    };
-  }
-
   let rows: FetchRow[];
   try {
-    rows = await runQuery(connection, credential, sql, parsed.period);
+    rows = await runQuery(connection, rawSecret, sql, parsed.period);
   } catch (err) {
     console.error('[fetch-kpi-source] external query failed', {
       connectionId: connection.id,
@@ -474,7 +437,7 @@ function makeSupabaseLoader(
       const { data, error } = await admin
         .from('kpi_connections')
         .select(
-          'id, host, port, database, db_schema, credential_kind, credential_ref, is_active',
+          'id, host, port, database, db_schema, db_user, credential_kind, credential_ref, is_active',
         )
         .eq('id', connectionId)
         .eq('company_id', callerCompanyId)
@@ -493,9 +456,13 @@ function makeSupabaseLoader(
 /// Connects to the external database READ-ONLY (a `read_only` transaction —
 /// see deno-postgres's `TransactionOptions`), runs `sql` with `period` bound
 /// as `$1`, and always closes the connection, success or failure.
+/// `connection.db_user` supplies the username; `password` is the plain
+/// secret `credential_ref` names — never a compound `"user:password"`
+/// value (see the CREDENTIAL RESOLUTION doc comment at the top of this
+/// file).
 async function runExternalQuery(
   connection: ConnectionRow,
-  credential: { user: string; password: string },
+  password: string,
   sql: string,
   period: string,
 ): Promise<FetchRow[]> {
@@ -503,8 +470,8 @@ async function runExternalQuery(
     hostname: connection.host,
     port: connection.port,
     database: connection.database,
-    user: credential.user,
-    password: credential.password,
+    user: connection.db_user,
+    password,
     connection: { attempts: 1 },
   });
 

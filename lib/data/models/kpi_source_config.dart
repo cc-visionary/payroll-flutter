@@ -70,10 +70,19 @@ class KpiConnection {
   final String database;
   final String dbSchema;
 
+  /// The external database's username. NOT secret — unlike [credentialRef],
+  /// this is plain configuration an admin reads directly off this row, no
+  /// decryption required. See `20260815000002_kpi_source_config.sql`'s
+  /// "`db_user` is not secret" note for why this is a real column and not
+  /// packed into the credential secret alongside the password.
+  final String dbUser;
+
   /// `VAULT` / `ENV` — which mechanism [credentialRef] names a secret in.
   final String credentialKind;
 
-  /// The secret's NAME, never its value.
+  /// The secret's NAME, never its value. The secret it names holds the
+  /// PASSWORD ALONE — the username is [dbUser], never folded into this
+  /// secret's value.
   final String credentialRef;
   final bool isActive;
 
@@ -86,6 +95,7 @@ class KpiConnection {
     this.port = 5432,
     required this.database,
     this.dbSchema = 'public',
+    required this.dbUser,
     required this.credentialKind,
     required this.credentialRef,
     this.isActive = true,
@@ -100,6 +110,7 @@ class KpiConnection {
     port: (r['port'] as num?)?.toInt() ?? 5432,
     database: r['database'] as String,
     dbSchema: r['db_schema'] as String? ?? 'public',
+    dbUser: r['db_user'] as String,
     credentialKind: r['credential_kind'] as String,
     credentialRef: r['credential_ref'] as String,
     isActive: r['is_active'] as bool? ?? true,
@@ -114,6 +125,7 @@ class KpiConnection {
     'port': port,
     'database': database,
     'db_schema': dbSchema,
+    'db_user': dbUser,
     'credential_kind': credentialKind,
     'credential_ref': credentialRef,
     'is_active': isActive,

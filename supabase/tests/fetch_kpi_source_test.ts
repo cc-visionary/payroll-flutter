@@ -1,7 +1,6 @@
 // Tests the pure parts of supabase/functions/fetch-kpi-source/index.ts that
 // are reachable without a live external database:
 //   - request validation (missing binding_id / period)
-//   - credential-secret parsing
 //   - null-preserving numeric coercion
 //   - handleFetchRequest's orchestration: unknown binding -> 404, and —
 //     the security-relevant, load-bearing assertion — a binding whose
@@ -20,7 +19,6 @@ import {
   type ConnectionRow,
   type FetchRow,
   handleFetchRequest,
-  parseCredentialSecret,
   parseRequestBody,
   type SourceLoader,
   toNumberOrNull,
@@ -54,53 +52,6 @@ Deno.test('parseRequestBody accepts a valid body', () => {
     assertEquals(result.bindingId, 'b1');
     assertEquals(result.period, '2026-08');
   }
-});
-
-// ---------------------------------------------------------------------------
-// parseCredentialSecret
-// ---------------------------------------------------------------------------
-
-Deno.test('parseCredentialSecret splits on the first colon', () => {
-  const { user, password } = parseCredentialSecret('ro_user:s3cr3t');
-  assertEquals(user, 'ro_user');
-  assertEquals(password, 's3cr3t');
-});
-
-Deno.test('parseCredentialSecret keeps everything after the first colon as password', () => {
-  // A password containing a colon must not be truncated.
-  const { user, password } = parseCredentialSecret('ro_user:pa:ss');
-  assertEquals(user, 'ro_user');
-  assertEquals(password, 'pa:ss');
-});
-
-Deno.test('parseCredentialSecret throws when there is no colon', () => {
-  let threw = false;
-  try {
-    parseCredentialSecret('just-a-password');
-  } catch {
-    threw = true;
-  }
-  assert(threw, 'expected parseCredentialSecret to throw');
-});
-
-Deno.test('parseCredentialSecret throws on an empty user', () => {
-  let threw = false;
-  try {
-    parseCredentialSecret(':password');
-  } catch {
-    threw = true;
-  }
-  assert(threw, 'expected parseCredentialSecret to throw on empty user');
-});
-
-Deno.test('parseCredentialSecret throws on an empty password', () => {
-  let threw = false;
-  try {
-    parseCredentialSecret('user:');
-  } catch {
-    threw = true;
-  }
-  assert(threw, 'expected parseCredentialSecret to throw on empty password');
 });
 
 // ---------------------------------------------------------------------------
@@ -160,6 +111,8 @@ const validConnection: ConnectionRow = {
   port: 5432,
   database: 'cashflow',
   db_schema: 'public',
+  // Not secret — a plain column, never packed into the credential secret.
+  db_user: 'cashflow_ro',
   credential_kind: 'ENV',
   credential_ref: 'CASHFLOW_RO_CRED',
   is_active: true,
@@ -230,7 +183,7 @@ Deno.test(
         getConnection: async () => validConnection,
         getCredentialSecret: async () => {
           credentialLookupCalled = true;
-          return 'user:pass';
+          return 's3cr3t';
         },
       }),
       // If validation is skipped, execution reaches here and throws loudly
@@ -263,20 +216,6 @@ Deno.test('handleFetchRequest: missing credential secret is a 502, never a parti
   assertEquals(result.body.code, 'CREDENTIAL_UNAVAILABLE');
 });
 
-Deno.test('handleFetchRequest: a malformed credential secret is a 502', async () => {
-  const result = await handleFetchRequest({
-    body: { binding_id: validBinding.id, period: '2026-08' },
-    loader: forbiddenLoader({
-      getBinding: async () => validBinding,
-      getConnection: async () => validConnection,
-      getCredentialSecret: async () => 'no-colon-here',
-    }),
-    runQuery: forbiddenRunQuery,
-  });
-  assertEquals(result.status, 502);
-  assertEquals(result.body.code, 'CREDENTIAL_UNAVAILABLE');
-});
-
 Deno.test('handleFetchRequest: a query failure never leaks the underlying error into the response', async () => {
   const secretLookingMessage = 'password authentication failed for user "ro_user" host=db.internal';
   const result = await handleFetchRequest({
@@ -284,7 +223,7 @@ Deno.test('handleFetchRequest: a query failure never leaks the underlying error 
     loader: forbiddenLoader({
       getBinding: async () => validBinding,
       getConnection: async () => validConnection,
-      getCredentialSecret: async () => 'user:pass',
+      getCredentialSecret: async () => 's3cr3t',
     }),
     runQuery: async () => {
       throw new Error(secretLookingMessage);
@@ -311,10 +250,39 @@ Deno.test('handleFetchRequest: success returns rows exactly as runQuery produced
     loader: forbiddenLoader({
       getBinding: async () => validBinding,
       getConnection: async () => validConnection,
-      getCredentialSecret: async () => 'user:pass',
+      getCredentialSecret: async () => 's3cr3t',
     }),
     runQuery: async () => rows,
   });
   assertEquals(result.status, 200);
   assertEquals(result.body.rows, rows);
+});
+
+Deno.test('handleFetchRequest: runQuery receives the username from connection.db_user and the password unsplit, never a "user:password" pair', async () => {
+  // Regression coverage for fix round 1: the first pass packed the
+  // username into the credential secret as "user:password" and parsed it
+  // back apart. That's gone -- the username now comes from the
+  // connection's own db_user column, and the secret IS the password, with
+  // no splitting in between. A password that happens to contain a colon
+  // must reach runQuery byte-for-byte.
+  let receivedConnection: ConnectionRow | undefined;
+  let receivedPassword: string | undefined;
+  const rawPasswordWithColon = 'pa:ss:word';
+
+  await handleFetchRequest({
+    body: { binding_id: validBinding.id, period: '2026-08' },
+    loader: forbiddenLoader({
+      getBinding: async () => validBinding,
+      getConnection: async () => validConnection,
+      getCredentialSecret: async () => rawPasswordWithColon,
+    }),
+    runQuery: async (connection, password) => {
+      receivedConnection = connection;
+      receivedPassword = password;
+      return [];
+    },
+  });
+
+  assertEquals(receivedConnection?.db_user, 'cashflow_ro');
+  assertEquals(receivedPassword, rawPasswordWithColon);
 });

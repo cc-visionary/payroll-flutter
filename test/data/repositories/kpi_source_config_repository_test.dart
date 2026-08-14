@@ -75,6 +75,7 @@ void main() {
               'port': 5432,
               'database': 'cashflow',
               'db_schema': 'public',
+              'db_user': 'cashflow_ro',
               'credential_kind': 'VAULT',
               'credential_ref': 'cashflow-pg',
               'is_active': true,
@@ -105,6 +106,7 @@ void main() {
           port: 6543,
           database: 'cashflow',
           dbSchema: 'reporting',
+          dbUser: 'cashflow_ro',
           credentialKind: 'ENV',
           credentialRef: 'CASHFLOW_PG_PASSWORD',
           isActive: false,
@@ -129,6 +131,7 @@ void main() {
         expect(row['port'], 6543);
         expect(row['database'], 'cashflow');
         expect(row['db_schema'], 'reporting');
+        expect(row['db_user'], 'cashflow_ro');
         expect(row['credential_kind'], 'ENV');
         expect(row['credential_ref'], 'CASHFLOW_PG_PASSWORD');
         expect(row['is_active'], false);
@@ -149,6 +152,7 @@ void main() {
           port: 5432,
           database: 'cashflow2',
           dbSchema: 'public',
+          dbUser: 'cashflow_ro_2',
           credentialKind: 'VAULT',
           credentialRef: 'cashflow-pg-2',
           isActive: true,
@@ -167,6 +171,7 @@ void main() {
         expect(row['port'], 5432);
         expect(row['database'], 'cashflow2');
         expect(row['db_schema'], 'public');
+        expect(row['db_user'], 'cashflow_ro_2');
         expect(row['credential_kind'], 'VAULT');
         expect(row['credential_ref'], 'cashflow-pg-2');
         expect(row['is_active'], true);
