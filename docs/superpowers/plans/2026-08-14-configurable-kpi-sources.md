@@ -37,7 +37,7 @@
 | `lib/features/kpi_results/source_rows.dart` (new) | Pure: rows + subject map + scope → numerator/denominator |
 | `lib/features/kpi_results/sql_identifier.dart` (new) | Pure: validate a table/column identifier |
 | `supabase/migrations/20260815000002_kpi_source_config.sql` (new) | Three config tables + RLS |
-| `lib/data/models/kpi_source_config.dart` (new) | `KpiConnection`, `KpiSourceBinding`, `KpiSubjectMapping`, `SubjectKind` |
+| `lib/data/models/kpi_source_config.dart` (new) | `KpiConnection`, `KpiSourceBinding`, `KpiSubjectMap`, `SubjectKind` |
 | `lib/data/repositories/kpi_source_config_repository.dart` (new) | CRUD for the three tables |
 | `supabase/functions/_shared/source_query.ts` (new) | Pure: build the SELECT, validate identifiers |
 | `supabase/functions/fetch-kpi-source/index.ts` (new) | Connect read-only, run it, return rows |
@@ -421,7 +421,7 @@ git commit -m "feat(kpi): connection, binding and subject-map tables"
 - Test: `test/data/repositories/kpi_source_config_repository_test.dart`
 
 **Interfaces:**
-- Produces: `listConnections()`, `upsertConnection(KpiConnection)`, `listBindings()`, `bindingForKpi(String kpiId)`, `upsertBinding(KpiSourceBinding)`, `deleteBinding(String id)`, `subjectMapFor(String connectionId)`, `upsertSubjectMapping(KpiSubjectMapping)`, `deleteSubjectMapping(String id)`.
+- Produces: `listConnections()`, `upsertConnection(KpiConnection)`, `listBindings()`, `bindingForKpi(String kpiId)`, `upsertBinding(KpiSourceBinding)`, `deleteBinding(String id)`, `subjectMapFor(String connectionId)`, `upsertSubjectMapping(KpiSubjectMap)`, `deleteSubjectMapping(String id)`.
 
 Single-column writes where the screen edits one thing; whole-row upserts otherwise. **When you reconstruct a model to save it, carry every field.** A caller that rebuilds an object field-by-field and forgets one has cost this repo real data twice, and the model test cannot catch it — `fromRow`/`toUpsertPayload` round-trip fine while the caller drops the value. Assert **values**, not key presence: a `containsKey` check passes against that bug.
 
