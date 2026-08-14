@@ -126,6 +126,29 @@ class SourceRow {
         for (final row in rows)
           (row: row, employeeId: subjectToEmployee[row.subjectKey]),
       ];
+      // Computed once, over ALL rows, and returned unchanged on every scope
+      // branch below — including PERSONAL. That is deliberate, not a side
+      // effect of sharing one variable across the switch: an unmapped key
+      // might BE the requested employee under a second identity (the source
+      // emits `alice.smith@x`, only `alice@x` is mapped) — there is no way
+      // to know which unresolved key belongs to whom, so a personal row
+      // cannot claim completeness while ANY subject in [rows] is
+      // unresolved, even one that turns out to be unrelated. This is the
+      // same rule `compute_kpi_results.dart`'s `_scopedExceptions` already
+      // enforces for unattributed exceptions at [KpiScope.personal]: a row
+      // that would otherwise read "nothing happened" must instead say
+      // "something happened THIS PERIOD, unattributed/unresolved" rather
+      // than assert a confident, possibly wrong number.
+      //
+      // The known cost: this over-reports. It flags every personal row
+      // whenever any subject anywhere is unresolved, not only the ones
+      // that could plausibly be affected. Over-reporting incompleteness is
+      // the safe direction on purpose — the alternative is a clean
+      // COMPLETE sitting beside a number that might be quietly short, which
+      // is the exact silent-undercount failure this engine exists to
+      // prevent. Do not scope this down to "only if the unresolved key's
+      // prefix looks like this employee" or similar — that swaps a
+      // guaranteed-safe over-report for a guessed, possibly-wrong under-report.
       final unresolvedPresent = resolvedRows.any((r) => r.employeeId == null);
 
       switch (scope) {
@@ -160,6 +183,11 @@ class SourceRow {
           );
 
         case KpiScope.personal:
+          // unresolvedPresent below is the same value returned by every
+          // other branch — global across ALL of [rows], not scoped to this
+          // employee. See the doc comment on `unresolvedPresent`'s
+          // computation above for why that is deliberate.
+          //
           // No requested employee resolves to nobody, never everyone.
           if (employeeId == null) {
             return (

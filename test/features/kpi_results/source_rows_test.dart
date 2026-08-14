@@ -101,6 +101,30 @@ void main() {
     test('all-resolved does not flag', () {
       expect(run().unresolvedPresent, isFalse);
     });
+
+    test(
+      'an unresolved row still flags PERSONAL even though it cannot be '
+      "this employee's own row",
+      () {
+        // ghost@x cannot literally be e-bob's row, but there is no way to
+        // know that from here — an unmapped key might be a second identity
+        // for the requested employee (see the doc comment on
+        // unresolvedPresent's computation in source_rows.dart). So the flag
+        // stays global: Bob's own figure (10/50) is untouched, but the
+        // result still says "incomplete", never a bare COMPLETE 10/50.
+        final r = run(
+          rows: const [
+            SourceRow(subjectKey: 'bob@x', numerator: 10, denominator: 50),
+            SourceRow(subjectKey: 'ghost@x', numerator: 5, denominator: 5),
+          ],
+          scope: KpiScope.personal,
+          employeeId: 'e-bob',
+        );
+        expect(r.numerator, 10);
+        expect(r.denominator, 50);
+        expect(r.unresolvedPresent, isTrue);
+      },
+    );
   });
 
   group('subject kinds', () {
@@ -119,6 +143,27 @@ void main() {
       expect(r.numerator, 8);
       expect(r.denominator, 10);
     });
+
+    test(
+      'DEPARTMENT rows roll up into COMPANY the same way employee rows do',
+      () {
+        // No department filter at COMPANY scope — every department's rows
+        // contribute, mirroring how an employee-kind row rolls up to
+        // COMPANY regardless of which department it belongs to.
+        final r = aggregateSourceRows(
+          rows: const [
+            SourceRow(subjectKey: 'd-ops', numerator: 8, denominator: 10),
+            SourceRow(subjectKey: 'd-mkt', numerator: 2, denominator: 10),
+          ],
+          scope: KpiScope.company,
+          subjectKind: SubjectKind.department,
+          subjectToEmployee: const {},
+          employeeToDepartment: const {},
+        );
+        expect(r.numerator, 10);
+        expect(r.denominator, 20);
+      },
+    );
 
     test('DEPARTMENT rows cannot produce a personal figure', () {
       final r = aggregateSourceRows(
@@ -141,6 +186,30 @@ void main() {
         employeeToDepartment: const {},
       );
       expect(r.numerator, 123);
+    });
+
+    test('NONE cannot produce a department figure', () {
+      final r = aggregateSourceRows(
+        rows: const [SourceRow(subjectKey: '', numerator: 123)],
+        scope: KpiScope.department,
+        subjectKind: SubjectKind.none,
+        subjectToEmployee: const {},
+        employeeToDepartment: const {},
+        departmentId: 'd-ops',
+      );
+      expect(r.numerator, isNull);
+    });
+
+    test('NONE cannot produce a personal figure', () {
+      final r = aggregateSourceRows(
+        rows: const [SourceRow(subjectKey: '', numerator: 123)],
+        scope: KpiScope.personal,
+        subjectKind: SubjectKind.none,
+        subjectToEmployee: const {},
+        employeeToDepartment: const {},
+        employeeId: 'e-alice',
+      );
+      expect(r.numerator, isNull);
     });
   });
 
