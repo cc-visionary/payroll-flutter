@@ -124,6 +124,18 @@ create index if not exists kpi_source_bindings_kpi
 create index if not exists kpi_source_bindings_connection
   on kpi_source_bindings (connection_id);
 
+-- At most one ACTIVE binding per KPI. This is not merely tidiness: a KPI
+-- selects its source by matching `kpis.numerator_source` against the
+-- registry, and Task 6 keys a configured source as `cfg:<bindingId>`. If
+-- two active bindings could exist for one KPI, resolving "which one" would
+-- need an admin to paste a specific binding's uuid into a free-text field.
+-- With at most one, the binding's existence is what selects it -- there is
+-- no second thing to disambiguate from. Partial (WHERE is_active) so a
+-- retired binding can be deactivated and a replacement created without
+-- deleting history.
+create unique index if not exists kpi_source_bindings_kpi_active
+  on kpi_source_bindings (kpi_id) where is_active;
+
 drop trigger if exists _kpi_source_bindings_updated on kpi_source_bindings;
 create trigger _kpi_source_bindings_updated before update on kpi_source_bindings
   for each row execute function set_updated_at();
