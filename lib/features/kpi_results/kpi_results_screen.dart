@@ -14,6 +14,7 @@ import '../../data/repositories/kpi_result_repository.dart';
 import '../../data/repositories/review_cycle_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../../widgets/responsive_table.dart';
+import '../../widgets/pending_migration_notice.dart';
 import 'automatic_sources.dart';
 import 'compute_kpi_results.dart';
 
@@ -126,11 +127,9 @@ class _KpiResultsScreenState extends ConsumerState<KpiResultsScreen> {
               child: async.when(
                 loading: () =>
                     const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(
-                  child: Text(
-                    'Error: $e',
-                    style: const TextStyle(color: Colors.red),
-                  ),
+                error: (e, _) => PendingMigrationNotice(
+                  error: e,
+                  feature: 'KPI results',
                 ),
                 data: (rows) {
                   final wantScope = _kpiScopeFor(_scope);

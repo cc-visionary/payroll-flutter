@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../widgets/pending_migration_notice.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/status_colors.dart';
@@ -872,8 +874,11 @@ class _KpiHistoryBody extends ConsumerWidget {
 
     return historyAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
+      // This section sits inside a check-in that works perfectly well without
+      // it, so a pending migration must read as one unavailable section --
+      // not as a broken check-in.
       error: (e, _) =>
-          Text('Error: $e', style: const TextStyle(color: Colors.red)),
+          PendingMigrationNotice(error: e, feature: 'KPI history'),
       // Deliberately NOT re-sorted here. `rows` already arrives in a
       // determined order without any client-side tiebreak, for the same
       // reason `kpi_dashboard_screen.dart`/`kpi_results_screen.dart` don't

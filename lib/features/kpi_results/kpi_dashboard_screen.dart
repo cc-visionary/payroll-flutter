@@ -1,5 +1,7 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+
+import '../../widgets/pending_migration_notice.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -88,11 +90,9 @@ class _KpiDashboardScreenState extends ConsumerState<KpiDashboardScreen> {
               child: async.when(
                 loading: () =>
                     const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(
-                  child: Text(
-                    'Error: $e',
-                    style: const TextStyle(color: Colors.red),
-                  ),
+                error: (e, _) => PendingMigrationNotice(
+                  error: e,
+                  feature: 'The KPI dashboard',
                 ),
                 data: (rows) {
                   // An empty month is EMPTY, not a page of red -- nothing has
