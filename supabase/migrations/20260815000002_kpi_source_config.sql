@@ -78,7 +78,7 @@ create table if not exists kpi_connections (
   -- Non-secret. See "`db_user` is not secret" above.
   db_user         text not null,
   -- See the credential design note above. Names a secret holding the
-  -- PASSWORD ALONE -- never a password, and never "user:password".
+  -- PASSWORD ALONE -- never combined with the username as "user:password".
   credential_kind text not null check (credential_kind in ('VAULT', 'ENV')),
   credential_ref  text not null,
   is_active       boolean not null default true,

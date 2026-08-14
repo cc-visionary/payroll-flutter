@@ -1,11 +1,22 @@
 // Tests the pure parts of supabase/functions/fetch-kpi-source/index.ts that
 // are reachable without a live external database:
 //   - request validation (missing binding_id / period)
-//   - null-preserving numeric coercion
-//   - handleFetchRequest's orchestration: unknown binding -> 404, and —
-//     the security-relevant, load-bearing assertion — a binding whose
-//     identifiers fail buildSourceSelect's validation is rejected BEFORE
-//     any credential lookup or external connection attempt.
+//   - null-preserving numeric coercion, including the blank-string case
+//     Number('') === 0 would otherwise sneak through as
+//   - SQL NULL subject_key handling (never the literal string "null")
+//   - the TLS-enforcement string helper
+//   - handleFetchRequest's orchestration, with three load-bearing ordering
+//     assertions:
+//       1. a caller `authorize()` rejects is a 403 and the (service-role)
+//          loader is NEVER touched -- this is the fix for security review
+//          finding 1 (any authenticated caller could otherwise read every
+//          employee's numbers via the service-role bypass of RLS);
+//       2. a binding whose identifiers fail buildSourceSelect's validation
+//          is rejected BEFORE any credential lookup or connection attempt;
+//       3. withConnectedClient always calls client.end(), even when
+//          connect() throws or times out -- the fix for finding 3 (a
+//          connect failure previously leaked the connection because
+//          connect() sat outside the try/finally that closes it).
 //
 // Live connectivity to an external Postgres is NOT covered here and cannot
 // be: there is no external database in this environment, and Task 5's
@@ -16,12 +27,17 @@
 import { assert, assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 import {
   type BindingRow,
+  type ConnectableClient,
   type ConnectionRow,
   type FetchRow,
   handleFetchRequest,
   parseRequestBody,
+  type RawExternalRow,
   type SourceLoader,
+  toFetchRow,
   toNumberOrNull,
+  withConnectedClient,
+  withRequireSsl,
 } from '../functions/fetch-kpi-source/index.ts';
 
 // ---------------------------------------------------------------------------
@@ -55,12 +71,20 @@ Deno.test('parseRequestBody accepts a valid body', () => {
 });
 
 // ---------------------------------------------------------------------------
-// toNumberOrNull — never coerce null to 0.
+// toNumberOrNull — never coerce null (or blank) to 0.
 // ---------------------------------------------------------------------------
 
 Deno.test('toNumberOrNull keeps null as null, not 0', () => {
   assertEquals(toNumberOrNull(null), null);
   assertEquals(toNumberOrNull(undefined), null);
+});
+
+Deno.test('toNumberOrNull rejects an empty string rather than letting Number("") === 0 through', () => {
+  assertEquals(toNumberOrNull(''), null);
+});
+
+Deno.test('toNumberOrNull rejects a whitespace-only string for the same reason', () => {
+  assertEquals(toNumberOrNull('   '), null);
 });
 
 Deno.test('toNumberOrNull preserves an honest zero', () => {
@@ -82,8 +106,140 @@ Deno.test('toNumberOrNull returns null for unparseable input rather than throwin
 });
 
 // ---------------------------------------------------------------------------
-// handleFetchRequest — orchestration, with a fake loader/runQuery so no
-// network or database is ever touched.
+// toFetchRow — a SQL NULL subject_key must never become the literal "null".
+// ---------------------------------------------------------------------------
+
+Deno.test('toFetchRow maps a null subject_key to an empty string, never the literal "null"', () => {
+  const row: RawExternalRow = { subject_key: null, numerator: 5, denominator: null };
+  const fetched = toFetchRow(row);
+  assertEquals(fetched.subject_key, '');
+  assert(
+    fetched.subject_key !== 'null',
+    'a SQL NULL subject must not collide with a source that literally emits the text "null"',
+  );
+});
+
+Deno.test('toFetchRow maps an undefined subject_key to an empty string too', () => {
+  const row: RawExternalRow = { subject_key: undefined, numerator: null, denominator: null };
+  assertEquals(toFetchRow(row).subject_key, '');
+});
+
+Deno.test('toFetchRow stringifies a real subject_key unchanged', () => {
+  const row: RawExternalRow = { subject_key: 'alice@x.com', numerator: 1, denominator: 1 };
+  assertEquals(toFetchRow(row).subject_key, 'alice@x.com');
+});
+
+// ---------------------------------------------------------------------------
+// withRequireSsl — TLS enforcement (security review finding 2).
+// ---------------------------------------------------------------------------
+
+Deno.test('withRequireSsl appends sslmode=require to a bare connection string', () => {
+  const result = withRequireSsl('postgres://user:pw@host.example:5432/db');
+  assertEquals(result, 'postgres://user:pw@host.example:5432/db?sslmode=require');
+});
+
+Deno.test('withRequireSsl appends with & when the string already has query params', () => {
+  const result = withRequireSsl('postgres://user:pw@host.example:5432/db?application_name=fetch');
+  assertEquals(
+    result,
+    'postgres://user:pw@host.example:5432/db?application_name=fetch&sslmode=require',
+  );
+});
+
+Deno.test('withRequireSsl leaves an explicit sslmode alone', () => {
+  const result = withRequireSsl('postgres://user:pw@host.example:5432/db?sslmode=prefer');
+  assertEquals(result, 'postgres://user:pw@host.example:5432/db?sslmode=prefer');
+});
+
+Deno.test('withRequireSsl does not re-encode or otherwise touch the rest of the string', () => {
+  // A password containing a colon must survive byte-for-byte -- this is
+  // exactly what a round trip through the URL class would corrupt (it
+  // percent-re-encodes the whole string), which is why withRequireSsl is
+  // string surgery instead.
+  const withColonPassword = 'postgres://user:pa:ss@host.example:5432/db';
+  assertEquals(
+    withRequireSsl(withColonPassword),
+    'postgres://user:pa:ss@host.example:5432/db?sslmode=require',
+  );
+});
+
+// ---------------------------------------------------------------------------
+// withConnectedClient — the connection MUST be closed even when connect()
+// throws or times out (security review finding 3). This is the load-bearing
+// leak-prevention assertion: see task-5-report.md's Fix round 2 section for
+// the RED proof (temporarily moving connect() back outside the try/finally,
+// as the original code had it, and watching these go red).
+// ---------------------------------------------------------------------------
+
+class FakeClient implements ConnectableClient {
+  ended = false;
+  endCallCount = 0;
+  constructor(private readonly connectBehavior: () => Promise<void>) {}
+
+  connect(): Promise<void> {
+    return this.connectBehavior();
+  }
+
+  async end(): Promise<void> {
+    this.ended = true;
+    this.endCallCount++;
+  }
+}
+
+Deno.test('withConnectedClient closes the client after a successful body', async () => {
+  const client = new FakeClient(() => Promise.resolve());
+  const result = await withConnectedClient(client, 1_000, async () => 'ok');
+  assertEquals(result, 'ok');
+  assertEquals(client.ended, true);
+  assertEquals(client.endCallCount, 1);
+});
+
+Deno.test('withConnectedClient closes the client when connect() rejects', async () => {
+  const client = new FakeClient(() => Promise.reject(new Error('ECONNREFUSED')));
+  let threw = false;
+  try {
+    await withConnectedClient(client, 1_000, async () => 'unreached');
+  } catch {
+    threw = true;
+  }
+  assert(threw, 'expected the connect failure to propagate');
+  assertEquals(client.ended, true, 'client.end() must run even though connect() rejected');
+});
+
+Deno.test('withConnectedClient closes the client when connect() times out (never resolves)', async () => {
+  // Simulates the exact scenario in the finding: connect() hangs, the race
+  // in withTimeout is won by the timer, and the driver's own in-flight
+  // connect attempt is left running underneath. The client must still be
+  // closed.
+  const client = new FakeClient(() => new Promise<void>(() => {})); // never settles
+  let threw = false;
+  try {
+    await withConnectedClient(client, 20, async () => 'unreached');
+  } catch (err) {
+    threw = true;
+    assert((err as Error).message.includes('timed out'));
+  }
+  assert(threw, 'expected the connect timeout to propagate');
+  assertEquals(client.ended, true, 'client.end() must run even though connect() timed out');
+});
+
+Deno.test('withConnectedClient closes the client when the body throws', async () => {
+  const client = new FakeClient(() => Promise.resolve());
+  let threw = false;
+  try {
+    await withConnectedClient(client, 1_000, async () => {
+      throw new Error('query failed');
+    });
+  } catch {
+    threw = true;
+  }
+  assert(threw);
+  assertEquals(client.ended, true);
+});
+
+// ---------------------------------------------------------------------------
+// handleFetchRequest — orchestration, with a fake authorize/loader/runQuery
+// so no network or database is ever touched.
 // ---------------------------------------------------------------------------
 
 const validBinding: BindingRow = {
@@ -118,6 +274,11 @@ const validConnection: ConnectionRow = {
   is_active: true,
 };
 
+/// An authorize function every non-authorization test uses: the caller
+/// passed the HR/admin gate, so `handleFetchRequest` should proceed exactly
+/// as it did before that gate existed.
+const authorizedCaller = () => Promise.resolve(true);
+
 /// A loader where every method throws unless explicitly stubbed — so any
 /// test asserting "this must not be called" gets a loud failure, not a
 /// silent success, if it IS called.
@@ -139,9 +300,42 @@ function forbiddenRunQuery(): Promise<FetchRow[]> {
   throw new Error('runQuery should not have been called');
 }
 
+Deno.test(
+  'handleFetchRequest: a non-admin caller gets 403 and no binding lookup happens',
+  async () => {
+    const result = await handleFetchRequest({
+      body: { binding_id: validBinding.id, period: '2026-08' },
+      authorize: () => Promise.resolve(false),
+      // forbiddenLoader with no overrides: if the authorization gate is
+      // skipped, getBinding is reached and throws loudly instead of the
+      // test silently passing.
+      loader: forbiddenLoader(),
+      runQuery: forbiddenRunQuery,
+    });
+    assertEquals(result.status, 403);
+    assertEquals(result.body.code, 'NOT_AUTHORIZED');
+  },
+);
+
+Deno.test(
+  'handleFetchRequest: an authorize() that throws fails closed (403), not open',
+  async () => {
+    const result = await handleFetchRequest({
+      body: { binding_id: validBinding.id, period: '2026-08' },
+      authorize: () => {
+        throw new Error('auth_is_hr_or_admin RPC unreachable');
+      },
+      loader: forbiddenLoader(),
+      runQuery: forbiddenRunQuery,
+    });
+    assertEquals(result.status, 403);
+  },
+);
+
 Deno.test('handleFetchRequest: missing binding_id is rejected before any lookup', async () => {
   const result = await handleFetchRequest({
     body: { period: '2026-08' },
+    authorize: authorizedCaller,
     loader: forbiddenLoader(),
     runQuery: forbiddenRunQuery,
   });
@@ -152,6 +346,7 @@ Deno.test('handleFetchRequest: missing binding_id is rejected before any lookup'
 Deno.test('handleFetchRequest: unknown binding is a 404', async () => {
   const result = await handleFetchRequest({
     body: { binding_id: 'does-not-exist', period: '2026-08' },
+    authorize: authorizedCaller,
     loader: forbiddenLoader({
       getBinding: async () => null,
     }),
@@ -164,6 +359,7 @@ Deno.test('handleFetchRequest: unknown binding is a 404', async () => {
 Deno.test('handleFetchRequest: an inactive binding is also a 404', async () => {
   const result = await handleFetchRequest({
     body: { binding_id: validBinding.id, period: '2026-08' },
+    authorize: authorizedCaller,
     loader: forbiddenLoader({
       getBinding: async () => ({ ...validBinding, is_active: false }),
     }),
@@ -178,6 +374,7 @@ Deno.test(
     let credentialLookupCalled = false;
     const result = await handleFetchRequest({
       body: { binding_id: invalidBinding.id, period: '2026-08' },
+      authorize: authorizedCaller,
       loader: forbiddenLoader({
         getBinding: async () => invalidBinding,
         getConnection: async () => validConnection,
@@ -205,6 +402,7 @@ Deno.test(
 Deno.test('handleFetchRequest: missing credential secret is a 502, never a partial fetch', async () => {
   const result = await handleFetchRequest({
     body: { binding_id: validBinding.id, period: '2026-08' },
+    authorize: authorizedCaller,
     loader: forbiddenLoader({
       getBinding: async () => validBinding,
       getConnection: async () => validConnection,
@@ -220,6 +418,7 @@ Deno.test('handleFetchRequest: a query failure never leaks the underlying error 
   const secretLookingMessage = 'password authentication failed for user "ro_user" host=db.internal';
   const result = await handleFetchRequest({
     body: { binding_id: validBinding.id, period: '2026-08' },
+    authorize: authorizedCaller,
     loader: forbiddenLoader({
       getBinding: async () => validBinding,
       getConnection: async () => validConnection,
@@ -247,6 +446,7 @@ Deno.test('handleFetchRequest: success returns rows exactly as runQuery produced
   ];
   const result = await handleFetchRequest({
     body: { binding_id: validBinding.id, period: '2026-08' },
+    authorize: authorizedCaller,
     loader: forbiddenLoader({
       getBinding: async () => validBinding,
       getConnection: async () => validConnection,
@@ -271,6 +471,7 @@ Deno.test('handleFetchRequest: runQuery receives the username from connection.db
 
   await handleFetchRequest({
     body: { binding_id: validBinding.id, period: '2026-08' },
+    authorize: authorizedCaller,
     loader: forbiddenLoader({
       getBinding: async () => validBinding,
       getConnection: async () => validConnection,

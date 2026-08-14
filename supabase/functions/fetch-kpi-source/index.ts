@@ -10,6 +10,21 @@
 //                              | { error, code } with a non-2xx status
 //
 // Flow, in the order that matters for security:
+//   0. Gate the CALLER. This function reads admin-only configuration
+//      (kpi_connections/kpi_source_bindings — RLS on both is
+//      `auth_is_hr_or_admin()`, no self-read clause) using the SERVICE-ROLE
+//      key, which bypasses that RLS entirely — so this function, not
+//      Postgres, is the only thing standing between a rank-and-file
+//      employee's JWT and every employee's numerator/denominator for any
+//      period. `authorizeCaller` below re-checks the caller's role via
+//      `auth_is_hr_or_admin()` through a CALLER-scoped client (anon key +
+//      the incoming Authorization header, mirroring
+//      `send-performance-self-reviews/index.ts`'s `caller` client and
+//      `ReviewCycleRepository.callerSeesAllReviews()`
+//      (lib/data/repositories/review_cycle_repository.dart)). Anything
+//      other than HR/admin is a 403, before the binding is even looked up
+//      — see supabase/tests/fetch_kpi_source_test.ts for the test proving
+//      this ordering.
 //   1. Load the binding (kpi_source_bindings) and its connection
 //      (kpi_connections) from OUR OWN database.
 //   2. Build the external SELECT via `buildSourceSelect`
@@ -173,6 +188,12 @@ export type RunQuery = (
   period: string,
 ) => Promise<FetchRow[]>;
 
+/// Returns whether the CALLER (not the service-role client this function
+/// otherwise uses) is HR/admin. `handleFetchRequest` treats a throw the
+/// same as `false` — a role check that cannot be verified must fail
+/// closed, never fail open into "assume authorized".
+export type AuthorizeCaller = () => Promise<boolean>;
+
 /// Validates the two required request fields. Pure — no lookup, no I/O —
 /// so a missing `binding_id` is rejected before anything else in this
 /// module runs.
@@ -195,38 +216,68 @@ export function parseRequestBody(
 /// `null`/`undefined` stay `null` — the one rule this function exists to
 /// enforce, because `Number(null) === 0` in JavaScript and that would
 /// silently turn "this source had nothing to say" into a false zero. A
-/// finite numeric string (deno-postgres decodes `numeric`/`decimal`
-/// columns as strings to avoid float rounding on money-shaped values) is
-/// parsed; anything else that isn't already a `number` also comes back
-/// `null` rather than throwing — a single unparseable value in a big result
-/// set should not fail the whole binding.
+/// blank/whitespace-only string is the same bug in disguise —
+/// `Number('') === 0` and `Number('   ') === 0` as well — so it is rejected
+/// BEFORE reaching `Number(...)`, not left to fall through and produce an
+/// honest-looking zero for what was really an empty cell. A finite numeric
+/// string (deno-postgres decodes `numeric`/`decimal` columns as strings to
+/// avoid float rounding on money-shaped values) is parsed; anything else
+/// that isn't already a `number` also comes back `null` rather than
+/// throwing — a single unparseable value in a big result set should not
+/// fail the whole binding.
 export function toNumberOrNull(value: unknown): number | null {
   if (value === null || value === undefined) return null;
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (typeof value === 'string') {
+    if (value.trim().length === 0) return null;
     const n = Number(value);
     return Number.isFinite(n) ? n : null;
   }
   return null;
 }
 
-interface RawExternalRow {
+export interface RawExternalRow {
   subject_key: unknown;
   numerator: unknown;
   denominator: unknown;
 }
 
-function toFetchRow(row: RawExternalRow): FetchRow {
+/// A SQL `NULL` in the subject column must NOT become the literal string
+/// `"null"` — naive `String(null)` does exactly that, and a subject_key of
+/// `"null"` is indistinguishable from a source that genuinely emitted the
+/// text "null" as a key. It resolves to `''` instead: `kpi_subject_map`'s
+/// `external_key` has a NOT-BLANK CHECK constraint
+/// (`kpi_subject_map_external_key_not_blank`,
+/// `20260815000002_kpi_source_config.sql`), so `''` can never collide with
+/// a real mapped key — it is guaranteed to miss every lookup and resolve as
+/// unmapped, which is the correct, already-designed behaviour for "this row
+/// has no identifiable subject": still counted toward COMPANY, excluded
+/// from every DEPARTMENT/PERSONAL figure, and flagged via
+/// `unresolvedPresent` (`aggregateSourceRows`, `source_rows.dart`). Dropping
+/// the row instead was considered and rejected: for a
+/// [SubjectKind.none]-shaped binding, `subjectKey` is ignored entirely and
+/// EVERY row must still be summed, so silently discarding a null-subject
+/// row would undercount a NONE-kind KPI for no reason.
+export function toFetchRow(row: RawExternalRow): FetchRow {
+  const subjectKey = row.subject_key;
   return {
-    subject_key: String(row.subject_key),
+    subject_key:
+      subjectKey === null || subjectKey === undefined
+        ? ''
+        : String(subjectKey),
     numerator: toNumberOrNull(row.numerator),
     denominator: toNumberOrNull(row.denominator),
   };
 }
 
 /// The orchestration this task's tests target directly. Pure aside from the
-/// two injected effectful pieces (`loader`, `runQuery`), so every ordering
-/// and error-mapping rule can be proven without a live database:
+/// three injected effectful pieces (`authorize`, `loader`, `runQuery`), so
+/// every ordering and error-mapping rule can be proven without a live
+/// database:
+///   - a caller `authorize` rejects is a 403 and NEVER reaches `loader` —
+///     the service-role `loader` this function otherwise uses bypasses the
+///     RLS that would have enforced HR/admin-only access to this
+///     configuration, so this check is the only thing enforcing it;
 ///   - a missing binding_id never reaches `loader` at all;
 ///   - an unknown binding (`loader.getBinding` -> null) is a 404 and never
 ///     reaches `getConnection`, credential resolution, or `runQuery`;
@@ -235,10 +286,28 @@ function toFetchRow(row: RawExternalRow): FetchRow {
 ///     security-relevant ordering the brief asks to be load-bearing.
 export async function handleFetchRequest(args: {
   body: unknown;
+  authorize: AuthorizeCaller;
   loader: SourceLoader;
   runQuery: RunQuery;
 }): Promise<{ status: number; body: Record<string, unknown> }> {
-  const { body, loader, runQuery } = args;
+  const { body, authorize, loader, runQuery } = args;
+
+  // --- Caller authorization happens FIRST, before body validation and
+  // long before any binding/connection is loaded. Do not move this below
+  // the loader calls — see supabase/tests/fetch_kpi_source_test.ts for the
+  // test that fails if this ordering regresses.
+  let authorized: boolean;
+  try {
+    authorized = await authorize();
+  } catch (err) {
+    console.error('[fetch-kpi-source] authorization check failed', {
+      message: (err as Error)?.message,
+    });
+    authorized = false; // fail closed
+  }
+  if (!authorized) {
+    return { status: 403, body: { error: 'Forbidden', code: 'NOT_AUTHORIZED' } };
+  }
 
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     return {
@@ -383,13 +452,75 @@ export async function handleFetchRequest(args: {
 // exercised by the unit tests.
 // ---------------------------------------------------------------------------
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
-    }),
-  ]);
+/// Races `promise` against a `ms`-millisecond timer, rejecting with a
+/// `label`-tagged error if the timer wins. The timer handle is ALWAYS
+/// cleared once the race settles either way (`finally`, not left for the
+/// timer to fire into the void) — an uncleared `setTimeout` is a handle
+/// leak of the same shape as the connection leak fixed by
+/// `withConnectedClient` below, just smaller.
+export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
+  });
+}
+
+/// The minimal shape `withConnectedClient` needs — satisfied structurally
+/// by deno-postgres's `Client`, and by a hand-built fake in
+/// `fetch_kpi_source_test.ts` that never touches a real socket.
+export interface ConnectableClient {
+  connect(): Promise<void>;
+  end(): Promise<void>;
+}
+
+/// Runs `body` against `client`, connecting first (timeboxed to
+/// `connectTimeoutMs` via `withTimeout`) and GUARANTEEING `client.end()` is
+/// called exactly once afterward — whether `connect()` succeeds, throws, or
+/// times out. This is deliberately the ONLY place either connection this
+/// file opens calls `.connect()`, so a future call site cannot reintroduce
+/// the leak this fixes: previously `client.connect()` sat outside the
+/// `try/finally` that calls `.end()`, so a connect timeout (the timer
+/// winning `withTimeout`'s race, which does NOT stop the driver's own
+/// in-flight connection attempt) left the client dropped without ever
+/// being closed — on the external database for `runExternalQuery`, and on
+/// THIS project's own database for `resolveVaultSecret`. Putting `connect()`
+/// inside the `try` means the `finally` below runs, and calls `.end()`,
+/// regardless of which of those three ways `connect()` settles.
+export async function withConnectedClient<C extends ConnectableClient, T>(
+  client: C,
+  connectTimeoutMs: number,
+  body: (client: C) => Promise<T>,
+): Promise<T> {
+  try {
+    await withTimeout(client.connect(), connectTimeoutMs, 'connect');
+    return await body(client);
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
+/// Forces `sslmode=require` onto a Postgres connection string UNLESS it
+/// already names an `sslmode` explicitly (an operator's own choice is left
+/// alone). deno-postgres v0.19.3 defaults an unqualified connection to
+/// `{ enabled: true, enforce: false }` — TLS is *attempted* but a source
+/// that doesn't offer it is accepted anyway, silently, with the SCRAM
+/// handshake and every row crossing the network in the clear. `sslmode=require`
+/// parses to `{ enabled: true, enforce: true }` (confirmed against
+/// deno-postgres's own `connection_params.ts` at this pin), so a source that
+/// cannot do TLS fails the connection instead of downgrading it.
+///
+/// Deliberately string surgery, not a round trip through the `URL` class:
+/// `new URL(...).toString()` percent-re-encodes the whole string, including
+/// characters (like `:`) that can legitimately appear in a password —
+/// silently corrupting a credential is a worse failure mode than the one
+/// this function exists to close.
+export function withRequireSsl(connectionString: string): string {
+  if (/[?&]sslmode=/i.test(connectionString)) return connectionString;
+  const separator = connectionString.includes('?') ? '&' : '?';
+  return `${connectionString}${separator}sslmode=require`;
 }
 
 /// Reads one secret out of Supabase Vault via a DIRECT Postgres connection
@@ -398,11 +529,10 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 /// top of this file for why `@supabase/supabase-js` cannot reach
 /// `vault.decrypted_secrets`.
 async function resolveVaultSecret(dbUrl: string, ref: string): Promise<string | null> {
-  const client = new PgClient(dbUrl);
-  await withTimeout(client.connect(), CONNECT_TIMEOUT_MS, 'vault connect');
-  try {
+  const client = new PgClient(withRequireSsl(dbUrl));
+  return await withConnectedClient(client, CONNECT_TIMEOUT_MS, async (c) => {
     const result = await withTimeout(
-      client.queryObject<{ decrypted_secret: string }>(
+      c.queryObject<{ decrypted_secret: string }>(
         'select decrypted_secret from vault.decrypted_secrets where name = $1 limit 1',
         [ref],
       ),
@@ -410,9 +540,43 @@ async function resolveVaultSecret(dbUrl: string, ref: string): Promise<string | 
       'vault query',
     );
     return result.rows[0]?.decrypted_secret ?? null;
-  } finally {
-    await client.end().catch(() => {});
-  }
+  });
+}
+
+/// Checks the CALLER's own role via `auth_is_hr_or_admin()`
+/// (`20260423000004_rls_recognize_new_roles.sql`) — the exact function the
+/// RLS on `kpi_connections`/`kpi_source_bindings`/`kpi_subject_map`
+/// already uses, so there is one source of truth for "who counts as
+/// HR/admin" rather than a role list duplicated (and driftable) here. Runs
+/// through a CLIENT built with the ANON key plus the caller's own
+/// `Authorization` header — never the service-role client — so
+/// `auth_app_role()` inside the RPC reads the CALLER's JWT claims, not this
+/// function's own elevated identity. Mirrors
+/// `supabase/functions/send-performance-self-reviews/index.ts`'s `caller`
+/// client and `ReviewCycleRepository.callerSeesAllReviews()`
+/// (`lib/data/repositories/review_cycle_repository.dart`), which fails
+/// toward `false` for the same reason `handleFetchRequest` treats a throw
+/// here as unauthorized rather than propagating it: an RPC outage must
+/// degrade to "cannot certify HR/admin", never to "assume authorized".
+function makeAuthorizeCaller(
+  url: string,
+  anonKey: string,
+  authorizationHeader: string,
+): AuthorizeCaller {
+  return async () => {
+    const caller = createClient(url, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { headers: { Authorization: authorizationHeader } },
+    });
+    const { data, error } = await caller.rpc('auth_is_hr_or_admin');
+    if (error) {
+      console.error('[fetch-kpi-source] auth_is_hr_or_admin check failed', {
+        message: error.message,
+      });
+      return false;
+    }
+    return data === true;
+  };
 }
 
 function makeSupabaseLoader(
@@ -454,8 +618,11 @@ function makeSupabaseLoader(
 }
 
 /// Connects to the external database READ-ONLY (a `read_only` transaction —
-/// see deno-postgres's `TransactionOptions`), runs `sql` with `period` bound
-/// as `$1`, and always closes the connection, success or failure.
+/// see deno-postgres's `TransactionOptions`) and TLS-enforced (see
+/// `withRequireSsl`'s doc comment — here as an explicit `tls` option rather
+/// than string surgery, since this call site already builds a `ClientOptions`
+/// object), runs `sql` with `period` bound as `$1`, and always closes the
+/// connection via `withConnectedClient`, success, failure, or timeout alike.
 /// `connection.db_user` supplies the username; `password` is the plain
 /// secret `credential_ref` names — never a compound `"user:password"`
 /// value (see the CREDENTIAL RESOLUTION doc comment at the top of this
@@ -472,12 +639,12 @@ async function runExternalQuery(
     database: connection.database,
     user: connection.db_user,
     password,
+    tls: { enabled: true, enforce: true },
     connection: { attempts: 1 },
   });
 
-  await withTimeout(client.connect(), CONNECT_TIMEOUT_MS, 'connect');
-  try {
-    const tx = client.createTransaction('fetch_kpi_source', {
+  return await withConnectedClient(client, CONNECT_TIMEOUT_MS, async (c) => {
+    const tx = c.createTransaction('fetch_kpi_source', {
       read_only: true,
       isolation_level: 'read_committed',
     });
@@ -494,9 +661,7 @@ async function runExternalQuery(
       await tx.rollback().catch(() => {});
       throw err;
     }
-  } finally {
-    await client.end().catch(() => {});
-  }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -510,9 +675,10 @@ Deno.serve(async (req) => {
   }
 
   const url = Deno.env.get('SUPABASE_URL');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const dbUrl = Deno.env.get('SUPABASE_DB_URL');
-  if (!url || !serviceKey || !dbUrl) {
+  if (!url || !anonKey || !serviceKey || !dbUrl) {
     return json({ error: 'Server not configured', code: 'INTERNAL' }, 500);
   }
 
@@ -543,7 +709,13 @@ Deno.serve(async (req) => {
     return json({ error: 'Forbidden', code: 'NOT_AUTHORIZED' }, 403);
   }
 
+  const authorize = makeAuthorizeCaller(url, anonKey, authHeader);
   const loader = makeSupabaseLoader(admin, dbUrl, callerCompanyId);
-  const result = await handleFetchRequest({ body, loader, runQuery: runExternalQuery });
+  const result = await handleFetchRequest({
+    body,
+    authorize,
+    loader,
+    runQuery: runExternalQuery,
+  });
   return json(result.body, result.status);
 });
