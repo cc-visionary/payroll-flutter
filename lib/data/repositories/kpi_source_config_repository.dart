@@ -155,6 +155,49 @@ class KpiSourceConfigRepository {
   }
 
   // ===========================================================================
+  // kpis.numerator_source (Task 8's one narrow write)
+  // ===========================================================================
+
+  /// Updates ONLY `kpis.numerator_source` for [kpiId] -- never any other
+  /// column on that row. This is the one deliberate exception to this
+  /// class's own "always carry every field" rule stated in the header
+  /// comment above: that rule is about THIS class's three config tables,
+  /// where every write is a whole row this class alone owns. `kpis` is not
+  /// one of those tables -- it is owned by `RoleScorecardRepository`, whose
+  /// `saveLibraryKpi(..., writeDefinition: true)`
+  /// (`role_scorecard_repository.dart:245-259`) writes the KPI's ENTIRE
+  /// measurable definition (`value_type`, `numerator_label`,
+  /// `denominator_source`, `unit`, `cadence`, `proof_type`) in one call.
+  /// Routing a Settings ▸ KPI Sources binding save through that method
+  /// would blank every one of those fields the instant an admin points a
+  /// KPI at a source, because Postgrest writes every key present in an
+  /// `update` payload and this screen renders none of them. That exact
+  /// shape has cost this repo real data twice already -- see this class's
+  /// header comment -- so this single column gets its own single-column
+  /// method instead, the same shape `LeaveTypeRepository.setPaid`/
+  /// `setActive` already uses for the same reason.
+  ///
+  /// Call with `'cfg:<kpiId>'` (matching `ConfiguredSource.key`,
+  /// `configured_source.dart`) whenever a binding for [kpiId] becomes, or
+  /// stays, ACTIVE. Call with `null` on UNBIND -- deleting the binding, or
+  /// switching its `is_active` off -- because `computeResults` resolves a
+  /// KPI's source via `registry[kpi.numeratorSource]`
+  /// (`compute_kpi_results.dart:332,367`) and Task 7's registry only ever
+  /// builds a [ConfiguredSource] for an ACTIVE binding: a stale
+  /// `cfg:<kpiId>` left behind after unbinding would name a registry key
+  /// nothing answers to any more, and the KPI would read NO_DATA forever
+  /// with nothing in the UI saying why.
+  Future<void> setKpiNumeratorSource(
+    String kpiId,
+    String? numeratorSource,
+  ) async {
+    await _client
+        .from('kpis')
+        .update({'numerator_source': numeratorSource})
+        .eq('id', kpiId);
+  }
+
+  // ===========================================================================
   // fetch-kpi-source (Task 5's edge function)
   // ===========================================================================
 
@@ -199,3 +242,31 @@ class KpiSourceConfigRepository {
 final kpiSourceConfigRepositoryProvider = Provider<KpiSourceConfigRepository>(
   (ref) => KpiSourceConfigRepository(Supabase.instance.client),
 );
+
+/// Every connection, for Settings ▸ KPI Sources. No company_id filter here
+/// for the same reason none of this repository's own methods take one --
+/// see this file's header comment; RLS scopes it.
+final kpiConnectionsProvider = FutureProvider<List<KpiConnection>>((ref) {
+  return ref.watch(kpiSourceConfigRepositoryProvider).listConnections();
+});
+
+/// Every binding (active and retired), for Settings ▸ KPI Sources' bindings
+/// table -- unlike [KpiSourceConfigRepository.bindingForKpi], which answers
+/// "the one ACTIVE binding for this KPI", the screen needs the full list
+/// once and derives each KPI's active binding from it client-side, rather
+/// than making one round trip per KPI in the library.
+final kpiSourceBindingsProvider = FutureProvider<List<KpiSourceBinding>>((
+  ref,
+) {
+  return ref.watch(kpiSourceConfigRepositoryProvider).listBindings();
+});
+
+/// Subject-map rows for one connection, keyed by connection id -- Settings
+/// only ever needs one connection's mappings on screen at a time (the
+/// admin picks a connection first).
+final kpiSubjectMapProvider =
+    FutureProvider.family<List<KpiSubjectMap>, String>((ref, connectionId) {
+      return ref
+          .watch(kpiSourceConfigRepositoryProvider)
+          .subjectMapFor(connectionId);
+    });
