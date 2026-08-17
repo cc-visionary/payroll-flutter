@@ -606,4 +606,77 @@ void main() {
       expect(result.denominator, 10);
     });
   });
+
+  group('DEPARTMENT-kind subject resolution', () {
+    // A DEPARTMENT-kind binding's raw subject_key is an EXTERNAL code (a
+    // cost-centre code, the source's own department id) -- not this app's
+    // department uuid -- so it goes through kpi_subject_map exactly the
+    // way an EMPLOYEE-kind key does, just resolving to departmentId instead
+    // of employeeId. Task 9 wires this up; before it, a DEPARTMENT-kind
+    // binding's `unresolved` set stayed empty no matter what the source
+    // returned (see the plan's Task 9 report for why that made the
+    // Settings surface unable to say anything true about it).
+    test('a mapped external department code resolves and sums at department scope', () async {
+      final source = ConfiguredSource(
+        binding: _binding(subjectKind: SubjectKind.department),
+        subjectMapReader: (connectionId) async => [
+          _map('CC-OPS', deptId: 'd-ops'),
+          _map('CC-MKT', deptId: 'd-mkt'),
+        ],
+        fetcher: ({required bindingId, required period}) async => (
+          statusCode: 200,
+          body: {
+            'rows': [
+              _row('CC-OPS', numerator: 30, denominator: 30),
+              _row('CC-MKT', numerator: 10, denominator: 50),
+            ],
+          },
+        ),
+        employees: employees,
+        roles: roles,
+      );
+
+      final ops = await source.read(
+        scope: KpiScope.department,
+        period: '2026-08',
+        employeeIds: ['e-alice'], // alice -> r-ops -> d-ops
+      );
+      expect(ops.numerator, 30);
+      expect(ops.denominator, 30);
+
+      final company = await source.read(scope: KpiScope.company, period: '2026-08');
+      expect(company.numerator, 40);
+      expect(company.denominator, 80);
+    });
+
+    test('an unmapped external department code is reported, excluded from department, still counted in company', () async {
+      final source = ConfiguredSource(
+        binding: _binding(subjectKind: SubjectKind.department),
+        subjectMapReader: (connectionId) async => [_map('CC-OPS', deptId: 'd-ops')],
+        fetcher: ({required bindingId, required period}) async => (
+          statusCode: 200,
+          body: {
+            'rows': [
+              _row('CC-OPS', numerator: 30, denominator: 30),
+              _row('CC-UNKNOWN', numerator: 5, denominator: 5),
+            ],
+          },
+        ),
+        employees: employees,
+        roles: roles,
+      );
+
+      final detailed = await source.readDetailed(scope: KpiScope.company, period: '2026-08');
+      expect(detailed.numerator, 35); // unmapped code still counts here
+      expect(detailed.unresolvedSubjectKeys, ['CC-UNKNOWN']);
+
+      final ops = await source.readDetailed(
+        scope: KpiScope.department,
+        period: '2026-08',
+        employeeIds: ['e-alice'],
+      );
+      expect(ops.numerator, 30); // unmapped code excluded here
+      expect(ops.unresolvedSubjectKeys, ['CC-UNKNOWN']);
+    });
+  });
 }

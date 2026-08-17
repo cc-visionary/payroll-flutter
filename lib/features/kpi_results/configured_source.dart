@@ -349,17 +349,50 @@ class ConfiguredSource implements KpiSource {
       );
     }
 
-    // Only an EMPLOYEE-kind binding has an identity to resolve at all --
-    // DEPARTMENT rows already ARE a department id, and NONE rows have no
-    // subject. Skipping the subject-map read for those two kinds avoids a
-    // pointless repository round trip on every single read.
-    final subjectMap = binding.subjectKind == SubjectKind.employee
-        ? await _subjectMapReader(binding.connectionId)
-        : const <KpiSubjectMap>[];
+    // EMPLOYEE and DEPARTMENT bindings both resolve subjectKey through the
+    // SAME kpi_subject_map table -- its own header comment
+    // (`20260815000002_kpi_source_config.sql`) says one external_key
+    // column resolves to "this app's employee OR department", and
+    // `KpiSubjectMap` carries both `employeeId` and `departmentId` for
+    // exactly that reason. Only NONE has no subject at all to resolve, so
+    // only NONE skips the round trip -- unlike the single-kind guard this
+    // used to be, which (before Task 9) meant a DEPARTMENT-kind binding's
+    // `unresolved` set below stayed empty no matter what the source
+    // returned: Settings had nothing true to say about it.
+    final subjectMap = binding.subjectKind == SubjectKind.none
+        ? const <KpiSubjectMap>[]
+        : await _subjectMapReader(binding.connectionId);
     final subjectToEmployee = <String, String>{
       for (final m in subjectMap)
         if (m.employeeId != null) m.externalKey: m.employeeId!,
     };
+    final subjectToDepartment = <String, String>{
+      for (final m in subjectMap)
+        if (m.departmentId != null) m.externalKey: m.departmentId!,
+    };
+
+    // aggregateSourceRows's own contract for SubjectKind.department
+    // (source_rows.dart) is that subjectKey already IS this app's
+    // department id -- it does no translation of its own. A DEPARTMENT-kind
+    // binding's raw subjectKey is normally an EXTERNAL code (a cost-centre
+    // code, the source's own department id), so it is translated HERE,
+    // once, through the same kpi_subject_map row an admin adds from the
+    // unmapped-keys list Task 9 builds -- before aggregateSourceRows ever
+    // sees it. A code with no mapping is passed through unchanged: it will
+    // simply never equal a real departmentId, which aggregateSourceRows
+    // already treats as "excluded from every department total, still
+    // counted in company" -- the identical fate an unmapped EMPLOYEE-kind
+    // row gets via `subjectToEmployee`, just reached by a different route.
+    final effectiveRows = binding.subjectKind == SubjectKind.department
+        ? [
+            for (final r in rows)
+              SourceRow(
+                subjectKey: subjectToDepartment[r.subjectKey] ?? r.subjectKey,
+                numerator: r.numerator,
+                denominator: r.denominator,
+              ),
+          ]
+        : rows;
 
     // aggregateSourceRows wants a single employeeId/departmentId, not the
     // population list `read`'s own [employeeIds] carries -- derive it from
@@ -386,7 +419,7 @@ class ConfiguredSource implements KpiSource {
     }
 
     final aggregate = aggregateSourceRows(
-      rows: rows,
+      rows: effectiveRows,
       scope: scope,
       subjectKind: binding.subjectKind,
       subjectToEmployee: subjectToEmployee,
@@ -396,12 +429,21 @@ class ConfiguredSource implements KpiSource {
     );
 
     final unresolved = <String>{};
-    if (binding.subjectKind == SubjectKind.employee) {
-      for (final row in rows) {
-        if (!subjectToEmployee.containsKey(row.subjectKey)) {
-          unresolved.add(row.subjectKey);
+    switch (binding.subjectKind) {
+      case SubjectKind.employee:
+        for (final row in rows) {
+          if (!subjectToEmployee.containsKey(row.subjectKey)) {
+            unresolved.add(row.subjectKey);
+          }
         }
-      }
+      case SubjectKind.department:
+        for (final row in rows) {
+          if (!subjectToDepartment.containsKey(row.subjectKey)) {
+            unresolved.add(row.subjectKey);
+          }
+        }
+      case SubjectKind.none:
+        break;
     }
 
     return (

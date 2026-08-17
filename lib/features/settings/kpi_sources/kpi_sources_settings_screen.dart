@@ -1,20 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../../app/breakpoints.dart';
 import '../../../app/theme.dart';
 import '../../../data/models/department.dart';
 import '../../../data/models/employee.dart';
 import '../../../data/models/kpi.dart';
+import '../../../data/models/kpi_result.dart' show KpiScope;
 import '../../../data/models/kpi_source_config.dart';
 import '../../../data/repositories/department_repository.dart';
 import '../../../data/repositories/employee_repository.dart';
 import '../../../data/repositories/kpi_source_config_repository.dart';
 import '../../../data/repositories/role_scorecard_repository.dart'
-    show kpiLibraryProvider;
+    show kpiLibraryProvider, roleScorecardListProvider;
 import '../../../widgets/pending_migration_notice.dart';
 import '../../../widgets/responsive_table.dart';
 import '../../auth/profile_provider.dart';
+import '../../kpi_results/configured_source.dart';
+import '../../kpi_results/kpi_results_screen.dart' show periodOf, startOfPeriod;
 import '../../kpi_results/sql_identifier.dart';
 
 /// Said inline, at the point of typing, whenever `object_name` or one of the
@@ -329,6 +333,25 @@ class _KpiSourcesSettingsScreenState
             icon: const Icon(Icons.link_off, size: 18),
             tooltip: 'Unbind',
             onPressed: () => _confirmUnbind(context, kpi: kpi, binding: existing),
+          ),
+        // Only EMPLOYEE/DEPARTMENT bindings have a subject to map at all --
+        // a NONE-kind binding produces a single company figure with no
+        // identity behind it, so "unmapped keys" is meaningless for it. See
+        // ConfiguredSource.readDetailed: it never populates
+        // unresolvedSubjectKeys for SubjectKind.none.
+        if (existing != null && existing.subjectKind != SubjectKind.none)
+          IconButton(
+            key: Key('checkUnmapped-${kpi.id}'),
+            icon: const Icon(Icons.search, size: 18),
+            tooltip: 'Check for unmapped keys',
+            onPressed: () => showDialog<void>(
+              context: context,
+              builder: (_) => _UnmappedKeysDialog(
+                kpi: kpi,
+                binding: existing,
+                companyId: _companyId,
+              ),
+            ),
           ),
       ],
     );
@@ -1135,12 +1158,28 @@ class _SubjectMapFormDialog extends StatefulWidget {
   final List<Department> departments;
   final Future<void> Function(KpiSubjectMap) onSave;
 
+  /// Pre-fills and locks the external key -- set when this dialog is
+  /// opened FROM the unmapped-keys list (Task 9): the key is already known
+  /// (it is exactly what the source returned), so re-typing it would only
+  /// risk a mismatch between what was flagged and what gets mapped.
+  final String? fixedExternalKey;
+
+  /// Locks the target kind and hides [_MapTargetKind]'s picker entirely --
+  /// set the same way, from the unmapped-keys list, whose binding's
+  /// `subject_kind` already says which one is possible: EMPLOYEE maps to
+  /// an employee, DEPARTMENT to a department, never a choice between both.
+  /// `null` (the standalone "Add mapping" button) keeps the original
+  /// either-or picker.
+  final _MapTargetKind? fixedKind;
+
   const _SubjectMapFormDialog({
     required this.connectionId,
     required this.companyId,
     required this.employees,
     required this.departments,
     required this.onSave,
+    this.fixedExternalKey,
+    this.fixedKind,
   });
 
   @override
@@ -1148,8 +1187,8 @@ class _SubjectMapFormDialog extends StatefulWidget {
 }
 
 class _SubjectMapFormDialogState extends State<_SubjectMapFormDialog> {
-  final _externalKey = TextEditingController();
-  _MapTargetKind _kind = _MapTargetKind.employee;
+  late final _externalKey = TextEditingController(text: widget.fixedExternalKey ?? '');
+  late _MapTargetKind _kind = widget.fixedKind ?? _MapTargetKind.employee;
   String? _targetId;
   bool _saving = false;
 
@@ -1179,28 +1218,30 @@ class _SubjectMapFormDialogState extends State<_SubjectMapFormDialog> {
             TextField(
               key: const Key('subjectMapExternalKey'),
               controller: _externalKey,
+              readOnly: widget.fixedExternalKey != null,
               decoration: const InputDecoration(
                 labelText: 'External key (the source\'s own id)',
               ),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 12),
-            SegmentedButton<_MapTargetKind>(
-              key: const Key('subjectMapKind'),
-              segments: const [
-                ButtonSegment(value: _MapTargetKind.employee, label: Text('Employee')),
-                ButtonSegment(
-                  value: _MapTargetKind.department,
-                  label: Text('Department'),
-                ),
-              ],
-              selected: {_kind},
-              onSelectionChanged: (s) => setState(() {
-                _kind = s.first;
-                _targetId = null;
-              }),
-            ),
-            const SizedBox(height: 12),
+            if (widget.fixedKind == null)
+              SegmentedButton<_MapTargetKind>(
+                key: const Key('subjectMapKind'),
+                segments: const [
+                  ButtonSegment(value: _MapTargetKind.employee, label: Text('Employee')),
+                  ButtonSegment(
+                    value: _MapTargetKind.department,
+                    label: Text('Department'),
+                  ),
+                ],
+                selected: {_kind},
+                onSelectionChanged: (s) => setState(() {
+                  _kind = s.first;
+                  _targetId = null;
+                }),
+              ),
+            if (widget.fixedKind == null) const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               isExpanded: true,
               key: const Key('subjectMapTarget'),
@@ -1240,5 +1281,260 @@ class _SubjectMapFormDialogState extends State<_SubjectMapFormDialog> {
     );
     await widget.onSave(mapping);
     if (mounted) setState(() => _saving = false);
+  }
+}
+
+// ===========================================================================
+// Unmapped keys (Task 9) -- an on-demand, point-in-time probe
+// ===========================================================================
+
+/// "Keys this connection returned that map to nobody," for one binding, one
+/// period at a time -- the spec's "Done when" requirement that an unmapped
+/// subject be visible somewhere an admin can fix it. Without this, the
+/// failure mode is a company figure that is right sitting beside a
+/// department figure that is quietly short, and nothing on screen says so.
+///
+/// **On-demand, not stored.** There is no table for this -- the one
+/// migration this plan ships (`20260815000002_kpi_source_config.sql`) has
+/// no room for one, and adding a second was ruled out. So this dialog does
+/// a LIVE read every time it opens (and every time the period changes):
+/// [ConfiguredSource.readDetailed], the exact function `computeResults`
+/// itself would use for this binding. Reusing it, rather than re-deriving
+/// "unmapped" here, is deliberate -- see that class's own doc comment for
+/// why a second definition would be worse than no screen at all: it could
+/// say "all mapped" while the real recompute still undercounts.
+///
+/// **Point-in-time, said plainly.** The header text below names the exact
+/// period checked -- an admin who maps everything today and assumes it
+/// stays clean is the same silent-undercount failure, one level up. Mapping
+/// a key here fixes future recomputes of THIS period and any other period
+/// sharing the same external key; it does not retroactively repair a
+/// period already computed, and a new period can surface a brand new
+/// unmapped key of its own.
+///
+/// **Blank keys are a different problem.** Task 5's `toFetchRow` maps a SQL
+/// NULL `subject_key` to `''`, and `kpi_subject_map_external_key_not_blank`
+/// (`20260815000002_kpi_source_config.sql:174`) forbids a blank
+/// `external_key` -- so a blank key can never be mapped, only fixed
+/// upstream in the source. It is counted and named separately below, with
+/// no "Map" control, rather than offered a button that could only fail at
+/// the database.
+class _UnmappedKeysDialog extends ConsumerStatefulWidget {
+  final Kpi kpi;
+  final KpiSourceBinding binding;
+  final String companyId;
+
+  const _UnmappedKeysDialog({
+    required this.kpi,
+    required this.binding,
+    required this.companyId,
+  });
+
+  @override
+  ConsumerState<_UnmappedKeysDialog> createState() => _UnmappedKeysDialogState();
+}
+
+class _UnmappedKeysDialogState extends ConsumerState<_UnmappedKeysDialog> {
+  late String _period = periodOf(DateTime.now());
+  bool _loading = true;
+  Object? _error;
+  ConfiguredSourceResult? _result;
+  List<Employee> _employees = const [];
+  List<Department> _departments = const [];
+
+  DateTime get _periodStart => startOfPeriod(_period);
+  String get _monthLabel => DateFormat('MMMM yyyy').format(_periodStart);
+
+  @override
+  void initState() {
+    super.initState();
+    _check();
+  }
+
+  void _shiftMonth(int delta) {
+    final d = DateTime(_periodStart.year, _periodStart.month + delta, 1);
+    setState(() => _period = periodOf(d));
+    _check();
+  }
+
+  /// The live probe. Every failure -- including the two config tables not
+  /// existing yet -- is caught here and rendered as [PendingMigrationNotice]
+  /// or a plain error, the same as every other section of this screen;
+  /// [ConfiguredSource.readDetailed] itself only swallows the FETCH half of
+  /// a read (a network blip, a non-2xx), not a `subjectMapFor` call that
+  /// throws PGRST205 against an unapplied migration, so this catch has to
+  /// cover that too.
+  Future<void> _check() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final repo = ref.read(kpiSourceConfigRepositoryProvider);
+      final employees = await ref.read(
+        employeeListProvider(const EmployeeListQuery()).future,
+      );
+      final departments = await ref.read(departmentListProvider.future);
+      final roles = await ref.read(roleScorecardListProvider.future);
+      final source = ConfiguredSource(
+        binding: widget.binding,
+        subjectMapReader: repo.subjectMapFor,
+        fetcher: repo.fetchSourceRows,
+        employees: employees,
+        roles: roles,
+      );
+      // Company scope: unresolvedSubjectKeys is computed over EVERY row for
+      // the period regardless of scope (see ConfiguredSourceResult's own
+      // doc comment), so which scope is requested here has no bearing on
+      // which keys come back -- company is picked only because it needs no
+      // employeeIds population to ask for.
+      final result = await source.readDetailed(
+        scope: KpiScope.company,
+        period: _period,
+      );
+      if (!mounted) return;
+      setState(() {
+        _result = result;
+        _employees = employees;
+        _departments = departments;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _mapKey(String key) async {
+    final messenger = ScaffoldMessenger.of(context);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => _SubjectMapFormDialog(
+        connectionId: widget.binding.connectionId,
+        companyId: widget.companyId,
+        employees: _employees,
+        departments: _departments,
+        fixedExternalKey: key,
+        fixedKind: widget.binding.subjectKind == SubjectKind.employee
+            ? _MapTargetKind.employee
+            : _MapTargetKind.department,
+        onSave: (mapping) async {
+          try {
+            await ref
+                .read(kpiSourceConfigRepositoryProvider)
+                .upsertSubjectMapping(mapping);
+            ref.invalidate(kpiSubjectMapProvider(widget.binding.connectionId));
+            if (dialogContext.mounted) Navigator.pop(dialogContext);
+          } catch (e) {
+            messenger.showSnackBar(
+              SnackBar(content: Text('Could not save the mapping: $e')),
+            );
+          }
+        },
+      ),
+    );
+    // Disappearance must be a consequence of the write just made, not a
+    // second, differently-stubbed read -- re-running the SAME probe is what
+    // proves that: the fetch answers identically, only the subject map
+    // (just written) can change what comes back unresolved.
+    await _check();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget body;
+    if (_error != null) {
+      body = PendingMigrationNotice(error: _error!, feature: 'KPI subject mapping');
+    } else if (_loading) {
+      body = const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    } else {
+      final unresolved = _result?.unresolvedSubjectKeys ?? const <String>[];
+      final blankCount = unresolved.where((k) => k.isEmpty).length;
+      final realKeys = unresolved.where((k) => k.isNotEmpty).toList();
+      body = Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'For $_monthLabel only. This is a live check for this one period '
+            '-- mapping a key here does not retroactively fix past periods, '
+            'and a new period can surface a key of its own.',
+            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 12),
+          if (blankCount > 0)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                '$blankCount row(s) returned a blank subject key -- the '
+                'source\'s own ${widget.binding.subjectColumn} column is '
+                'empty for those rows. Fix this in the source system; '
+                'there is nothing to map here.',
+                style: const TextStyle(color: Colors.orange),
+              ),
+            ),
+          if (realKeys.isEmpty && blankCount == 0)
+            const Text('No unmapped keys for this period.', style: TextStyle(color: Colors.grey)),
+          for (final key in realKeys)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(key, style: AppTheme.mono(context, fontSize: 12)),
+                  ),
+                  TextButton(
+                    key: Key('mapUnresolved-$key'),
+                    onPressed: () => _mapKey(key),
+                    child: const Text('Map'),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      );
+    }
+
+    return AlertDialog(
+      title: Text('Unmapped keys -- ${widget.kpi.name}'),
+      content: SizedBox(
+        width: 480,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                IconButton(
+                  key: const Key('unmappedKeysPrevMonth'),
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: () => _shiftMonth(-1),
+                ),
+                Text(_monthLabel, style: Theme.of(context).textTheme.titleSmall),
+                IconButton(
+                  key: const Key('unmappedKeysNextMonth'),
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: () => _shiftMonth(1),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            body,
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    );
   }
 }
