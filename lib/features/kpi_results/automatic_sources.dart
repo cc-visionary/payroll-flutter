@@ -1,6 +1,7 @@
 import '../../data/models/attendance_day.dart';
 import '../../data/models/employee_review.dart';
 import '../../data/models/kpi_result.dart' show KpiScope;
+import 'configured_source.dart' show ConfiguredSource;
 
 /// A source's raw answer for one KPI/period — the pair `evaluateKpi`
 /// (`kpi_status.dart`) turns into a verdict.
@@ -214,13 +215,53 @@ class ReviewsCompletedOnTimeSource implements KpiSource {
 /// invent a threshold to make the table look complete, the owner removed both
 /// KPIs. If either returns it arrives with its definition and, probably, a
 /// migration — it is not a gap to quietly fill in.
+/// Composes the two code sources above with [configured] -- Task 6's
+/// `ConfiguredSource` instances, one per active `kpi_source_bindings` row
+/// (Task 7 Part D wires this from `kpi_results_screen.dart`'s `_recompute`).
+/// [configured] defaults to empty so every existing caller (and every test
+/// in `automatic_sources_test.dart` written before this parameter existed)
+/// keeps compiling unchanged.
+///
+/// **A collision throws instead of silently overwriting.** The two code
+/// sources are keyed `app.attendance.present_days` /
+/// `app.reviews.completed_on_time`; every configured source is keyed
+/// `cfg:<kpiId>` (`configured_source.dart`'s `ConfiguredSource.key`) --
+/// there is no way for a well-formed configured source to collide with a
+/// code key by construction, but this function does not trust that
+/// invariant blindly. It checks the registry key ALREADY built (code
+/// sources first, then each configured source in turn) before inserting,
+/// so any collision -- a code key somehow reused, or two configured
+/// sources resolving to the same key (e.g. two rows a caller believed were
+/// both "the one active binding" for the same KPI, which
+/// `kpi_source_bindings_kpi_active`'s partial unique index prevents at the
+/// database level but this in-memory function has no database in front of
+/// it to enforce that for it) -- throws, naming the exact key that
+/// collided, rather than letting the second source silently replace the
+/// first. Per the plan: "a collision means something is wrong rather than
+/// something to resolve quietly."
 Map<String, KpiSource> buildSourceRegistry({
   required AttendanceRangeReader attendanceRangeReader,
   required EmployeeReviewsReader employeeReviewsReader,
+  List<ConfiguredSource> configured = const [],
 }) {
   final sources = <KpiSource>[
     AttendancePresentDaysSource(attendanceRangeReader),
     ReviewsCompletedOnTimeSource(employeeReviewsReader),
   ];
-  return {for (final source in sources) source.key: source};
+  final registry = <String, KpiSource>{
+    for (final source in sources) source.key: source,
+  };
+  for (final source in configured) {
+    if (registry.containsKey(source.key)) {
+      throw StateError(
+        'buildSourceRegistry: a configured source collides with an '
+        'existing registry key "${source.key}" -- refusing to silently '
+        'overwrite it. A collision means something is wrong (e.g. two '
+        'active-looking bindings resolving to the same KPI), not '
+        'something to resolve quietly.',
+      );
+    }
+    registry[source.key] = source;
+  }
+  return registry;
 }

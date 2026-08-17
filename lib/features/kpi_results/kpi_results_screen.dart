@@ -8,15 +8,18 @@ import '../../app/status_colors.dart';
 import '../../data/models/kpi.dart';
 import '../../data/models/kpi_input.dart';
 import '../../data/models/kpi_result.dart';
+import '../../data/models/kpi_source_config.dart' show KpiSourceBinding;
 import '../../data/repositories/attendance_repository.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../data/repositories/kpi_result_repository.dart';
+import '../../data/repositories/kpi_source_config_repository.dart';
 import '../../data/repositories/review_cycle_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../../widgets/responsive_table.dart';
 import '../../widgets/pending_migration_notice.dart';
 import 'automatic_sources.dart';
 import 'compute_kpi_results.dart';
+import 'configured_source.dart';
 
 /// Every `kpi_results` row for one period, across every scope in one call --
 /// a recompute (Task 7's `computeResults`) writes company/department/personal
@@ -234,6 +237,99 @@ class _KpiResultsScreenState extends ConsumerState<KpiResultsScreen> {
 
       final attendanceRepo = ref.read(attendanceRepositoryProvider);
       final reviewRepo = ref.read(reviewCycleRepositoryProvider);
+
+      // Task 7 Part D: every ACTIVE `kpi_source_bindings` row becomes one
+      // `ConfiguredSource` in the registry, alongside the two code sources.
+      // `20260815000002_kpi_source_config.sql` is, as of writing, UNAPPLIED
+      // on the live database -- `listBindings()` raises PGRST205 there --
+      // so this load is wrapped and degrades to "no configured sources"
+      // rather than aborting the whole recompute: code-source and manual
+      // KPIs must still compute even when the source-config tables do not
+      // exist yet. `kpiResultsForPeriodProvider`'s own `PendingMigrationNotice`
+      // (this screen's `error` branch) already tells the user the read side
+      // is unavailable; this catch is what keeps WRITING (Recompute) from
+      // failing in sympathy with a table Recompute does not even need for
+      // every KPI, only for the ones an admin has actually bound.
+      //
+      // The degrade is unconditional -- `activeBindings = const []` happens
+      // either way, below -- but the REASON is not treated as one thing.
+      // `isPendingMigrationError` (`pending_migration_notice.dart`) tells
+      // apart the two shapes a `listBindings()` failure can take, and they
+      // are not alike:
+      //   - PGRST205/PGRST204 (the table genuinely does not exist yet):
+      //     expected, temporary, and already explained to the user by
+      //     `PendingMigrationNotice` on the READ side (this screen's
+      //     `error` branch) -- a silent degrade here restates a fact the
+      //     user has already been told, not a new silence.
+      //   - anything else (an RLS denial, a network failure, a column
+      //     rename after a bad migration): permanent, wrong, and nobody
+      //     is told. Left silent, every bound KPI would read
+      //     NO_DATA/MISSING_SOURCE forever, indistinguishable from "no
+      //     admin has bound anything yet" -- exactly the silent failure
+      //     this whole branch exists to prevent (NO_DATA is only honest
+      //     when its REASON is reachable -- see `ConfiguredSource`'s own
+      //     doc comment). So this branch warns through the same snackbar
+      //     surface Recompute already uses (below/`catch (e)`), rather
+      //     than swallowing it identically to the expected case.
+      final sourceConfigRepo = ref.read(kpiSourceConfigRepositoryProvider);
+      List<KpiSourceBinding> activeBindings;
+      try {
+        // `listBindings()` does NOT filter `is_active` (its own doc comment)
+        // -- it returns every binding ever created, retired or not. Only
+        // ACTIVE ones belong in the registry: an inactive binding is a
+        // deliberately retired configuration, and wiring it in anyway would
+        // resurrect a source an admin turned off, silently overriding
+        // whatever the KPI is supposed to read now (nothing, or a
+        // replacement binding). This filter is the ONLY thing enforcing
+        // that -- the repository does not, and `kpi_source_bindings_kpi_active`
+        // (the partial unique index) only ever constrains ACTIVE rows
+        // against each other, not against inactive history.
+        activeBindings = (await sourceConfigRepo.listBindings())
+            .where((b) => b.isActive)
+            .toList();
+      } catch (e) {
+        activeBindings = const [];
+        if (!isPendingMigrationError(e)) {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Configured KPI sources could not be loaded; those KPIs '
+                'will read as having no data this recompute.',
+              ),
+            ),
+          );
+        }
+      }
+
+      // DELIBERATELY OUTSIDE the degrade-catch above. Everything from here to
+      // `buildSourceRegistry` can only fail on a CONFIGURATION-INTEGRITY
+      // problem -- `ConfiguredSource`'s ArgumentError on a null `binding.id`,
+      // or `buildSourceRegistry`'s StateError on two sources claiming one key
+      // -- and those are not the same animal as "a source could not be read".
+      // A source that cannot be read yields NO_DATA for its own KPI and the
+      // recompute continues (`compute_kpi_results.dart`'s `_readSource`
+      // contains the throw per-KPI). A registry that cannot be BUILT means we
+      // do not know which source belongs to which KPI, so there is no
+      // per-KPI blast radius to fall back to; letting the outer catch abort
+      // the whole recompute is the intended behaviour, not an oversight. The
+      // plan's words for the collision case: "a collision means something is
+      // wrong rather than something to resolve quietly."
+      //
+      // Neither is reachable today -- DB rows always carry a non-null id, and
+      // `kpi_source_bindings_kpi_active` allows at most one ACTIVE binding per
+      // KPI. Do not "fix" this by widening the catch: that would convert a
+      // broken configuration into a silent partial recompute.
+      final configuredSources = [
+        for (final binding in activeBindings)
+          ConfiguredSource(
+            binding: binding,
+            subjectMapReader: sourceConfigRepo.subjectMapFor,
+            fetcher: sourceConfigRepo.fetchSourceRows,
+            employees: employees,
+            roles: roles,
+          ),
+      ];
+
       final registry = buildSourceRegistry(
         attendanceRangeReader: attendanceRepo.listByRange,
         // `allReviews()` is safe to wire from ANY caller, HR-gated route or
@@ -246,6 +342,7 @@ class _KpiResultsScreenState extends ConsumerState<KpiResultsScreen> {
         // guard (app/router.dart) is a client-side navigation gate and was
         // never the thing making this call safe.
         employeeReviewsReader: reviewRepo.allReviews,
+        configured: configuredSources,
       );
 
       final results = await computeResults(

@@ -2,7 +2,35 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:payroll_flutter/data/models/attendance_day.dart';
 import 'package:payroll_flutter/data/models/employee_review.dart';
 import 'package:payroll_flutter/data/models/kpi_result.dart';
+import 'package:payroll_flutter/data/models/kpi_source_config.dart';
 import 'package:payroll_flutter/features/kpi_results/automatic_sources.dart';
+import 'package:payroll_flutter/features/kpi_results/configured_source.dart';
+
+/// A minimal, never-actually-read [ConfiguredSource] -- every test in the
+/// `buildSourceRegistry` group below asserts on registry SHAPE (which keys
+/// map to which source), never on what `read()`/`readDetailed()` return, so
+/// the fetcher and subject map reader are never invoked.
+ConfiguredSource _configuredSource({
+  required String kpiId,
+  String bindingId = 'b-1',
+}) => ConfiguredSource(
+  binding: KpiSourceBinding(
+    id: bindingId,
+    companyId: 'c',
+    kpiId: kpiId,
+    connectionId: 'conn-1',
+    objectName: 'daily_sales_fact',
+    periodColumn: 'period',
+    subjectColumn: 'staff_id',
+    numeratorColumn: 'revenue',
+    subjectKind: SubjectKind.none,
+  ),
+  subjectMapReader: (connectionId) async => const [],
+  fetcher: ({required bindingId, required period}) async =>
+      (statusCode: 200, body: {'rows': []}),
+  employees: const [],
+  roles: const [],
+);
 
 AttendanceDay _day({
   required String employeeId,
@@ -349,5 +377,51 @@ void main() {
       expect(registry.containsKey('app.hiring.critical_vacancy_aging'), isFalse);
       expect(registry.containsKey('app.employees.documentation_complete'), isFalse);
     });
+
+    test('a configured source joins the map alongside the two code sources', () {
+      final configured = _configuredSource(kpiId: 'kpi-1');
+      final registry = buildSourceRegistry(
+        attendanceRangeReader: ({required start, required end}) async => [],
+        employeeReviewsReader: () async => [],
+        configured: [configured],
+      );
+
+      expect(registry.keys.toSet(), {
+        'app.attendance.present_days',
+        'app.reviews.completed_on_time',
+        'cfg:kpi-1',
+      });
+      expect(registry['cfg:kpi-1'], same(configured));
+    });
+
+    test(
+      'two configured sources resolving to the same registry key collide and throw, naming the key',
+      () {
+        // `kpi_source_bindings_kpi_active` guarantees at most one ACTIVE
+        // binding per KPI at the database level, but `buildSourceRegistry`
+        // itself has no database in front of it -- it trusts whatever list
+        // its caller hands it. Two bindings for the same kpiId reaching
+        // this function (a caller bug, a stale cache, two "active-looking"
+        // rows from two different reads) must not let the second one
+        // silently win; it must be loud about exactly which key collided.
+        final first = _configuredSource(kpiId: 'kpi-1', bindingId: 'b-1');
+        final second = _configuredSource(kpiId: 'kpi-1', bindingId: 'b-2');
+
+        expect(
+          () => buildSourceRegistry(
+            attendanceRangeReader: ({required start, required end}) async => [],
+            employeeReviewsReader: () async => [],
+            configured: [first, second],
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('cfg:kpi-1'),
+            ),
+          ),
+        );
+      },
+    );
   });
 }

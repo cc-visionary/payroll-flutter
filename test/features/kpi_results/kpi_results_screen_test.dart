@@ -7,12 +7,63 @@ import 'package:payroll_flutter/data/models/employee.dart';
 import 'package:payroll_flutter/data/models/kpi.dart';
 import 'package:payroll_flutter/data/models/kpi_input.dart';
 import 'package:payroll_flutter/data/models/kpi_result.dart';
+import 'package:payroll_flutter/data/models/kpi_source_config.dart';
 import 'package:payroll_flutter/data/repositories/employee_repository.dart';
 import 'package:payroll_flutter/data/repositories/kpi_result_repository.dart';
+import 'package:payroll_flutter/data/repositories/kpi_source_config_repository.dart';
 import 'package:payroll_flutter/data/repositories/role_scorecard_repository.dart';
 import 'package:payroll_flutter/features/kpi_results/kpi_results_screen.dart';
 
 import '../../support/supabase_stub.dart';
+
+/// Stands in for `KpiSourceConfigRepository` so a test can hand `_recompute`
+/// (Task 7 Part D) fixed bindings/fetch responses, and -- for the
+/// degraded-load test -- an error `listBindings()` throws, without any of
+/// the three real config tables existing against the stub Supabase client.
+class _FakeKpiSourceConfigRepository extends KpiSourceConfigRepository {
+  _FakeKpiSourceConfigRepository(
+    super.client, {
+    this.bindings = const [],
+    this.fetchResponses = const {},
+    this.listBindingsError,
+  });
+
+  final List<KpiSourceBinding> bindings;
+  final Map<String, ({int statusCode, dynamic body})> fetchResponses;
+
+  /// Thrown by [listBindings] when set -- stands in for the PGRST205 a real
+  /// Supabase project raises while `20260815000002_kpi_source_config.sql`
+  /// is still unapplied.
+  final Object? listBindingsError;
+
+  /// Set by [listBindings] each call -- lets a test prove the fake was
+  /// actually reached (and, together with [fetchSourceRowsCalls], that an
+  /// inactive binding never gets far enough to call `fetchSourceRows` at
+  /// all).
+  int listBindingsCalls = 0;
+  final List<String> fetchSourceRowsCalls = [];
+
+  @override
+  Future<List<KpiSourceBinding>> listBindings() async {
+    listBindingsCalls++;
+    final error = listBindingsError;
+    if (error != null) throw error;
+    return bindings;
+  }
+
+  @override
+  Future<List<KpiSubjectMap>> subjectMapFor(String connectionId) async =>
+      const [];
+
+  @override
+  Future<({int statusCode, dynamic body})> fetchSourceRows({
+    required String bindingId,
+    required String period,
+  }) async {
+    fetchSourceRowsCalls.add(bindingId);
+    return fetchResponses[bindingId] ?? (statusCode: 200, body: {'rows': []});
+  }
+}
 
 /// Records what `_recompute` hands to `upsertAll`, instead of writing
 /// anywhere real. Every other method a recompute could reach
@@ -83,6 +134,36 @@ KpiResult _r({
   sourceCompleteness: status == KpiStatus.noData
       ? SourceCompleteness.missingSource
       : SourceCompleteness.complete,
+);
+
+/// AUTOMATIC, COMPANY-level, INDEPENDENT-rollup, `numerator_source:
+/// 'cfg:k-cfg'`, subjectKind NONE -- the simplest KPI shape a configured
+/// source can answer: one company-wide figure, no employee/department
+/// identity to resolve at all.
+Kpi _configuredKpi() => Kpi(
+  id: 'k-cfg',
+  companyId: 'c',
+  name: 'Configured KPI',
+  level: 'COMPANY',
+  rollupType: 'INDEPENDENT',
+  dataMethod: 'AUTOMATIC',
+  numeratorSource: 'cfg:k-cfg',
+  valueType: 'COUNT',
+  targetDirection: 'HIGHER',
+  targetValue: 5,
+);
+
+KpiSourceBinding _configuredBinding({bool isActive = true}) => KpiSourceBinding(
+  id: 'binding-1',
+  companyId: 'c',
+  kpiId: 'k-cfg',
+  connectionId: 'conn-1',
+  objectName: 'daily_sales_fact',
+  periodColumn: 'period',
+  subjectColumn: 'staff_id',
+  numeratorColumn: 'revenue',
+  subjectKind: SubjectKind.none,
+  isActive: isActive,
 );
 
 void main() {
@@ -197,6 +278,307 @@ void main() {
       expect(written.single.numerator, 42);
       expect(written.single.value, 42);
       expect(written.single.status, KpiStatus.onTrack); // 42 >= target 10
+    },
+  );
+
+  testWidgets(
+    'an active binding is wired into the registry and the recompute reads '
+    'through it',
+    (tester) async {
+      final fakeRepo = _FakeKpiResultRepository(Supabase.instance.client);
+      final fakeSourceConfigRepo = _FakeKpiSourceConfigRepository(
+        Supabase.instance.client,
+        bindings: [_configuredBinding()],
+        fetchResponses: {
+          'binding-1': (
+            statusCode: 200,
+            body: {
+              'rows': [
+                {'subject_key': 'ignored', 'numerator': 7, 'denominator': null},
+              ],
+            },
+          ),
+        },
+      );
+
+      tester.view.physicalSize = const Size(1400, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            kpiResultsForPeriodProvider('2026-08').overrideWith((ref) async => const []),
+            kpiLibraryProvider.overrideWith((ref) async => [_configuredKpi()]),
+            employeeListProvider(
+              const EmployeeListQuery(),
+            ).overrideWith((ref) async => [_employee('e1')]),
+            roleScorecardListProvider.overrideWith((ref) async => const []),
+            kpiRoleIdsByKpiProvider.overrideWith((ref) async => const {}),
+            kpiResultRepositoryProvider.overrideWith((ref) => fakeRepo),
+            kpiSourceConfigRepositoryProvider.overrideWith(
+              (ref) => fakeSourceConfigRepo,
+            ),
+          ],
+          child: const MaterialApp(home: KpiResultsScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Recompute this month'));
+      await tester.pumpAndSettle();
+
+      expect(fakeSourceConfigRepo.listBindingsCalls, 1);
+      expect(fakeSourceConfigRepo.fetchSourceRowsCalls, ['binding-1']);
+
+      final written = fakeRepo.upserted;
+      expect(written, isNotNull);
+      expect(written, hasLength(1));
+      // The fetcher's numerator (7), not a placeholder -- proves the row
+      // came from the configured source actually being read, not from a
+      // registry that quietly had nothing under 'cfg:k-cfg'.
+      expect(written!.single.numerator, 7);
+      expect(written.single.value, 7);
+      expect(written.single.status, KpiStatus.onTrack); // 7 >= target 5
+    },
+  );
+
+  testWidgets(
+    'an INACTIVE binding is not wired in -- the KPI reports NO_DATA rather '
+    'than reading a retired binding',
+    (tester) async {
+      final fakeRepo = _FakeKpiResultRepository(Supabase.instance.client);
+      final fakeSourceConfigRepo = _FakeKpiSourceConfigRepository(
+        Supabase.instance.client,
+        // listBindings() itself does not filter by is_active (repository's
+        // own doc comment) -- an inactive row still comes back from it. The
+        // screen is the one that must exclude it before building a
+        // ConfiguredSource.
+        bindings: [_configuredBinding(isActive: false)],
+        fetchResponses: {
+          'binding-1': (
+            statusCode: 200,
+            body: {
+              'rows': [
+                {'subject_key': 'ignored', 'numerator': 7, 'denominator': null},
+              ],
+            },
+          ),
+        },
+      );
+
+      tester.view.physicalSize = const Size(1400, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            kpiResultsForPeriodProvider('2026-08').overrideWith((ref) async => const []),
+            kpiLibraryProvider.overrideWith((ref) async => [_configuredKpi()]),
+            employeeListProvider(
+              const EmployeeListQuery(),
+            ).overrideWith((ref) async => [_employee('e1')]),
+            roleScorecardListProvider.overrideWith((ref) async => const []),
+            kpiRoleIdsByKpiProvider.overrideWith((ref) async => const {}),
+            kpiResultRepositoryProvider.overrideWith((ref) => fakeRepo),
+            kpiSourceConfigRepositoryProvider.overrideWith(
+              (ref) => fakeSourceConfigRepo,
+            ),
+          ],
+          child: const MaterialApp(home: KpiResultsScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Recompute this month'));
+      await tester.pumpAndSettle();
+
+      // The inactive binding must never reach the fetch call -- proves the
+      // exclusion happens before a ConfiguredSource is even built, not
+      // merely that its answer was discarded afterward.
+      expect(fakeSourceConfigRepo.fetchSourceRowsCalls, isEmpty);
+
+      final written = fakeRepo.upserted;
+      expect(written, isNotNull);
+      expect(written, hasLength(1));
+      expect(written!.single.numerator, isNull);
+      expect(written.single.status, KpiStatus.noData);
+      expect(
+        written.single.sourceCompleteness,
+        SourceCompleteness.missingSource,
+      );
+    },
+  );
+
+  testWidgets(
+    'kpi_source_bindings failing to load with a PENDING-MIGRATION error '
+    '(unapplied migration) degrades to "no configured sources" QUIETLY -- '
+    'the recompute still runs, still writes code-source/manual results, '
+    'and does not warn (PendingMigrationNotice already told the user on '
+    'the read side)',
+    (tester) async {
+      final kpi = Kpi(
+        id: 'k-1',
+        companyId: 'c',
+        name: 'Test KPI',
+        level: 'COMPANY',
+        rollupType: 'INDEPENDENT',
+        dataMethod: 'MANUAL_PERIODIC',
+        valueType: 'COUNT',
+        targetDirection: 'HIGHER',
+        targetValue: 10,
+      );
+      final reading = KpiReading(
+        companyId: 'c',
+        kpiId: 'k-1',
+        period: '2026-08',
+        scope: KpiScope.company,
+        numerator: 42,
+        reportedVia: ReportedVia.app,
+      );
+      final fakeRepo = _FakeKpiResultRepository(
+        Supabase.instance.client,
+        readings: [reading],
+      );
+      final fakeSourceConfigRepo = _FakeKpiSourceConfigRepository(
+        Supabase.instance.client,
+        // The exact shape a real Supabase project raises while
+        // 20260815000002_kpi_source_config.sql is still unapplied.
+        listBindingsError: PostgrestException(
+          message:
+              "Could not find the table 'public.kpi_source_bindings' in "
+              'the schema cache',
+          code: 'PGRST205',
+        ),
+      );
+
+      tester.view.physicalSize = const Size(1400, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            kpiResultsForPeriodProvider('2026-08').overrideWith((ref) async => const []),
+            kpiLibraryProvider.overrideWith((ref) async => [kpi]),
+            employeeListProvider(
+              const EmployeeListQuery(),
+            ).overrideWith((ref) async => [_employee('e1')]),
+            roleScorecardListProvider.overrideWith((ref) async => const []),
+            kpiRoleIdsByKpiProvider.overrideWith((ref) async => const {}),
+            kpiResultRepositoryProvider.overrideWith((ref) => fakeRepo),
+            kpiSourceConfigRepositoryProvider.overrideWith(
+              (ref) => fakeSourceConfigRepo,
+            ),
+          ],
+          child: const MaterialApp(home: KpiResultsScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Recompute this month'));
+      await tester.pumpAndSettle();
+
+      // The generic "Could not recompute" failure snackbar must NOT appear
+      // -- the missing source-config tables must not take the whole
+      // recompute down.
+      expect(find.textContaining('Could not recompute'), findsNothing);
+      // Nor should the "could not be loaded" warning -- PGRST205 is the
+      // EXPECTED, temporary state while this migration is unapplied, and
+      // PendingMigrationNotice already explains that to the user on the
+      // read side. A warning here would be a second, redundant alarm for
+      // a fact already stated once.
+      expect(find.textContaining('could not be loaded'), findsNothing);
+
+      final written = fakeRepo.upserted;
+      expect(written, isNotNull);
+      expect(written, hasLength(1));
+      expect(written!.single.kpiId, 'k-1');
+      expect(written.single.numerator, 42);
+      expect(written.single.status, KpiStatus.onTrack);
+    },
+  );
+
+  testWidgets(
+    'kpi_source_bindings failing to load with a NON-pending-migration error '
+    '(an RLS denial, a network blip, anything that is not PGRST205/PGRST204) '
+    'degrades to "no configured sources" AND warns -- silence here would '
+    'make a permanent, wrong failure indistinguishable from "no admin has '
+    'bound anything yet"',
+    (tester) async {
+      final kpi = Kpi(
+        id: 'k-1',
+        companyId: 'c',
+        name: 'Test KPI',
+        level: 'COMPANY',
+        rollupType: 'INDEPENDENT',
+        dataMethod: 'MANUAL_PERIODIC',
+        valueType: 'COUNT',
+        targetDirection: 'HIGHER',
+        targetValue: 10,
+      );
+      final reading = KpiReading(
+        companyId: 'c',
+        kpiId: 'k-1',
+        period: '2026-08',
+        scope: KpiScope.company,
+        numerator: 42,
+        reportedVia: ReportedVia.app,
+      );
+      final fakeRepo = _FakeKpiResultRepository(
+        Supabase.instance.client,
+        readings: [reading],
+      );
+      final fakeSourceConfigRepo = _FakeKpiSourceConfigRepository(
+        Supabase.instance.client,
+        // A PostgrestException, but NOT one of the two schema-cache codes
+        // isPendingMigrationError recognizes -- an RLS denial, e.g. -- so
+        // this must be treated as a real, permanent fault, not the
+        // expected "migration not applied yet" shape.
+        listBindingsError: PostgrestException(
+          message: 'permission denied for table kpi_source_bindings',
+          code: '42501',
+        ),
+      );
+
+      tester.view.physicalSize = const Size(1400, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            kpiResultsForPeriodProvider('2026-08').overrideWith((ref) async => const []),
+            kpiLibraryProvider.overrideWith((ref) async => [kpi]),
+            employeeListProvider(
+              const EmployeeListQuery(),
+            ).overrideWith((ref) async => [_employee('e1')]),
+            roleScorecardListProvider.overrideWith((ref) async => const []),
+            kpiRoleIdsByKpiProvider.overrideWith((ref) async => const {}),
+            kpiResultRepositoryProvider.overrideWith((ref) => fakeRepo),
+            kpiSourceConfigRepositoryProvider.overrideWith(
+              (ref) => fakeSourceConfigRepo,
+            ),
+          ],
+          child: const MaterialApp(home: KpiResultsScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Recompute this month'));
+      await tester.pumpAndSettle();
+
+      // The whole recompute must still succeed -- the degrade is
+      // unconditional, only the WARNING is conditional.
+      expect(find.textContaining('Could not recompute'), findsNothing);
+      // But a non-pending-migration failure must not be swallowed
+      // silently -- it must surface through the same snackbar surface
+      // Recompute already uses.
+      expect(find.textContaining('could not be loaded'), findsOneWidget);
+
+      final written = fakeRepo.upserted;
+      expect(written, isNotNull);
+      expect(written, hasLength(1));
+      expect(written!.single.kpiId, 'k-1');
+      expect(written.single.numerator, 42);
+      expect(written.single.status, KpiStatus.onTrack);
     },
   );
 }

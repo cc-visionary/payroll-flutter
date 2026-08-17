@@ -15,6 +15,7 @@ import 'hiring_entities/hiring_entities_settings_screen.dart';
 import 'roles/roles_settings_screen.dart';
 import 'users/users_settings_screen.dart';
 import '../lark/lark_settings_screen.dart';
+import 'kpi_sources/kpi_sources_settings_screen.dart';
 
 enum _Tab {
   departments(
@@ -56,6 +57,12 @@ enum _Tab {
     Icons.beach_access_outlined,
   ),
   lark('lark', 'Integrations', 'Attendance source & Lark sync', Icons.sync),
+  kpiSources(
+    'kpi-sources',
+    'KPI Sources',
+    'External data sources for KPIs',
+    Icons.hub_outlined,
+  ),
   about('about', 'About', 'Version and appearance', Icons.info_outline);
 
   final String slug;
@@ -125,6 +132,7 @@ class _State extends ConsumerState<SettingsScreen> {
               _tile(_Tab.holidays),
               _tile(_Tab.leaveTypes),
               _tile(_Tab.lark),
+              _tile(_Tab.kpiSources),
               const Divider(height: 24, indent: 16, endIndent: 16),
               _tile(_Tab.about),
             ],
@@ -220,6 +228,8 @@ class _State extends ConsumerState<SettingsScreen> {
         return const HolidaysSettingsScreen();
       case _Tab.lark:
         return const LarkSettingsScreen();
+      case _Tab.kpiSources:
+        return const KpiSourcesSettingsScreen();
       case _Tab.about:
         return const AboutSettingsScreen();
     }
