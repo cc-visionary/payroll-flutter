@@ -301,6 +301,24 @@ class _KpiResultsScreenState extends ConsumerState<KpiResultsScreen> {
         }
       }
 
+      // DELIBERATELY OUTSIDE the degrade-catch above. Everything from here to
+      // `buildSourceRegistry` can only fail on a CONFIGURATION-INTEGRITY
+      // problem -- `ConfiguredSource`'s ArgumentError on a null `binding.id`,
+      // or `buildSourceRegistry`'s StateError on two sources claiming one key
+      // -- and those are not the same animal as "a source could not be read".
+      // A source that cannot be read yields NO_DATA for its own KPI and the
+      // recompute continues (`compute_kpi_results.dart`'s `_readSource`
+      // contains the throw per-KPI). A registry that cannot be BUILT means we
+      // do not know which source belongs to which KPI, so there is no
+      // per-KPI blast radius to fall back to; letting the outer catch abort
+      // the whole recompute is the intended behaviour, not an oversight. The
+      // plan's words for the collision case: "a collision means something is
+      // wrong rather than something to resolve quietly."
+      //
+      // Neither is reachable today -- DB rows always carry a non-null id, and
+      // `kpi_source_bindings_kpi_active` allows at most one ACTIVE binding per
+      // KPI. Do not "fix" this by widening the catch: that would convert a
+      // broken configuration into a silent partial recompute.
       final configuredSources = [
         for (final binding in activeBindings)
           ConfiguredSource(
