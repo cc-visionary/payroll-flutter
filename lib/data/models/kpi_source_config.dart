@@ -11,9 +11,20 @@ enum SubjectKind {
   /// `subjectToEmployee` map before it can be attributed anywhere.
   employee,
 
-  /// `subjectKey` IS the department identifier already — no employee
-  /// resolution step, and therefore no way to ever produce a personal
-  /// figure from rows of this kind.
+  /// `subjectKey` names a department, and there is no way to ever produce a
+  /// personal figure from rows of this kind.
+  ///
+  /// Read that as "names", not "is". A source emits whatever department code
+  /// it happens to hold, so `ConfiguredSource` resolves it through
+  /// `kpi_subject_map` and hands `aggregateSourceRows` rows whose
+  /// `subjectKey` has already been translated to a real `departments.id`.
+  /// `aggregateSourceRows` itself does raw equality against that id and does
+  /// no translating of its own — so its contract genuinely is "subjectKey IS
+  /// the department id", but that is true of what it receives, not of what a
+  /// DEPARTMENT-kind binding produces. Resolving these was missing until
+  /// Task 9: an unmapped department code silently vanished from
+  /// `unresolvedSubjectKeys`, which is the undercount this engine exists to
+  /// prevent.
   department,
 
   /// There is no subject at all — the source answers a single company-wide
