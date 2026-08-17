@@ -490,4 +490,65 @@ void main() {
       expect(del.url.queryParameters['id'], 'eq.map-1');
     });
   });
+
+  group('fetchSourceRows', () {
+    test(
+      'invokes fetch-kpi-source with binding_id/period and returns the '
+      'status/body pair on 200',
+      () async {
+        final (client, recorded) = _stubClient(
+          (request) => http.Response(
+            jsonEncode({
+              'rows': [
+                {'subject_key': 'alice@x', 'numerator': 4, 'denominator': 5},
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+            request: request,
+          ),
+        );
+
+        final result = await KpiSourceConfigRepository(
+          client,
+        ).fetchSourceRows(bindingId: 'binding-1', period: '2026-08');
+
+        expect(result.statusCode, 200);
+        expect(result.body, {
+          'rows': [
+            {'subject_key': 'alice@x', 'numerator': 4, 'denominator': 5},
+          ],
+        });
+
+        final post = recorded.singleWhere(
+          (r) => r.path.endsWith('/fetch-kpi-source'),
+        );
+        expect(post.method.toUpperCase(), 'POST');
+        expect(post.body, {'binding_id': 'binding-1', 'period': '2026-08'});
+      },
+    );
+
+    test(
+      'a non-2xx response is returned as a status/body pair, NOT thrown -- '
+      'ConfiguredSource already maps every status outside 200-299 to '
+      'NO_DATA, and letting this throw would defeat that mapping',
+      () async {
+        final (client, _) = _stubClient(
+          (request) => http.Response(
+            jsonEncode({'error': 'Forbidden', 'code': 'NOT_AUTHORIZED'}),
+            403,
+            headers: {'content-type': 'application/json'},
+            request: request,
+          ),
+        );
+
+        final result = await KpiSourceConfigRepository(
+          client,
+        ).fetchSourceRows(bindingId: 'binding-1', period: '2026-08');
+
+        expect(result.statusCode, 403);
+        expect(result.body, {'error': 'Forbidden', 'code': 'NOT_AUTHORIZED'});
+      },
+    );
+  });
 }

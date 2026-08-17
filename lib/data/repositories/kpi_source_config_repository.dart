@@ -153,6 +153,47 @@ class KpiSourceConfigRepository {
   Future<void> deleteSubjectMapping(String id) async {
     await _client.from('kpi_subject_map').delete().eq('id', id);
   }
+
+  // ===========================================================================
+  // fetch-kpi-source (Task 5's edge function)
+  // ===========================================================================
+
+  /// Invokes `fetch-kpi-source` (Task 5, `supabase/functions/fetch-kpi-source/
+  /// index.ts`) for [bindingId]/[period] and returns its raw status/body pair
+  /// -- the request body is exactly `{binding_id, period}`, per that
+  /// function's own header comment, and a 200 body is `{rows: [...]}`.
+  ///
+  /// This is the shape `ConfiguredSourceFetcher`
+  /// (`../../features/kpi_results/configured_source.dart`) expects, and it
+  /// tears off cleanly as one: `repo.fetchSourceRows` satisfies the typedef
+  /// with no adapter needed, the same technique `subjectMapFor` above already
+  /// uses for `SubjectMapReader`.
+  ///
+  /// **Never throws on a non-2xx.** `functions.invoke` throws
+  /// `FunctionException` for any status outside 200-299; that is caught here
+  /// and turned into an ordinary `(statusCode, body)` pair instead --
+  /// `ConfiguredSource.readDetailed` (configured_source.dart) already maps
+  /// every non-2xx status to NO_DATA/MISSING_SOURCE, which is the correct,
+  /// contained failure for one KPI's source. Letting this method throw
+  /// instead would turn that into an uncaught exception several layers up
+  /// (`computeResults`'s own `_readSource` guard exists for a THROWING
+  /// source, not as a substitute for this method behaving), defeating the
+  /// whole point of `ConfiguredSourceFetchResult` being a plain pair rather
+  /// than a result callers must unwrap via try/catch.
+  Future<({int statusCode, dynamic body})> fetchSourceRows({
+    required String bindingId,
+    required String period,
+  }) async {
+    try {
+      final res = await _client.functions.invoke(
+        'fetch-kpi-source',
+        body: {'binding_id': bindingId, 'period': period},
+      );
+      return (statusCode: res.status, body: res.data);
+    } on FunctionException catch (e) {
+      return (statusCode: e.status, body: e.details);
+    }
+  }
 }
 
 final kpiSourceConfigRepositoryProvider = Provider<KpiSourceConfigRepository>(

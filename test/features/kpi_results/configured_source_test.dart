@@ -111,9 +111,27 @@ void main() {
   );
 
   group('key', () {
-    test('is cfg: plus the binding id', () {
+    test('is cfg: plus the KPI id, not the binding id', () {
       final source = buildSource(fetcher: ({required bindingId, required period}) async => (statusCode: 200, body: {'rows': []}));
-      expect(source.key, 'cfg:b-1');
+      expect(source.key, 'cfg:kpi-1');
+    });
+
+    test('stays stable across a re-binding that mints a new binding id for the same KPI', () {
+      // Retiring a binding and creating a replacement is legal -- the
+      // partial unique index (kpi_source_bindings_kpi_active) only
+      // constrains ACTIVE rows -- and mints a brand new binding id. Keying
+      // by kpiId means a KPI's numerator_source never has to change when
+      // that happens; keying by bindingId would silently orphan it into
+      // NO_DATA until someone remembered to rewrite numerator_source.
+      final rebound = ConfiguredSource(
+        binding: _binding(id: 'b-2'), // new binding id, same kpiId 'kpi-1'
+        subjectMapReader: (connectionId) async => const [],
+        fetcher: ({required bindingId, required period}) async =>
+            (statusCode: 200, body: {'rows': []}),
+        employees: employees,
+        roles: roles,
+      );
+      expect(rebound.key, 'cfg:kpi-1');
     });
   });
 

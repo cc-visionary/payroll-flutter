@@ -8,15 +8,18 @@ import '../../app/status_colors.dart';
 import '../../data/models/kpi.dart';
 import '../../data/models/kpi_input.dart';
 import '../../data/models/kpi_result.dart';
+import '../../data/models/kpi_source_config.dart' show KpiSourceBinding;
 import '../../data/repositories/attendance_repository.dart';
 import '../../data/repositories/employee_repository.dart';
 import '../../data/repositories/kpi_result_repository.dart';
+import '../../data/repositories/kpi_source_config_repository.dart';
 import '../../data/repositories/review_cycle_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../../widgets/responsive_table.dart';
 import '../../widgets/pending_migration_notice.dart';
 import 'automatic_sources.dart';
 import 'compute_kpi_results.dart';
+import 'configured_source.dart';
 
 /// Every `kpi_results` row for one period, across every scope in one call --
 /// a recompute (Task 7's `computeResults`) writes company/department/personal
@@ -234,6 +237,50 @@ class _KpiResultsScreenState extends ConsumerState<KpiResultsScreen> {
 
       final attendanceRepo = ref.read(attendanceRepositoryProvider);
       final reviewRepo = ref.read(reviewCycleRepositoryProvider);
+
+      // Task 7 Part D: every ACTIVE `kpi_source_bindings` row becomes one
+      // `ConfiguredSource` in the registry, alongside the two code sources.
+      // `20260815000002_kpi_source_config.sql` is, as of writing, UNAPPLIED
+      // on the live database -- `listBindings()` raises PGRST205 there --
+      // so this load is wrapped and degrades to "no configured sources"
+      // rather than aborting the whole recompute: code-source and manual
+      // KPIs must still compute even when the source-config tables do not
+      // exist yet. `kpiResultsForPeriodProvider`'s own `PendingMigrationNotice`
+      // (this screen's `error` branch) already tells the user the read side
+      // is unavailable; this catch is what keeps WRITING (Recompute) from
+      // failing in sympathy with a table Recompute does not even need for
+      // every KPI, only for the ones an admin has actually bound.
+      final sourceConfigRepo = ref.read(kpiSourceConfigRepositoryProvider);
+      List<KpiSourceBinding> activeBindings;
+      try {
+        // `listBindings()` does NOT filter `is_active` (its own doc comment)
+        // -- it returns every binding ever created, retired or not. Only
+        // ACTIVE ones belong in the registry: an inactive binding is a
+        // deliberately retired configuration, and wiring it in anyway would
+        // resurrect a source an admin turned off, silently overriding
+        // whatever the KPI is supposed to read now (nothing, or a
+        // replacement binding). This filter is the ONLY thing enforcing
+        // that -- the repository does not, and `kpi_source_bindings_kpi_active`
+        // (the partial unique index) only ever constrains ACTIVE rows
+        // against each other, not against inactive history.
+        activeBindings = (await sourceConfigRepo.listBindings())
+            .where((b) => b.isActive)
+            .toList();
+      } catch (_) {
+        activeBindings = const [];
+      }
+
+      final configuredSources = [
+        for (final binding in activeBindings)
+          ConfiguredSource(
+            binding: binding,
+            subjectMapReader: sourceConfigRepo.subjectMapFor,
+            fetcher: sourceConfigRepo.fetchSourceRows,
+            employees: employees,
+            roles: roles,
+          ),
+      ];
+
       final registry = buildSourceRegistry(
         attendanceRangeReader: attendanceRepo.listByRange,
         // `allReviews()` is safe to wire from ANY caller, HR-gated route or
@@ -246,6 +293,7 @@ class _KpiResultsScreenState extends ConsumerState<KpiResultsScreen> {
         // guard (app/router.dart) is a client-side navigation gate and was
         // never the thing making this call safe.
         employeeReviewsReader: reviewRepo.allReviews,
+        configured: configuredSources,
       );
 
       final results = await computeResults(

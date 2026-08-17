@@ -125,11 +125,34 @@ bool _isMalformedNumber(dynamic value) => value != null && value is! num;
 /// A [KpiSource] backed entirely by admin configuration -- Task 3's three
 /// tables (`kpi_connections`, `kpi_source_bindings`, `kpi_subject_map`),
 /// Task 5's edge function, and Task 1's [aggregateSourceRows], with nothing
-/// compiled in beyond how to call each. Registered under
-/// `'cfg:<bindingId>'` so a KPI's `numerator_source` (repurposed as a
-/// registry key, per `compute_kpi_results.dart`'s decision 1) can name a
-/// configured binding exactly the way it already names a compiled-in
-/// source like `app.attendance.present_days`.
+/// compiled in beyond how to call each. Registered under `'cfg:<kpiId>'`
+/// so a KPI's `numerator_source` (repurposed as a registry key, per
+/// `compute_kpi_results.dart`'s decision 1) can name a configured binding
+/// exactly the way it already names a compiled-in source like
+/// `app.attendance.present_days`.
+///
+/// **Keyed by [binding]'s `kpiId`, not by [bindingId].** `computeResults`
+/// finds a source via `registry[kpi.numeratorSource]`
+/// (`compute_kpi_results.dart:332,367`), so whatever string this getter
+/// returns has to be sitting, verbatim, in that KPI's `numerator_source`
+/// column. A binding can legally be re-bound -- retire the old row,
+/// create a new one; `kpi_source_bindings_kpi_active`
+/// (`20260815000002_kpi_source_config.sql`) is a PARTIAL unique index
+/// (`WHERE is_active`), so it only ever constrains ACTIVE rows, not the
+/// table as a whole -- and that mints a brand new [bindingId]. Keyed by
+/// bindingId, a re-bind would SILENTLY turn the KPI into NO_DATA the
+/// moment the old binding is retired, because `numerator_source` would
+/// still name a key nothing in the registry answers to any more, and
+/// nothing would say so until someone noticed the KPI had gone quiet and
+/// remembered to rewrite `numerator_source` by hand. Keyed by kpiId
+/// instead, the key is stable across a re-bind (there is exactly one
+/// possible key for a given KPI, known before the binding row even
+/// exists) and still provably unique: the same partial index that
+/// guarantees "at most one ACTIVE binding per KPI" guarantees "at most
+/// one ACTIVE [ConfiguredSource] can ever claim this key" for free.
+/// [bindingId] is kept as its own field -- Task 5's fetch call
+/// (`readDetailed`, below) still needs the concrete binding id, which the
+/// kpiId cannot supply -- only the REGISTRY key changed.
 ///
 /// **`employeeToDepartment` is built here, once, from [employees]/[roles]
 /// -- never from `Employee.departmentId`.** That column is a denormalised
@@ -178,7 +201,7 @@ class ConfiguredSource implements KpiSource {
   final Map<String, String> _employeeToDepartment;
 
   @override
-  String get key => 'cfg:$bindingId';
+  String get key => 'cfg:${binding.kpiId}';
 
   @override
   Future<KpiSourceInput> read({
