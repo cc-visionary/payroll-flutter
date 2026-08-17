@@ -696,5 +696,58 @@ void main() {
       expect(rows.any((r) => r.id == 'binding-1199'), isTrue);
       expect(recorded.length, greaterThan(1));
     });
+
+    // These assert on the ORDER CLAUSE, not on returned rows, and they are
+    // the only tests here that can. `_pagedResponder` slices a fixed
+    // in-memory list by offset/limit, so it always pages deterministically --
+    // it cannot reproduce what Postgres does when a non-unique sort column
+    // ties across a page boundary (split the tied group differently per
+    // request, dropping some rows and repeating others). A row-count
+    // assertion therefore passes whether or not the query is stably ordered,
+    // which is exactly how the missing tiebreaker survived the fix wave that
+    // added the paging. Asserting the emitted `order=` parameter is what
+    // discriminates: delete a `.order('id')` and the matching test fails.
+    void expectIdTiebreaker(List<_RecordedRequest> recorded, String primary) {
+      final order = recorded.first.url.queryParameters['order'];
+      // `.asc` is asserted, not incidental: postgrest-dart's `order` defaults
+      // to DESCENDING, so a bare `.order('name')` sorts Z-to-A. `.nullslast`
+      // is the client's own serialisation, not something the repository asks
+      // for.
+      expect(
+        order,
+        '$primary.asc.nullslast,id.asc.nullslast',
+        reason:
+            'paged reads need a unique tiebreaker after $primary or paging '
+            'is not stable across requests',
+      );
+    }
+
+    test('listConnections pages on a stable order, not just name', () async {
+      final (client, recorded) = _stubClient(_pagedResponder(const []));
+
+      await KpiSourceConfigRepository(client).listConnections();
+
+      expectIdTiebreaker(recorded, 'name');
+    });
+
+    test(
+      'listBindings pages on a stable order -- object_name ties are normal, '
+      'since many KPIs read from one view',
+      () async {
+        final (client, recorded) = _stubClient(_pagedResponder(const []));
+
+        await KpiSourceConfigRepository(client).listBindings();
+
+        expectIdTiebreaker(recorded, 'object_name');
+      },
+    );
+
+    test('subjectMapFor pages on a stable order', () async {
+      final (client, recorded) = _stubClient(_pagedResponder(const []));
+
+      await KpiSourceConfigRepository(client).subjectMapFor('conn-1');
+
+      expectIdTiebreaker(recorded, 'external_key');
+    });
   });
 }

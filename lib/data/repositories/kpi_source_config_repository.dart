@@ -41,7 +41,23 @@ class KpiSourceConfigRepository {
       final page = await _client
           .from('kpi_connections')
           .select()
-          .order('name')
+          // `ascending: true` is NOT the default -- postgrest-dart's `order`
+          // defaults to DESCENDING, so the bare `.order('name')` this
+          // replaces listed connections Z-to-A in Settings. Every sibling
+          // repository that passes `ascending: false` does so deliberately,
+          // for dates it wants newest-first; a name column wants A-to-Z and
+          // has to say so.
+          .order('name', ascending: true)
+          // `id` breaks ties. `name` is not unique (no unique index, only a
+          // not-blank check), and ORDER BY a non-unique column under
+          // OFFSET/LIMIT does not guarantee a stable order ACROSS the
+          // separate requests fetchAllPages makes -- Postgres may split a
+          // tied group differently per page, dropping some rows and
+          // repeating others. That is strictly worse than the truncation
+          // this paging was added to fix: consistently short becomes
+          // intermittently wrong. Every paged read here carries a unique
+          // tiebreaker for that reason.
+          .order('id', ascending: true)
           .range(from, to);
       return (page as List<dynamic>).cast<Map<String, dynamic>>();
     });
@@ -78,7 +94,13 @@ class KpiSourceConfigRepository {
       final page = await _client
           .from('kpi_source_bindings')
           .select()
-          .order('object_name')
+          .order('object_name', ascending: true)
+          // Tiebreaker, and this one is not hypothetical: several bindings
+          // legitimately share one `object_name` (many KPIs can read from
+          // the same view), so ties are the normal case here rather than an
+          // edge case. See [listConnections] for what an unstable order does
+          // to paging.
+          .order('id', ascending: true)
           .range(from, to);
       return (page as List<dynamic>).cast<Map<String, dynamic>>();
     });
@@ -153,7 +175,15 @@ class KpiSourceConfigRepository {
           .from('kpi_subject_map')
           .select()
           .eq('connection_id', connectionId)
-          .order('external_key')
+          .order('external_key', ascending: true)
+          // Already stable without this: the read is filtered to one
+          // connection and `kpi_subject_map_connection_external_key` makes
+          // (connection_id, external_key) unique, so no tie is possible.
+          // Kept anyway so all three paged reads here look alike -- the next
+          // reader should not have to re-derive which one happens to be safe
+          // on its own, and dropping the index would otherwise turn this
+          // silently unstable.
+          .order('id', ascending: true)
           .range(from, to);
       return (page as List<dynamic>).cast<Map<String, dynamic>>();
     });
