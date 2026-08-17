@@ -250,6 +250,27 @@ class _KpiResultsScreenState extends ConsumerState<KpiResultsScreen> {
       // is unavailable; this catch is what keeps WRITING (Recompute) from
       // failing in sympathy with a table Recompute does not even need for
       // every KPI, only for the ones an admin has actually bound.
+      //
+      // The degrade is unconditional -- `activeBindings = const []` happens
+      // either way, below -- but the REASON is not treated as one thing.
+      // `isPendingMigrationError` (`pending_migration_notice.dart`) tells
+      // apart the two shapes a `listBindings()` failure can take, and they
+      // are not alike:
+      //   - PGRST205/PGRST204 (the table genuinely does not exist yet):
+      //     expected, temporary, and already explained to the user by
+      //     `PendingMigrationNotice` on the READ side (this screen's
+      //     `error` branch) -- a silent degrade here restates a fact the
+      //     user has already been told, not a new silence.
+      //   - anything else (an RLS denial, a network failure, a column
+      //     rename after a bad migration): permanent, wrong, and nobody
+      //     is told. Left silent, every bound KPI would read
+      //     NO_DATA/MISSING_SOURCE forever, indistinguishable from "no
+      //     admin has bound anything yet" -- exactly the silent failure
+      //     this whole branch exists to prevent (NO_DATA is only honest
+      //     when its REASON is reachable -- see `ConfiguredSource`'s own
+      //     doc comment). So this branch warns through the same snackbar
+      //     surface Recompute already uses (below/`catch (e)`), rather
+      //     than swallowing it identically to the expected case.
       final sourceConfigRepo = ref.read(kpiSourceConfigRepositoryProvider);
       List<KpiSourceBinding> activeBindings;
       try {
@@ -266,8 +287,18 @@ class _KpiResultsScreenState extends ConsumerState<KpiResultsScreen> {
         activeBindings = (await sourceConfigRepo.listBindings())
             .where((b) => b.isActive)
             .toList();
-      } catch (_) {
+      } catch (e) {
         activeBindings = const [];
+        if (!isPendingMigrationError(e)) {
+          messenger.showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Configured KPI sources could not be loaded; those KPIs '
+                'will read as having no data this recompute.',
+              ),
+            ),
+          );
+        }
       }
 
       final configuredSources = [

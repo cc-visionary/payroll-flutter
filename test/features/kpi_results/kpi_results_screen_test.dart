@@ -410,9 +410,11 @@ void main() {
   );
 
   testWidgets(
-    'kpi_source_bindings failing to load (unapplied migration) degrades to '
-    '"no configured sources" -- the recompute still runs and still writes '
-    'code-source/manual results',
+    'kpi_source_bindings failing to load with a PENDING-MIGRATION error '
+    '(unapplied migration) degrades to "no configured sources" QUIETLY -- '
+    'the recompute still runs, still writes code-source/manual results, '
+    'and does not warn (PendingMigrationNotice already told the user on '
+    'the read side)',
     (tester) async {
       final kpi = Kpi(
         id: 'k-1',
@@ -479,6 +481,97 @@ void main() {
       // -- the missing source-config tables must not take the whole
       // recompute down.
       expect(find.textContaining('Could not recompute'), findsNothing);
+      // Nor should the "could not be loaded" warning -- PGRST205 is the
+      // EXPECTED, temporary state while this migration is unapplied, and
+      // PendingMigrationNotice already explains that to the user on the
+      // read side. A warning here would be a second, redundant alarm for
+      // a fact already stated once.
+      expect(find.textContaining('could not be loaded'), findsNothing);
+
+      final written = fakeRepo.upserted;
+      expect(written, isNotNull);
+      expect(written, hasLength(1));
+      expect(written!.single.kpiId, 'k-1');
+      expect(written.single.numerator, 42);
+      expect(written.single.status, KpiStatus.onTrack);
+    },
+  );
+
+  testWidgets(
+    'kpi_source_bindings failing to load with a NON-pending-migration error '
+    '(an RLS denial, a network blip, anything that is not PGRST205/PGRST204) '
+    'degrades to "no configured sources" AND warns -- silence here would '
+    'make a permanent, wrong failure indistinguishable from "no admin has '
+    'bound anything yet"',
+    (tester) async {
+      final kpi = Kpi(
+        id: 'k-1',
+        companyId: 'c',
+        name: 'Test KPI',
+        level: 'COMPANY',
+        rollupType: 'INDEPENDENT',
+        dataMethod: 'MANUAL_PERIODIC',
+        valueType: 'COUNT',
+        targetDirection: 'HIGHER',
+        targetValue: 10,
+      );
+      final reading = KpiReading(
+        companyId: 'c',
+        kpiId: 'k-1',
+        period: '2026-08',
+        scope: KpiScope.company,
+        numerator: 42,
+        reportedVia: ReportedVia.app,
+      );
+      final fakeRepo = _FakeKpiResultRepository(
+        Supabase.instance.client,
+        readings: [reading],
+      );
+      final fakeSourceConfigRepo = _FakeKpiSourceConfigRepository(
+        Supabase.instance.client,
+        // A PostgrestException, but NOT one of the two schema-cache codes
+        // isPendingMigrationError recognizes -- an RLS denial, e.g. -- so
+        // this must be treated as a real, permanent fault, not the
+        // expected "migration not applied yet" shape.
+        listBindingsError: PostgrestException(
+          message: 'permission denied for table kpi_source_bindings',
+          code: '42501',
+        ),
+      );
+
+      tester.view.physicalSize = const Size(1400, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            kpiResultsForPeriodProvider('2026-08').overrideWith((ref) async => const []),
+            kpiLibraryProvider.overrideWith((ref) async => [kpi]),
+            employeeListProvider(
+              const EmployeeListQuery(),
+            ).overrideWith((ref) async => [_employee('e1')]),
+            roleScorecardListProvider.overrideWith((ref) async => const []),
+            kpiRoleIdsByKpiProvider.overrideWith((ref) async => const {}),
+            kpiResultRepositoryProvider.overrideWith((ref) => fakeRepo),
+            kpiSourceConfigRepositoryProvider.overrideWith(
+              (ref) => fakeSourceConfigRepo,
+            ),
+          ],
+          child: const MaterialApp(home: KpiResultsScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Recompute this month'));
+      await tester.pumpAndSettle();
+
+      // The whole recompute must still succeed -- the degrade is
+      // unconditional, only the WARNING is conditional.
+      expect(find.textContaining('Could not recompute'), findsNothing);
+      // But a non-pending-migration failure must not be swallowed
+      // silently -- it must surface through the same snackbar surface
+      // Recompute already uses.
+      expect(find.textContaining('could not be loaded'), findsOneWidget);
 
       final written = fakeRepo.upserted;
       expect(written, isNotNull);
