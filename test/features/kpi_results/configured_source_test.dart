@@ -5,7 +5,13 @@ import 'package:payroll_flutter/data/models/kpi_source_config.dart';
 import 'package:payroll_flutter/data/models/role_scorecard.dart';
 import 'package:payroll_flutter/features/kpi_results/configured_source.dart';
 
-Employee _employee(String id, {String? roleId, String? deptId}) => Employee(
+Employee _employee(
+  String id, {
+  String? roleId,
+  String? deptId,
+  String status = 'ACTIVE',
+  DateTime? deletedAt,
+}) => Employee(
   id: id,
   companyId: 'c',
   employeeNumber: id,
@@ -17,7 +23,8 @@ Employee _employee(String id, {String? roleId, String? deptId}) => Employee(
   // wins even when this disagrees with it.
   departmentId: deptId,
   employmentType: 'FULL_TIME',
-  employmentStatus: 'ACTIVE',
+  employmentStatus: status,
+  deletedAt: deletedAt,
   hireDate: DateTime(2024, 1, 1),
   isRankAndFile: true,
   isOtEligible: false,
@@ -407,5 +414,178 @@ void main() {
         expect(detailed.denominator, 50);
       },
     );
+
+    test('a row that is not even a JSON object sets the flag, dropped with no crash', () async {
+      final source = buildSource(
+        fetcher: ({required bindingId, required period}) async => (
+          statusCode: 200,
+          body: {
+            'rows': [
+              'not an object', // e.g. the source emitted a bare string row
+              _row('bob@x', numerator: 10, denominator: 50),
+            ],
+          },
+        ),
+      );
+      final detailed = await source.readDetailed(scope: KpiScope.company, period: '2026-08');
+      expect(detailed.hasMalformedValues, isTrue);
+      expect(detailed.numerator, 10); // bob's valid row still parsed
+      expect(detailed.denominator, 50);
+    });
+
+    test('a row with no usable subject_key sets the flag, dropped with no crash', () async {
+      final source = buildSource(
+        fetcher: ({required bindingId, required period}) async => (
+          statusCode: 200,
+          body: {
+            'rows': [
+              {'subject_key': 42, 'numerator': 5, 'denominator': 5}, // wrong type
+              _row('bob@x', numerator: 10, denominator: 50),
+            ],
+          },
+        ),
+      );
+      final detailed = await source.readDetailed(scope: KpiScope.company, period: '2026-08');
+      expect(detailed.hasMalformedValues, isTrue);
+      expect(detailed.numerator, 10);
+      expect(detailed.denominator, 50);
+    });
+  });
+
+  group('unresolved subjects: scope-dependent collapse via read()', () {
+    // These three mirror aggregateSourceRows' own scope rules
+    // (source_rows.dart): COMPANY counts an unresolved row, so its total is
+    // correct and must not be blanked; PERSONAL/DEPARTMENT exclude it, so
+    // their totals may genuinely be short and must collapse.
+    ConfiguredSourceFetcher fetcherWithUnmapped() =>
+        ({required bindingId, required period}) async => (
+          statusCode: 200,
+          body: {
+            'rows': [
+              _row('alice@x', numerator: 30, denominator: 30), // maps to e-alice, d-ops
+              _row('unknown@x', numerator: 5, denominator: 5), // unmapped
+            ],
+          },
+        );
+
+    test('company scope does NOT collapse -- the unresolved row is already counted', () async {
+      final source = buildSource(fetcher: fetcherWithUnmapped());
+      final result = await source.read(scope: KpiScope.company, period: '2026-08');
+      expect(result.numerator, 35);
+      expect(result.denominator, 35);
+    });
+
+    test('department scope DOES collapse -- the total may be short', () async {
+      final source = buildSource(fetcher: fetcherWithUnmapped());
+      final result = await source.read(
+        scope: KpiScope.department,
+        period: '2026-08',
+        employeeIds: ['e-alice'],
+      );
+      expect(result.numerator, isNull);
+      expect(result.denominator, isNull);
+    });
+
+    test('personal scope DOES collapse -- the unmapped key might be this person', () async {
+      final source = buildSource(fetcher: fetcherWithUnmapped());
+      final result = await source.read(
+        scope: KpiScope.personal,
+        period: '2026-08',
+        employeeIds: ['e-alice'],
+      );
+      expect(result.numerator, isNull);
+      expect(result.denominator, isNull);
+    });
+
+    test('no unresolved subjects: no scope collapses', () async {
+      final source = buildSource(
+        fetcher: ({required bindingId, required period}) async => (
+          statusCode: 200,
+          body: {
+            'rows': [_row('alice@x', numerator: 30, denominator: 30)],
+          },
+        ),
+      );
+      final company = await source.read(scope: KpiScope.company, period: '2026-08');
+      expect(company.numerator, 30);
+      final personal = await source.read(
+        scope: KpiScope.personal,
+        period: '2026-08',
+        employeeIds: ['e-alice'],
+      );
+      expect(personal.numerator, 30);
+    });
+  });
+
+  group('employeeToDepartment excludes terminated/deleted employees', () {
+    test(
+      'a terminated employee\'s leftover source row does not land in the department sum',
+      () async {
+        // Frank was ACTIVE in r-ops (d-ops) but has since been terminated.
+        // Cashflow (the external source) has no idea and still emits a row
+        // for him -- populationFor's own holds() rule would never include
+        // him, and this map must not either.
+        final frank = _employee('e-frank', roleId: 'r-ops', status: 'TERMINATED');
+        final dana = _employee('e-dana', roleId: 'r-ops');
+        final source = ConfiguredSource(
+          binding: _binding(),
+          subjectMapReader: (connectionId) async => [
+            _map('frank@x', employeeId: 'e-frank'),
+            _map('dana@x', employeeId: 'e-dana'),
+          ],
+          fetcher: ({required bindingId, required period}) async => (
+            statusCode: 200,
+            body: {
+              'rows': [
+                _row('frank@x', numerator: 100, denominator: 100),
+                _row('dana@x', numerator: 10, denominator: 10),
+              ],
+            },
+          ),
+          employees: [frank, dana],
+          roles: roles,
+        );
+
+        final result = await source.readDetailed(
+          scope: KpiScope.department,
+          period: '2026-08',
+          employeeIds: ['e-dana'],
+        );
+        // If frank's terminated row still counted, this would be 110/110.
+        expect(result.numerator, 10);
+        expect(result.denominator, 10);
+      },
+    );
+
+    test('a soft-deleted employee is excluded the same way', () async {
+      final gina = _employee('e-gina', roleId: 'r-ops', deletedAt: DateTime(2026, 1, 1));
+      final dana = _employee('e-dana', roleId: 'r-ops');
+      final source = ConfiguredSource(
+        binding: _binding(),
+        subjectMapReader: (connectionId) async => [
+          _map('gina@x', employeeId: 'e-gina'),
+          _map('dana@x', employeeId: 'e-dana'),
+        ],
+        fetcher: ({required bindingId, required period}) async => (
+          statusCode: 200,
+          body: {
+            'rows': [
+              _row('gina@x', numerator: 100, denominator: 100),
+              _row('dana@x', numerator: 10, denominator: 10),
+            ],
+          },
+        ),
+        employees: [gina, dana],
+        roles: roles,
+      );
+
+      final result = await source.readDetailed(
+        scope: KpiScope.department,
+        period: '2026-08',
+        employeeIds: ['e-dana'],
+      );
+      expect(result.numerator, 10);
+      expect(result.denominator, 10);
+    });
   });
 }

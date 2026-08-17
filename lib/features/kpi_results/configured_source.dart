@@ -51,15 +51,20 @@ typedef ConfiguredSourceFetcher = Future<ConfiguredSourceFetchResult> Function({
 /// - [hasMalformedValues] -- at least one row's `numerator` or
 ///   `denominator` arrived as something other than a JSON number (a
 ///   string, a bool, a list, ...) and was read as null rather than
-///   crashing or being coerced (see [_numOrNull]). Kept as a SEPARATE
-///   boolean rather than folded into [unresolvedSubjectKeys], or into one
-///   combined "not trustworthy" flag, because it names a DIFFERENT problem
-///   with a DIFFERENT fix: a malformed value is a data-quality fault in the
-///   source itself (a column that changed type, a bad export), and no
-///   subject mapping an admin could add would repair it. Folding it into
-///   the keys list would misdirect Task 9's "map this external key" UI at
-///   a problem mapping cannot solve; folding it into one boolean would
-///   destroy the keys [unresolvedSubjectKeys] exists to carry.
+///   crashing or being coerced (see [_numOrNull]); OR a raw row was not
+///   even a JSON object, or arrived with no usable `subject_key`, and was
+///   dropped entirely rather than becoming a [SourceRow] at all. Both are
+///   folded into this ONE flag -- unlike [unresolvedSubjectKeys] below,
+///   which stays separate -- because the test that distinguishes the two
+///   flags is FIXABILITY, and neither of these is fixable by mapping: an
+///   unmapped key is something an admin repairs by adding a
+///   [KpiSubjectMap] row (which is exactly what a dropped row or a
+///   wrong-typed number is NOT -- there is no external key here an admin
+///   could map, or there is one but the row's shape itself is broken). A
+///   row that never became identifiable enough to even carry a
+///   `subject_key` is, if anything, WORSE than a malformed number (there
+///   the shortfall is at least announced per-row); it must not be silently
+///   `continue`'d with no signal at all.
 ///
 /// [KpiSource.read] discards both -- the interface's [KpiSourceInput] has
 /// no room for either -- but [hasMalformedValues] still reaches
@@ -186,17 +191,46 @@ class ConfiguredSource implements KpiSource {
       period: period,
       employeeIds: employeeIds,
     );
-    // A malformed value anywhere in this period's rows means the total
-    // [result] carries may be short by an unknown amount -- the same
-    // "excluded, so do not claim COMPLETE" rule `_scopedExceptions`
-    // applies to an unattributed exception. `read`'s return type has no
-    // room for a completeness flag, so the only way to make
-    // `computeResults` register `MISSING_SOURCE` instead of a confident,
-    // possibly-short number is to answer the same way every OTHER failure
-    // in this class answers: null, not a partial sum.
+    // A malformed value (or an unusable row -- see [hasMalformedValues])
+    // anywhere in this period's rows means the total [result] carries may
+    // be short by an unknown amount -- the same "excluded, so do not claim
+    // COMPLETE" rule `_scopedExceptions` applies to an unattributed
+    // exception. `read`'s return type has no room for a completeness flag,
+    // so the only way to make `computeResults` register `MISSING_SOURCE`
+    // instead of a confident, possibly-short number is to answer the same
+    // way every OTHER failure in this class answers: null, not a partial
+    // sum. This applies at every scope -- a malformed value's cost is not
+    // scope-dependent the way an unresolved SUBJECT's is (see below).
     if (result.hasMalformedValues) {
       return (numerator: null, denominator: null);
     }
+
+    // An unresolved SUBJECT is a DIFFERENT story, and the two must not be
+    // handled the same way -- see `aggregateSourceRows`'s own scope rules
+    // (source_rows.dart) before "simplifying" this:
+    //   - PERSONAL and DEPARTMENT EXCLUDE unresolved rows from their sums
+    //     (there is no identity to attribute them to), so those totals CAN
+    //     be genuinely short. At PERSONAL scope the unmapped key might even
+    //     be THIS employee under a second identity -- there is no way to
+    //     tell -- so both scopes collapse the same way a malformed value
+    //     does: better no number than a short one wearing a COMPLETE badge.
+    //   - COMPANY scope COUNTS unresolved rows toward its total on purpose
+    //     ("an unmapped key still happened; it must not vanish from a
+    //     company total" -- source_rows.dart). That number is therefore
+    //     CORRECT, not short, and collapsing it here would blank every
+    //     company-scope KPI from this source over a single mapping gap
+    //     that number does not actually suffer from. The mapping gap is
+    //     still real and still needs fixing -- that is what
+    //     [unresolvedSubjectKeys] on [readDetailed] is for, which Task 9's
+    //     Settings surface lists directly, bypassing `read` entirely.
+    // DO NOT collapse company scope here "for consistency" -- that
+    // discards a good number for a gap it doesn't suffer from, and is
+    // exactly the kind of uniform-looking simplification this comment
+    // exists to head off.
+    if (result.unresolvedSubjectKeys.isNotEmpty && scope != KpiScope.company) {
+      return (numerator: null, denominator: null);
+    }
+
     return (numerator: result.numerator, denominator: result.denominator);
   }
 
@@ -254,23 +288,29 @@ class ConfiguredSource implements KpiSource {
 
     // Row-level parsing never throws: a row that is not even a JSON object,
     // or whose `subject_key` is not a string, contributes nothing rather
-    // than aborting every other row's contribution. A row whose
-    // `numerator`/`denominator` is the wrong type keeps its `subject_key`
-    // (so it can still be counted as "this subject happened, but we don't
-    // know its number") with that one field read as null -- see
-    // [_numOrNull] -- and marks [hasMalformedValues] so the caller does not
-    // mistake the resulting short sum for a complete one. A `subject_key`
-    // that is fine while BOTH numbers are malformed still becomes a row
-    // here: it is "this subject appeared, with no usable figure at all",
-    // which [SourceRow]'s independent-nullability contract already
-    // represents correctly (both fields null, contributing nothing to
-    // `_sum` in source_rows.dart) -- distinct from a row dropped entirely
-    // above, which is "this subject did not appear in a form we could even
-    // read".
+    // than aborting every other row's contribution -- but it is NOT silent:
+    // it sets [hasMalformedValues], the same flag a wrong-typed
+    // `numerator`/`denominator` sets, because neither is a gap a Task 9
+    // subject mapping could close (see [ConfiguredSourceResult]'s doc
+    // comment for why the two flags fold together here but
+    // [unresolvedSubjectKeys] does not). A row whose `numerator`/
+    // `denominator` is the wrong type keeps its `subject_key` (so it can
+    // still be counted as "this subject happened, but we don't know its
+    // number") with that one field read as null -- see [_numOrNull]. A
+    // `subject_key` that is fine while BOTH numbers are malformed still
+    // becomes a row here: it is "this subject appeared, with no usable
+    // figure at all", which [SourceRow]'s independent-nullability contract
+    // already represents correctly (both fields null, contributing nothing
+    // to `_sum` in source_rows.dart) -- distinct from a row dropped
+    // entirely above, which is "this subject did not appear in a form we
+    // could even read".
     var hasMalformedValues = false;
     final rows = <SourceRow>[];
     for (final rawRow in rawRows) {
-      if (rawRow is! Map || rawRow['subject_key'] is! String) continue;
+      if (rawRow is! Map || rawRow['subject_key'] is! String) {
+        hasMalformedValues = true;
+        continue;
+      }
       final rawNumerator = rawRow['numerator'];
       final rawDenominator = rawRow['denominator'];
       if (_isMalformedNumber(rawNumerator) ||
@@ -354,6 +394,18 @@ class ConfiguredSource implements KpiSource {
 /// [ConfiguredSource]'s own doc comment for why this duplicates
 /// `populationFor`'s `deptByRole` rule instead of reading
 /// `Employee.departmentId` directly.
+///
+/// Also duplicates `populationFor`'s `holds()` filter -- `employmentStatus
+/// == 'ACTIVE' && deletedAt == null` -- for the same "match, don't
+/// reinvent" reason: without it, a terminated or soft-deleted employee's
+/// leftover row in an external source (Cashflow may have no idea they left)
+/// would still land in a department sum here, a SECOND, silently different
+/// definition of "currently employed" from `populationFor`'s own -- exactly
+/// the drift this file's own header comment on `employeeToDepartment`
+/// warns against for the department lookup itself. `holds()` itself is
+/// private to `kpi_population.dart` and not exported, so this repeats its
+/// one-line body rather than importing it -- same tradeoff already made
+/// for `deptByRole` above.
 Map<String, String> _buildEmployeeToDepartment(
   List<Employee> employees,
   List<RoleScorecard> roles,
@@ -361,6 +413,7 @@ Map<String, String> _buildEmployeeToDepartment(
   final deptByRole = {for (final r in roles) r.id: r.departmentId};
   final map = <String, String>{};
   for (final e in employees) {
+    if (e.employmentStatus != 'ACTIVE' || e.deletedAt != null) continue;
     final roleId = e.roleScorecardId;
     if (roleId == null) continue;
     final deptId = deptByRole[roleId];
