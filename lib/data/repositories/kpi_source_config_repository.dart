@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/kpi_source_config.dart';
+import '../pagination.dart';
 
 /// Reads and writes the three configuration tables Task 3 created
 /// (`20260815000002_kpi_source_config.sql`): `kpi_connections`,
@@ -30,12 +31,21 @@ class KpiSourceConfigRepository {
   // kpi_connections
   // ===========================================================================
 
+  /// Pages past Postgrest's `max_rows` cap (1000, `supabase/config.toml`)
+  /// -- see `fetchAllPages`'s doc comment. `listConnections` is unlikely to
+  /// exceed the cap today, but a partial config read is the same class of
+  /// silent wrongness as an unpaged `subjectMapFor`, and every other read
+  /// in this class pages for exactly that reason.
   Future<List<KpiConnection>> listConnections() async {
-    final rows = await _client.from('kpi_connections').select().order('name');
-    return (rows as List)
-        .cast<Map<String, dynamic>>()
-        .map(KpiConnection.fromRow)
-        .toList();
+    final rows = await fetchAllPages<Map<String, dynamic>>((from, to) async {
+      final page = await _client
+          .from('kpi_connections')
+          .select()
+          .order('name')
+          .range(from, to);
+      return (page as List<dynamic>).cast<Map<String, dynamic>>();
+    });
+    return rows.map(KpiConnection.fromRow).toList();
   }
 
   /// Insert when [c.id] is null, update by id otherwise. On insert, `id` is
@@ -60,15 +70,19 @@ class KpiSourceConfigRepository {
   // kpi_source_bindings
   // ===========================================================================
 
+  /// Pages past Postgrest's `max_rows` cap -- see [listConnections]'s doc
+  /// comment for why this pages even though it is unlikely to exceed 1000
+  /// rows today.
   Future<List<KpiSourceBinding>> listBindings() async {
-    final rows = await _client
-        .from('kpi_source_bindings')
-        .select()
-        .order('object_name');
-    return (rows as List)
-        .cast<Map<String, dynamic>>()
-        .map(KpiSourceBinding.fromRow)
-        .toList();
+    final rows = await fetchAllPages<Map<String, dynamic>>((from, to) async {
+      final page = await _client
+          .from('kpi_source_bindings')
+          .select()
+          .order('object_name')
+          .range(from, to);
+      return (page as List<dynamic>).cast<Map<String, dynamic>>();
+    });
+    return rows.map(KpiSourceBinding.fromRow).toList();
   }
 
   /// The one ACTIVE binding for [kpiId], or null if none is configured.
@@ -122,16 +136,28 @@ class KpiSourceConfigRepository {
   // kpi_subject_map
   // ===========================================================================
 
+  /// Pages past Postgrest's `max_rows` cap -- see [listConnections]'s doc
+  /// comment. This one is not a defensive-only case: `kpi_subject_map`
+  /// holds one row per external key PER CONNECTION -- for an EMPLOYEE-kind
+  /// connection that is one row per employee -- so a company with more
+  /// than 1000 staff can genuinely exceed the cap. Before this fix, a
+  /// mapping past the cut silently read as absent from
+  /// `subjectToEmployee`/`subjectToDepartment`
+  /// (`../../features/kpi_results/configured_source.dart`), collapsing a
+  /// real, present mapping's PERSONAL/DEPARTMENT result to `NO_DATA` and
+  /// listing that person's key in Settings as unmapped when it plainly
+  /// was not.
   Future<List<KpiSubjectMap>> subjectMapFor(String connectionId) async {
-    final rows = await _client
-        .from('kpi_subject_map')
-        .select()
-        .eq('connection_id', connectionId)
-        .order('external_key');
-    return (rows as List)
-        .cast<Map<String, dynamic>>()
-        .map(KpiSubjectMap.fromRow)
-        .toList();
+    final rows = await fetchAllPages<Map<String, dynamic>>((from, to) async {
+      final page = await _client
+          .from('kpi_subject_map')
+          .select()
+          .eq('connection_id', connectionId)
+          .order('external_key')
+          .range(from, to);
+      return (page as List<dynamic>).cast<Map<String, dynamic>>();
+    });
+    return rows.map(KpiSubjectMap.fromRow).toList();
   }
 
   /// Insert when [m.id] is null, update by id otherwise. See

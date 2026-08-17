@@ -30,6 +30,29 @@ const kInvalidSourceIdentifierMessage =
     'Letters, digits and underscores only; must start with a letter or '
     'underscore.';
 
+/// Shown by [_KpiSourcesSettingsScreenState._openBindingDialog] when
+/// [KpiSourceConfigRepository.upsertBinding] succeeds but the follow-up
+/// [KpiSourceConfigRepository.setKpiNumeratorSource] write fails. The two
+/// writes are sequential and non-transactional; by this point the binding
+/// row itself DID change, so a plain "Could not save" would be a lie. This
+/// is deliberately not turned into a transaction or given a rollback --
+/// see this file's fix-wave note -- because the failure mode is the same
+/// either way: `computeResults` only ever resolves a KPI's source via
+/// `kpis.numerator_source`, so an unlinked KPI already reads NO_DATA, and
+/// a rollback would not make that any less true. The fix owed here is an
+/// honest message, not a different data outcome.
+const kBindingSavedButLinkFailedMessage =
+    'Binding saved, but linking it to this KPI failed';
+
+/// Same shape as [kBindingSavedButLinkFailedMessage], for
+/// [_KpiSourcesSettingsScreenState._confirmUnbind]:
+/// [KpiSourceConfigRepository.deleteBinding] succeeds but the follow-up
+/// [KpiSourceConfigRepository.setKpiNumeratorSource] clear fails, leaving
+/// `kpis.numerator_source` pointing at a `cfg:<kpiId>` key the deleted
+/// binding no longer answers to.
+const kBindingRemovedButUnlinkFailedMessage =
+    'Binding removed, but clearing this KPI\'s link to it failed';
+
 /// Settings ▸ KPI Sources -- where a KPI is pointed at a table in an
 /// external database and computes with no code change.
 ///
@@ -373,9 +396,15 @@ class _KpiSourcesSettingsScreenState
         connections: connections,
         companyId: companyId,
         onSave: (binding) async {
+          final repo = ref.read(kpiSourceConfigRepositoryProvider);
+          // Two sequential, non-transactional writes. `bindingSaved` tracks
+          // which one failed so the catch below can say so honestly --
+          // see kBindingSavedButLinkFailedMessage's doc comment for why
+          // this is not instead turned into a transaction/rollback.
+          var bindingSaved = false;
           try {
-            final repo = ref.read(kpiSourceConfigRepositoryProvider);
             await repo.upsertBinding(binding);
+            bindingSaved = true;
             // Task 8's non-negotiable: the KPI's own numerator_source must
             // track the binding's active state, or computeResults never
             // finds this source at all. See setKpiNumeratorSource's doc
@@ -387,9 +416,16 @@ class _KpiSourcesSettingsScreenState
             ref.invalidate(kpiSourceBindingsProvider);
             if (dialogContext.mounted) Navigator.pop(dialogContext);
           } catch (e) {
-            messenger.showSnackBar(
-              SnackBar(content: Text('Could not save the binding: $e')),
-            );
+            if (bindingSaved) {
+              // The binding row did change -- refresh the list to reflect
+              // it even though the KPI link failed.
+              ref.invalidate(kpiSourceBindingsProvider);
+            }
+            final message = bindingSaved
+                ? '$kBindingSavedButLinkFailedMessage: $e. This KPI will '
+                    'read as having no data until it is saved again.'
+                : 'Could not save the binding: $e';
+            messenger.showSnackBar(SnackBar(content: Text(message)));
           }
         },
       ),
@@ -423,16 +459,28 @@ class _KpiSourcesSettingsScreenState
       ),
     );
     if (ok != true) return;
+    final repo = ref.read(kpiSourceConfigRepositoryProvider);
+    // Same two-non-transactional-writes shape as _openBindingDialog's
+    // onSave above -- see kBindingRemovedButUnlinkFailedMessage's doc
+    // comment.
+    var bindingDeleted = false;
     try {
-      final repo = ref.read(kpiSourceConfigRepositoryProvider);
       await repo.deleteBinding(binding.id!);
+      bindingDeleted = true;
       // Clears the KPI's numerator_source too -- an unbound KPI must not
       // keep pointing at a registry key nothing answers to any more. See
       // setKpiNumeratorSource's doc comment.
       await repo.setKpiNumeratorSource(kpi.id, null);
       ref.invalidate(kpiSourceBindingsProvider);
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Could not unbind: $e')));
+      if (bindingDeleted) {
+        ref.invalidate(kpiSourceBindingsProvider);
+      }
+      final message = bindingDeleted
+          ? '$kBindingRemovedButUnlinkFailedMessage: $e. This KPI will '
+              'read as having no data until it is bound again.'
+          : 'Could not unbind: $e';
+      messenger.showSnackBar(SnackBar(content: Text(message)));
     }
   }
 

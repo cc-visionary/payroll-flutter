@@ -228,6 +228,38 @@ class _PendingMigrationRepo extends _FakeRepo {
   }
 }
 
+/// Simulates the second of the two sequential, non-transactional writes in
+/// `_openBindingDialog`'s `onSave` failing AFTER the first ([upsertBinding])
+/// has already gone through -- [upsertBindingCalls] (the real base-class
+/// bookkeeping) still records the save, proving the binding row did
+/// change, while [setKpiNumeratorSource] never gets there.
+class _LinkFailsAfterBindingSavedRepo extends _FakeRepo {
+  @override
+  Future<void> setKpiNumeratorSource(
+    String kpiId,
+    String? numeratorSource,
+  ) async {
+    calls.add('setKpiNumeratorSource');
+    numeratorSourceCalls.add((kpiId: kpiId, source: numeratorSource));
+    throw PostgrestException(message: 'connection reset', code: '08006');
+  }
+}
+
+/// Same shape as [_LinkFailsAfterBindingSavedRepo], for the unbind flow:
+/// [deleteBinding] succeeds ([deleteBindingCalls] records it) but the
+/// follow-up [setKpiNumeratorSource] clear fails.
+class _UnlinkFailsAfterBindingDeletedRepo extends _FakeRepo {
+  @override
+  Future<void> setKpiNumeratorSource(
+    String kpiId,
+    String? numeratorSource,
+  ) async {
+    calls.add('setKpiNumeratorSource');
+    numeratorSourceCalls.add((kpiId: kpiId, source: numeratorSource));
+    throw PostgrestException(message: 'connection reset', code: '08006');
+  }
+}
+
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -442,6 +474,78 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.numeratorSourceCalls, [(kpiId: 'kpi-1', source: null)]);
+    },
+  );
+
+  testWidgets(
+    'when the binding save succeeds but linking it to the KPI fails, the '
+    'toast says the binding WAS saved -- not "Could not save"',
+    (tester) async {
+      final repo = await pump(
+        tester,
+        repo: _LinkFailsAfterBindingSavedRepo()..connections = [_conn()],
+        kpis: [_kpi(id: 'kpi-1')],
+      );
+      await tester.tap(find.byKey(const Key('bind-kpi-1')));
+      await tester.pumpAndSettle();
+      await fillValidRequiredBindingFields(tester);
+
+      await tester.tap(find.byKey(const Key('bindingSaveButton')));
+      await tester.pumpAndSettle();
+
+      // The binding write itself DID happen -- this is the fact the
+      // message must not contradict.
+      expect(repo.upsertBindingCalls, hasLength(1));
+      expect(
+        find.textContaining('Could not save the binding'),
+        findsNothing,
+        reason: 'the binding row did change; this message would be a lie',
+      );
+      expect(
+        find.textContaining(kBindingSavedButLinkFailedMessage),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('read as having no data'),
+        findsOneWidget,
+        reason: 'must say what the user should now expect, not just that '
+            'something failed',
+      );
+    },
+  );
+
+  testWidgets(
+    'when unbinding deletes the binding but clearing the KPI link fails, '
+    'the toast says the binding WAS removed -- not "Could not unbind"',
+    (tester) async {
+      final repo = await pump(
+        tester,
+        repo: _UnlinkFailsAfterBindingDeletedRepo()
+          ..connections = [_conn()]
+          ..bindings = [_binding(id: 'b-1', kpiId: 'kpi-1', connectionId: 'conn-1')],
+        kpis: [_kpi(id: 'kpi-1')],
+      );
+
+      await tester.tap(find.byKey(const Key('unbind-kpi-1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Unbind'));
+      await tester.pumpAndSettle();
+
+      expect(repo.deleteBindingCalls, ['b-1']);
+      expect(
+        find.textContaining('Could not unbind'),
+        findsNothing,
+        reason: 'the binding row was already deleted; this message would '
+            'be a lie',
+      );
+      expect(
+        find.textContaining(kBindingRemovedButUnlinkFailedMessage),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('read as having no data'),
+        findsOneWidget,
+      );
     },
   );
 

@@ -60,6 +60,43 @@ Map<String, dynamic> _row(Object? body) => body is List
     ? (body).cast<Map<String, dynamic>>().single
     : (body as Map).cast<String, dynamic>();
 
+/// Simulates Postgrest's server-side `max_rows` cap (1000, see
+/// `supabase/config.toml`) against an in-memory [allRows] fixture, honoring
+/// `.range()`'s `offset`/`limit` query params (see `postgrest`'s
+/// `PostgrestTransformBuilder.range`) when the client sends them.
+///
+/// This is the one piece of test machinery this file needs to actually
+/// discriminate a paginated read from an unpaginated one: a plain
+/// `.select()` never sends `offset`/`limit` at all, so it always lands on
+/// the `offset == 0` branch below and gets AT MOST 1000 rows back --
+/// exactly what real Postgrest would do to it -- while `fetchAllPages`
+/// walks `offset` forward until a short page proves there is no more.
+/// A responder that ignored `offset`/`limit` and always returned every row
+/// would make every test below pass whether or not the repository paged,
+/// which is precisely the tautology this branch has already been caught
+/// shipping six times.
+http.Response Function(http.Request) _pagedResponder(
+  List<Map<String, dynamic>> allRows,
+) {
+  return (request) {
+    final offset = int.tryParse(request.url.queryParameters['offset'] ?? '') ?? 0;
+    final requestedLimit = int.tryParse(
+      request.url.queryParameters['limit'] ?? '',
+    );
+    const serverMaxRows = 1000;
+    final limit = requestedLimit == null
+        ? serverMaxRows
+        : (requestedLimit < serverMaxRows ? requestedLimit : serverMaxRows);
+    final end = (offset + limit) > allRows.length
+        ? allRows.length
+        : offset + limit;
+    final slice = offset >= allRows.length
+        ? const <Map<String, dynamic>>[]
+        : allRows.sublist(offset, end);
+    return http.Response(jsonEncode(slice), 200, request: request);
+  };
+}
+
 void main() {
   group('kpi_connections', () {
     test('listConnections maps every row', () async {
@@ -550,5 +587,114 @@ void main() {
         expect(result.body, {'error': 'Forbidden', 'code': 'NOT_AUTHORIZED'});
       },
     );
+  });
+
+  group('pagination past Postgrest\'s max_rows cap', () {
+    // The Important finding this fix wave exists for: `kpi_subject_map`
+    // holds one row per external key PER CONNECTION -- for an
+    // EMPLOYEE-kind connection that is one row per employee. Past 1000
+    // rows, an unpaged read silently returns page 1 only, and every
+    // mapping past the cut then reads as absent -- a real, present
+    // mapping collapsing to NO_DATA with nothing in the UI saying why.
+    test(
+      'subjectMapFor returns every row past 1000, including one only '
+      'present on a later page -- a mapped subject must never read as '
+      'unmapped',
+      () async {
+        final allRows = List.generate(
+          1500,
+          (i) => {
+            'id': 'map-$i',
+            'company_id': 'co-1',
+            'connection_id': 'conn-1',
+            'external_key': 'staff-${i.toString().padLeft(4, '0')}',
+            'employee_id': 'emp-$i',
+            'department_id': null,
+          },
+        );
+        final (client, recorded) = _stubClient(_pagedResponder(allRows));
+
+        final rows = await KpiSourceConfigRepository(
+          client,
+        ).subjectMapFor('conn-1');
+
+        expect(
+          rows.length,
+          1500,
+          reason:
+              'an unpaginated .select() would silently stop at Postgrest\'s '
+              '1000-row cap',
+        );
+        // The specific failure mode this branch exists to prevent: a
+        // mapping that only exists on page 2 must still resolve, not
+        // silently vanish.
+        final last = rows.firstWhere((r) => r.externalKey == 'staff-1499');
+        expect(last.employeeId, 'emp-1499');
+        expect(
+          recorded.length,
+          greaterThan(1),
+          reason: 'must page, not arrive at the full set in one request',
+        );
+        // The connection filter must survive every page, not just the
+        // first request.
+        for (final r in recorded) {
+          expect(r.url.queryParameters['connection_id'], 'eq.conn-1');
+        }
+      },
+    );
+
+    test('listConnections returns every row past 1000', () async {
+      final allRows = List.generate(
+        1200,
+        (i) => {
+          'id': 'conn-$i',
+          'company_id': 'co-1',
+          'name': 'Connection $i',
+          'kind': 'POSTGRES',
+          'host': 'db.example.com',
+          'port': 5432,
+          'database': 'db',
+          'db_schema': 'public',
+          'db_user': 'ro',
+          'credential_kind': 'VAULT',
+          'credential_ref': 'ref-$i',
+          'is_active': true,
+        },
+      );
+      final (client, recorded) = _stubClient(_pagedResponder(allRows));
+
+      final rows = await KpiSourceConfigRepository(client).listConnections();
+
+      expect(rows.length, 1200);
+      expect(rows.any((r) => r.id == 'conn-1199'), isTrue);
+      expect(recorded.length, greaterThan(1));
+    });
+
+    test('listBindings returns every row past 1000', () async {
+      final allRows = List.generate(
+        1200,
+        (i) => {
+          'id': 'binding-$i',
+          'company_id': 'co-1',
+          'kpi_id': 'kpi-$i',
+          'connection_id': 'conn-1',
+          'object_name': 'orders',
+          'period_column': 'period',
+          'subject_column': 'staff_email',
+          'numerator_column': 'return_count',
+          'denominator_column': null,
+          'subject_kind': 'EMPLOYEE',
+          'period_format': 'YYYY-MM',
+          'is_active': true,
+        },
+      );
+      final (client, recorded) = _stubClient(_pagedResponder(allRows));
+
+      final rows = await KpiSourceConfigRepository(client).listBindings();
+
+      expect(rows.length, 1200);
+      expect(rows.any((r) => r.id == 'binding-1199'), isTrue);
+      expect(recorded.length, greaterThan(1));
+    });
   });
 }
