@@ -27,6 +27,12 @@ class PayrollRun {
   final String? approvedById;
   final String? approvedByEmail;
 
+  /// Which employees this run covers. NULL (here: null) means the run was
+  /// created without a scope filter and therefore covers ALL active employees
+  /// of the company — see migration 20260416000004. Editing the roster from
+  /// the Payslips tab materializes that list rather than subtracting from it.
+  final List<String>? includedEmployeeIds;
+
   /// Flipped to `true` when HR hits "Distribute 13th Month" on this run.
   /// Lets reports filter 13th-month distributions separately from regular
   /// payroll runs.
@@ -54,6 +60,7 @@ class PayrollRun {
     this.createdByEmail,
     this.approvedById,
     this.approvedByEmail,
+    this.includedEmployeeIds,
     this.isThirteenthMonthDistribution = false,
   });
 
@@ -91,6 +98,10 @@ class PayrollRun {
       createdByEmail: createdByEmbed?['email'] as String?,
       approvedById: r['approved_by_id'] as String?,
       approvedByEmail: approvedByEmbed?['email'] as String?,
+      includedEmployeeIds: switch (r['included_employee_ids']) {
+        final List<dynamic> ids => ids.whereType<String>().toList(),
+        _ => null,
+      },
       isThirteenthMonthDistribution:
           r['is_thirteenth_month_distribution'] as bool? ?? false,
     );

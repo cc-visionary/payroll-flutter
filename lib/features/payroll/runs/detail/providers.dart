@@ -179,3 +179,17 @@ Future<Map<String, List<ApprovedLeaveDay>>> _fetchApprovedLeavesByEmployee({
   }
   return out;
 }
+
+/// Force-refresh every provider the run detail screen reads, so whichever tab
+/// is on screen updates in place. `refresh().future` is awaited so callers
+/// don't flash a success snackbar before the fresh data lands.
+Future<void> refreshRunDetail(WidgetRef ref, String runId) async {
+  await Future.wait([
+    ref.refresh(payrollRunDetailProvider(runId).future),
+    ref.refresh(payslipListForRunProvider(runId).future),
+    ref.refresh(payslipApprovalCountsProvider(runId).future),
+    ref.refresh(larkApprovalCountsProvider(runId).future),
+  ]);
+  ref.invalidate(payrollRunsProvider);
+  ref.invalidate(runWarningsProvider(runId));
+}
