@@ -174,10 +174,7 @@ class _PayrollRunDetailScreenState
                 child: TabBarView(
                   children: [
                     PayrollSummaryTab(detail: detail),
-                    PayrollPayslipsTab(
-                      runId: runId,
-                      runStatus: detail.run.status,
-                    ),
+                    PayrollPayslipsTab(run: detail.run),
                     PayrollDisbursementTab(
                       runId: runId,
                       runStatus: detail.run.status,
@@ -669,19 +666,7 @@ class _ActionBar extends ConsumerWidget {
         isRecompute ? 'Recomputing payroll' : 'Computing payroll',
         () => service.computeRun(runId),
       );
-      // Force-refresh every provider the detail screen reads so the current
-      // tab (Summary/Payslips/Disbursement/Approvals) updates in place —
-      // without this the totals stay stale until the user switches tabs.
-      // `refresh().future` awaits the re-fetch so we don't flash the snackbar
-      // before fresh data lands.
-      await Future.wait([
-        ref.refresh(payrollRunDetailProvider(runId).future),
-        ref.refresh(payslipListForRunProvider(runId).future),
-        ref.refresh(payslipApprovalCountsProvider(runId).future),
-        ref.refresh(larkApprovalCountsProvider(runId).future),
-      ]);
-      ref.invalidate(payrollRunsProvider);
-      ref.invalidate(runWarningsProvider(runId));
+      await refreshRunDetail(ref, runId);
       if (!context.mounted) return;
       if (outcome.errors.isEmpty && outcome.warnings.isEmpty) {
         messenger.showSnackBar(
