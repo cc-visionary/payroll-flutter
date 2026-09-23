@@ -17,6 +17,10 @@ import {
   userIdFromAuthHeader,
   json,
 } from '../_shared/lark.ts';
+import {
+  detectEndDateConvention,
+  expandHolidayDates,
+} from '../_shared/holiday_span.ts';
 
 interface Body { company_id?: string; year?: number; calendar_id?: string }
 
@@ -47,7 +51,7 @@ Deno.serve(async (req) => {
   });
 
   const errors: string[] = [];
-  let created = 0, updated = 0, skipped = 0, total = 0;
+  let created = 0, updated = 0, skipped = 0, deleted = 0, total = 0;
 
   try {
     // Ensure holiday_calendar row for this company+year
@@ -74,40 +78,88 @@ Deno.serve(async (req) => {
     const events = await listCalendarEvents(auth, larkCalId, from, to);
     total = events.length;
 
+    // How this calendar expresses an all-day end date. Read off the batch
+    // rather than assumed — see _shared/holiday_span.ts — and reported back
+    // so the first run after a deploy says which way it read them.
+    const convention = detectEndDateConvention(events);
+
+    // Every date Lark still claims as a holiday, for the prune below.
+    const larkDates = new Set<string>();
+
     for (const ev of events) {
       const parsed = parseHolidaySummary(ev.summary);
       if (!parsed) { skipped++; continue; }
-      const dateStr = ev.start_time?.date
-        ?? (ev.start_time?.timestamp
-              ? new Date(parseInt(ev.start_time.timestamp, 10) * 1000).toISOString().slice(0, 10)
-              : null);
-      if (!dateStr) { skipped++; continue; }
 
-      const { data: existing } = await supabase
+      // A holiday can run several days (ASEAN Summit, Nov 16-18 2026). Each
+      // day it covers needs its own row: payroll resolves day types per date.
+      let dates: string[];
+      try {
+        dates = expandHolidayDates(ev.start_time, ev.end_time, convention);
+      } catch (e) {
+        errors.push(`${parsed.name}: ${e instanceof Error ? e.message : String(e)}`);
+        continue;
+      }
+      if (dates.length === 0) { skipped++; continue; }
+
+      for (const dateStr of dates) {
+        const { data: existing } = await supabase
+          .from('calendar_events')
+          .select('id, source')
+          .eq('calendar_id', calendarId)
+          .eq('date', dateStr)
+          .maybeSingle();
+
+        if (existing && existing.source === 'MANUAL') { skipped++; continue; }
+
+        // Counted even when the row is written below, so the prune never
+        // deletes a date this sync just wrote.
+        larkDates.add(dateStr);
+
+        const payload = {
+          calendar_id: calendarId,
+          date: dateStr,
+          name: parsed.name,
+          day_type: parsed.dayType,
+          source: 'LARK',
+        };
+
+        if (existing) {
+          const { error } = await supabase.from('calendar_events').update(payload).eq('id', existing.id);
+          if (error) { errors.push(`${dateStr}: ${error.message}`); continue; }
+          updated++;
+        } else {
+          const { error } = await supabase.from('calendar_events').insert(payload);
+          if (error) { errors.push(`${dateStr}: ${error.message}`); continue; }
+          created++;
+        }
+      }
+    }
+
+    // Drop LARK rows this calendar no longer claims — a holiday cancelled in
+    // Lark, or a span that used to be read a day too long. Nothing else can:
+    // the settings screen only offers Delete on MANUAL rows. MANUAL rows are
+    // never touched, and the calendar row is per company+year, so this stays
+    // inside the year being synced.
+    //
+    // Guarded on a non-empty set: a Lark call that comes back with nothing
+    // (or whose events all failed to parse) must not wipe the year's
+    // holidays.
+    if (larkDates.size > 0) {
+      const { data: larkRows } = await supabase
         .from('calendar_events')
-        .select('id, source')
+        .select('id, date')
         .eq('calendar_id', calendarId)
-        .eq('date', dateStr)
-        .maybeSingle();
-
-      if (existing && existing.source === 'MANUAL') { skipped++; continue; }
-
-      const payload = {
-        calendar_id: calendarId,
-        date: dateStr,
-        name: parsed.name,
-        day_type: parsed.dayType,
-        source: 'LARK',
-      };
-
-      if (existing) {
-        const { error } = await supabase.from('calendar_events').update(payload).eq('id', existing.id);
-        if (error) { errors.push(`${dateStr}: ${error.message}`); continue; }
-        updated++;
-      } else {
-        const { error } = await supabase.from('calendar_events').insert(payload);
-        if (error) { errors.push(`${dateStr}: ${error.message}`); continue; }
-        created++;
+        .eq('source', 'LARK');
+      const staleIds = (larkRows ?? [])
+        .filter((r) => !larkDates.has(r.date as string))
+        .map((r) => r.id as string);
+      if (staleIds.length > 0) {
+        const { error } = await supabase
+          .from('calendar_events')
+          .delete()
+          .in('id', staleIds);
+        if (error) errors.push(`prune: ${error.message}`);
+        else deleted = staleIds.length;
       }
     }
 
@@ -118,7 +170,16 @@ Deno.serve(async (req) => {
       .eq('id', calendarId);
 
     await logSyncFinish(supabase, logId, { total, created, updated, skipped, errors });
-    return json({ ok: true, total, created, updated, skipped, errors });
+    return json({
+      ok: true,
+      total,
+      created,
+      updated,
+      skipped,
+      deleted,
+      endDateConvention: convention,
+      errors,
+    });
   } catch (e) {
     errors.push(String(e));
     await logSyncFinish(supabase, logId, { total, created, updated, skipped, errors });
