@@ -86,6 +86,14 @@ const _returnRate = KpiItem(
   frequency: 'Weekly',
 );
 
+/// True when some InkWell above [label] handles taps. (StatusChip is a
+/// Material chip with its own inert InkWell, so presence alone proves nothing.)
+bool _tappable(WidgetTester tester, String label) => tester
+    .widgetList<InkWell>(
+      find.ancestor(of: find.text(label), matching: find.byType(InkWell)),
+    )
+    .any((w) => w.onTap != null);
+
 void main() {
   testWidgets('renders nothing when there are no gaps', (tester) async {
     await tester.pumpWidget(_host());
@@ -114,22 +122,19 @@ void main() {
     expect(find.text('1 role over capacity'), findsOneWidget);
   });
 
-  testWidgets('a task with no role deep-links to the Roles tab', (tester) async {
-    late TabController controller;
+  // The strip only renders on the Roles tab, so a Roles-target chip would be
+  // a no-op link: it is shown as a plain, non-tappable chip instead (M2).
+  testWidgets('a task with no role is a plain chip — the strip is already on Roles', (tester) async {
     await tester.pumpWidget(
       _host(
         tasks: const [
           WpTask(id: 't', companyId: 'c', name: 'Orphan', hoursPerMonth: 4),
         ],
-        initialIndex: 2,
-        onController: (c) => controller = c,
       ),
     );
     await tester.pumpAndSettle();
-    expect(controller.index, 2);
-    await tester.tap(find.text('1 task with no role'));
-    await tester.pumpAndSettle();
-    expect(controller.index, 0, reason: 'no-role chip must switch to Roles');
+    expect(find.text('1 task with no role'), findsOneWidget);
+    expect(_tappable(tester, '1 task with no role'), isFalse);
   });
 
   testWidgets('an uncosted chip deep-links to the All tasks tab', (
@@ -179,26 +184,21 @@ void main() {
   });
 
   testWidgets(
-    'flags a role with no KPI, and deep-links to Roles — counted per role, '
-    'not per holder',
+    'flags a role with no KPI — counted per role, not per holder — as a '
+    'plain (Roles-target) chip',
     (tester) async {
-      late TabController controller;
       await tester.pumpWidget(
         _host(
           cards: [_card('card-1', 'Card')],
           employees: [_emp('e1', 'card-1'), _emp('e2', 'card-1')],
-          initialIndex: 1,
-          onController: (c) => controller = c,
         ),
       );
       await tester.pumpAndSettle();
       expect(find.text('1 role with no KPI'), findsOneWidget);
-      await tester.tap(find.text('1 role with no KPI'));
-      await tester.pumpAndSettle();
       expect(
-        controller.index,
-        0,
-        reason: 'a roles-target chip must switch to the Roles tab',
+        _tappable(tester, '1 role with no KPI'),
+        isFalse,
+        reason: 'a Roles-target chip is not a link on the Roles tab',
       );
     },
   );

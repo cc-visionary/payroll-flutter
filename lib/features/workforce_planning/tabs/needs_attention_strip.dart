@@ -10,15 +10,12 @@ import '../wp_providers.dart';
 import 'tab_intro.dart';
 
 /// Hub tabs live in the same DefaultTabController (Roles 0, Organization 1,
-/// All tasks 2). KPI library is a separate route.
+/// All tasks 2). KPI library is a separate route. The strip itself renders
+/// only on the Roles tab, so [AttentionTarget.roles] has no link: its chips
+/// are plain (see [NeedsAttentionStrip]).
 void _go(BuildContext context, AttentionTarget target) {
-  const tabIndex = {
-    AttentionTarget.roles: 0,
-    AttentionTarget.tasks: 2,
-  };
-  final idx = tabIndex[target];
-  if (idx != null) {
-    DefaultTabController.of(context).animateTo(idx);
+  if (target == AttentionTarget.tasks) {
+    DefaultTabController.of(context).animateTo(2);
   } else if (target == AttentionTarget.kpiLibrary) {
     context.push('/kpi-library');
   }
@@ -33,7 +30,9 @@ String _categoryLabel(AttentionCategory c) => switch (c) {
 
 /// Derived gaps in the current plan, surfaced at the top of the Roles tab —
 /// over-capacity roles, tasks with no role or flagged for a check, uncosted
-/// work, unstaffed critical roles, KPIs measuring nobody. Each row deep-links to the tab/route that fixes it.
+/// work, unstaffed critical roles, KPIs measuring nobody. A chip whose fix is
+/// elsewhere (All tasks, KPI library) deep-links there; a chip whose fix is on
+/// the Roles tab — where the strip already sits — is a plain chip.
 ///
 /// Self-contained: watches its own providers and disappears entirely
 /// (`SizedBox.shrink()`) while loading or once there is nothing to flag, so
@@ -132,16 +131,7 @@ class NeedsAttentionStrip extends ConsumerWidget {
                         for (final item in items.where(
                           (i) => i.category == category,
                         ))
-                          InkWell(
-                            borderRadius: BorderRadius.circular(16),
-                            onTap: () => _go(context, item.target),
-                            child: StatusChip(
-                              label: item.label,
-                              tone: item.severity == AttentionSeverity.high
-                                  ? StatusTone.danger
-                                  : StatusTone.warning,
-                            ),
-                          ),
+                          _chip(context, item),
                       ],
                     ),
                   ],
@@ -149,6 +139,21 @@ class NeedsAttentionStrip extends ConsumerWidget {
               ),
         ],
       ),
+    );
+  }
+
+  Widget _chip(BuildContext context, AttentionItem item) {
+    final chip = StatusChip(
+      label: item.label,
+      tone: item.severity == AttentionSeverity.high
+          ? StatusTone.danger
+          : StatusTone.warning,
+    );
+    if (item.target == AttentionTarget.roles) return chip;
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => _go(context, item.target),
+      child: chip,
     );
   }
 }
