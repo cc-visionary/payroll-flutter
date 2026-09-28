@@ -14,6 +14,7 @@ import '../area_placement.dart';
 import '../duplicate_check.dart';
 import '../duplicate_warning.dart';
 import '../removal_lifecycle.dart';
+import '../role_structure.dart';
 import '../tabs/task_form_dialog.dart';
 import '../task_badges.dart';
 import '../wp_providers.dart';
@@ -336,6 +337,7 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
         cards: cards,
         initialRoleId: widget.cardId,
         duplicateCheckPool: allTasks,
+        holderCountByRole: holderCountByRole(roles: cards, employees: employees),
       ),
     );
     if (result == null) return;
@@ -359,6 +361,7 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
         drivers: drivers,
         rates: rates,
         cards: cards,
+        holderCountByRole: holderCountByRole(roles: cards, employees: employees),
       ),
     );
     if (result == null) return;

@@ -111,7 +111,7 @@ class _RolesBoardTabState extends ConsumerState<RolesBoardTab> {
       );
       return;
     }
-    _invalidate();
+    if (mounted) _invalidate();
   }
 
   /// HR confirms a migration-flagged task. The section disables the button
@@ -126,7 +126,7 @@ class _RolesBoardTabState extends ConsumerState<RolesBoardTab> {
       );
       return;
     }
-    _invalidate();
+    if (mounted) _invalidate();
   }
 
   Future<void> _addHolder(RoleScorecard role, List<Employee> employees) async {
