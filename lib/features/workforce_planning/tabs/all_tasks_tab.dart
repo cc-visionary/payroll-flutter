@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/theme.dart';
 import '../../../data/models/role_scorecard.dart';
 import '../../../data/models/workforce_planning.dart';
 import '../../../data/repositories/role_scorecard_repository.dart';
@@ -64,11 +65,45 @@ class _AllTasksTabState extends ConsumerState<AllTasksTab> {
         cards: roles,
         nodes: ref.read(wpNodesProvider).asData?.value ?? const [],
         drivers: ref.read(wpDriversProvider).asData?.value ?? const [],
+        rates: ref.read(wpRatesProvider).asData?.value ?? const [],
         duplicateCheckPool: all,
       ),
     );
     if (saved == null) return;
     await ref.read(workforcePlanningRepositoryProvider).saveTask(saved);
+    _invalidate();
+  }
+
+  Future<void> _confirmArchive(WpTask task) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Archive task?'),
+        content: Text(
+          'Archive "${task.name}"? It leaves everyone\'s load and the queues '
+          'but is kept for reference and can be restored.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('Archive'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await ref.read(workforcePlanningRepositoryProvider).setTaskArchived(task.id, true);
+    } catch (e) {
+      if (!mounted) return;
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not archive task: $e')));
+      return;
+    }
     _invalidate();
   }
 
@@ -139,29 +174,29 @@ class _AllTasksTabState extends ConsumerState<AllTasksTab> {
               ],
               rows: [
                 for (final t in rows)
-                  DataRow(
-                    onSelectChanged: (_) => _edit(t, allRoles, tasks.requireValue),
-                    cells: [
-                      DataCell(Text(t.name)),
-                      DataCell(Text(effortLabel(t, hours[t.id] ?? 0))),
-                      DataCell(Text((hours[t.id] ?? 0).toStringAsFixed(1))),
-                      DataCell(Text(rolesById[t.roleScorecardId]?.jobTitle ?? '—')),
-                      DataCell(Text(() {
-                        final r = rolesById[t.roleScorecardId];
-                        if (r == null) return '—';
-                        final by = checkedByTitles(role: r, employees: emps.requireValue, rolesById: rolesById);
-                        return by.isEmpty ? '—' : by.join(', ');
-                      }())),
-                      DataCell(IconButton(
-                        tooltip: 'Archive',
-                        icon: const Icon(Icons.archive_outlined),
-                        onPressed: () async {
-                          await ref.read(workforcePlanningRepositoryProvider).setTaskArchived(t.id, true);
-                          _invalidate();
-                        },
-                      )),
-                    ],
-                  ),
+                  () {
+                    final h = hours[t.id] ?? 0;
+                    return DataRow(
+                      onSelectChanged: (_) => _edit(t, allRoles, tasks.requireValue),
+                      cells: [
+                        DataCell(Text(t.name)),
+                        DataCell(Text(effortLabel(t, h))),
+                        DataCell(Text(h.toStringAsFixed(1), style: AppTheme.mono(context))),
+                        DataCell(Text(rolesById[t.roleScorecardId]?.jobTitle ?? '—')),
+                        DataCell(Text(() {
+                          final r = rolesById[t.roleScorecardId];
+                          if (r == null) return '—';
+                          final by = checkedByTitles(role: r, employees: emps.requireValue, rolesById: rolesById);
+                          return by.isEmpty ? '—' : by.join(', ');
+                        }())),
+                        DataCell(IconButton(
+                          tooltip: 'Archive',
+                          icon: const Icon(Icons.archive_outlined),
+                          onPressed: () => _confirmArchive(t),
+                        )),
+                      ],
+                    );
+                  }(),
               ],
             ),
           ),
