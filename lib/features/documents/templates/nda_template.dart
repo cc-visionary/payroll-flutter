@@ -574,7 +574,8 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
           SignatoryLine(
             header: 'Recipient',
             name: i.employeeFullName,
-            role: 'Signature',
+            // Mirrors the company column: name, then role, then Date.
+            role: i.employeePosition,
           ),
         ],
         row: true,
