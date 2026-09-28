@@ -6,8 +6,11 @@ import '../../app/breakpoints.dart';
 import '../../app/shell.dart';
 import '../../core/money.dart';
 import '../../data/models/role_scorecard.dart';
+import '../../data/repositories/role_rate_change_repository.dart';
 import '../../data/repositories/role_scorecard_repository.dart';
 import '../auth/profile_provider.dart';
+import '../documents/providers.dart' show roleScorecardByIdProvider;
+import '../workforce_planning/role/update_base_rate_dialog.dart';
 
 class RoleScorecardDetailScreen extends ConsumerWidget {
   final String cardId;
@@ -92,11 +95,36 @@ class RoleScorecardDetailScreen extends ConsumerWidget {
           final count = counts[card.id] ?? 0;
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: _DetailBody(card: card, employeeCount: count),
+            child: _DetailBody(
+              card: card,
+              employeeCount: count,
+              onUpdateRate: canManage
+                  ? () => _updateBaseRate(context, ref, card)
+                  : null,
+            ),
           );
         },
       ),
     );
+  }
+
+  Future<void> _updateBaseRate(
+    BuildContext context,
+    WidgetRef ref,
+    RoleScorecard card,
+  ) async {
+    final newRate = await showUpdateBaseRateDialog(context, card);
+    if (newRate == null) return;
+    ref.invalidate(roleScorecardListProvider);
+    ref.invalidate(roleScorecardByIdProvider(card.id));
+    ref.invalidate(roleRateChangesProvider(card.id));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Base rate updated to ${Money.fmtPhp(newRate)}.'),
+        ),
+      );
+    }
   }
 
   Future<void> _confirmDelete(
@@ -164,7 +192,14 @@ class RoleScorecardDetailScreen extends ConsumerWidget {
 class _DetailBody extends StatelessWidget {
   final RoleScorecard card;
   final int employeeCount;
-  const _DetailBody({required this.card, required this.employeeCount});
+
+  /// Opens the effective-dated rate dialog; null hides the action (non-HR).
+  final VoidCallback? onUpdateRate;
+  const _DetailBody({
+    required this.card,
+    required this.employeeCount,
+    this.onUpdateRate,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -201,6 +236,12 @@ class _DetailBody extends StatelessWidget {
                   Text(
                     'Base: ${Money.fmtPhp(card.baseSalary!)}',
                     style: t.textTheme.bodyMedium,
+                  ),
+                if (onUpdateRate != null)
+                  TextButton.icon(
+                    onPressed: onUpdateRate,
+                    icon: const Icon(Icons.trending_up, size: 18),
+                    label: const Text('Update base rate'),
                   ),
                 Chip(
                   label: Text(card.wageType),
