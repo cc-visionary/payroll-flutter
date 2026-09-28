@@ -95,7 +95,11 @@ class NoRoleSection extends StatelessWidget {
 }
 
 /// Tasks the role-first migration could not convert without losing detail.
-class FlaggedSection extends StatelessWidget {
+///
+/// "Looks right" is disabled for a task while its [onLooksRight] call is
+/// pending, so a slow write can't be fired twice. [onLooksRight] reports its
+/// own failures; the section only tracks what is in flight.
+class FlaggedSection extends StatefulWidget {
   final List<WpTask> tasks;
   final Map<String, RoleScorecard> rolesById;
   final Future<void> Function(WpTask) onLooksRight;
@@ -103,7 +107,24 @@ class FlaggedSection extends StatelessWidget {
   const FlaggedSection({super.key, required this.tasks, required this.rolesById, required this.onLooksRight, required this.onOpenTask});
 
   @override
+  State<FlaggedSection> createState() => _FlaggedSectionState();
+}
+
+class _FlaggedSectionState extends State<FlaggedSection> {
+  final Set<String> _pending = {};
+
+  Future<void> _confirm(WpTask t) async {
+    setState(() => _pending.add(t.id));
+    try {
+      await widget.onLooksRight(t);
+    } finally {
+      if (mounted) setState(() => _pending.remove(t.id));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final tasks = widget.tasks;
     if (tasks.isEmpty) return const SizedBox.shrink();
     return _Section(title: 'Check these (${tasks.length})', children: [
       for (final t in tasks)
@@ -111,10 +132,13 @@ class FlaggedSection extends StatelessWidget {
           dense: true,
           title: Text(t.name),
           subtitle: Text(
-            'now: ${rolesById[t.roleScorecardId]?.jobTitle ?? 'no role'} · ${t.allocationReviewNote}',
+            'now: ${widget.rolesById[t.roleScorecardId]?.jobTitle ?? 'no role'} · ${t.allocationReviewNote}',
           ),
-          onTap: () => onOpenTask(t),
-          trailing: TextButton(onPressed: () => onLooksRight(t), child: const Text('Looks right')),
+          onTap: () => widget.onOpenTask(t),
+          trailing: TextButton(
+            onPressed: _pending.contains(t.id) ? null : () => _confirm(t),
+            child: const Text('Looks right'),
+          ),
         ),
     ]);
   }

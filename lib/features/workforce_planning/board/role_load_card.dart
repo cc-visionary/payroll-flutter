@@ -27,7 +27,8 @@ class RoleLoadCard extends StatelessWidget {
   final Map<String, double> taskHoursById;
   final void Function(String taskId) onDropTask;
   final void Function(String? taskId) onHoverTask;
-  final VoidCallback onAddTask;
+  /// Null disables "Add task" (e.g. no company id to write the task under).
+  final VoidCallback? onAddTask;
   final VoidCallback onAddHolder;
   final VoidCallback onOpenRole;
   final void Function(WpTask task) onOpenTask;

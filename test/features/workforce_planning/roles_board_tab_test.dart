@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,12 +8,20 @@ import 'package:payroll_flutter/data/models/role_scorecard.dart';
 import 'package:payroll_flutter/data/models/workforce_planning.dart';
 import 'package:payroll_flutter/data/repositories/role_scorecard_repository.dart';
 import 'package:payroll_flutter/data/repositories/workforce_planning_repository.dart';
+import 'package:payroll_flutter/features/auth/profile_provider.dart';
 import 'package:payroll_flutter/features/workforce_planning/tabs/roles_board_tab.dart';
 import 'package:payroll_flutter/features/workforce_planning/wp_providers.dart';
 
 class _FakeRepo implements WorkforcePlanningRepository {
   final applied = <Map<String, String>>[];
+  final appliedMoves = <TaskRoleMove>[];
   final cleared = <String>[];
+  final saved = <WpTask>[];
+  bool throwOnSave = false;
+  bool throwOnClear = false;
+
+  /// When set, [clearReviewNote] waits on it — lets a test see the pending state.
+  Completer<void>? clearGate;
 
   /// Ids [moveTasksToRoles] should report as failed on its next call, mirroring
   /// the real repo's per-row failure reporting. Consumed (reset to empty) once used.
@@ -22,50 +32,66 @@ class _FakeRepo implements WorkforcePlanningRepository {
   bool throwNext = false;
 
   @override
-  Future<List<String>> moveTasksToRoles(Map<String, String> moves) async {
+  Future<List<String>> moveTasksToRoles(List<TaskRoleMove> moves) async {
     if (throwNext) {
       throwNext = false;
       throw Exception('network error');
     }
-    applied.add({...moves});
+    applied.add({for (final m in moves) m.taskId: m.roleId});
+    appliedMoves.addAll(moves);
     final failed = failNext;
     failNext = const [];
     return failed;
   }
   @override
-  Future<void> clearReviewNote(String taskId) async => cleared.add(taskId);
+  Future<void> clearReviewNote(String taskId) async {
+    await clearGate?.future;
+    if (throwOnClear) throw Exception('offline');
+    cleared.add(taskId);
+  }
+  @override
+  Future<void> saveTask(WpTask task) async {
+    if (throwOnSave) throw Exception('offline');
+    saved.add(task);
+  }
   @override
   noSuchMethod(Invocation i) => super.noSuchMethod(i);
 }
 
-Employee emp(String id, String first, {String? role, String? reportsTo}) => Employee(
+Employee emp(String id, String first, {String? role, String? reportsTo, String status = 'ACTIVE', DateTime? deletedAt}) => Employee(
   id: id, companyId: 'c', employeeNumber: id, firstName: first, lastName: 'X',
-  roleScorecardId: role, reportsToId: reportsTo,
-  employmentType: 'FULL_TIME', employmentStatus: 'ACTIVE',
+  roleScorecardId: role, reportsToId: reportsTo, deletedAt: deletedAt,
+  employmentType: 'FULL_TIME', employmentStatus: status,
   hireDate: DateTime(2024, 1, 1), isRankAndFile: true, isOtEligible: false,
   isNdEligible: false, isHolidayPayEligible: false,
   sssEligibilityOverride: false, philhealthEligibilityOverride: false,
   pagibigEligibilityOverride: false, taxOnFullEarnings: false,
 );
 
-RoleScorecard role(String id, String title) => RoleScorecard(
-  id: id, companyId: 'c', jobTitle: title, missionStatement: '',
-  responsibilities: const [], kpis: const [], wageType: 'MONTHLY',
+RoleScorecard role(String id, String title, {List<String> areas = const [], String companyId = 'c'}) => RoleScorecard(
+  id: id, companyId: companyId, jobTitle: title, missionStatement: '',
+  responsibilities: [for (final a in areas) ResponsibilityArea(area: a, tasks: const ['x'])], kpis: const [], wageType: 'MONTHLY',
   workHoursPerDay: 8, workDaysPerWeek: 'MON_FRI', isActive: true,
   effectiveDate: DateTime(2026),
 );
 
-Widget _host(_FakeRepo repo, {List<WpTask>? tasks}) => ProviderScope(
+Widget _host(_FakeRepo repo, {List<WpTask>? tasks, List<Employee>? employees, List<RoleScorecard>? roles}) => ProviderScope(
   overrides: [
-    wpActiveEmployeesProvider.overrideWith((ref) async => [
+    userProfileProvider.overrideWith((ref) async => null),
+    wpActiveEmployeesProvider.overrideWith((ref) async => employees ?? [
       emp('ana', 'Ana', role: 'bh', reportsTo: 'jer'),
       emp('ben', 'Ben', role: 'bh', reportsTo: 'jer'),
       emp('jer', 'Jeremy', role: 'om'),
     ]),
-    roleScorecardListProvider.overrideWith((ref) async => [role('bh', 'Brand Handler'), role('om', 'Ops Manager')]),
+    roleScorecardListProvider.overrideWith((ref) async => roles ?? [
+      role('bh', 'Brand Handler', areas: ['Fulfilment']),
+      role('om', 'Ops Manager', areas: ['Reporting']),
+    ]),
     wpTasksProvider.overrideWith((ref) async => tasks ?? const [
-      WpTask(id: 't1', companyId: 'c', name: 'Pack orders', roleScorecardId: 'bh'),
-      WpTask(id: 't2', companyId: 'c', name: 'Weekly report', roleScorecardId: 'om'),
+      WpTask(id: 't1', companyId: 'c', name: 'Pack orders', roleScorecardId: 'bh',
+          responsibilityArea: 'Fulfilment', cadence: 'DAILY', timesManual: 26, minutesManual: 60),
+      WpTask(id: 't2', companyId: 'c', name: 'Weekly report', roleScorecardId: 'om',
+          responsibilityArea: 'Reporting'),
     ]),
     wpAllTaskComputedProvider.overrideWith((ref) async => const [
       WpTaskComputed(taskId: 't1', companyId: 'c', hoursPerMonthBase: 160),
@@ -202,5 +228,131 @@ void main() {
     // t2's move succeeded and is gone; t1's failed and stays a draft.
     expect(find.text('1 unsaved move'), findsOneWidget);
     expect(find.textContaining('could not be saved'), findsOneWidget);
+  });
+
+  void bigView(WidgetTester tester) {
+    tester.view.physicalSize = const Size(1400, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+  }
+
+  Finder inCard(String roleId, String text) => find.descendant(
+    of: find.byKey(ValueKey('role-card-$roleId')),
+    matching: find.text(text),
+  );
+
+  testWidgets('F1: Apply writes the target role\'s first area, at the end of it', (tester) async {
+    bigView(tester);
+    final repo = _FakeRepo();
+    await tester.pumpWidget(_host(repo));
+    await tester.pumpAndSettle();
+
+    await drag(tester, find.byKey(const ValueKey('task-t2')), find.byKey(const ValueKey('role-card-bh')));
+    await tester.tap(find.text('Apply 1'));
+    await tester.pumpAndSettle();
+
+    final m = repo.appliedMoves.single;
+    expect(m.roleId, 'bh');
+    expect(m.area, 'Fulfilment', reason: 'never the old role\'s "Reporting"');
+    expect((m.areaSort, m.taskSort), (0, 1), reason: 'after Pack orders');
+  });
+
+  testWidgets('F1: a new task added on a role card gets that role\'s first area, placed last', (tester) async {
+    bigView(tester);
+    final repo = _FakeRepo();
+    await tester.pumpWidget(_host(repo));
+    await tester.pumpAndSettle();
+
+    await tester.tap(inCard('bh', 'Add task'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Count stock');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Minutes each time'), '10');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    final t = repo.saved.single;
+    expect(t.roleScorecardId, 'bh');
+    expect(t.responsibilityArea, 'Fulfilment');
+    expect((t.areaSort, t.taskSort), (0, 1));
+    expect(t.companyId, 'c');
+  });
+
+  testWidgets('F2: a failed task save shows a message instead of failing silently', (tester) async {
+    bigView(tester);
+    final repo = _FakeRepo()..throwOnSave = true;
+    await tester.pumpWidget(_host(repo));
+    await tester.pumpAndSettle();
+
+    await tester.tap(inCard('bh', 'Add task'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Count stock');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Minutes each time'), '10');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Could not save task'), findsOneWidget);
+  });
+
+  const flagged = [
+    WpTask(id: 't1', companyId: 'c', name: 'Pack orders', roleScorecardId: 'bh',
+        responsibilityArea: 'Fulfilment', allocationReviewNote: 'was split 50/50'),
+  ];
+
+  testWidgets('F2: "Looks right" is disabled while its call is pending', (tester) async {
+    bigView(tester);
+    final repo = _FakeRepo()..clearGate = Completer<void>();
+    await tester.pumpWidget(_host(repo, tasks: flagged));
+    await tester.pumpAndSettle();
+
+    Finder button() => find.widgetWithText(TextButton, 'Looks right');
+    await tester.tap(button());
+    await tester.pump();
+    expect(tester.widget<TextButton>(button()).onPressed, isNull);
+
+    repo.clearGate!.complete();
+    await tester.pumpAndSettle();
+    expect(repo.cleared, ['t1']);
+  });
+
+  testWidgets('F2: a failed "Looks right" shows a message and re-enables the button', (tester) async {
+    bigView(tester);
+    final repo = _FakeRepo()..throwOnClear = true;
+    await tester.pumpWidget(_host(repo, tasks: flagged));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(TextButton, 'Looks right'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Could not clear the check'), findsOneWidget);
+    expect(tester.widget<TextButton>(find.widgetWithText(TextButton, 'Looks right')).onPressed, isNotNull);
+  });
+
+  testWidgets('F2: with no company id, "Add task" is disabled rather than writing an empty one', (tester) async {
+    bigView(tester);
+    await tester.pumpWidget(_host(
+      _FakeRepo(),
+      employees: const [],
+      roles: [role('bh', 'Brand Handler', companyId: '')],
+      tasks: const [],
+    ));
+    await tester.pumpAndSettle();
+    final add = find.ancestor(of: inCard('bh', 'Add task'), matching: find.byWidgetPredicate((w) => w is ButtonStyleButton));
+    expect(tester.widget<ButtonStyleButton>(add.first).onPressed, isNull);
+  });
+
+  testWidgets('F7: the Add holder picker lists only active, not-deleted people', (tester) async {
+    bigView(tester);
+    await tester.pumpWidget(_host(_FakeRepo(), employees: [
+      emp('jer', 'Jeremy', role: 'om'),
+      emp('amy', 'Amy'),
+      emp('tom', 'Tom', status: 'TERMINATED'),
+      emp('del', 'Dell', deletedAt: DateTime(2026)),
+    ]));
+    await tester.pumpAndSettle();
+
+    await tester.tap(inCard('bh', 'Add holder'));
+    await tester.pumpAndSettle();
+    expect(find.text('Amy X'), findsOneWidget);
+    expect(find.text('Jeremy X'), findsOneWidget);
+    expect(find.text('Tom X'), findsNothing);
+    expect(find.text('Dell X'), findsNothing);
   });
 }

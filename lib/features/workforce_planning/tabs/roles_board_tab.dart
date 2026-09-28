@@ -7,10 +7,13 @@ import '../../../data/models/role_scorecard.dart';
 import '../../../data/models/workforce_planning.dart';
 import '../../../data/repositories/role_scorecard_repository.dart';
 import '../../../data/repositories/workforce_planning_repository.dart';
+import '../../auth/profile_provider.dart';
+import '../area_placement.dart';
 import '../board/board_sections.dart';
 import '../board/role_load_card.dart';
 import '../role/new_role_dialog.dart';
 import '../role_load.dart';
+import '../role_structure.dart';
 import '../wp_providers.dart';
 import 'needs_attention_strip.dart';
 import 'task_form_dialog.dart';
@@ -47,10 +50,17 @@ class _RolesBoardTabState extends ConsumerState<RolesBoardTab> {
     }
   });
 
-  Future<void> _apply() async {
+  Future<void> _apply(_BoardData d) async {
     setState(() => _applying = true);
     try {
-      final failed = await ref.read(workforcePlanningRepositoryProvider).moveTasksToRoles({..._moves});
+      // Each moved task takes the target card's default area and goes to the
+      // end of it (ruling R11) — never keeps the old role's area string.
+      final plan = planRoleMoves(
+        moves: {..._moves},
+        allTasks: d.tasks,
+        rolesById: {for (final r in d.roles) r.id: r},
+      );
+      final failed = await ref.read(workforcePlanningRepositoryProvider).moveTasksToRoles(plan);
       if (!mounted) return;
       setState(() {
         _moves.removeWhere((id, _) => !failed.contains(id));
@@ -73,22 +83,49 @@ class _RolesBoardTabState extends ConsumerState<RolesBoardTab> {
   }
 
   Future<void> _openTask({WpTask? existing, String? roleId, required _BoardData d}) async {
+    final companyId = existing?.companyId ?? d.companyId;
+    if (companyId == null) return;
     final saved = await showDialog<WpTask>(
       context: context,
       builder: (_) => TaskFormDialog(
         existing: existing,
-        companyId: d.companyId,
+        companyId: companyId,
         cards: d.roles,
         nodes: d.nodes,
         drivers: d.drivers,
         rates: d.rates,
         initialRoleId: roleId,
         duplicateCheckPool: d.tasks,
-        holderCountByRole: {for (final r in d.current) r.role.id: r.holders.length},
+        holderCountByRole: holderCountByRole(roles: d.roles, employees: d.employees),
       ),
     );
-    if (saved == null) return;
-    await ref.read(workforcePlanningRepositoryProvider).saveTask(saved);
+    if (saved == null || !mounted) return;
+    try {
+      await ref.read(workforcePlanningRepositoryProvider).saveTask(
+        placeInArea(previous: existing, next: saved, allTasks: d.tasks),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save task: $e')),
+      );
+      return;
+    }
+    _invalidate();
+  }
+
+  /// HR confirms a migration-flagged task. The section disables the button
+  /// while this runs; a failure is reported and the flag stays.
+  Future<void> _looksRight(WpTask t) async {
+    try {
+      await ref.read(workforcePlanningRepositoryProvider).clearReviewNote(t.id);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not clear the check: $e')),
+      );
+      return;
+    }
     _invalidate();
   }
 
@@ -106,7 +143,10 @@ class _RolesBoardTabState extends ConsumerState<RolesBoardTab> {
               style: Theme.of(ctx).textTheme.bodySmall,
             ),
           ),
-          for (final e in employees.where((e) => e.roleScorecardId != role.id))
+          for (final e in employees.where((e) =>
+              e.roleScorecardId != role.id &&
+              e.employmentStatus == 'ACTIVE' &&
+              e.deletedAt == null))
             SimpleDialogOption(onPressed: () => Navigator.pop(ctx, e), child: Text(e.fullName)),
         ],
       ),
@@ -137,7 +177,7 @@ class _RolesBoardTabState extends ConsumerState<RolesBoardTab> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const NeedsAttentionStrip(),
-        if (_moves.isNotEmpty) _planBar(context),
+        if (_moves.isNotEmpty) _planBar(context, d),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.all(16),
@@ -169,10 +209,7 @@ class _RolesBoardTabState extends ConsumerState<RolesBoardTab> {
               FlaggedSection(
                 tasks: flaggedTasks(d.tasks),
                 rolesById: rolesById,
-                onLooksRight: (t) async {
-                  await ref.read(workforcePlanningRepositoryProvider).clearReviewNote(t.id);
-                  _invalidate();
-                },
+                onLooksRight: _looksRight,
                 onOpenTask: (t) => _openTask(existing: t, d: d),
               ),
               for (final p in withDrafts)
@@ -192,7 +229,8 @@ class _RolesBoardTabState extends ConsumerState<RolesBoardTab> {
                       final t = tasksById[taskId];
                       if (t != null) _drop(t, p.role.id);
                     },
-                    onAddTask: () => _openTask(roleId: p.role.id, d: d),
+                    // No company to write under -> no Add (never insert '').
+                    onAddTask: d.companyId == null ? null : () => _openTask(roleId: p.role.id, d: d),
                     onAddHolder: () => _addHolder(p.role, d.employees),
                     onOpenRole: () => context.push('/workforce-planning/roles/${p.role.id}'),
                     onOpenTask: (t) => _openTask(existing: t, d: d),
@@ -205,7 +243,7 @@ class _RolesBoardTabState extends ConsumerState<RolesBoardTab> {
     );
   }
 
-  Widget _planBar(BuildContext context) => Material(
+  Widget _planBar(BuildContext context, _BoardData d) => Material(
     color: Theme.of(context).colorScheme.surfaceContainerHighest,
     child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -216,7 +254,7 @@ class _RolesBoardTabState extends ConsumerState<RolesBoardTab> {
           child: const Text('Reset'),
         ),
         const SizedBox(width: 8),
-        FilledButton(onPressed: _applying ? null : _apply, child: Text('Apply ${_moves.length}')),
+        FilledButton(onPressed: _applying ? null : () => _apply(d), child: Text('Apply ${_moves.length}')),
       ]),
     ),
   );
@@ -224,7 +262,8 @@ class _RolesBoardTabState extends ConsumerState<RolesBoardTab> {
 
 /// Everything the board reads, loaded together.
 class _BoardData {
-  final String companyId;
+  /// Null when no company can be derived — the board then offers no Add.
+  final String? companyId;
   final List<RoleScorecard> roles;
   final List<Employee> employees;
   final List<WpTask> tasks;
@@ -258,14 +297,22 @@ class _BoardData {
     final drivers = ref.watch(wpDriversProvider);
     final rates = ref.watch(wpRatesProvider);
     final multiplier = ref.watch(wpGrowthMultiplierProvider);
+    // The signed-in user's company, as the rest of the app reads it; the
+    // loaded rows are a fallback while the profile is still resolving.
+    final profileCompany = ref.watch(userProfileProvider).asData?.value?.companyId;
     for (final a in [roles, emps, tasks, computed, loads, config]) {
       if (a.hasError) return AsyncValue.error(a.error!, a.stackTrace ?? StackTrace.empty);
       if (!a.hasValue) return const AsyncValue.loading();
     }
     final active = roles.requireValue.where((r) => r.isActive).toList();
     final e = emps.requireValue;
+    final companyId = [
+      profileCompany,
+      if (e.isNotEmpty) e.first.companyId,
+      if (active.isNotEmpty) active.first.companyId,
+    ].firstWhere((c) => c != null && c.isNotEmpty, orElse: () => null);
     return AsyncValue.data(_BoardData(
-      companyId: e.isNotEmpty ? e.first.companyId : (active.isNotEmpty ? active.first.companyId : ''),
+      companyId: companyId,
       roles: active,
       employees: e,
       tasks: tasks.requireValue,

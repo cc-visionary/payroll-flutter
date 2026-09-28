@@ -213,19 +213,18 @@ Future<void> deleteTask(String id) async =>
         .eq('id', taskId);
   }
 
-  /// Applies the board's draft role moves (taskId -> roleId), one row at a
-  /// time so a partial failure keeps the rows that succeeded. Returns the ids
-  /// that failed so the board can keep them as drafts.
-  Future<List<String>> moveTasksToRoles(Map<String, String> moves) async {
+  /// Applies the board's draft role moves, one row at a time so a partial
+  /// failure keeps the rows that succeeded. Each move writes the new role
+  /// together with its area and position on that role's card (see
+  /// `planRoleMoves`) — a task on a role always has an area of that role.
+  /// Returns the task ids that failed so the board can keep them as drafts.
+  Future<List<String>> moveTasksToRoles(List<TaskRoleMove> moves) async {
     final failed = <String>[];
-    for (final m in moves.entries) {
+    for (final m in moves) {
       try {
-        await _client
-            .from('wp_tasks')
-            .update({'role_scorecard_id': m.value})
-            .eq('id', m.key);
+        await _client.from('wp_tasks').update(m.toUpdate()).eq('id', m.taskId);
       } catch (_) {
-        failed.add(m.key);
+        failed.add(m.taskId);
       }
     }
     return failed;

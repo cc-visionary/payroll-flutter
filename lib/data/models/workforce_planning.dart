@@ -368,3 +368,28 @@ class WpPersonLoad {
     growthMultiplier: _dn(r['growth_multiplier']) ?? 1,
   );
 }
+
+/// One applied board move: the task's new role AND where it lands on that
+/// role's card. A task on a role always carries an area of that role, so a
+/// move writes the area and its position together with the role.
+class TaskRoleMove {
+  final String taskId;
+  final String roleId;
+  final String area;
+  final int areaSort;
+  final int taskSort;
+  const TaskRoleMove({
+    required this.taskId,
+    required this.roleId,
+    required this.area,
+    required this.areaSort,
+    required this.taskSort,
+  });
+
+  Map<String, dynamic> toUpdate() => {
+    'role_scorecard_id': roleId,
+    'responsibility_area': area,
+    'area_sort': areaSort,
+    'task_sort': taskSort,
+  };
+}
