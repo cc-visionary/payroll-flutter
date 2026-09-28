@@ -48,17 +48,26 @@ class _RolesBoardTabState extends ConsumerState<RolesBoardTab> {
 
   Future<void> _apply() async {
     setState(() => _applying = true);
-    final failed = await ref.read(workforcePlanningRepositoryProvider).moveTasksToRoles({..._moves});
-    if (!mounted) return;
-    setState(() {
-      _moves.removeWhere((id, _) => !failed.contains(id));
-      _applying = false;
-    });
-    _invalidate();
-    if (failed.isNotEmpty) {
+    try {
+      final failed = await ref.read(workforcePlanningRepositoryProvider).moveTasksToRoles({..._moves});
+      if (!mounted) return;
+      setState(() {
+        _moves.removeWhere((id, _) => !failed.contains(id));
+      });
+      _invalidate();
+      if (failed.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${failed.length} move(s) could not be saved and are still drafts.')),
+        );
+      }
+    } catch (e) {
+      // All drafts are kept as-is — nothing was confirmed saved.
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${failed.length} move(s) could not be saved and are still drafts.')),
+        SnackBar(content: Text('Could not apply moves: $e')),
       );
+    } finally {
+      if (mounted) setState(() => _applying = false);
     }
   }
 
