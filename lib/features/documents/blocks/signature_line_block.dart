@@ -39,7 +39,15 @@ class SignatureLineBlock extends Block {
     this.showDate = false,
   });
 
-  pw.Widget _one(PdfTheme theme, SignatoryLine s) {
+  /// Height of the signature space above the line. An image needs 40; a
+  /// blank line needs 24.
+  static const double _imageSlot = 40;
+  static const double _blankSlot = 24;
+
+  /// [slotHeight] is the signature space above the line. Side by side, every
+  /// column gets the tallest column's slot so the lines, names, roles and
+  /// dates stay level when only one party has a signature image.
+  pw.Widget _one(PdfTheme theme, SignatoryLine s, double slotHeight) {
     final hasName = s.name != null && s.name!.trim().isNotEmpty;
     final hasRole = s.role != null && s.role!.trim().isNotEmpty;
     final hasHeader = s.header != null && s.header!.trim().isNotEmpty;
@@ -69,9 +77,9 @@ class SignatureLineBlock extends Block {
             ),
           ),
           child: s.signatureImage == null
-              ? pw.SizedBox(height: 24)
+              ? pw.SizedBox(height: slotHeight)
               : pw.Container(
-                  height: 40,
+                  height: slotHeight,
                   alignment: pw.Alignment.bottomCenter,
                   child: pw.Image(
                     pw.MemoryImage(s.signatureImage!),
@@ -115,12 +123,15 @@ class SignatureLineBlock extends Block {
   @override
   pw.Widget toPdf(PdfTheme theme) {
     if (row) {
+      final slot = signatories.any((s) => s.signatureImage != null)
+          ? _imageSlot
+          : _blankSlot;
       return pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           for (var i = 0; i < signatories.length; i++) ...[
             if (i > 0) pw.SizedBox(width: 32),
-            pw.Expanded(child: _one(theme, signatories[i])),
+            pw.Expanded(child: _one(theme, signatories[i], slot)),
           ],
         ],
       );
@@ -130,7 +141,11 @@ class SignatureLineBlock extends Block {
       children: [
         for (var i = 0; i < signatories.length; i++) ...[
           if (i > 0) pw.SizedBox(height: 28),
-          _one(theme, signatories[i]),
+          _one(
+            theme,
+            signatories[i],
+            signatories[i].signatureImage == null ? _blankSlot : _imageSlot,
+          ),
         ],
       ],
     );
