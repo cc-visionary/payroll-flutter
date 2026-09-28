@@ -1,158 +1,130 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme.dart';
-import '../../../data/models/employee.dart';
 import '../../../data/models/role_scorecard.dart';
 import '../../../data/models/workforce_planning.dart';
 import '../duplicate_check.dart';
 import '../duplicate_warning.dart';
-import 'assignment_panel.dart';
+import '../frequency.dart';
 
 const _tiers = ['Transactional', 'Operational', 'Managerial', 'Strategic'];
 const _risks = ['Low', 'Medium', 'High'];
 const _criticalities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
-/// Guards a `DropdownButtonFormField`'s `initialValue` against an id that
-/// isn't among its current `items` (e.g. a task owned by a now-separated
-/// employee, absent from the active roster passed in) — the widget asserts
-/// if `initialValue` isn't found among `items`, which would otherwise crash
-/// the dialog on open. The underlying state field keeps the original value
-/// regardless, so an untouched Save still preserves it.
 String? _present(String? id, Iterable<String> ids) =>
     (id != null && ids.contains(id)) ? id : null;
 
-/// Validates the task form. Returns an error message, or null when OK.
+double? _num(String? s) => double.tryParse((s ?? '').trim());
+
+/// The collapsed "More details" fields. None of them affects load.
+class More {
+  final String? nodeId, brandScope, skillTier, risk, capability, criticality, notes;
+  final bool isEssential, isExpectation;
+  const More({
+    this.nodeId, this.brandScope, this.skillTier, this.risk, this.capability,
+    this.criticality, this.notes, this.isEssential = true, this.isExpectation = false,
+  });
+  factory More.of(WpTask? t) => t == null
+      ? const More()
+      : More(
+          nodeId: t.nodeId, brandScope: t.brandScope, skillTier: t.skillTier,
+          risk: t.risk, capability: t.capability, criticality: t.criticality,
+          notes: t.notes, isEssential: t.isEssential, isExpectation: t.isExpectation,
+        );
+}
+
 String? validateTaskForm({
   required String name,
-  required String timesSource,
+  required String? roleId,
+  required TaskFrequency frequency,
+  String? minutesText,
+  String? customHoursText,
   String? driverId,
-  required String minutesSource,
-  String? rateId,
 }) {
   if (name.trim().isEmpty) return 'Name is required.';
-  if (timesSource == 'driver' && (driverId == null || driverId.isEmpty)) {
-    return 'Pick a driver (or switch Times to Manual).';
+  if (roleId == null) return 'Pick the role that does this.';
+  if (frequency == TaskFrequency.custom) {
+    return _num(customHoursText) == null ? 'Enter hours per month.' : null;
   }
-  if (minutesSource == 'rate' && (rateId == null || rateId.isEmpty)) {
-    return 'Pick a rate (or switch Minutes to Manual).';
+  if (_num(minutesText) == null) return 'How long does it take each time?';
+  if (frequency == TaskFrequency.perOrder && (driverId == null || driverId.isEmpty)) {
+    return 'Pick what the orders are counted from.';
   }
   return null;
 }
 
-/// Builds the WpTask to persist from the raw form values. Pure + testable:
-/// nulls the unused times/minutes source field, and preserves the columns the
-/// dialog genuinely does not edit (id/companyId/externalRef/notes) from
-/// [existing].
-///
-/// [roleScorecardId] and [responsibilityArea] ARE form-driven — a task IS a role
-/// card responsibility, so this dialog can link one to a card + area (or unlink
-/// it by passing nulls). They are not preserved from [existing]; pass the
-/// existing values through when the form didn't change them.
 WpTask buildTaskFromForm({
   WpTask? existing,
   required String companyId,
   required String name,
-  String? roleScorecardId,
+  required String roleId,
   String? responsibilityArea,
-  String? nodeId,
-  String? brandScope,
-  String? cadence,
-  required String timesSource,
-  String? timesManualText,
+  required TaskFrequency frequency,
+  String? minutesText,
+  String? customHoursText,
   String? driverId,
-  String? driverFactorText,
-  required String minutesSource,
-  String? minutesManualText,
-  String? rateId,
-  String? skillTier,
-  String? risk,
-  String? capability,
-  String? ownerEmployeeId,
-  String? hoursPerMonthText,
-  String? criticality,
-  bool isEssential = true,
+  More more = const More(),
 }) {
+  final custom = frequency == TaskFrequency.custom;
+  final perOrder = frequency == TaskFrequency.perOrder;
   String? clean(String? v) => (v == null || v.trim().isEmpty) ? null : v.trim();
-  final direct = double.tryParse((hoursPerMonthText ?? '').trim());
   return WpTask(
     id: existing?.id ?? '',
     companyId: existing?.companyId ?? companyId,
     name: name.trim(),
-    nodeId: nodeId,
-    brandScope: clean(brandScope),
-    cadence: clean(cadence),
-    timesSource: direct != null ? 'manual' : timesSource,
-    timesManual: direct != null
-        ? null
-        : (timesSource == 'manual'
-              ? double.tryParse((timesManualText ?? '').trim())
-              : null),
-    driverId: direct != null
-        ? null
-        : (timesSource == 'driver' ? driverId : null),
-    driverFactor: double.tryParse((driverFactorText ?? '').trim()) ?? 1,
-    minutesSource: direct != null ? 'manual' : minutesSource,
-    minutesManual: direct != null
-        ? null
-        : (minutesSource == 'manual'
-              ? double.tryParse((minutesManualText ?? '').trim())
-              : null),
-    rateId: direct != null ? null : (minutesSource == 'rate' ? rateId : null),
-    hoursPerMonth: direct,
-    skillTier: skillTier,
-    risk: risk,
-    capability: clean(capability),
-    ownerEmployeeId: ownerEmployeeId,
+    roleScorecardId: roleId,
+    responsibilityArea: clean(responsibilityArea ?? existing?.responsibilityArea),
+    cadence: custom ? null : frequency.token,
+    timesSource: perOrder ? 'driver' : 'manual',
+    timesManual: (custom || perOrder) ? null : frequency.timesPerMonth,
+    driverId: perOrder ? driverId : null,
+    driverFactor: existing?.driverFactor ?? 1,
+    minutesSource: 'manual',
+    minutesManual: custom ? null : _num(minutesText),
+    hoursPerMonth: custom ? _num(customHoursText) : null,
+    nodeId: more.nodeId,
+    brandScope: clean(more.brandScope),
+    skillTier: more.skillTier,
+    risk: more.risk,
+    capability: clean(more.capability),
+    criticality: more.criticality,
+    notes: clean(more.notes),
+    isEssential: more.isEssential,
+    isExpectation: more.isExpectation,
+    // Kept, not edited here: the DB still carries them for rollback.
+    ownerEmployeeId: existing?.ownerEmployeeId,
     externalRef: existing?.externalRef,
-    // An area only means something in the context of a card — clearing the card
-    // clears the area too, so a task can never carry an orphan area string.
-    roleScorecardId: roleScorecardId,
-    responsibilityArea: roleScorecardId == null
-        ? null
-        : clean(responsibilityArea),
-    notes: existing?.notes,
-    criticality: criticality,
-    isEssential: isEssential,
-    isExpectation: existing?.isExpectation ?? false,
+    areaSort: existing?.areaSort ?? 0,
+    taskSort: existing?.taskSort ?? 0,
+    status: existing?.status ?? 'ACTIVE',
   );
 }
 
-/// Create/edit dialog for a `wp_tasks` row. Caller supplies the dropdown data
-/// (nodes/drivers/rates/employees) and persists the returned [WpTask] via
-/// `WorkforcePlanningRepository.saveTask`, then invalidates the read providers.
+/// Add/edit a task: name, how often x how long, and the one role that does
+/// it. Everything else sits under "More details" because none of it changes
+/// anyone's load.
 class TaskFormDialog extends StatefulWidget {
   final WpTask? existing;
   final String companyId;
+  final List<RoleScorecard> cards;
   final List<WpNode> nodes;
   final List<WpDriver> drivers;
-  final List<WpRate> rates;
-  final List<Employee> employees;
-
-  /// Role cards, for linking this task to a card + responsibility area. A task
-  /// IS a card responsibility, so this is what makes the Responsibilities tab a peer of the
-  /// card editor rather than a read-mostly view.
-  final List<RoleScorecard> cards;
-
-  /// Every accountability the company already tracks, for the live
-  /// duplicate nudge under the Name field (see [SimilarNameWarning]). Empty
-  /// — the default — turns the nudge off entirely.
-  ///
-  /// Opt-in rather than always-on because a duplicate matters most where a
-  /// name alone becomes a brand-new `wp_tasks` row on a role card, whose
-  /// hours then land twice in load %, cost/hour and the contract's Annex A.
-  /// [findSimilarAccountabilities] excludes [existing] by id, so an edit that
-  /// leaves the name alone never warns about itself.
+  final String? initialRoleId;
   final List<WpTask> duplicateCheckPool;
+
+  /// Role id -> active holders, for the "split across N people" line.
+  final Map<String, int> holderCountByRole;
+
   const TaskFormDialog({
     super.key,
     this.existing,
     required this.companyId,
-    required this.nodes,
-    required this.drivers,
-    required this.rates,
-    required this.employees,
-    this.cards = const [],
+    required this.cards,
+    this.nodes = const [],
+    this.drivers = const [],
+    this.initialRoleId,
     this.duplicateCheckPool = const [],
+    this.holderCountByRole = const {},
   });
 
   @override
@@ -161,133 +133,104 @@ class TaskFormDialog extends StatefulWidget {
 
 class _TaskFormDialogState extends State<TaskFormDialog> {
   late final _name = TextEditingController(text: widget.existing?.name ?? '');
-  late final _brand = TextEditingController(
-    text: widget.existing?.brandScope ?? '',
+  late TaskFrequency _frequency = widget.existing == null
+      ? TaskFrequency.weekly
+      : frequencyOf(widget.existing!);
+  late final _minutes = TextEditingController(
+    text: widget.existing == null ? '' : (minutesOf(widget.existing!)?.toString() ?? ''),
   );
-  late final _cadence = TextEditingController(
-    text: widget.existing?.cadence ?? '',
+  late final _customHours = TextEditingController(
+    text: widget.existing == null ? '' : (customHoursOf(widget.existing!)?.toString() ?? ''),
   );
-  late final _capability = TextEditingController(
-    text: widget.existing?.capability ?? '',
-  );
-  late final _timesManual = TextEditingController(
-    text: widget.existing?.timesManual?.toString() ?? '',
-  );
-  late final _driverFactor = TextEditingController(
-    text: (widget.existing?.driverFactor ?? 1).toString(),
-  );
-  late final _minutesManual = TextEditingController(
-    text: widget.existing?.minutesManual?.toString() ?? '',
-  );
-  late final _hoursCtl = TextEditingController(
-    text: widget.existing?.hoursPerMonth?.toString() ?? '',
-  );
+  late String? _roleId = widget.existing?.roleScorecardId ?? widget.initialRoleId;
+  late String? _driverId = widget.existing?.driverId ??
+      widget.drivers.where((d) => d.name.toLowerCase().contains('order')).firstOrNull?.id;
 
-  late String _timesSource = widget.existing?.timesSource ?? 'manual';
-  late String _minutesSource = widget.existing?.minutesSource ?? 'manual';
-  late String? _nodeId = widget.existing?.nodeId;
-  late String? _driverId = widget.existing?.driverId;
-  late String? _rateId = widget.existing?.rateId;
-  late String? _tier = widget.existing?.skillTier;
-  late String? _risk = widget.existing?.risk;
-  late String? _criticality = widget.existing?.criticality;
-  late bool _essential = widget.existing?.isEssential ?? true;
-  late String? _ownerId = widget.existing?.ownerEmployeeId;
-  late String? _cardId = widget.existing?.roleScorecardId;
-  late String? _area = widget.existing?.responsibilityArea;
+  // "More details" — one field per state variable so "— None —" can clear it.
+  late final More _initial = More.of(widget.existing);
+  late String? _nodeId = _initial.nodeId;
+  late String? _tier = _initial.skillTier;
+  late String? _risk = _initial.risk;
+  late String? _criticality = _initial.criticality;
+  late bool _essential = _initial.isEssential;
+  late final _brand = TextEditingController(text: _initial.brandScope ?? '');
+  late final _capability = TextEditingController(text: _initial.capability ?? '');
+  late final _notes = TextEditingController(text: _initial.notes ?? '');
 
-  /// The selected card's responsibility areas, in authored order.
-  List<String> get _areasForCard {
-    if (_cardId == null) return const [];
-    for (final c in widget.cards) {
-      if (c.id == _cardId) return [for (final a in c.responsibilities) a.area];
-    }
-    return const [];
-  }
-
+  bool _showMore = false;
   String? _error;
 
   @override
   void dispose() {
-    for (final c in [
-      _name,
-      _brand,
-      _cadence,
-      _capability,
-      _timesManual,
-      _driverFactor,
-      _minutesManual,
-      _hoursCtl,
-    ]) {
+    for (final c in [_name, _minutes, _customHours, _brand, _capability, _notes]) {
       c.dispose();
     }
     super.dispose();
   }
 
+  InputDecoration _dec(String label, {String? hint}) =>
+      InputDecoration(labelText: label, hintText: hint, border: const OutlineInputBorder());
+
+  double get _driverVolume {
+    for (final d in widget.drivers) {
+      if (d.id == _driverId) return d.value;
+    }
+    return 0;
+  }
+
+  String _previewLine() {
+    final h = previewHoursPerMonth(
+      frequency: _frequency,
+      minutes: _num(_minutes.text),
+      customHours: _num(_customHours.text),
+      driverVolume: _driverVolume,
+      driverFactor: widget.existing?.driverFactor ?? 1,
+    );
+    final n = _roleId == null ? 0 : (widget.holderCountByRole[_roleId] ?? 0);
+    final who = _roleId == null
+        ? ''
+        : n == 0
+            ? ' · nobody holds this role yet'
+            : ' · split across $n ${n == 1 ? 'person' : 'people'}';
+    return '≈ ${h.toStringAsFixed(1)} h/mo$who';
+  }
+
   void _save() {
     final err = validateTaskForm(
-      name: _name.text,
-      timesSource: _timesSource,
-      driverId: _driverId,
-      minutesSource: _minutesSource,
-      rateId: _rateId,
+      name: _name.text, roleId: _roleId, frequency: _frequency,
+      minutesText: _minutes.text, customHoursText: _customHours.text, driverId: _driverId,
     );
     if (err != null) {
       setState(() => _error = err);
       return;
     }
-    final task = buildTaskFromForm(
-      existing: widget.existing,
-      companyId: widget.companyId,
-      name: _name.text,
-      roleScorecardId: _cardId,
-      responsibilityArea: _area,
-      nodeId: _nodeId,
-      brandScope: _brand.text,
-      cadence: _cadence.text,
-      timesSource: _timesSource,
-      timesManualText: _timesManual.text,
-      driverId: _driverId,
-      driverFactorText: _driverFactor.text,
-      minutesSource: _minutesSource,
-      minutesManualText: _minutesManual.text,
-      rateId: _rateId,
-      skillTier: _tier,
-      risk: _risk,
-      capability: _capability.text,
-      ownerEmployeeId: _ownerId,
-      hoursPerMonthText: _hoursCtl.text,
-      criticality: _criticality,
-      isEssential: _essential,
+    final more = More(
+      nodeId: _nodeId, brandScope: _brand.text, skillTier: _tier, risk: _risk,
+      capability: _capability.text, criticality: _criticality, notes: _notes.text,
+      isEssential: _initial.isExpectation ? false : _essential,
+      isExpectation: _initial.isExpectation,
     );
-    Navigator.pop(context, task);
+    Navigator.pop(context, buildTaskFromForm(
+      existing: widget.existing, companyId: widget.companyId, name: _name.text,
+      roleId: _roleId!, frequency: _frequency, minutesText: _minutes.text,
+      customHoursText: _customHours.text, driverId: _driverId, more: more,
+    ));
   }
-
-  InputDecoration _dec(String label) => InputDecoration(
-    labelText: label,
-    border: const OutlineInputBorder(),
-    isDense: true,
-  );
 
   @override
   Widget build(BuildContext context) {
+    final roleIds = widget.cards.map((c) => c.id);
+    final custom = _frequency == TaskFrequency.custom;
     return AlertDialog(
       title: Text(widget.existing == null ? 'New task' : 'Edit task'),
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 520),
+      content: SizedBox(
+        width: 520,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextField(
-                controller: _name,
-                autofocus: true,
-                decoration: _dec('Name'),
-                onChanged: widget.duplicateCheckPool.isEmpty
-                    ? null
-                    : (_) => setState(() {}),
-              ),
+              TextFormField(controller: _name, decoration: _dec('Name'), onChanged: (_) => setState(() {})),
               if (widget.duplicateCheckPool.isNotEmpty)
                 SimilarNameWarning(
                   matches: findSimilarAccountabilities(
@@ -297,379 +240,117 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
                   ),
                 ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<String?>(
-                initialValue: _present(_nodeId, widget.nodes.map((n) => n.id)),
-                isExpanded: true,
-                decoration: _dec('Value-chain node'),
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('— None —'),
+              Row(children: [
+                Expanded(
+                  child: DropdownButtonFormField<TaskFrequency>(
+                    isExpanded: true,
+                    initialValue: _frequency,
+                    decoration: _dec('How often'),
+                    items: [for (final f in TaskFrequency.values) DropdownMenuItem(value: f, child: Text(f.label))],
+                    onChanged: (f) => setState(() => _frequency = f ?? _frequency),
                   ),
-                  ...widget.nodes.map(
-                    (n) => DropdownMenuItem<String?>(
-                      value: n.id,
-                      child: Text(n.name),
-                    ),
-                  ),
-                ],
-                onChanged: (v) => setState(() => _nodeId = v),
-              ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: custom
+                      ? TextFormField(controller: _customHours, decoration: _dec('Hours / month', hint: 'e.g. 10'),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setState(() {}))
+                      : TextFormField(controller: _minutes, decoration: _dec('Minutes each time', hint: 'e.g. 15'),
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setState(() {})),
+                ),
+              ]),
+              if (_frequency == TaskFrequency.perOrder) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String?>(
+                  isExpanded: true,
+                  initialValue: _present(_driverId, widget.drivers.map((d) => d.id)),
+                  decoration: _dec('Orders counted from'),
+                  items: [for (final d in widget.drivers) DropdownMenuItem(value: d.id, child: Text('${d.name} (${d.value.toStringAsFixed(0)}/mo)'))],
+                  onChanged: (v) => setState(() => _driverId = v),
+                ),
+              ],
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _brand,
-                      decoration: _dec('Brand / scope'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _cadence,
-                      decoration: _dec('Cadence (label)'),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _hoursCtl,
-                decoration: const InputDecoration(
-                  labelText: 'Workload (hours / month)',
-                  hintText: 'e.g. 10',
-                  helperText:
-                      'One number. Leave blank to drive by volume below.',
-                ),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                onChanged: (_) => setState(() {}),
+              DropdownButtonFormField<String?>(
+                isExpanded: true,
+                initialValue: _present(_roleId, roleIds),
+                decoration: _dec('Role that does it'),
+                items: [for (final c in widget.cards) DropdownMenuItem(value: c.id, child: Text(c.jobTitle))],
+                onChanged: (v) => setState(() => _roleId = v),
               ),
               const SizedBox(height: 8),
-              ExpansionTile(
-                tilePadding: EdgeInsets.zero,
-                initiallyExpanded:
-                    _hoursCtl.text.trim().isEmpty &&
-                    (widget.existing?.timesSource == 'driver' ||
-                        widget.existing?.minutesSource == 'rate'),
-                title: const Text('Advanced: scales with volume'),
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Times source
-                      Text(
-                        'Times per month',
-                        style: Theme.of(context).textTheme.labelLarge,
-                      ),
-                      SegmentedButton<String>(
-                        segments: const [
-                          ButtonSegment(value: 'manual', label: Text('Manual')),
-                          ButtonSegment(value: 'driver', label: Text('Driver')),
-                        ],
-                        selected: {_timesSource},
-                        onSelectionChanged: (s) =>
-                            setState(() => _timesSource = s.first),
-                      ),
-                      const SizedBox(height: 8),
-                      if (_timesSource == 'manual')
-                        TextField(
-                          controller: _timesManual,
-                          keyboardType: TextInputType.number,
-                          style: AppTheme.mono(context),
-                          decoration: _dec('Times / month'),
-                        )
-                      else
-                        Row(
-                          children: [
-                            Expanded(
-                              child: DropdownButtonFormField<String?>(
-                                initialValue: _present(
-                                  _driverId,
-                                  widget.drivers.map((d) => d.id),
-                                ),
-                                isExpanded: true,
-                                decoration: _dec('Driver'),
-                                items: [
-                                  const DropdownMenuItem<String?>(
-                                    value: null,
-                                    child: Text('— Pick —'),
-                                  ),
-                                  ...widget.drivers.map(
-                                    (d) => DropdownMenuItem<String?>(
-                                      value: d.id,
-                                      child: Text(d.name),
-                                    ),
-                                  ),
-                                ],
-                                onChanged: (v) => setState(() => _driverId = v),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            SizedBox(
-                              width: 110,
-                              child: TextField(
-                                controller: _driverFactor,
-                                keyboardType: TextInputType.number,
-                                style: AppTheme.mono(context),
-                                decoration: _dec('× factor'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      const SizedBox(height: 16),
-                      // Minutes source
-                      Text(
-                        'Minutes each',
-                        style: Theme.of(context).textTheme.labelLarge,
-                      ),
-                      SegmentedButton<String>(
-                        segments: const [
-                          ButtonSegment(value: 'manual', label: Text('Manual')),
-                          ButtonSegment(value: 'rate', label: Text('Rate')),
-                        ],
-                        selected: {_minutesSource},
-                        onSelectionChanged: (s) =>
-                            setState(() => _minutesSource = s.first),
-                      ),
-                      const SizedBox(height: 8),
-                      if (_minutesSource == 'manual')
-                        TextField(
-                          controller: _minutesManual,
-                          keyboardType: TextInputType.number,
-                          style: AppTheme.mono(context),
-                          decoration: _dec('Minutes each'),
-                        )
-                      else
-                        DropdownButtonFormField<String?>(
-                          initialValue: _present(
-                            _rateId,
-                            widget.rates.map((r) => r.id),
-                          ),
-                          isExpanded: true,
-                          decoration: _dec('Rate'),
-                          items: [
-                            const DropdownMenuItem<String?>(
-                              value: null,
-                              child: Text('— Pick —'),
-                            ),
-                            ...widget.rates.map(
-                              (r) => DropdownMenuItem<String?>(
-                                value: r.id,
-                                child: Text(r.name),
-                              ),
-                            ),
-                          ],
-                          onChanged: (v) => setState(() => _rateId = v),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String?>(
-                      initialValue: _present(_tier, _tiers),
-                      isExpanded: true,
-                      decoration: _dec('Skill tier'),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('— None —'),
-                        ),
-                        ..._tiers.map(
-                          (t) => DropdownMenuItem<String?>(
-                            value: t,
-                            child: Text(t),
-                          ),
-                        ),
-                      ],
-                      onChanged: (v) => setState(() => _tier = v),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<String?>(
-                      initialValue: _present(_risk, _risks),
-                      isExpanded: true,
-                      decoration: _dec('Risk'),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('— None —'),
-                        ),
-                        ..._risks.map(
-                          (r) => DropdownMenuItem<String?>(
-                            value: r,
-                            child: Text(r),
-                          ),
-                        ),
-                      ],
-                      onChanged: (v) => setState(() => _risk = v),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String?>(
-                      initialValue: _present(_criticality, _criticalities),
-                      isExpanded: true,
-                      decoration: _dec('Criticality'),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('— None —'),
-                        ),
-                        ..._criticalities.map(
-                          (v) => DropdownMenuItem<String?>(
-                            value: v,
-                            child: Text(v),
-                          ),
-                        ),
-                      ],
-                      onChanged: (v) => setState(() => _criticality = v),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Essential function'),
-                      subtitle: Text(
-                        widget.existing?.isExpectation == true
-                            ? 'Expectations are always non-essential'
-                            : 'A reason the role exists',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      value: widget.existing?.isExpectation == true
-                          ? false
-                          : _essential,
-                      // An expectation is locked to non-essential (the DB invariant);
-                      // toggle it via the flag action on the Responsibilities tab, not here.
-                      onChanged: widget.existing?.isExpectation == true
-                          ? null
-                          : (v) => setState(() => _essential = v),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _capability,
-                decoration: _dec('Capability requirement'),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String?>(
-                initialValue: _present(
-                  _ownerId,
-                  widget.employees.map((e) => e.id),
+              Text(_previewLine(), style: AppTheme.mono(context)),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _showMore = !_showMore),
+                  icon: Icon(_showMore ? Icons.expand_less : Icons.expand_more),
+                  label: const Text('More details'),
                 ),
-                isExpanded: true,
-                decoration: _dec('Owner'),
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('— Unassigned —'),
-                  ),
-                  ...widget.employees.map(
-                    (e) => DropdownMenuItem<String?>(
-                      value: e.id,
-                      child: Text('${e.firstName} ${e.lastName}'),
-                    ),
-                  ),
-                ],
-                onChanged: (v) => setState(() => _ownerId = v),
               ),
-              if (widget.existing != null &&
-                  widget.existing!.id.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                AssignmentPanel(
-                  taskId: widget.existing!.id,
-                  companyId: widget.companyId,
-                  taskHours: widget.existing!.hoursPerMonth ?? 0,
-                  cards: widget.cards,
-                  employees: widget.employees,
-                ),
-              ],
-              if (widget.cards.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(
-                  'Responsibility',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String?>(
-                  initialValue: _present(
-                    _cardId,
-                    widget.cards.map((c) => c.id),
-                  ),
-                  isExpanded: true,
-                  decoration: _dec('Role card'),
-                  items: [
-                    const DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text('— Not a card responsibility —'),
-                    ),
-                    ...widget.cards.map(
-                      (c) => DropdownMenuItem<String?>(
-                        value: c.id,
-                        child: Text(c.jobTitle),
-                      ),
-                    ),
-                  ],
-                  // Areas belong to a card, so changing the card invalidates the
-                  // area — clear it rather than carry a stale one across.
-                  onChanged: (v) => setState(() {
-                    _cardId = v;
-                    _area = null;
-                  }),
-                ),
-                if (_cardId != null) ...[
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String?>(
-                    initialValue: _present(_area, _areasForCard),
-                    isExpanded: true,
-                    decoration: _dec('Responsibility area'),
-                    items: [
-                      const DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text('— None —'),
-                      ),
-                      ..._areasForCard.map(
-                        (a) =>
-                            DropdownMenuItem<String?>(value: a, child: Text(a)),
-                      ),
-                    ],
-                    onChanged: (v) => setState(() => _area = v),
-                  ),
-                ],
-              ],
+              if (_showMore) ..._moreFields(),
               if (_error != null)
                 Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(
-                    _error!,
-                    style: const TextStyle(color: Colors.red, fontSize: 13),
-                  ),
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                 ),
             ],
           ),
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(onPressed: _save, child: const Text('Save')),
       ],
     );
   }
+
+  Widget _pick(String label, String? value, List<String> options, void Function(String?) set) =>
+      Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: DropdownButtonFormField<String?>(
+          isExpanded: true,
+          initialValue: _present(value, options),
+          decoration: _dec(label),
+          items: [
+            const DropdownMenuItem<String?>(value: null, child: Text('— None —')),
+            for (final o in options) DropdownMenuItem(value: o, child: Text(o)),
+          ],
+          onChanged: (v) => setState(() => set(v)),
+        ),
+      );
+
+  Widget _text(TextEditingController c, String label, {int maxLines = 1}) => Padding(
+    padding: const EdgeInsets.only(top: 12),
+    child: TextFormField(controller: c, decoration: _dec(label), maxLines: maxLines),
+  );
+
+  List<Widget> _moreFields() => [
+    _text(_notes, 'Notes', maxLines: 2),
+    _pick('Criticality', _criticality, _criticalities, (v) => _criticality = v),
+    SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: const Text('Essential function'),
+      value: _initial.isExpectation ? false : _essential,
+      onChanged: _initial.isExpectation ? null : (v) => setState(() => _essential = v),
+    ),
+    _pick('Skill tier', _tier, _tiers, (v) => _tier = v),
+    _pick('Risk', _risk, _risks, (v) => _risk = v),
+    _text(_capability, 'Capability requirement'),
+    _text(_brand, 'Brand / scope'),
+    if (widget.nodes.isNotEmpty)
+      Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: DropdownButtonFormField<String?>(
+          isExpanded: true,
+          initialValue: _present(_nodeId, widget.nodes.map((n) => n.id)),
+          decoration: _dec('Value-chain node'),
+          items: [
+            const DropdownMenuItem<String?>(value: null, child: Text('— None —')),
+            for (final n in widget.nodes) DropdownMenuItem(value: n.id, child: Text(n.name)),
+          ],
+          onChanged: (v) => setState(() => _nodeId = v),
+        ),
+      ),
+  ];
 }
