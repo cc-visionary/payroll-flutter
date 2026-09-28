@@ -73,6 +73,20 @@ void main() {
     expect(find.textContaining('100%'), findsWidgets); // alice at 100% load
     expect(find.textContaining('25%'), findsWidgets);  // bob at 25% load
 
+    // Verify order: alice (100% load) before bob (25% load), charlie (no role) last
+    // Compare (dy, dx) lexicographically to handle Wrap wrapping to multiple rows
+    final alicePos = tester.getTopLeft(find.textContaining('alice'));
+    final bobPos = tester.getTopLeft(find.textContaining('bob'));
+    final charliePos = tester.getTopLeft(find.textContaining('charlie'));
+
+    // alice should come before bob: check row first (dy), then x within row (dx)
+    final aliceBeforeBob = alicePos.dy < bobPos.dy || (alicePos.dy == bobPos.dy && alicePos.dx < bobPos.dx);
+    expect(aliceBeforeBob, isTrue, reason: 'alice (100%) should appear before bob (25%)');
+
+    // bob should come before charlie: check row first (dy), then x within row (dx)
+    final bobBeforeCharlie = bobPos.dy < charliePos.dy || (bobPos.dy == charliePos.dy && bobPos.dx < charliePos.dx);
+    expect(bobBeforeCharlie, isTrue, reason: 'bob (with role) should appear before charlie (no role)');
+
     // No overflow errors
     expect(tester.takeException(), isNull);
   });
