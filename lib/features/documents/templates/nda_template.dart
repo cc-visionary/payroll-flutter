@@ -540,15 +540,15 @@ class NdaTemplate extends DocumentTemplate<NdaInputs> {
     section(16, [
       const ParagraphBlock(_s16Intro),
       const SpacerBlock(4),
-      const BulletListBlock(_s16PlainBullets),
-      // Last acknowledgment item carries an inline-bold phrase, so it renders
-      // as its own EmphasisParagraphBlock with a leading bullet glyph rather
-      // than inside the plain BulletListBlock above.
-      EmphasisParagraphBlock(
-        spans: const [
-          EmphasisSpan('•  '),
-          EmphasisSpan(_s16LastBulletBefore),
-          EmphasisSpan(_s16LastBulletBold, bold: true),
+      // The last item carries an inline-bold phrase; richItems renders it
+      // with the same bullet as the plain items.
+      const BulletListBlock(
+        _s16PlainBullets,
+        richItems: [
+          [
+            EmphasisSpan(_s16LastBulletBefore),
+            EmphasisSpan(_s16LastBulletBold, bold: true),
+          ],
         ],
       ),
     ]);
