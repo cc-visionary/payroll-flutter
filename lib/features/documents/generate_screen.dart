@@ -10,6 +10,8 @@ import '../../core/pdf/pdf_theme.dart';
 import '../../data/repositories/audit_repository.dart';
 import '../../data/repositories/employee_document_repository.dart';
 import '../../data/repositories/employee_repository.dart';
+import '../../data/repositories/workflow_repository.dart';
+import '../auth/profile_provider.dart';
 import '../employees/profile/providers.dart' show employeeDocumentsProvider;
 import 'blocks/block.dart';
 import 'brand_logo.dart';
@@ -933,6 +935,7 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
       // is already open needs this explicit nudge.
       ref.invalidate(allDocumentsProvider);
       ref.invalidate(employeeDocumentsProvider(employeeId));
+      await _completeLinkedWorkflowStep(saved.id);
     } catch (e, st) {
       // Persistence is non-blocking: the document is already previewable and
       // exportable. Surface a warning but keep the user on the preview.
@@ -945,6 +948,28 @@ class _GenerateScreenState extends ConsumerState<GenerateScreen> {
           content: Text("Saved to preview, but the settings weren't recorded."),
         ),
       );
+    }
+  }
+
+  /// Opened from a workflow's "Generate now" (a [GenerateScreen.documentId]
+  /// was passed): generating IS the step's work, so complete the step that
+  /// links this document. Best-effort — the document is already saved, and
+  /// the workflow screen reconciles on its next load if this write fails.
+  Future<void> _completeLinkedWorkflowStep(String documentId) async {
+    if (widget.documentId == null) return;
+    try {
+      await ref
+          .read(workflowRepositoryProvider)
+          .completeStepsForDocument(
+            documentId: documentId,
+            completedById: ref.read(userProfileProvider).asData?.value?.userId,
+          );
+      ref.invalidate(workflowStepsProvider);
+      ref.invalidate(workflowByIdProvider);
+      ref.invalidate(workflowListProvider);
+    } catch (e, st) {
+      // ignore: avoid_print
+      print('Completing the workflow step for $documentId failed: $e\n$st');
     }
   }
 

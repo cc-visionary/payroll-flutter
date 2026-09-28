@@ -221,6 +221,73 @@ class WorkflowRepository {
         .eq('id', stepId);
   }
 
+  /// Completes every OPEN document-generation step linked to [documentId],
+  /// then completes each affected workflow if that was its last open step.
+  /// Called when the generate screen saves a document, so generating from
+  /// "Generate now" is what finishes the step — HR no longer has to come back
+  /// and click "Mark complete".
+  Future<void> completeStepsForDocument({
+    required String documentId,
+    String? completedById,
+  }) async {
+    final rows = await _client
+        .from('workflow_steps')
+        .update({
+          'status': 'COMPLETED',
+          'completed_by_id': ?completedById,
+          'completed_at': DateTime.now().toIso8601String(),
+        })
+        .eq('generated_document_id', documentId)
+        .eq('step_type', 'DOCUMENT_GENERATION')
+        .inFilter('status', ['PENDING', 'IN_PROGRESS'])
+        .select('workflow_instance_id');
+    final instanceIds = {
+      for (final r in (rows as List).cast<Map<String, dynamic>>())
+        r['workflow_instance_id'] as String,
+    };
+    for (final id in instanceIds) {
+      await maybeCompleteInstance(id);
+    }
+  }
+
+  /// `employee_documents.status` for each id — lets a step show "Preview"
+  /// only once its document was actually generated (a DRAFT has nothing to
+  /// render).
+  Future<Map<String, String>> documentStatuses(List<String> documentIds) async {
+    if (documentIds.isEmpty) return const {};
+    final rows = await _client
+        .from('employee_documents')
+        .select('id, status')
+        .inFilter('id', documentIds);
+    return {
+      for (final r in (rows as List).cast<Map<String, dynamic>>())
+        r['id'] as String: r['status'] as String,
+    };
+  }
+
+  /// Catches up steps whose document was generated before the generate screen
+  /// completed steps itself (or whose completion write failed): an open
+  /// document step whose document is already ISSUED is completed. Idempotent.
+  Future<void> reconcileGeneratedSteps(String instanceId) async {
+    final open = (await _client
+            .from('workflow_steps')
+            .select('generated_document_id')
+            .eq('workflow_instance_id', instanceId)
+            .eq('step_type', 'DOCUMENT_GENERATION')
+            .inFilter('status', ['PENDING', 'IN_PROGRESS'])
+            .not('generated_document_id', 'is', null) as List)
+        .cast<Map<String, dynamic>>();
+    if (open.isEmpty) return;
+    final statuses = await documentStatuses([
+      for (final r in open) r['generated_document_id'] as String,
+    ]);
+    for (final e in statuses.entries) {
+      if (e.value == 'ISSUED') {
+        await completeStepsForDocument(documentId: e.key);
+      }
+    }
+  }
+
   /// If every step on the instance is COMPLETED or SKIPPED, flip the instance
   /// status to COMPLETED + stamp completed_at. Called after every step status
   /// change. No-op if any step is still PENDING/IN_PROGRESS, or if the instance
@@ -390,6 +457,26 @@ final workflowByIdProvider = FutureProvider.family<WorkflowInstance?, String>(
 );
 
 final workflowStepsProvider = FutureProvider.family<List<WorkflowStep>, String>(
-  (ref, workflowInstanceId) =>
-      ref.read(workflowRepositoryProvider).stepsForInstance(workflowInstanceId),
+  (ref, workflowInstanceId) async {
+    final repo = ref.read(workflowRepositoryProvider);
+    // Idempotent catch-up so a document generated earlier shows as done.
+    await repo.reconcileGeneratedSteps(workflowInstanceId);
+    return repo.stepsForInstance(workflowInstanceId);
+  },
 );
+
+/// Document status per linked document of a workflow's steps
+/// (`employee_documents.id` → status). Drives the step "Preview" button.
+final workflowDocumentStatusesProvider =
+    FutureProvider.family<Map<String, String>, String>((
+      ref,
+      workflowInstanceId,
+    ) async {
+      final steps = await ref.watch(
+        workflowStepsProvider(workflowInstanceId).future,
+      );
+      return ref.read(workflowRepositoryProvider).documentStatuses([
+        for (final s in steps)
+          if (s.generatedDocumentId != null) s.generatedDocumentId!,
+      ]);
+    });

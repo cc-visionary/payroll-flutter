@@ -706,7 +706,43 @@ class _StepActions extends ConsumerWidget {
     final isOpen = step.status == 'PENDING' || step.status == 'IN_PROGRESS';
     final isTerminal =
         workflow.status == 'COMPLETED' || workflow.status == 'CANCELLED';
-    if (!isOpen || isTerminal) return const SizedBox.shrink();
+
+    // A generated document can be previewed from its step at any time — even
+    // after the step (or the whole workflow) is complete. A DRAFT placeholder
+    // has nothing to render yet, so Preview waits for ISSUED.
+    final docId = step.generatedDocumentId;
+    final generated =
+        step.stepType == 'DOCUMENT_GENERATION' &&
+        docId != null &&
+        ref
+                .watch(workflowDocumentStatusesProvider(workflow.id))
+                .asData
+                ?.value[docId] ==
+            'ISSUED';
+    final preview = OutlinedButton.icon(
+      onPressed: () => context.go('/documents/view/$docId'),
+      icon: const Icon(Icons.visibility_outlined, size: 18),
+      label: const Text('Preview'),
+    );
+
+    if (!isOpen || isTerminal) {
+      if (!generated) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Wrap(
+          spacing: 8,
+          children: [
+            preview,
+            if (!isTerminal)
+              TextButton.icon(
+                onPressed: () => _generateNow(context, ref),
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Regenerate'),
+              ),
+          ],
+        ),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.only(top: 8),
@@ -714,10 +750,11 @@ class _StepActions extends ConsumerWidget {
         spacing: 8,
         children: [
           if (step.stepType == 'DOCUMENT_GENERATION') ...[
+            if (generated) preview,
             FilledButton.icon(
               onPressed: () => _generateNow(context, ref),
               icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-              label: const Text('Generate now'),
+              label: Text(generated ? 'Regenerate' : 'Generate now'),
             ),
             // "Generate now" navigates away to the generate screen and never
             // returns, so without this a DOCUMENT_GENERATION step could only
@@ -762,8 +799,11 @@ class _StepActions extends ConsumerWidget {
       );
       return;
     }
-    await ref.read(workflowRepositoryProvider).markStepInProgress(step.id);
-    ref.invalidate(workflowStepsProvider(workflow.id));
+    // Regenerating a COMPLETED step must not reopen it.
+    if (step.status == 'PENDING') {
+      await ref.read(workflowRepositoryProvider).markStepInProgress(step.id);
+      ref.invalidate(workflowStepsProvider(workflow.id));
+    }
 
     // For compensation/role-change workflows, thread the linked change id so
     // the salary-adjustment notice renders THIS change (not the newest). Other
