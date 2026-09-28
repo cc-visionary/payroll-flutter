@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../data/models/employee.dart';
 import '../../../../data/repositories/workflow_repository.dart';
@@ -14,8 +15,8 @@ import '../providers.dart';
 /// [optionalDocumentTypes]) and a HIRING workflow linked to them. Returns the
 /// workflow id.
 ///
-/// Shared by the profile's "Start Workflow → New Hire Onboarding" and by
-/// applicant conversion, so both produce the same workflow.
+/// Only reachable through [runNewHireWorkflow], whose dialog will not start
+/// until HR confirms the Lark onboarding checklist was sent.
 Future<String> createNewHireWorkflow({
   required WorkflowRepository workflows,
   required String companyId,
@@ -23,7 +24,6 @@ Future<String> createNewHireWorkflow({
   required String employeeFullName,
   String? applicantId,
   List<String> optionalDocumentTypes = const [],
-  List<String> optionalTasks = const [],
   required String actorId,
 }) async {
   final client = Supabase.instance.client;
@@ -53,23 +53,20 @@ Future<String> createNewHireWorkflow({
     applicantId: applicantId,
     docIdByType: docIdByType,
     optionalDocumentTypes: optionalDocumentTypes,
-    optionalTasks: optionalTasks,
     initiatedById: actorId,
   );
   return workflows.insertWithSteps(instance: seed.instance, steps: seed.steps);
 }
 
-/// "Start Workflow → New Hire Onboarding": pick the optional items, create the
-/// workflow, then open it so HR can generate the contract straight away.
+/// "Start Workflow → New Hire Onboarding": HR sends the Lark onboarding
+/// checklist first, picks any optional documents, then the workflow is created
+/// and opened so HR can generate the contract straight away.
 Future<void> runNewHireWorkflow({
   required WidgetRef ref,
   required BuildContext context,
   required Employee employee,
 }) async {
-  final picked = await showDialog<_NewHireSelection>(
-    context: context,
-    builder: (_) => const _NewHireDialog(),
-  );
+  final picked = await showNewHireDialog(context);
   if (picked == null || !context.mounted) return;
 
   final messenger = ScaffoldMessenger.of(context);
@@ -90,8 +87,7 @@ Future<void> runNewHireWorkflow({
       companyId: employee.companyId,
       employeeId: employee.id,
       employeeFullName: employee.fullName,
-      optionalDocumentTypes: picked.documentTypes,
-      optionalTasks: picked.tasks,
+      optionalDocumentTypes: picked,
       actorId: actorId,
     );
     container.invalidate(employeeDocumentsProvider(employee.id));
@@ -111,11 +107,14 @@ Future<void> runNewHireWorkflow({
   }
 }
 
-class _NewHireSelection {
-  final List<String> documentTypes;
-  final List<String> tasks;
-  const _NewHireSelection(this.documentTypes, this.tasks);
-}
+/// The New Hire Onboarding dialog. Returns the optional document types HR
+/// picked, or null when cancelled. Exposed for widget tests of the gate.
+@visibleForTesting
+Future<List<String>?> showNewHireDialog(BuildContext context) =>
+    showDialog<List<String>>(
+      context: context,
+      builder: (_) => const _NewHireDialog(),
+    );
 
 class _NewHireDialog extends StatefulWidget {
   const _NewHireDialog();
@@ -125,10 +124,24 @@ class _NewHireDialog extends StatefulWidget {
 }
 
 class _NewHireDialogState extends State<_NewHireDialog> {
-  // Everything optional starts ticked: HR unticks what this hire doesn't
-  // need, and anything left in can still be skipped from the workflow.
-  final Set<String> _docs = {...kOptionalHireDocumentTypes};
-  final Set<String> _tasks = {...kOnboardingTasks};
+  // Optional documents start unticked: HR opts in per hire.
+  final Set<String> _docs = {};
+
+  /// The gate: the workflow cannot start until HR confirms the new hire's
+  /// onboarding checklist was made from the Lark template and sent to them.
+  bool _checklistSent = false;
+
+  Future<void> _openTemplate() async {
+    final ok = await launchUrl(
+      Uri.parse(kLarkOnboardingChecklistTemplateUrl),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open the Lark template.')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -152,6 +165,29 @@ class _NewHireDialogState extends State<_NewHireDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              heading('BEFORE YOU START'),
+              Text(
+                'Make the new hire\'s onboarding checklist from the Lark '
+                'template and send it to them in Lark chat.',
+                style: t.textTheme.bodyMedium,
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _openTemplate,
+                  icon: const Icon(Icons.open_in_new, size: 18),
+                  label: const Text('Open checklist template in Lark'),
+                ),
+              ),
+              CheckboxListTile(
+                value: _checklistSent,
+                onChanged: (v) => setState(() => _checklistSent = v ?? false),
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  'I made the checklist and sent it to the new hire',
+                ),
+              ),
               heading('REQUIRED'),
               for (final type in kRequiredHireDocumentTypes)
                 CheckboxListTile(
@@ -172,22 +208,6 @@ class _NewHireDialogState extends State<_NewHireDialog> {
                   contentPadding: EdgeInsets.zero,
                   title: Text(hireDocTitle(type)),
                 ),
-              heading('OPTIONAL CHECKLIST'),
-              for (final task in kOnboardingTasks)
-                CheckboxListTile(
-                  value: _tasks.contains(task),
-                  onChanged: (v) => setState(
-                    () => v == true ? _tasks.add(task) : _tasks.remove(task),
-                  ),
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(task),
-                ),
-              const SizedBox(height: 8),
-              Text(
-                'Optional steps can still be skipped later from the workflow.',
-                style: t.textTheme.bodySmall,
-              ),
             ],
           ),
         ),
@@ -197,21 +217,20 @@ class _NewHireDialogState extends State<_NewHireDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          // Keep the catalogue order, not the tick order.
-          onPressed: () => Navigator.of(context).pop(
-            _NewHireSelection(
-              [
-                for (final d in kOptionalHireDocumentTypes)
-                  if (_docs.contains(d)) d,
-              ],
-              [
-                for (final task in kOnboardingTasks)
-                  if (_tasks.contains(task)) task,
-              ],
-            ),
+        Tooltip(
+          message: _checklistSent
+              ? ''
+              : 'Send the onboarding checklist first',
+          child: FilledButton(
+            // Keep the catalogue order, not the tick order.
+            onPressed: _checklistSent
+                ? () => Navigator.of(context).pop([
+                    for (final d in kOptionalHireDocumentTypes)
+                      if (_docs.contains(d)) d,
+                  ])
+                : null,
+            child: const Text('Start workflow'),
           ),
-          child: const Text('Start workflow'),
         ),
       ],
     );

@@ -3,11 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/applicant.dart';
 import '../../data/repositories/applicant_repository.dart';
-import '../../data/repositories/workflow_repository.dart';
-import '../auth/profile_provider.dart';
 import '../employees/employee_form_screen.dart';
-import '../employees/profile/widgets/new_hire_workflow_action.dart';
-import '../workflows/seeders.dart';
 
 /// Push the EmployeeFormScreen in prefilled mode. On successful create,
 /// atomically stamp converted_to_employee_id + flip status to HIRED on the
@@ -46,28 +42,16 @@ Future<void> convertApplicantToEmployee(
             ref.invalidate(applicantListProvider);
             ref.invalidate(applicantsCountByStatusProvider);
 
-            // Insert a HIRING workflow so onboarding work is tracked in /workflows.
-            final profile = ref.read(userProfileProvider).asData?.value;
-            if (profile != null) {
-              // Same workflow as Start Workflow → New Hire Onboarding, with
-              // every optional item included (skippable from the workflow).
-              await createNewHireWorkflow(
-                workflows: ref.read(workflowRepositoryProvider),
-                companyId: a.companyId,
-                employeeId: employeeId,
-                employeeFullName: a.fullName,
-                applicantId: a.id,
-                optionalDocumentTypes: kOptionalHireDocumentTypes,
-                optionalTasks: kOnboardingTasks,
-                actorId: profile.userId,
-              );
-              ref.invalidate(workflowListProvider);
-            }
-
+            // No workflow here: HR starts New Hire Onboarding from the
+            // profile, whose dialog gates on the Lark onboarding checklist
+            // being sent first.
             if (context.mounted) {
               messenger.showSnackBar(
                 SnackBar(
-                  content: Text('Hired — ${a.fullName} converted to employee.'),
+                  content: Text(
+                    'Hired — ${a.fullName} converted to employee. Start '
+                    'New Hire Onboarding from their profile.',
+                  ),
                 ),
               );
             }

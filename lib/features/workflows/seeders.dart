@@ -85,14 +85,11 @@ const kRequiredHireDocumentTypes = <String>['EMPLOYMENT_CONTRACT', 'NDA'];
 /// Onboarding documents HR may add; each becomes an optional step.
 const kOptionalHireDocumentTypes = <String>['LIABILITY_WAIVER'];
 
-/// Onboarding checklist items HR may add; each is an optional STATUS_UPDATE
-/// step HR marks complete by hand.
-const kOnboardingTasks = <String>[
-  'IT account & email setup',
-  'Equipment provisioning (laptop, peripherals)',
-  'Day-1 orientation completed',
-  '30-day check-in completed',
-];
+/// The Lark Sheet HR copies for each new hire's onboarding checklist and sends
+/// them in Lark chat. The checklist lives in Lark, not in the app: HR must
+/// confirm it was sent before the New Hire Onboarding workflow can start.
+const kLarkOnboardingChecklistTemplateUrl =
+    'https://tjfn1fu0lx0.sg.larksuite.com/wiki/JHkVwg4JKiP3ZxkVOEHlYaiEgyh';
 
 /// Title for a hire document's DRAFT `employee_documents` row.
 String hireDocTitle(String type) => _docLabel[type] ?? type;
@@ -103,7 +100,8 @@ bool isOptionalStep(Map<String, dynamic>? inputData) =>
     inputData?['optional'] == true;
 
 /// Build a HIRING workflow: the required contract + NDA, then whichever
-/// optional documents and checklist tasks HR picked, each flagged optional.
+/// optional documents HR picked, each flagged optional. The context records
+/// that HR sent the Lark onboarding checklist before starting.
 ///
 /// Document steps link to DRAFT `employee_documents` rows the caller has
 /// already inserted ([docIdByType]), exactly like [seedSeparationWorkflow],
@@ -115,7 +113,6 @@ WorkflowSeed seedHiringWorkflow({
   String? applicantId,
   required Map<String, String> docIdByType,
   List<String> optionalDocumentTypes = const [],
-  List<String> optionalTasks = const [],
   required String initiatedById,
 }) {
   final steps = <WorkflowStepInput>[];
@@ -145,24 +142,18 @@ WorkflowSeed seedHiringWorkflow({
   for (final type in optionalDocumentTypes) {
     addDoc(type, optional: true);
   }
-  for (final task in optionalTasks) {
-    steps.add(
-      WorkflowStepInput(
-        stepIndex: steps.length,
-        stepType: 'STATUS_UPDATE',
-        name: task,
-        description: 'Optional — skip if this hire does not need it.',
-        inputData: const {'optional': true},
-      ),
-    );
-  }
   return WorkflowSeed(
     instance: WorkflowInstanceInput(
       companyId: companyId,
       employeeId: employeeId,
       workflowType: 'HIRING',
       title: 'Hiring — $employeeFullName',
-      context: {'applicant_id': ?applicantId},
+      context: {
+        'applicant_id': ?applicantId,
+        'onboarding_checklist_sent': true,
+        'onboarding_checklist_template_url':
+            kLarkOnboardingChecklistTemplateUrl,
+      },
       initiatedById: initiatedById,
     ),
     steps: steps,

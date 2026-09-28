@@ -69,7 +69,6 @@ void main() {
   group('seedHiringWorkflow', () {
     WorkflowSeed seed({
       List<String> optionalDocs = const [],
-      List<String> optionalTasks = const [],
       String? applicantId,
     }) => seedHiringWorkflow(
       companyId: 'c1',
@@ -82,7 +81,6 @@ void main() {
         'LIABILITY_WAIVER': 'd-waiver',
       },
       optionalDocumentTypes: optionalDocs,
-      optionalTasks: optionalTasks,
       initiatedById: 'u1',
     );
 
@@ -103,21 +101,24 @@ void main() {
       }
     });
 
-    test('optional documents and tasks follow, flagged optional, in order', () {
-      final s = seed(
-        optionalDocs: ['LIABILITY_WAIVER'],
-        optionalTasks: [kOnboardingTasks.first, kOnboardingTasks.last],
-      );
-      expect(s.steps.length, 5);
+    test('optional documents follow the required ones, flagged optional', () {
+      final s = seed(optionalDocs: ['LIABILITY_WAIVER']);
+      expect(s.steps.length, 3);
       expect(s.steps[2].inputData?['template_id'], 'liability_waiver');
       expect(s.steps[2].generatedDocumentId, 'd-waiver');
-      expect(s.steps[3].stepType, 'STATUS_UPDATE');
-      expect(s.steps[3].name, contains('IT account'));
-      expect(s.steps[4].name, contains('30-day'));
       for (var i = 0; i < s.steps.length; i++) {
         expect(s.steps[i].stepIndex, i);
         expect(isOptionalStep(s.steps[i].inputData), i >= 2);
       }
+    });
+
+    test('context records the Lark onboarding checklist was sent', () {
+      final c = seed().instance.context;
+      expect(c['onboarding_checklist_sent'], isTrue);
+      expect(
+        c['onboarding_checklist_template_url'],
+        kLarkOnboardingChecklistTemplateUrl,
+      );
     });
 
     test('applicant id is carried only when the hire came from one', () {
