@@ -168,101 +168,14 @@ class WorkforcePlanningRepository {
 
   Future<void> saveTask(WpTask task) async {
     final payload = task.toUpsert(task.companyId);
-    String id;
     if (task.id.isEmpty) {
-      final row = await _client
-          .from('wp_tasks')
-          .insert(payload)
-          .select('id')
-          .single();
-      id = row['id'] as String;
+      await _client.from('wp_tasks').insert(payload);
     } else {
       await _client.from('wp_tasks').update(payload).eq('id', task.id);
-      id = task.id;
     }
-    await _syncPrimaryFromTask(id);
   }
 
-  /// Keeps a task's PRIMARY assignment in lockstep with its owner/card while the
-  /// current forms still write owner_employee_id / role_scorecard_id directly.
-  /// wp_person_load reads assignments now, so without this a reassignment would
-  /// leave a stale PRIMARY and the load view would disagree with the rest of the
-  /// UI. Step 5 moves writes onto assignments directly and retires this sync.
-  Future<void> _syncPrimaryFromTask(String taskId) async {
-    final t = await _client
-        .from('wp_tasks')
-        .select('company_id, owner_employee_id, role_scorecard_id')
-        .eq('id', taskId)
-        .maybeSingle();
-    if (t == null) return;
-    final payload = primaryAssignmentPayload(
-      companyId: t['company_id'] as String,
-      taskId: taskId,
-      ownerEmployeeId: t['owner_employee_id'] as String?,
-      roleScorecardId: t['role_scorecard_id'] as String?,
-    );
-    final rows =
-        (await _client
-                .from('wp_task_assignments')
-                .select(
-                  'id, employee_id, role_scorecard_id, assignment_role, allocation_pct',
-                )
-                .eq('task_id', taskId))
-            .cast<Map<String, dynamic>>();
-
-    Map<String, dynamic>? primary;
-    for (final r in rows) {
-      if (r['assignment_role'] == 'PRIMARY') {
-        primary = r;
-        break;
-      }
-    }
-    // Same target -> leave the row (and its manually-set %) untouched.
-    if (primary != null &&
-        payload != null &&
-        primary['employee_id'] == payload['employee_id'] &&
-        primary['role_scorecard_id'] == payload['role_scorecard_id']) {
-      return;
-    }
-
-    // Remove the old PRIMARY AND anything already targeting the incoming
-    // target — the unique indexes are on (task_id, target), so leaving a
-    // CONTRIBUTOR on the same person/card makes the insert 23505 and strands
-    // the task with no PRIMARY at all.
-    final doomed = <String>{};
-    if (primary != null) doomed.add(primary['id'] as String);
-    if (payload != null) {
-      for (final r in rows) {
-        if (r['employee_id'] == payload['employee_id'] &&
-            r['role_scorecard_id'] == payload['role_scorecard_id']) {
-          doomed.add(r['id'] as String);
-        }
-      }
-    }
-    if (doomed.isNotEmpty) {
-      await _client
-          .from('wp_task_assignments')
-          .delete()
-          .inFilter('id', doomed.toList());
-    }
-    if (payload == null) return;
-
-    // Fix I5 while we are here: never let the replacement PRIMARY push the task
-    // over 100%. It takes whatever the surviving rows leave free (100 when there
-    // are none, preserving the previous behaviour).
-    var survivingPct = 0.0;
-    for (final r in rows) {
-      if (doomed.contains(r['id'])) continue;
-      survivingPct += (r['allocation_pct'] as num?)?.toDouble() ?? 0;
-    }
-    final pct = (100 - survivingPct).clamp(0, 100).toDouble();
-    await _client.from('wp_task_assignments').insert({
-      ...payload,
-      'allocation_pct': pct,
-    });
-  }
-
-  Future<void> deleteTask(String id) async =>
+Future<void> deleteTask(String id) async =>
       _client.from('wp_tasks').delete().eq('id', id);
 
   /// Writes only the costing columns for a batch of tasks (the Responsibilities tab's bulk
@@ -329,20 +242,39 @@ class WorkforcePlanningRepository {
         .from('wp_tasks')
         .update({'owner_employee_id': ownerEmployeeId})
         .eq('id', taskId);
-    await _syncPrimaryFromTask(taskId);
   }
 
-  /// Sets (or clears) an accountability's home card. Assigning an orphan to a
-  /// staffed card gives it a derived owner via that card's holders, which is
-  /// how work leaves the unassigned set pre-`wp_task_assignments`. At step 4
-  /// this becomes a PRIMARY assignment insert with no caller change.
+  /// Sets (or clears) a task's role. The role is the only "who" — load follows it via wp_person_load.
   Future<void> setTaskCard(String taskId, String? roleScorecardId) async {
     await _client
         .from('wp_tasks')
         .update({'role_scorecard_id': roleScorecardId})
         .eq('id', taskId);
-    await _syncPrimaryFromTask(taskId);
   }
+
+  /// Applies the board's draft role moves (taskId -> roleId), one row at a
+  /// time so a partial failure keeps the rows that succeeded. Returns the ids
+  /// that failed so the board can keep them as drafts.
+  Future<List<String>> moveTasksToRoles(Map<String, String> moves) async {
+    final failed = <String>[];
+    for (final m in moves.entries) {
+      try {
+        await _client
+            .from('wp_tasks')
+            .update({'role_scorecard_id': m.value})
+            .eq('id', m.key);
+      } catch (_) {
+        failed.add(m.key);
+      }
+    }
+    return failed;
+  }
+
+  /// HR confirmed a migration-flagged task ("Looks right").
+  Future<void> clearReviewNote(String taskId) async => _client
+      .from('wp_tasks')
+      .update({'allocation_review_note': null})
+      .eq('id', taskId);
 
   Future<void> saveDriver(WpDriver driver) async {
     final payload = driver.toUpsert(driver.companyId);
