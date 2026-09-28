@@ -6,7 +6,6 @@ import '../models/kpi_goal.dart';
 import '../models/role_kpi.dart';
 import '../models/role_outcome.dart';
 import '../models/role_scorecard.dart';
-import '../models/workforce_planning.dart';
 
 class KpiAssignee {
   final String employeeId;
@@ -56,7 +55,7 @@ class RoleScorecardRepository {
         .cast<Map<String, dynamic>>()
         .map(RoleScorecard.fromRow)
         .toList();
-    return _withSharedResponsibilities(cards);
+    return cards;
   }
 
   Future<RoleScorecard?> byId(String id) async {
@@ -69,33 +68,7 @@ class RoleScorecardRepository {
         .eq('id', id)
         .maybeSingle();
     if (row == null) return null;
-    final merged = await _withSharedResponsibilities([
-      RoleScorecard.fromRow(row),
-    ]);
-    return merged.first;
-  }
-
-  /// A card's responsibility list = its authored ones (already on [cards],
-  /// built from the wp_tasks embed) UNION the accountabilities shared to it
-  /// via an assignment. Authored rows are never touched — the shared rows are
-  /// appended as trailing areas (see responsibilitiesFromAssignedTasks) so a
-  /// card's authored order/wording, which the role-card PDF and the
-  /// employment contract's Annex A render, can never be altered by sharing
-  /// (Risk #2; see the Annex A gate in role_scorecard_responsibilities_test).
-  Future<List<RoleScorecard>> _withSharedResponsibilities(
-    List<RoleScorecard> cards,
-  ) async {
-    if (cards.isEmpty) return cards;
-    final assigned = await assignedTasksByCard();
-    return [
-      for (final card in cards)
-        card.withExtraResponsibilities(
-          responsibilitiesFromAssignedTasks(
-            card.id,
-            assigned[card.id] ?? const [],
-          ),
-        ),
-    ];
+    return RoleScorecard.fromRow(row);
   }
 
   /// Returns {role_scorecard_id → count of non-archived employees}.
@@ -136,58 +109,6 @@ class RoleScorecardRepository {
           .single();
     }
     return RoleScorecard.fromRow(row);
-  }
-
-  /// Drafts a new INACTIVE role card seeded from a cluster of unassigned
-  /// accountabilities, then repoints those tasks onto it. The card is inactive
-  /// because it is a proposal for HR to finish (mission, KPIs, wage), not a live
-  /// role — "here is a pile of unowned work" becomes "here is the role we need
-  /// to hire for", with the tasks already attached. Returns the new card id.
-  Future<String> createDraftRoleFromTasks({
-    required String companyId,
-    required String jobTitle,
-    required List<String> taskIds,
-  }) async {
-    final row = await _client
-        .from('role_scorecards')
-        .insert({
-          'company_id': companyId,
-          'job_title': jobTitle,
-          'mission_statement': '',
-          'wage_type': 'MONTHLY',
-          'work_hours_per_day': 8,
-          'work_days_per_week': 'MON_FRI',
-          'is_active': false,
-          'effective_date': DateTime.now().toIso8601String().substring(0, 10),
-        })
-        .select('id')
-        .single();
-    final id = row['id'] as String;
-    if (taskIds.isNotEmpty) {
-      await _client
-          .from('wp_tasks')
-          .update({'role_scorecard_id': id})
-          .inFilter('id', taskIds);
-      // Keep the PRIMARY assignment in lockstep with the repointed card — these
-      // tasks come from the unassigned pool (no owner by construction), so the
-      // correct PRIMARY is a card assignment @100 on the new draft card.
-      await _client
-          .from('wp_task_assignments')
-          .delete()
-          .inFilter('task_id', taskIds)
-          .eq('assignment_role', 'PRIMARY');
-      await _client.from('wp_task_assignments').insert([
-        for (final tid in taskIds)
-          {
-            'company_id': companyId,
-            'task_id': tid,
-            'role_scorecard_id': id,
-            'assignment_role': 'PRIMARY',
-            'allocation_pct': 100,
-          },
-      ]);
-    }
-    return id;
   }
 
   Future<void> delete(String id) async {
@@ -671,45 +592,6 @@ class RoleScorecardRepository {
 
   Future<void> deleteOutcome(String id) async {
     await _client.from('role_outcomes').delete().eq('id', id);
-  }
-
-  /// Accountabilities reaching a card through an ASSIGNMENT (the shared ones),
-  /// as opposed to those authored on it via wp_tasks.role_scorecard_id.
-  /// Keyed by role_scorecard_id.
-  Future<Map<String, List<WpTask>>> assignedTasksByCard() async {
-    final rows =
-        (await _client
-                .from('wp_task_assignments')
-                .select('role_scorecard_id, wp_tasks(*)')
-                .not('role_scorecard_id', 'is', null))
-            .cast<Map<String, dynamic>>();
-    final out = <String, List<WpTask>>{};
-    for (final r in rows) {
-      final cardId = r['role_scorecard_id'] as String?;
-      final t = r['wp_tasks'];
-      if (cardId == null || t is! Map) continue;
-      final task = WpTask.fromRow(t.cast<String, dynamic>());
-      if (task.status != 'ACTIVE') continue;
-      (out[cardId] ??= []).add(task);
-    }
-    return out;
-  }
-
-  /// ACTIVE tasks personally owned by [employeeId], for the employment
-  /// contract's Annex A append (spec:
-  /// 2026-08-04-contract-owned-tasks-annex-design.md). Archived work is
-  /// excluded here; authored-on-own-card filtering happens in
-  /// responsibilitiesFromAssignedTasks. Task counts per person are small
-  /// (tens), so no paging.
-  Future<List<WpTask>> activeTasksOwnedBy(String employeeId) async {
-    final rows =
-        (await _client
-                .from('wp_tasks')
-                .select()
-                .eq('owner_employee_id', employeeId)
-                .eq('status', 'ACTIVE'))
-            .cast<Map<String, dynamic>>();
-    return rows.map(WpTask.fromRow).toList();
   }
 
   /// kpiId -> employees effectively tracked on it, across the whole company.

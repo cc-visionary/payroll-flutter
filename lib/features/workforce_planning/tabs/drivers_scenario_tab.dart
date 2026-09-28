@@ -7,14 +7,12 @@ import '../../../data/models/workforce_planning.dart';
 import '../../../data/repositories/workforce_planning_repository.dart';
 import '../../auth/profile_provider.dart';
 import '../wp_providers.dart';
-import 'role_view_tab.dart' show ownerComputedProvider;
 import 'tab_intro.dart';
 
 /// HR-facing Drivers & Scenario editor: the growth-multiplier scenario
 /// control, plus create/edit for `wp_drivers` and `wp_rates` — the two
 /// scaling inputs a `wp_tasks` row can reference for its times/minutes.
-/// Mirrors `KpiLibraryScreen`'s dialog-open/SnackBar/invalidate pattern and
-/// `BalanceTab`'s async gates.
+/// Mirrors `KpiLibraryScreen`'s dialog-open/SnackBar/invalidate pattern.
 ///
 /// No delete here: the Plan 1 repository has no `deleteDriver`/`deleteRate`
 /// (the `wp_tasks` FKs are `on delete set null`, so a delete would be safe
@@ -23,8 +21,8 @@ import 'tab_intro.dart';
 ///
 /// Every save invalidates the providers whose numbers derive from
 /// drivers/rates/config through `wp_person_load` and `wp_task_computed`
-/// (`wpPersonLoadsProvider`, `ownerComputedProvider`), plus the tab's own
-/// read provider, so Balance and Role View never show stale hours.
+/// (`wpPersonLoadsProvider`, `wpAllTaskComputedProvider`), plus the tab's
+/// own read provider, so the Roles board never shows stale hours.
 class DriversScenarioTab extends ConsumerWidget {
   const DriversScenarioTab({super.key});
 
@@ -147,8 +145,8 @@ class DriversScenarioTab extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Scales growing drivers for projected load on the Balance '
-                  'and Role View tabs. 1.0× = current.',
+                  'Scales growing drivers for projected load on the Roles '
+                  'board. 1.0× = current.',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 12,
@@ -198,7 +196,6 @@ class DriversScenarioTab extends ConsumerWidget {
     }
     ref.invalidate(wpConfigProvider);
     ref.invalidate(wpPersonLoadsProvider);
-    ref.invalidate(ownerComputedProvider);
   }
 
   // ── Drivers ──────────────────────────────────────────────────────────
@@ -263,7 +260,6 @@ class DriversScenarioTab extends ConsumerWidget {
     }
     ref.invalidate(wpDriversProvider);
     ref.invalidate(wpPersonLoadsProvider);
-    ref.invalidate(ownerComputedProvider);
   }
 
   // ── Rates ────────────────────────────────────────────────────────────
@@ -327,7 +323,6 @@ class DriversScenarioTab extends ConsumerWidget {
     }
     ref.invalidate(wpRatesProvider);
     ref.invalidate(wpPersonLoadsProvider);
-    ref.invalidate(ownerComputedProvider);
   }
 }
 
@@ -458,7 +453,7 @@ class _MultiplierDialogState extends State<_MultiplierDialog> {
               onChanged: (v) => setState(() => _value = v),
             ),
             Text(
-              'Scales growing drivers across Balance and Role View. '
+              'Scales growing drivers across every role\'s load. '
               '1.0× = current.',
               textAlign: TextAlign.center,
               style: TextStyle(

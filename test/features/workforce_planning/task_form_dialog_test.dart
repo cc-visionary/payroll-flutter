@@ -1,372 +1,256 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:payroll_flutter/data/models/role_scorecard.dart';
 import 'package:payroll_flutter/data/models/workforce_planning.dart';
+import 'package:payroll_flutter/features/workforce_planning/frequency.dart';
 import 'package:payroll_flutter/features/workforce_planning/tabs/task_form_dialog.dart';
 
+RoleScorecard role(String id, String title) => RoleScorecard(
+  id: id, companyId: 'c', jobTitle: title, missionStatement: '',
+  responsibilities: const [], kpis: const [], wageType: 'MONTHLY',
+  workHoursPerDay: 8, workDaysPerWeek: 'MON_FRI', isActive: true,
+  effectiveDate: DateTime(2026),
+);
+
 void main() {
-  test('validateTaskForm requires a name', () {
-    expect(
-      validateTaskForm(
-        name: '',
-        timesSource: 'manual',
-        minutesSource: 'manual',
-      ),
-      'Name is required.',
-    );
-  });
-  test('validateTaskForm requires a driver when times source is driver', () {
-    expect(
-      validateTaskForm(
-        name: 'x',
-        timesSource: 'driver',
-        driverId: null,
-        minutesSource: 'manual',
-      ),
-      'Pick a driver (or switch Times to Manual).',
-    );
-  });
-  test('validateTaskForm requires a rate when minutes source is rate', () {
-    expect(
-      validateTaskForm(
-        name: 'x',
-        timesSource: 'manual',
-        minutesSource: 'rate',
-        rateId: null,
-      ),
-      'Pick a rate (or switch Minutes to Manual).',
-    );
-  });
-  test('validateTaskForm passes when complete', () {
-    expect(
-      validateTaskForm(
-        name: 'x',
-        timesSource: 'driver',
-        driverId: 'd1',
-        minutesSource: 'rate',
-        rateId: 'r1',
-      ),
-      isNull,
-    );
+  group('validateTaskForm', () {
+    test('requires name, role and a duration', () {
+      expect(validateTaskForm(name: '', roleId: 'r', frequency: TaskFrequency.daily, minutesText: '5', area: 'A'), 'Name is required.');
+      expect(validateTaskForm(name: 'x', roleId: null, frequency: TaskFrequency.daily, minutesText: '5', area: 'A'), 'Pick the role that does this.');
+      expect(validateTaskForm(name: 'x', roleId: 'r', frequency: TaskFrequency.daily, minutesText: '', area: 'A'), 'How long does it take each time?');
+      expect(validateTaskForm(name: 'x', roleId: 'r', frequency: TaskFrequency.custom, customHoursText: '', area: 'A'), 'Enter hours per month.');
+      expect(validateTaskForm(name: 'x', roleId: 'r', frequency: TaskFrequency.perOrder, minutesText: '3', area: 'A'), 'Pick what the orders are counted from.');
+      expect(validateTaskForm(name: 'x', roleId: 'r', frequency: TaskFrequency.weekly, minutesText: '30', area: 'A'), isNull);
+    });
+
+    test('R11: an area is required once a role is set', () {
+      expect(validateTaskForm(name: 'x', roleId: 'r', frequency: TaskFrequency.weekly, minutesText: '30', area: '  '),
+          'Pick the area this sits under on the role card.');
+      expect(validateTaskForm(name: 'x', roleId: 'r', frequency: TaskFrequency.weekly, minutesText: '30'),
+          'Pick the area this sits under on the role card.');
+    });
+
+    test('minutesFromRate: true and blank minutes returns null', () {
+      expect(validateTaskForm(name: 'x', roleId: 'r', frequency: TaskFrequency.weekly, minutesText: '', minutesFromRate: true, area: 'A'), isNull);
+    });
   });
 
-  test('buildTaskFromForm nulls the unused source fields', () {
-    final t = buildTaskFromForm(
-      companyId: 'c',
-      name: 'x',
-      timesSource: 'driver',
-      timesManualText: '99',
-      driverId: 'd1',
-      driverFactorText: '2',
-      minutesSource: 'manual',
-      minutesManualText: '12',
-      rateId: 'r1',
-    );
-    expect(t.timesManual, isNull);
-    expect(t.driverId, 'd1');
-    expect(t.driverFactor, 2);
-    expect(t.rateId, isNull);
-    expect(t.minutesManual, 12);
-  });
-  test('buildTaskFromForm preserves read-only columns on edit', () {
-    const existing = WpTask(
-      id: 't1',
-      companyId: 'c',
-      name: 'old',
-      externalRef: 'T5',
-      roleScorecardId: 'rs1',
-      responsibilityArea: 'Area',
-      notes: 'keep me',
-    );
-    final t = buildTaskFromForm(
-      existing: existing,
-      companyId: 'c',
-      name: 'new',
-      timesSource: 'manual',
-      minutesSource: 'manual',
-    );
-    expect(t.id, 't1');
-    expect(t.externalRef, 'T5');
-    expect(t.notes, 'keep me');
-  });
-
-  // The card link is form-driven, not carried over from `existing`: the Tasks
-  // tab now edits the same (card, area) placement the role-card editor does.
-  test(
-    'buildTaskFromForm takes the card link from the form, not from existing',
-    () {
-      const existing = WpTask(
-        id: 't1',
-        companyId: 'c',
-        name: 'old',
-        roleScorecardId: 'rs1',
-        responsibilityArea: 'Area',
-      );
-      final moved = buildTaskFromForm(
-        existing: existing,
-        companyId: 'c',
-        name: 'new',
-        timesSource: 'manual',
-        minutesSource: 'manual',
-        roleScorecardId: 'rs2',
-        responsibilityArea: 'Other',
-      );
-      expect(moved.roleScorecardId, 'rs2');
-      expect(moved.responsibilityArea, 'Other');
-
-      final unlinked = buildTaskFromForm(
-        existing: existing,
-        companyId: 'c',
-        name: 'new',
-        timesSource: 'manual',
-        minutesSource: 'manual',
-      );
-      expect(unlinked.roleScorecardId, isNull);
-      expect(
-        unlinked.responsibilityArea,
-        isNull,
-        reason: 'clearing the card must clear the area too',
-      );
-    },
-  );
-
-  test('buildTaskFromForm drops a blank area and trims a real one', () {
-    final blank = buildTaskFromForm(
-      companyId: 'c',
-      name: 'n',
-      timesSource: 'manual',
-      minutesSource: 'manual',
-      roleScorecardId: 'rs1',
-      responsibilityArea: '   ',
-    );
-    expect(blank.responsibilityArea, isNull);
-
-    final padded = buildTaskFromForm(
-      companyId: 'c',
-      name: 'n',
-      timesSource: 'manual',
-      minutesSource: 'manual',
-      roleScorecardId: 'rs1',
-      responsibilityArea: '  Area  ',
-    );
-    expect(padded.responsibilityArea, 'Area');
-  });
-
-  test('buildTaskFromForm: a workload figure produces a direct-hours task', () {
-    final t = buildTaskFromForm(
-      companyId: 'c',
-      name: 'Pack',
-      timesSource: 'driver',
-      minutesSource: 'rate',
-      driverId: 'd1',
-      rateId: 'r1',
-      hoursPerMonthText: '65.8',
-    );
-    expect(t.hoursPerMonth, 65.8);
-    expect(t.driverId, isNull, reason: 'direct hours clears the driver path');
-    expect(t.rateId, isNull);
-  });
-
-  test(
-    'buildTaskFromForm: a blank workload falls to the times/minutes path',
-    () {
-      final t = buildTaskFromForm(
-        companyId: 'c',
-        name: 'Pack',
-        timesSource: 'manual',
-        minutesSource: 'manual',
-        timesManualText: '20',
-        minutesManualText: '45',
-        hoursPerMonthText: '  ',
-      );
+  group('buildTaskFromForm', () {
+    test('a preset writes cadence token + times + minutes, no direct hours', () {
+      final t = buildTaskFromForm(companyId: 'c', name: ' Pack ', roleId: 'bh', frequency: TaskFrequency.daily, minutesText: '60');
+      expect(t.name, 'Pack');
+      expect(t.cadence, 'DAILY');
+      expect(t.timesSource, 'manual');
+      expect(t.timesManual, 26);
+      expect(t.minutesManual, 60);
       expect(t.hoursPerMonth, isNull);
-      expect(t.timesManual, 20);
-      expect(t.minutesManual, 45);
-    },
-  );
+      expect(t.roleScorecardId, 'bh');
+    });
 
-  test('buildTaskFromForm carries criticality and the essential flag', () {
-    final t = buildTaskFromForm(
-      companyId: 'c',
-      name: 'Pack',
-      timesSource: 'manual',
-      minutesSource: 'manual',
-      criticality: 'CRITICAL',
-      isEssential: false,
-    );
-    expect(t.criticality, 'CRITICAL');
-    expect(t.isEssential, isFalse);
+    test('per order writes a driver, not manual times', () {
+      final t = buildTaskFromForm(companyId: 'c', name: 'Pick', roleId: 'bh', frequency: TaskFrequency.perOrder, minutesText: '3', driverId: 'orders');
+      expect(t.cadence, 'PER_ORDER');
+      expect(t.timesSource, 'driver');
+      expect(t.driverId, 'orders');
+      expect(t.timesManual, isNull);
+    });
+
+    test('custom writes direct hours', () {
+      final t = buildTaskFromForm(companyId: 'c', name: 'X', roleId: 'bh', frequency: TaskFrequency.custom, customHoursText: '7.5');
+      expect(t.hoursPerMonth, 7.5);
+      expect(t.cadence, isNull);
+    });
+
+    test('editing preserves id, owner, externalRef, sort, More fields', () {
+      const existing = WpTask(id: 't1', companyId: 'c', name: 'Old', roleScorecardId: 'bh',
+          ownerEmployeeId: 'e1', externalRef: 'X-1', areaSort: 2, taskSort: 5,
+          skillTier: 'Managerial', risk: 'High', criticality: 'CRITICAL', notes: 'n');
+      final t = buildTaskFromForm(existing: existing, companyId: 'c', name: 'New', roleId: 'om',
+          frequency: TaskFrequency.monthly, minutesText: '120', more: More.of(existing));
+      expect(t.id, 't1');
+      expect(t.ownerEmployeeId, 'e1');
+      expect(t.externalRef, 'X-1');
+      expect((t.areaSort, t.taskSort), (2, 5));
+      expect((t.skillTier, t.risk, t.criticality, t.notes), ('Managerial', 'High', 'CRITICAL', 'n'));
+      expect(t.roleScorecardId, 'om');
+    });
+
+    test('Review Focus 4: a legacy manual task saved without edits keeps its hours', () {
+      const legacy = WpTask(id: 't', companyId: 'c', name: 'L', roleScorecardId: 'bh',
+          cadence: 'every other day', timesManual: 13, minutesManual: 30);
+      final f = frequencyOf(legacy);
+      final t = buildTaskFromForm(existing: legacy, companyId: 'c', name: 'L', roleId: 'bh',
+          frequency: f, customHoursText: customHoursOf(legacy)!.toString(), more: More.of(legacy));
+      expect(f, TaskFrequency.custom);
+      expect(t.hoursPerMonth, closeTo(6.5, 1e-9));
+    });
+
+    test('keeps rate on a rate-sourced existing task with blank minutes', () {
+      const existing = WpTask(id: 't1', companyId: 'c', name: 'Pack', roleScorecardId: 'bh',
+          minutesSource: 'rate', rateId: 'r1');
+      final t = buildTaskFromForm(existing: existing, companyId: 'c', name: 'Pack', roleId: 'bh',
+          frequency: TaskFrequency.weekly, minutesText: '', more: More.of(existing));
+      expect(t.minutesSource, 'rate');
+      expect(t.rateId, 'r1');
+      expect(t.minutesManual, isNull);
+    });
+
+    test('typing minutes switches to manual and clears rateId', () {
+      const existing = WpTask(id: 't1', companyId: 'c', name: 'Pack', roleScorecardId: 'bh',
+          minutesSource: 'rate', rateId: 'r1');
+      final t = buildTaskFromForm(existing: existing, companyId: 'c', name: 'Pack', roleId: 'bh',
+          frequency: TaskFrequency.weekly, minutesText: '20', more: More.of(existing));
+      expect(t.minutesSource, 'manual');
+      expect(t.rateId, isNull);
+      expect(t.minutesManual, 20);
+    });
+
+    test('R3/R11: changing role without picking an area takes the new role\'s default; keeping the role keeps it', () {
+      const existing = WpTask(id: 't1', companyId: 'c', name: 'Pack', roleScorecardId: 'bh',
+          responsibilityArea: 'Fulfilment');
+      final changedRole = buildTaskFromForm(existing: existing, companyId: 'c', name: 'Pack', roleId: 'om',
+          frequency: TaskFrequency.weekly, minutesText: '10', more: More.of(existing), defaultArea: 'Reporting');
+      expect(changedRole.responsibilityArea, 'Reporting', reason: 'never the old role\'s area');
+
+      final picked = buildTaskFromForm(existing: existing, companyId: 'c', name: 'Pack', roleId: 'om',
+          responsibilityArea: 'Audits', frequency: TaskFrequency.weekly, minutesText: '10',
+          more: More.of(existing), defaultArea: 'Reporting');
+      expect(picked.responsibilityArea, 'Audits');
+
+      final sameRole = buildTaskFromForm(existing: existing, companyId: 'c', name: 'Pack', roleId: 'bh',
+          frequency: TaskFrequency.weekly, minutesText: '10', more: More.of(existing));
+      expect(sameRole.responsibilityArea, 'Fulfilment');
+
+      final fresh = buildTaskFromForm(companyId: 'c', name: 'New', roleId: 'om',
+          frequency: TaskFrequency.weekly, minutesText: '10');
+      expect(fresh.responsibilityArea, 'Responsibilities');
+    });
   });
 
-  test('buildTaskFromForm preserves an existing expectation flag', () {
-    const existing = WpTask(
-      id: 't1',
-      companyId: 'c',
-      name: 'Grow',
-      isExpectation: true,
-    );
-    final t = buildTaskFromForm(
-      existing: existing,
-      companyId: 'c',
-      name: 'Grow',
-      timesSource: 'manual',
-      minutesSource: 'manual',
-    );
-    expect(
-      t.isExpectation,
-      isTrue,
-      reason: 'editing a task must not silently clear its expectation flag',
-    );
-  });
-
-  testWidgets('dialog shows the name-required error on empty Save', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) {
-              return ElevatedButton(
-                onPressed: () => showDialog<WpTask>(
-                  context: context,
-                  builder: (_) => const TaskFormDialog(
-                    companyId: 'c',
-                    nodes: [],
-                    drivers: [],
-                    rates: [],
-                    employees: [],
-                  ),
-                ),
-                child: const Text('open'),
-              );
-            },
-          ),
-        ),
-      ),
-    );
+  testWidgets('shows only the essentials until More details is opened', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: Builder(builder: (context) => TextButton(
+      onPressed: () => showDialog<WpTask>(context: context, builder: (_) => TaskFormDialog(
+        companyId: 'c', cards: [role('bh', 'Brand Handler')], initialRoleId: 'bh',
+        holderCountByRole: const {'bh': 2})),
+      child: const Text('open')))));
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Save'));
+
+    expect(find.text('Name'), findsOneWidget);
+    expect(find.text('How often'), findsOneWidget);
+    expect(find.text('Minutes each time'), findsOneWidget);
+    expect(find.text('Role that does it'), findsOneWidget);
+    expect(find.text('Skill tier'), findsNothing);
+    expect(find.text('Owner'), findsNothing);
+
+    await tester.tap(find.text('Weekly'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Daily').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextFormField, 'Minutes each time'), '60');
     await tester.pump();
-    expect(find.text('Name is required.'), findsOneWidget);
+    expect(find.textContaining('≈ 26.0 h/mo'), findsOneWidget);
+    expect(find.textContaining('split across 2 people'), findsOneWidget);
+
+    await tester.tap(find.text('More details'));
+    await tester.pumpAndSettle();
+    expect(find.text('Skill tier'), findsOneWidget);
   });
 
-  testWidgets('the dialog leads with a Workload field and saves it', (
-    tester,
-  ) async {
-    WpTask? saved;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) {
-              return ElevatedButton(
-                onPressed: () async {
-                  saved = await showDialog<WpTask>(
-                    context: context,
-                    builder: (_) => const TaskFormDialog(
-                      companyId: 'c',
-                      nodes: [],
-                      drivers: [],
-                      rates: [],
-                      employees: [],
-                    ),
-                  );
-                },
-                child: const Text('open'),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-    await tester.tap(find.text('open'));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Workload (hours / month)'),
-      '12',
-    );
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Name').first,
-      'Do the thing',
-    );
+  group('Area (ruling R11)', () {
+    final cards = [roleWith('bh', 'Brand Handler', ['Fulfilment', 'Customer care']), role('om', 'Ops Manager')];
+
+    testWidgets('a new task on a role with areas defaults to its first area', (tester) async {
+      final result = await openDialog(tester, TaskFormDialog(companyId: 'c', cards: cards, initialRoleId: 'bh'));
+      expect(find.text('Area'), findsOneWidget, reason: 'in the main form, not under More details');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Count stock');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Minutes each time'), '10');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(result()!.responsibilityArea, 'Fulfilment');
+    });
+
+    testWidgets('a role with no areas yet defaults to "Responsibilities"', (tester) async {
+      final result = await openDialog(tester, TaskFormDialog(companyId: 'c', cards: cards, initialRoleId: 'om'));
+      await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Weekly report');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Minutes each time'), '30');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(result()!.responsibilityArea, 'Responsibilities');
+    });
+
+    testWidgets('changing the role re-defaults the area to the new role\'s', (tester) async {
+      const existing = WpTask(id: 't1', companyId: 'c', name: 'Report', roleScorecardId: 'om',
+          responsibilityArea: 'Responsibilities', cadence: 'WEEKLY', timesManual: 52 / 12, minutesManual: 30);
+      final result = await openDialog(tester, TaskFormDialog(existing: existing, companyId: 'c', cards: cards));
+      await tester.tap(find.text('Ops Manager'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Brand Handler').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(result()!.roleScorecardId, 'bh');
+      expect(result()!.responsibilityArea, 'Fulfilment');
+    });
+
+    testWidgets('editing without changing role keeps the existing area', (tester) async {
+      const existing = WpTask(id: 't1', companyId: 'c', name: 'Reply', roleScorecardId: 'bh',
+          responsibilityArea: 'Customer care', cadence: 'DAILY', timesManual: 26, minutesManual: 5);
+      final result = await openDialog(tester, TaskFormDialog(existing: existing, companyId: 'c', cards: cards));
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(result()!.responsibilityArea, 'Customer care');
+    });
+
+    testWidgets('a new area can be typed', (tester) async {
+      final result = await openDialog(tester, TaskFormDialog(companyId: 'c', cards: cards, initialRoleId: 'bh'));
+      await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Count stock');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Minutes each time'), '10');
+      await tester.tap(find.text('Fulfilment'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('+ New area…').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextFormField, 'New area name'), 'Inventory');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(result()!.responsibilityArea, 'Inventory');
+    });
+  });
+
+  testWidgets('F5: manual times + rate minutes + free-text cadence prefills Custom hours and saves unchanged', (tester) async {
+    const legacy = WpTask(id: 't1', companyId: 'c', name: 'Pack', roleScorecardId: 'bh',
+        responsibilityArea: 'Fulfilment', cadence: 'twice a week', timesManual: 8,
+        minutesSource: 'rate', rateId: 'r1');
+    final result = await openDialog(tester, TaskFormDialog(
+      existing: legacy, companyId: 'c', cards: [role('bh', 'Brand Handler')],
+      rates: const [WpRate(id: 'r1', companyId: 'c', name: 'Pack rate', minutesEach: 45)],
+    ));
+    final field = tester.widget<TextFormField>(find.widgetWithText(TextFormField, 'Hours / month'));
+    expect(double.parse(field.controller!.text), closeTo(6, 1e-9), reason: '8 x 45 min / 60');
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
-    expect(saved?.hoursPerMonth, 12);
+    expect(result(), isNotNull, reason: 'Save must not be blocked');
+    expect(result()!.hoursPerMonth, closeTo(6, 1e-9));
   });
+}
 
-  group('duplicate nudge', () {
-    // Same guard as the Add-area dialog, on the other path into a brand-new
-    // responsibility. A second row for work already tracked double-counts its
-    // hours into load %, cost/hour and the contract's Annex A.
-    const existing = 'Pack, label, check and dispatch online orders';
-    final pool = [
-      WpTask(
-        id: 't9',
-        companyId: 'c',
-        name: existing,
-        timesSource: 'manual',
-        minutesSource: 'manual',
-        driverFactor: 1,
-        isEssential: true,
-        isExpectation: false,
-        status: 'ACTIVE',
-      ),
-    ];
+RoleScorecard roleWith(String id, String title, List<String> areas) => RoleScorecard(
+  id: id, companyId: 'c', jobTitle: title, missionStatement: '',
+  responsibilities: [for (final a in areas) ResponsibilityArea(area: a, tasks: const ['x'])],
+  kpis: const [], wageType: 'MONTHLY', workHoursPerDay: 8, workDaysPerWeek: 'MON_FRI',
+  isActive: true, effectiveDate: DateTime(2026),
+);
 
-    Future<void> open(WidgetTester tester) async {
-      tester.view.physicalSize = const Size(1200, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.reset);
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (context) => ElevatedButton(
-                onPressed: () => showDialog<WpTask>(
-                  context: context,
-                  builder: (_) => TaskFormDialog(
-                    companyId: 'c',
-                    nodes: const [],
-                    drivers: const [],
-                    rates: const [],
-                    employees: const [],
-                    duplicateCheckPool: pool,
-                  ),
-                ),
-                child: const Text('open'),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.tap(find.text('open'));
-      await tester.pumpAndSettle();
-    }
-
-    testWidgets('warns when the typed name looks like an existing one', (
-      tester,
-    ) async {
-      await open(tester);
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Name').first,
-        'Pack and dispatch orders',
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(const ValueKey('similar-name-warning')), findsOneWidget);
-      expect(find.textContaining(existing), findsOneWidget);
-    });
-
-    testWidgets('a clearly distinct name raises no warning', (tester) async {
-      await open(tester);
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Name').first,
-        'Reconcile the monthly bank statement',
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(const ValueKey('similar-name-warning')), findsNothing);
-    });
-  });
+/// Opens [dialog] and returns a getter for what it popped with.
+Future<WpTask? Function()> openDialog(WidgetTester tester, Widget dialog) async {
+  tester.view.physicalSize = const Size(1200, 1400);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+  WpTask? popped;
+  await tester.pumpWidget(MaterialApp(home: Builder(builder: (context) => TextButton(
+    onPressed: () async => popped = await showDialog<WpTask>(context: context, builder: (_) => dialog),
+    child: const Text('open')))));
+  await tester.tap(find.text('open'));
+  await tester.pumpAndSettle();
+  return () => popped;
 }

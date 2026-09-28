@@ -4,20 +4,11 @@ import '../../data/models/workforce_planning.dart';
 
 /// Role card id -> its responsibility-area names, in authored order.
 ///
-/// Built straight from `wp_tasks` (each task's own `role_scorecard_id`) rather
-/// than [RoleScorecard.responsibilities], which also appends accountabilities
-/// SHARED to a card via an assignment (`_withSharedResponsibilities`). What a
-/// role OWNS is what it authors, not what it borrows — a shared task has its
-/// primary owner on another role, and showing it here would double-count the
-/// work on the Organization tab.
-///
-/// Note this is deliberately a NARROWER list than the one the role-card PDF
-/// renders, which is the shared-appended one. If the two ever have to agree,
-/// that is a decision to make, not a bug to fix silently.
-///
-/// [responsibilitiesFromTaskRows] is the same vetted area/task grouping
-/// `RoleScorecard.fromRow` itself uses for the authored list, reused here
-/// rather than re-derived.
+/// Built straight from `wp_tasks` (each task's own `role_scorecard_id` — the
+/// one role a task belongs to) with [responsibilitiesFromTaskRows], the same
+/// area/task grouping `RoleScorecard.fromRow` uses. So the Organization tab
+/// shows exactly the areas the role card, its PDF and the contract's Annex A
+/// list, in the same order.
 Map<String, List<String>> areasByRole(List<WpTask> tasks) {
   final rowsByRole = <String, List<Map<String, dynamic>>>{};
   for (final t in tasks) {

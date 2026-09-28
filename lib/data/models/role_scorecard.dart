@@ -68,10 +68,12 @@ List<ResponsibilityArea> responsibilitiesFromTaskRows(
 
 /// The accountabilities SHARED to [cardId] (via a wp_task_assignments row
 /// targeting it) that this card did NOT itself author. [assignedToCard] is
-/// `assignedTasksByCard()[cardId]` — every ACTIVE task with an assignment
-/// pointing at this card, including tasks the card authors itself (e.g. the
-/// PRIMARY self-assignment wired in createDraftRoleFromTasks). A task whose
-/// own `role_scorecard_id` (its author/owner) already equals [cardId] is
+/// every ACTIVE task with an assignment pointing at this card, which can
+/// include tasks the card authors itself. Since the role-first redesign
+/// (every task belongs to exactly one role) the app no longer calls this: the
+/// role card, its PDF and Annex A list the role's own tasks only. It is kept,
+/// with [RoleScorecard.withExtraResponsibilities], for the rollback path.
+/// A task whose own `role_scorecard_id` (its author/owner) already equals [cardId] is
 /// skipped here — it's already counted via the wp_tasks embed that builds
 /// the card's authored `responsibilities` (see responsibilitiesFromTaskRows),
 /// so including it again would duplicate it.
@@ -377,8 +379,8 @@ class RoleScorecard {
   }
 
   /// Returns a copy with [extra] responsibility areas appended after the
-  /// existing (authored) ones. Used by the repository to fold in shared
-  /// accountabilities (see responsibilitiesFromAssignedTasks) without
+  /// existing (authored) ones — for folding in shared accountabilities (see
+  /// responsibilitiesFromAssignedTasks; currently unused by the app) without
   /// touching the authored list's order or wording — a no-op copy when
   /// [extra] is empty, so callers can call this unconditionally.
   RoleScorecard withExtraResponsibilities(List<ResponsibilityArea> extra) {
