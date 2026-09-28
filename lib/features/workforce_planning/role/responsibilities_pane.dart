@@ -10,12 +10,12 @@ import '../../../data/repositories/role_scorecard_repository.dart';
 import '../../../data/repositories/workforce_planning_repository.dart';
 import '../../documents/providers.dart' show roleScorecardByIdProvider;
 import '../../responsibility_cards/responsibility_rows.dart';
+import '../area_placement.dart';
 import '../duplicate_check.dart';
 import '../duplicate_warning.dart';
 import '../removal_lifecycle.dart';
 import '../tabs/task_form_dialog.dart';
 import '../task_badges.dart';
-import '../tasks_rows.dart';
 import '../wp_providers.dart';
 
 /// The second pane of the role workbench: this card's own responsibilities —
@@ -369,20 +369,14 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
     required WpTask? existing,
     required WpTask result,
   }) async {
-    var toSave = result;
-    final cardId = result.roleScorecardId;
-    final area = result.responsibilityArea;
     // A new responsibility, or one moved to another card/area, needs a
     // position at the END of its area — moving a row silently reorders the
     // role-card PDF and the contract annex otherwise.
-    if (cardId != null && area != null && needsResort(existing, result)) {
-      final all = ref.read(wpTasksProvider).asData?.value ?? const <WpTask>[];
-      final pos = nextSortFor(allTasks: all, cardId: cardId, area: area);
-      toSave = result.copyWithSort(
-        areaSort: pos.areaSort,
-        taskSort: pos.taskSort,
-      );
-    }
+    final toSave = placeInArea(
+      previous: existing,
+      next: result,
+      allTasks: ref.read(wpTasksProvider).asData?.value ?? const <WpTask>[],
+    );
     try {
       await ref.read(workforcePlanningRepositoryProvider).saveTask(toSave);
     } catch (e) {
