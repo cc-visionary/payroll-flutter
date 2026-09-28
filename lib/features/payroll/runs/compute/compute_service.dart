@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../data/models/compensation_change.dart';
+import '../../../../data/models/role_rate_change.dart';
 import '../../../../data/pagination.dart';
 import '../../../../data/repositories/compensation_change_repository.dart';
 import '../../engine/compute_engine.dart';
 import '../../engine/daily_rate.dart';
 import '../../engine/effective_compensation.dart';
+import '../../engine/role_rate.dart';
 import '../../engine/statutory_tables.dart';
 import '../../engine/types.dart' as e;
 import '../../leave/paid_leave_matcher.dart';
@@ -132,6 +134,27 @@ class PayrollComputeService {
       (compByEmp[r['employee_id'] as String] ??= []).add(
         CompensationChange.fromRow(r),
       );
+    }
+
+    // Effective-dated role rate history (wage orders etc.) for the run's
+    // scorecards. Role-default employees are paid the role rate in force on
+    // each day, not whatever role_scorecards.base_salary reads today.
+    final cardIds = {
+      for (final emp in employees)
+        if ((emp['role_scorecards'] as Map<String, dynamic>?)?['id'] != null)
+          (emp['role_scorecards'] as Map<String, dynamic>)['id'] as String,
+    }.toList();
+    final roleRatesByCard = <String, List<RoleRateChange>>{};
+    if (cardIds.isNotEmpty) {
+      final rateRows = await _client
+          .from('role_rate_changes')
+          .select('*')
+          .inFilter('role_scorecard_id', cardIds);
+      for (final r in (rateRows as List).cast<Map<String, dynamic>>()) {
+        (roleRatesByCard[r['role_scorecard_id'] as String] ??= []).add(
+          RoleRateChange.fromRow(r),
+        );
+      }
     }
 
     onStep?.call('Loading attendance + adjunct data…');
@@ -259,6 +282,10 @@ class PayrollComputeService {
             row: row,
             payPeriod: payPeriodInput,
             comp: compByEmp[row['id']] ?? const [],
+            roleRates:
+                roleRatesByCard[(row['role_scorecards']
+                        as Map<String, dynamic>?)?['id']] ??
+                const [],
             attendance: attendanceByEmp[row['id']] ?? const [],
             adjustments: adjustmentsByEmp[row['id']] ?? const [],
             cashAdvances: cashAdvancesByEmp[row['id']] ?? const [],
@@ -688,6 +715,7 @@ class PayrollComputeService {
     required Map<String, dynamic> row,
     required e.PayPeriodInput payPeriod,
     required List<CompensationChange> comp,
+    required List<RoleRateChange> roleRates,
     required List<Map<String, dynamic>> attendance,
     required List<Map<String, dynamic>> adjustments,
     required List<Map<String, dynamic>> cashAdvances,
@@ -729,7 +757,11 @@ class PayrollComputeService {
         effective?.newWageType ?? (roleCard['wage_type'] as String?) ?? 'DAILY';
     final baseRate =
         effective?.newBaseSalary ??
-        Decimal.tryParse((roleCard['base_salary'] ?? '0').toString()) ??
+        roleRateAsOf(
+          roleRates,
+          payPeriod.endDate,
+          Decimal.tryParse((roleCard['base_salary'] ?? '0').toString()),
+        ) ??
         Decimal.zero;
     final wageType = _parseWageType(wageTypeStr);
 
@@ -806,6 +838,7 @@ class PayrollComputeService {
       scorecardWageType: scorecardWageType,
       workDaysPerMonth: 26,
       hoursPerDay: hoursPerDay,
+      roleRates: roleRates,
     );
 
     // Approved paid/unpaid leaves overlapping the period — drives the
