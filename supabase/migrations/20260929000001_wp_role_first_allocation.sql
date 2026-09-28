@@ -3,6 +3,7 @@
 -- ACTIVE holders in proportion to capacity. owner_employee_id and
 -- wp_task_assignments are KEPT (rollback = restore 20260724000003's view) but
 -- no longer read by wp_person_load.
+-- NOT re-runnable: step 1 re-derives from wp_task_assignments.
 
 alter table wp_tasks add column if not exists allocation_review_note text;
 
@@ -16,7 +17,8 @@ with ranked as (
   left join employees e on e.id = a.employee_id
   order by a.task_id,
            (a.assignment_role = 'PRIMARY') desc,
-           a.allocation_pct desc
+           a.allocation_pct desc,
+           a.id
 ),
 was as (
   select a.task_id,
