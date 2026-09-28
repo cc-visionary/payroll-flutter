@@ -36,6 +36,16 @@ void main() {
     expect(customHoursOf(t(hours: 12)), 12);
   });
 
+  test('custom prefill for manual times + RATE-sourced minutes uses the rate', () {
+    const rated = WpTask(id: 'x', companyId: 'c', name: 'x', cadence: 'twice a week',
+        timesManual: 8, minutesSource: 'rate', rateId: 'r1');
+    expect(frequencyOf(rated), TaskFrequency.custom);
+    expect(customHoursOf(rated), isNull, reason: 'no rate minutes given');
+    expect(customHoursOf(rated, rateMinutes: 45), closeTo(6, 1e-9), reason: '8 x 45 / 60');
+    // A manual-minutes task ignores rateMinutes.
+    expect(customHoursOf(t(cadence: 'x', times: 13, minutes: 30), rateMinutes: 99), closeTo(6.5, 1e-9));
+  });
+
   test('preview hours per month', () {
     expect(previewHoursPerMonth(frequency: TaskFrequency.daily, minutes: 60), 26);
     expect(previewHoursPerMonth(frequency: TaskFrequency.weekly, minutes: 180), closeTo(13, 1e-9));

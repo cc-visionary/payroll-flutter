@@ -53,10 +53,12 @@ double? minutesOf(WpTask t) => t.minutesManual;
 
 /// The h/mo to show when a task opens as [TaskFrequency.custom]: its direct
 /// hours, or its legacy manual times x minutes, so Save-without-edits keeps
-/// the same workload.
-double? customHoursOf(WpTask t) {
+/// the same workload. A rate-sourced task (`minutesSource == 'rate'`) has no
+/// manual minutes; pass its linked rate's minutes as [rateMinutes].
+double? customHoursOf(WpTask t, {double? rateMinutes}) {
   if (t.hoursPerMonth != null) return t.hoursPerMonth;
-  final times = t.timesManual, minutes = t.minutesManual;
+  final times = t.timesManual;
+  final minutes = t.minutesSource == 'rate' ? rateMinutes : t.minutesManual;
   if (times == null || minutes == null) return null;
   return times * minutes / 60;
 }

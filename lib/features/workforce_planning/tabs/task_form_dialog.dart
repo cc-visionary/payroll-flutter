@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme.dart';
 import '../../../data/models/role_scorecard.dart';
 import '../../../data/models/workforce_planning.dart';
+import '../area_placement.dart';
 import '../duplicate_check.dart';
 import '../duplicate_warning.dart';
 import '../frequency.dart';
@@ -40,12 +41,16 @@ String? validateTaskForm({
   String? minutesText,
   String? customHoursText,
   String? driverId,
+  String? area,
   // True when [existing] is rate-sourced (minutesSource == 'rate') — a blank
   // minutes field then means "keep the rate", not "missing input".
   bool minutesFromRate = false,
 }) {
   if (name.trim().isEmpty) return 'Name is required.';
   if (roleId == null) return 'Pick the role that does this.';
+  if ((area ?? '').trim().isEmpty) {
+    return 'Pick the area this sits under on the role card.';
+  }
   if (frequency == TaskFrequency.custom) {
     return _num(customHoursText) == null ? 'Enter hours per month.' : null;
   }
@@ -69,12 +74,17 @@ WpTask buildTaskFromForm({
   String? customHoursText,
   String? driverId,
   More more = const More(),
+  // The role's default area (see defaultAreaFor), used when no area was
+  // picked and the role is new or changed.
+  String defaultArea = kDefaultResponsibilityArea,
 }) {
   final custom = frequency == TaskFrequency.custom;
   final perOrder = frequency == TaskFrequency.perOrder;
   String? clean(String? v) => (v == null || v.trim().isEmpty) ? null : v.trim();
   // An area only means something in the context of the role that carries
-  // it — changing the role orphans whatever area the old role had.
+  // it — changing the role orphans whatever area the old role had, so the
+  // new role's default applies unless the user picked one (ruling R11: a
+  // task on a role always has an area of that role).
   final roleUnchanged = existing != null && roleId == existing.roleScorecardId;
   final typedMinutes = _num(minutesText);
   // A rate-sourced task (minutes_source = 'rate') keeps its rate link when
@@ -85,9 +95,9 @@ WpTask buildTaskFromForm({
     companyId: existing?.companyId ?? companyId,
     name: name.trim(),
     roleScorecardId: roleId,
-    responsibilityArea: roleUnchanged
-        ? clean(responsibilityArea ?? existing.responsibilityArea)
-        : null,
+    responsibilityArea: clean(responsibilityArea) ??
+        (roleUnchanged ? clean(existing.responsibilityArea) : null) ??
+        defaultArea,
     cadence: custom ? null : frequency.token,
     timesSource: perOrder ? 'driver' : 'manual',
     timesManual: (custom || perOrder) ? null : frequency.timesPerMonth,
@@ -115,9 +125,11 @@ WpTask buildTaskFromForm({
   );
 }
 
-/// Add/edit a task: name, how often x how long, and the one role that does
-/// it. Everything else sits under "More details" because none of it changes
-/// anyone's load.
+/// Add/edit a task: name, how often x how long, the one role that does it and
+/// the area it sits under on that role's card. Everything else sits under
+/// "More details" because none of it changes anyone's load or the role card.
+///
+/// The caller positions the saved task with `placeInArea` (area_placement.dart).
 class TaskFormDialog extends StatefulWidget {
   final WpTask? existing;
   final String companyId;
@@ -161,9 +173,18 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
     text: widget.existing == null ? '' : (minutesOf(widget.existing!)?.toString() ?? ''),
   );
   late final _customHours = TextEditingController(
-    text: widget.existing == null ? '' : (customHoursOf(widget.existing!)?.toString() ?? ''),
+    text: widget.existing == null
+        ? ''
+        : (customHoursOf(widget.existing!, rateMinutes: _linkedRate?.minutesEach)?.toString() ?? ''),
   );
   late String? _roleId = widget.existing?.roleScorecardId ?? widget.initialRoleId;
+
+  // Area on the role card (ruling R11). Picked from the role's own areas, or
+  // typed as a new one ([_typingNewArea] — always so when the role has none).
+  static const _newAreaSentinel = '\u0000new-area';
+  String? _area;
+  bool _typingNewArea = false;
+  final _newArea = TextEditingController();
   late String? _driverId = widget.existing?.driverId ??
       widget.drivers.where((d) => d.name.toLowerCase().contains('order')).firstOrNull?.id;
 
@@ -208,9 +229,54 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
     return 'e.g. 15';
   }
 
+  RoleScorecard? get _card {
+    for (final c in widget.cards) {
+      if (c.id == _roleId) return c;
+    }
+    return null;
+  }
+
+  /// The selected role's areas, plus the task's own area when it is being
+  /// edited on its own role and that area is not (yet) on the card.
+  List<String> get _areaOptions {
+    final options = areaOptionsFor(_card);
+    final own = _ownArea;
+    if (own != null && !options.any((o) => o.toLowerCase() == own.toLowerCase())) {
+      return [...options, own];
+    }
+    return options;
+  }
+
+  /// The edited task's current area, while the role is still its own.
+  String? get _ownArea {
+    final e = widget.existing;
+    if (e == null || e.roleScorecardId != _roleId) return null;
+    final a = e.responsibilityArea?.trim();
+    return (a == null || a.isEmpty) ? null : a;
+  }
+
+  /// Keeps the task's own area on its own role; otherwise the role's default.
+  void _resetArea() {
+    final options = _areaOptions;
+    final own = _ownArea;
+    _area = own == null
+        ? defaultAreaFor(_card)
+        : options.firstWhere((o) => o.toLowerCase() == own.toLowerCase(), orElse: () => own);
+    _typingNewArea = options.isEmpty;
+    _newArea.text = options.isEmpty ? _area! : '';
+  }
+
+  String get _effectiveArea => _typingNewArea ? _newArea.text : (_area ?? '');
+
+  @override
+  void initState() {
+    super.initState();
+    _resetArea();
+  }
+
   @override
   void dispose() {
-    for (final c in [_name, _minutes, _customHours, _brand, _capability, _notes]) {
+    for (final c in [_name, _minutes, _customHours, _brand, _capability, _notes, _newArea]) {
       c.dispose();
     }
     super.dispose();
@@ -247,7 +313,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
     final err = validateTaskForm(
       name: _name.text, roleId: _roleId, frequency: _frequency,
       minutesText: _minutes.text, customHoursText: _customHours.text, driverId: _driverId,
-      minutesFromRate: _minutesFromRate,
+      area: _effectiveArea, minutesFromRate: _minutesFromRate,
     );
     if (err != null) {
       setState(() => _error = err);
@@ -261,8 +327,9 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
     );
     Navigator.pop(context, buildTaskFromForm(
       existing: widget.existing, companyId: widget.companyId, name: _name.text,
-      roleId: _roleId!, frequency: _frequency, minutesText: _minutes.text,
-      customHoursText: _customHours.text, driverId: _driverId, more: more,
+      roleId: _roleId!, responsibilityArea: _effectiveArea, frequency: _frequency,
+      minutesText: _minutes.text, customHoursText: _customHours.text, driverId: _driverId,
+      more: more, defaultArea: defaultAreaFor(_card),
     ));
   }
 
@@ -324,8 +391,12 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
                 initialValue: _present(_roleId, roleIds),
                 decoration: _dec('Role that does it'),
                 items: [for (final c in widget.cards) DropdownMenuItem(value: c.id, child: Text(c.jobTitle))],
-                onChanged: (v) => setState(() => _roleId = v),
+                onChanged: (v) => setState(() {
+                  _roleId = v;
+                  _resetArea();
+                }),
               ),
+              if (_roleId != null) ..._areaFields(),
               const SizedBox(height: 8),
               Text(_previewLine(), style: AppTheme.mono(context)),
               const SizedBox(height: 8),
@@ -352,6 +423,49 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
         FilledButton(onPressed: _save, child: const Text('Save')),
       ],
     );
+  }
+
+  /// "Area": decides where the task appears on the role card, its PDF and
+  /// the contract's Annex A — so it sits in the main form, under the role.
+  List<Widget> _areaFields() {
+    final options = _areaOptions;
+    const helper = 'Where it appears on the role card';
+    if (options.isEmpty) {
+      return [
+        const SizedBox(height: 12),
+        TextFormField(
+          key: ValueKey('area-text-$_roleId'),
+          controller: _newArea,
+          decoration: _dec('Area').copyWith(helperText: helper),
+        ),
+      ];
+    }
+    return [
+      const SizedBox(height: 12),
+      DropdownButtonFormField<String>(
+        // Rebuilt per role so the shown value follows the role's default.
+        key: ValueKey('area-$_roleId'),
+        isExpanded: true,
+        initialValue: _typingNewArea ? _newAreaSentinel : _area,
+        decoration: _dec('Area').copyWith(helperText: helper),
+        items: [
+          for (final o in options) DropdownMenuItem(value: o, child: Text(o)),
+          const DropdownMenuItem(value: _newAreaSentinel, child: Text('+ New area…')),
+        ],
+        onChanged: (v) => setState(() {
+          if (v == _newAreaSentinel) {
+            _typingNewArea = true;
+          } else {
+            _typingNewArea = false;
+            _area = v;
+          }
+        }),
+      ),
+      if (_typingNewArea) ...[
+        const SizedBox(height: 12),
+        TextFormField(controller: _newArea, autofocus: true, decoration: _dec('New area name')),
+      ],
+    ];
   }
 
   Widget _pick(String label, String? value, List<String> options, void Function(String?) set) =>
