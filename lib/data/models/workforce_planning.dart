@@ -139,6 +139,13 @@ class WpTask {
   /// over the times x minutes driver calc (mirrors wp_task_computed). A
   /// direct-hours task never responds to the growth multiplier.
   final double? hoursPerMonth;
+
+  /// Set by the role-first migration when converting this task to one role
+  /// lost information ("was: Jeremy 60%, Brand Handler 40%"). Shown in the
+  /// board's "Check these" list until HR clicks "Looks right". Never written
+  /// by [toUpsert] — only [WorkforcePlanningRepository.clearReviewNote].
+  final String? allocationReviewNote;
+
   const WpTask({
     required this.id,
     required this.companyId,
@@ -168,6 +175,7 @@ class WpTask {
     this.isEssential = true,
     this.status = 'ACTIVE',
     this.hoursPerMonth,
+    this.allocationReviewNote,
   });
   factory WpTask.fromRow(Map<String, dynamic> r) => WpTask(
     id: r['id'] as String,
@@ -198,6 +206,7 @@ class WpTask {
     isEssential: r['is_essential'] as bool? ?? true,
     status: r['status'] as String? ?? 'ACTIVE',
     hoursPerMonth: _dn(r['hours_per_month']),
+    allocationReviewNote: r['allocation_review_note'] as String?,
   );
 
   /// Same task at a new position in its card/area. Used when a responsibility
@@ -231,6 +240,7 @@ class WpTask {
     isEssential: isEssential,
     status: status,
     hoursPerMonth: hoursPerMonth,
+    allocationReviewNote: allocationReviewNote,
   );
 
   Map<String, dynamic> toUpsert(String companyId) {
