@@ -1503,6 +1503,7 @@ class _ResponsibilitiesTabState extends ConsumerState<ResponsibilitiesTab> {
         companyId: companyId,
         nodes: nodes,
         drivers: drivers,
+        rates: rates,
         cards: cards,
       ),
     );

@@ -40,13 +40,18 @@ String? validateTaskForm({
   String? minutesText,
   String? customHoursText,
   String? driverId,
+  // True when [existing] is rate-sourced (minutesSource == 'rate') — a blank
+  // minutes field then means "keep the rate", not "missing input".
+  bool minutesFromRate = false,
 }) {
   if (name.trim().isEmpty) return 'Name is required.';
   if (roleId == null) return 'Pick the role that does this.';
   if (frequency == TaskFrequency.custom) {
     return _num(customHoursText) == null ? 'Enter hours per month.' : null;
   }
-  if (_num(minutesText) == null) return 'How long does it take each time?';
+  if (!minutesFromRate && _num(minutesText) == null) {
+    return 'How long does it take each time?';
+  }
   if (frequency == TaskFrequency.perOrder && (driverId == null || driverId.isEmpty)) {
     return 'Pick what the orders are counted from.';
   }
@@ -68,19 +73,29 @@ WpTask buildTaskFromForm({
   final custom = frequency == TaskFrequency.custom;
   final perOrder = frequency == TaskFrequency.perOrder;
   String? clean(String? v) => (v == null || v.trim().isEmpty) ? null : v.trim();
+  // An area only means something in the context of the role that carries
+  // it — changing the role orphans whatever area the old role had.
+  final roleUnchanged = existing != null && roleId == existing.roleScorecardId;
+  final typedMinutes = _num(minutesText);
+  // A rate-sourced task (minutes_source = 'rate') keeps its rate link when
+  // the minutes field is left blank; typing a number overrides to manual.
+  final keepsRate = !custom && existing?.minutesSource == 'rate' && typedMinutes == null;
   return WpTask(
     id: existing?.id ?? '',
     companyId: existing?.companyId ?? companyId,
     name: name.trim(),
     roleScorecardId: roleId,
-    responsibilityArea: clean(responsibilityArea ?? existing?.responsibilityArea),
+    responsibilityArea: roleUnchanged
+        ? clean(responsibilityArea ?? existing.responsibilityArea)
+        : null,
     cadence: custom ? null : frequency.token,
     timesSource: perOrder ? 'driver' : 'manual',
     timesManual: (custom || perOrder) ? null : frequency.timesPerMonth,
     driverId: perOrder ? driverId : null,
     driverFactor: existing?.driverFactor ?? 1,
-    minutesSource: 'manual',
-    minutesManual: custom ? null : _num(minutesText),
+    minutesSource: keepsRate ? 'rate' : 'manual',
+    minutesManual: (custom || keepsRate) ? null : typedMinutes,
+    rateId: keepsRate ? existing?.rateId : null,
     hoursPerMonth: custom ? _num(customHoursText) : null,
     nodeId: more.nodeId,
     brandScope: clean(more.brandScope),
@@ -109,6 +124,11 @@ class TaskFormDialog extends StatefulWidget {
   final List<RoleScorecard> cards;
   final List<WpNode> nodes;
   final List<WpDriver> drivers;
+
+  /// Rates, so an existing rate-sourced task ([WpTask.minutesSource] ==
+  /// `'rate'`) can show what minutes it's actually using while its Minutes
+  /// field sits blank — see [buildTaskFromForm]'s `keepsRate`.
+  final List<WpRate> rates;
   final String? initialRoleId;
   final List<WpTask> duplicateCheckPool;
 
@@ -122,6 +142,7 @@ class TaskFormDialog extends StatefulWidget {
     required this.cards,
     this.nodes = const [],
     this.drivers = const [],
+    this.rates = const [],
     this.initialRoleId,
     this.duplicateCheckPool = const [],
     this.holderCountByRole = const {},
@@ -160,6 +181,33 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
   bool _showMore = false;
   String? _error;
 
+  /// The rate [widget.existing] was sourced from, if it still exists in
+  /// [widget.rates]. Non-null only drives the Minutes hint/preview fallback
+  /// while the field is blank — [buildTaskFromForm] decides persistence off
+  /// `existing.minutesSource`/`rateId` directly, not off this lookup.
+  WpRate? get _linkedRate {
+    final id = widget.existing?.rateId;
+    if (id == null) return null;
+    for (final r in widget.rates) {
+      if (r.id == id) return r;
+    }
+    return null;
+  }
+
+  bool get _minutesFromRate => widget.existing?.minutesSource == 'rate';
+
+  /// Minutes to use when the field is blank and the task is rate-sourced —
+  /// what "keep the rate" actually means for the preview line.
+  double? get _effectiveMinutes => _num(_minutes.text) ?? (_minutesFromRate ? _linkedRate?.minutesEach : null);
+
+  String get _minutesHint {
+    final rate = _linkedRate;
+    if (_minutesFromRate && rate != null) {
+      return 'Rate: ${rate.name} · ${rate.minutesEach.toStringAsFixed(0)} min';
+    }
+    return 'e.g. 15';
+  }
+
   @override
   void dispose() {
     for (final c in [_name, _minutes, _customHours, _brand, _capability, _notes]) {
@@ -181,7 +229,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
   String _previewLine() {
     final h = previewHoursPerMonth(
       frequency: _frequency,
-      minutes: _num(_minutes.text),
+      minutes: _effectiveMinutes,
       customHours: _num(_customHours.text),
       driverVolume: _driverVolume,
       driverFactor: widget.existing?.driverFactor ?? 1,
@@ -199,6 +247,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
     final err = validateTaskForm(
       name: _name.text, roleId: _roleId, frequency: _frequency,
       minutesText: _minutes.text, customHoursText: _customHours.text, driverId: _driverId,
+      minutesFromRate: _minutesFromRate,
     );
     if (err != null) {
       setState(() => _error = err);
@@ -255,7 +304,7 @@ class _TaskFormDialogState extends State<TaskFormDialog> {
                   child: custom
                       ? TextFormField(controller: _customHours, decoration: _dec('Hours / month', hint: 'e.g. 10'),
                           keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setState(() {}))
-                      : TextFormField(controller: _minutes, decoration: _dec('Minutes each time', hint: 'e.g. 15'),
+                      : TextFormField(controller: _minutes, decoration: _dec('Minutes each time', hint: _minutesHint),
                           keyboardType: const TextInputType.numberWithOptions(decimal: true), onChanged: (_) => setState(() {})),
                 ),
               ]),

@@ -22,6 +22,10 @@ void main() {
       expect(validateTaskForm(name: 'x', roleId: 'r', frequency: TaskFrequency.perOrder, minutesText: '3'), 'Pick what the orders are counted from.');
       expect(validateTaskForm(name: 'x', roleId: 'r', frequency: TaskFrequency.weekly, minutesText: '30'), isNull);
     });
+
+    test('minutesFromRate: true and blank minutes returns null', () {
+      expect(validateTaskForm(name: 'x', roleId: 'r', frequency: TaskFrequency.weekly, minutesText: '', minutesFromRate: true), isNull);
+    });
   });
 
   group('buildTaskFromForm', () {
@@ -72,6 +76,38 @@ void main() {
           frequency: f, customHoursText: customHoursOf(legacy)!.toString(), more: More.of(legacy));
       expect(f, TaskFrequency.custom);
       expect(t.hoursPerMonth, closeTo(6.5, 1e-9));
+    });
+
+    test('keeps rate on a rate-sourced existing task with blank minutes', () {
+      const existing = WpTask(id: 't1', companyId: 'c', name: 'Pack', roleScorecardId: 'bh',
+          minutesSource: 'rate', rateId: 'r1');
+      final t = buildTaskFromForm(existing: existing, companyId: 'c', name: 'Pack', roleId: 'bh',
+          frequency: TaskFrequency.weekly, minutesText: '', more: More.of(existing));
+      expect(t.minutesSource, 'rate');
+      expect(t.rateId, 'r1');
+      expect(t.minutesManual, isNull);
+    });
+
+    test('typing minutes switches to manual and clears rateId', () {
+      const existing = WpTask(id: 't1', companyId: 'c', name: 'Pack', roleScorecardId: 'bh',
+          minutesSource: 'rate', rateId: 'r1');
+      final t = buildTaskFromForm(existing: existing, companyId: 'c', name: 'Pack', roleId: 'bh',
+          frequency: TaskFrequency.weekly, minutesText: '20', more: More.of(existing));
+      expect(t.minutesSource, 'manual');
+      expect(t.rateId, isNull);
+      expect(t.minutesManual, 20);
+    });
+
+    test('editing a task and changing its role clears responsibilityArea; keeping the role keeps it', () {
+      const existing = WpTask(id: 't1', companyId: 'c', name: 'Pack', roleScorecardId: 'bh',
+          responsibilityArea: 'Fulfilment');
+      final changedRole = buildTaskFromForm(existing: existing, companyId: 'c', name: 'Pack', roleId: 'om',
+          frequency: TaskFrequency.weekly, minutesText: '10', more: More.of(existing));
+      expect(changedRole.responsibilityArea, isNull);
+
+      final sameRole = buildTaskFromForm(existing: existing, companyId: 'c', name: 'Pack', roleId: 'bh',
+          frequency: TaskFrequency.weekly, minutesText: '10', more: More.of(existing));
+      expect(sameRole.responsibilityArea, 'Fulfilment');
     });
   });
 

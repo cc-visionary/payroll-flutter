@@ -333,6 +333,7 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
         companyId: widget.companyId,
         nodes: nodes,
         drivers: drivers,
+        rates: rates,
         cards: cards,
         initialRoleId: widget.cardId,
         duplicateCheckPool: allTasks,
@@ -357,6 +358,7 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
         companyId: widget.companyId,
         nodes: nodes,
         drivers: drivers,
+        rates: rates,
         cards: cards,
       ),
     );
