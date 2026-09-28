@@ -26,7 +26,8 @@ class TaskCardGroup {
   });
 }
 
-/// Result of bucketing every `wp_tasks` row for the Responsibilities tab.
+/// Result of bucketing every `wp_tasks` row by role card, legacy
+/// capacity-model rows, and the rest (see [groupTasks]).
 class TaskGroups {
   final List<TaskCardGroup> cardGroups;
   final List<WpTask> legacy;

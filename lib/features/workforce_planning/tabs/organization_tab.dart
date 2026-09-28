@@ -22,8 +22,9 @@ import 'tab_intro.dart';
 /// owned-areas block is what a role is accountable for, drawn from
 /// [areasByRole] — so one box carries both without the two being conflated.
 ///
-/// Per-responsibility owner assignment lives on the Responsibilities tab; this
-/// tab is about shape, load, and ownership at a glance.
+/// Which role does a task is set on the Roles board (drag a task onto a role)
+/// or in a task's form; this tab is about shape, load, and ownership at a
+/// glance.
 class OrganizationTab extends ConsumerWidget {
   const OrganizationTab({super.key});
 

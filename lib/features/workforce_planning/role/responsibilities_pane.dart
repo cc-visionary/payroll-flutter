@@ -28,13 +28,11 @@ import '../wp_providers.dart';
 /// render in exactly this order, so this pane must show a manager the same
 /// order those documents do.
 ///
-/// A row's name renders as plain text; renaming goes through the same "Edit"
-/// dialog as costing (`⋮` → Edit), which the Responsibilities tab already uses for the
-/// full costing model — a second costing form is exactly what this pane
-/// avoids building. "Add" and "Link existing task" reuse that same dialog
-/// (Add) or `diffResponsibilities` + `saveResponsibilities` (Link, and a
-/// brand-new area) — the same two functions the old (now-deleted) card
-/// editor's Save button used.
+/// A row's name renders as plain text; renaming goes through the shared
+/// [TaskFormDialog] (`⋮` → Edit) — the same form the Roles board and All
+/// tasks use — so there is no second costing form here. "Add" reuses that
+/// dialog; "Link existing task" and "New area" use `diffResponsibilities` +
+/// `saveResponsibilities`.
 ///
 /// Archive/Delete are gated by [removalActionForTask]: a task with
 /// `wp_task_assignments` history is archived, never deleted, because costing
@@ -122,17 +120,15 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
     _captured = true;
   }
 
-  /// Mirrors `responsibilities_tab.dart`'s `_invalidateAfterTaskChange` exactly (a
-  /// card-linked task IS a role-card responsibility, so touching one here
-  /// changes what Balance, Role View and the card's own detail/PDF/Annex A
-  /// read), plus `roleScorecardByIdProvider(cardId)` for THIS card — always,
+  /// Invalidates everything a task change feeds (a card-linked task IS a
+  /// role-card responsibility, so touching one here changes the Roles board's
+  /// loads and the card's own detail/PDF/Annex A), plus `roleScorecardByIdProvider(cardId)` for THIS card — always,
   /// even when [cardIds] is empty, since every mutation this pane makes
   /// touches this card one way or another.
   void _invalidateAfterTaskChange(Iterable<String?> cardIds) {
     ref.invalidate(wpTasksProvider);
     ref.invalidate(wpPersonLoadsProvider);
     ref.invalidate(wpAllTaskComputedProvider);
-    ref.invalidate(ownerComputedProvider);
     ref.invalidate(roleScorecardListProvider);
     ref.invalidate(wpTaskAssignmentsProvider);
     for (final id in {...cardIds, widget.cardId}.whereType<String>()) {
@@ -147,7 +143,7 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
   /// Explicit resync: `wpTasksProvider` is watched, but [_captured] only
   /// flips false right after THIS pane's own mutations (see its doc
   /// comment), so another screen changing the same card's tasks — e.g. the
-  /// Responsibilities tab editing one directly, or a different workbench tab — would
+  /// Roles board or All tasks editing one directly — would
   /// otherwise leave [_areas]/[_existingRows] silently stale.
   ///
   /// Unlike `KpisPane._resync`, this never confirms before discarding
@@ -204,9 +200,9 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
     }
   }
 
-  /// Prompts for a brand-new area and its first responsibility, then inserts
-  /// it via `diffResponsibilities` — the one gap the "Edit" dialog can't fill,
-  /// since its area field only offers areas the selected card already has.
+  /// Prompts for a brand-new area and its first responsibility (name only, no
+  /// costing yet), then inserts it via `diffResponsibilities`. The task form
+  /// can also start a new area (its "+ New area…" option) for a costed task.
   ///
   /// The first-responsibility field runs the duplicate nudge as you type (see
   /// [SimilarNameWarning]); it is the one field in this pane that creates a
@@ -314,11 +310,11 @@ class _ResponsibilitiesPaneState extends ConsumerState<ResponsibilitiesPane> {
     ]);
   }
 
-  /// Opens the Responsibilities tab's own costing dialog for a brand-new responsibility.
-  /// Mirrors `responsibilities_tab.dart`'s `_openForm(existing: null)` exactly — the
-  /// user picks this card and an area the same way the Responsibilities tab's "New
-  /// task" button does — plus [TaskFormDialog.duplicateCheckPool], since this
-  /// is the pane's other path from a typed name to a new `wp_tasks` row.
+  /// Opens the shared [TaskFormDialog] for a brand-new responsibility on this
+  /// card (the same form the Roles board's "Add task" opens): the role is
+  /// preselected and the area defaults to the card's first — plus
+  /// [TaskFormDialog.duplicateCheckPool], since this is the pane's other path
+  /// from a typed name to a new `wp_tasks` row.
   Future<void> _addTask({
     required List<WpNode> nodes,
     required List<WpDriver> drivers,

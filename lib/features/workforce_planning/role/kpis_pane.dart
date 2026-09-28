@@ -137,7 +137,6 @@ class _KpisPaneState extends ConsumerState<KpisPane> {
     ref.invalidate(wpTasksProvider);
     ref.invalidate(wpPersonLoadsProvider);
     ref.invalidate(wpAllTaskComputedProvider);
-    ref.invalidate(ownerComputedProvider);
     ref.invalidate(roleScorecardListProvider);
     ref.invalidate(wpTaskAssignmentsProvider);
     ref.invalidate(roleScorecardByIdProvider(widget.cardId));

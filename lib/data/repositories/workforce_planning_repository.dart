@@ -4,37 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/workforce_planning.dart';
 import '../pagination.dart';
 
-/// The PRIMARY assignment insert payload for a task's current owner/card, or
-/// null when the task is unassigned. Owner wins over card — matching the step-4
-/// backfill. Pure so the branching is unit-tested; the DB glue lives in
-/// [WorkforcePlanningRepository._syncPrimaryFromTask].
-Map<String, dynamic>? primaryAssignmentPayload({
-  required String companyId,
-  required String taskId,
-  String? ownerEmployeeId,
-  String? roleScorecardId,
-}) {
-  if (ownerEmployeeId != null) {
-    return {
-      'company_id': companyId,
-      'task_id': taskId,
-      'employee_id': ownerEmployeeId,
-      'assignment_role': 'PRIMARY',
-      'allocation_pct': 100,
-    };
-  }
-  if (roleScorecardId != null) {
-    return {
-      'company_id': companyId,
-      'task_id': taskId,
-      'role_scorecard_id': roleScorecardId,
-      'assignment_role': 'PRIMARY',
-      'allocation_pct': 100,
-    };
-  }
-  return null;
-}
-
 class WorkforcePlanningRepository {
   final SupabaseClient _client;
   WorkforcePlanningRepository(this._client);
@@ -103,21 +72,7 @@ class WorkforcePlanningRepository {
     return rows.cast<Map<String, dynamic>>().map(WpPersonLoad.fromRow).toList();
   });
 
-  Future<List<WpTaskComputed>> taskComputedForOwner(String employeeId) async {
-    final rows = await _client
-        .from('wp_task_computed')
-        .select()
-        .eq('owner_employee_id', employeeId);
-    return rows
-        .cast<Map<String, dynamic>>()
-        .map(WpTaskComputed.fromRow)
-        .toList();
-  }
-
-  /// Every computed task row. Needed because a person's task list now includes
-  /// DERIVED tasks (unowned rows on their role card), which
-  /// `taskComputedForOwner` cannot return — it filters on `owner_employee_id`
-  /// server-side.
+  /// Every computed task row (hours per task, resolved from drivers/rates).
   /// Paged for the same reason as [tasks] — this view has one row per task, so
   /// it crosses `max_rows` at exactly the same point, and a truncated slice
   /// here silently under-reports everyone's hours.
@@ -143,13 +98,13 @@ class WorkforcePlanningRepository {
     }
   }
 
-Future<void> deleteTask(String id) async =>
+  Future<void> deleteTask(String id) async =>
       _client.from('wp_tasks').delete().eq('id', id);
 
-  /// Writes only the costing columns for a batch of tasks (the Responsibilities tab's bulk
-  /// grid). Deliberately NOT a full `toUpsert` — that would round-trip every
+  /// Writes only the costing columns for a batch of tasks. Deliberately NOT
+  /// a full `toUpsert` — that would round-trip every
   /// other column and let a stale in-memory row clobber a concurrent edit to,
-  /// say, the owner or the responsibility area.
+  /// say, the role or the responsibility area.
   ///
   /// Applied one row at a time and reported per row: PostgREST has no
   /// multi-row-different-values update, and a partial failure must leave the

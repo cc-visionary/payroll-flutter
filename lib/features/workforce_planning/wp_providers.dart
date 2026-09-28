@@ -25,9 +25,8 @@ final wpConfigProvider = FutureProvider<WpConfig?>(
   (ref) => ref.watch(workforcePlanningRepositoryProvider).config(),
 );
 
-/// All computed task rows (hours per task). Used where DERIVED tasks must be
-/// priced too — `ownerComputedProvider` can't serve them, it filters on
-/// `owner_employee_id` server-side.
+/// All computed task rows (hours per task) — the hours the Roles board, the
+/// needs-attention strip and All tasks read for every task.
 final wpAllTaskComputedProvider = FutureProvider<List<WpTaskComputed>>(
   (ref) => ref.watch(workforcePlanningRepositoryProvider).allTaskComputed(),
 );
@@ -56,15 +55,6 @@ final wpAssignmentsByTaskProvider =
 final wpActiveEmployeesProvider = FutureProvider<List<Employee>>(
   (ref) => ref.watch(employeeListProvider(const EmployeeListQuery()).future),
 );
-
-/// A single person's computed owned tasks (times/minutes/hours resolved).
-/// Public (not `_`-prefixed) so widget tests can override it directly.
-final ownerComputedProvider =
-    FutureProvider.family<List<WpTaskComputed>, String>(
-      (ref, employeeId) => ref
-          .watch(workforcePlanningRepositoryProvider)
-          .taskComputedForOwner(employeeId),
-    );
 
 /// The stored growth multiplier (default 1.0 when no config row yet). Kept
 /// separate so the Roles board and needs-attention strip can watch just the
