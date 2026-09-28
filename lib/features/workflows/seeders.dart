@@ -29,7 +29,7 @@ const _docLabel = <String, String>{
   'NTE': 'Notice to Explain',
   'NON_REG': 'Notice of Non-Regularization',
   'EMPLOYMENT_CONTRACT': 'Employment Contract',
-  'NDA': 'NDA',
+  'NDA': 'Non-Disclosure Agreement',
   'LIABILITY_WAIVER': 'Liability Waiver',
   'PENALTY_AGREEMENT': 'Penalty Repayment Agreement',
 };
@@ -79,38 +79,90 @@ WorkflowSeed seedSeparationWorkflow({
   );
 }
 
-/// Build a HIRING workflow with 4 default onboarding steps. Each step is a
-/// STATUS_UPDATE that HR manually marks complete as the onboarding work
-/// happens. Schema supports per-step assignment via `assigned_to_id` — v1
-/// leaves it null (implicitly assigned to whoever initiated the workflow).
+/// Documents every new hire must have: generated first, never optional.
+const kRequiredHireDocumentTypes = <String>['EMPLOYMENT_CONTRACT', 'NDA'];
+
+/// Onboarding documents HR may add; each becomes an optional step.
+const kOptionalHireDocumentTypes = <String>['LIABILITY_WAIVER'];
+
+/// Onboarding checklist items HR may add; each is an optional STATUS_UPDATE
+/// step HR marks complete by hand.
+const kOnboardingTasks = <String>[
+  'IT account & email setup',
+  'Equipment provisioning (laptop, peripherals)',
+  'Day-1 orientation completed',
+  '30-day check-in completed',
+];
+
+/// Title for a hire document's DRAFT `employee_documents` row.
+String hireDocTitle(String type) => _docLabel[type] ?? type;
+
+/// Whether a step was seeded as optional (`input_data.optional`). Optional
+/// steps are skippable like any other; the flag only tells HR they may be.
+bool isOptionalStep(Map<String, dynamic>? inputData) =>
+    inputData?['optional'] == true;
+
+/// Build a HIRING workflow: the required contract + NDA, then whichever
+/// optional documents and checklist tasks HR picked, each flagged optional.
+///
+/// Document steps link to DRAFT `employee_documents` rows the caller has
+/// already inserted ([docIdByType]), exactly like [seedSeparationWorkflow],
+/// so "Generate now" fills that row instead of minting a second one.
 WorkflowSeed seedHiringWorkflow({
   required String companyId,
   required String employeeId,
   required String employeeFullName,
-  required String applicantId,
+  String? applicantId,
+  required Map<String, String> docIdByType,
+  List<String> optionalDocumentTypes = const [],
+  List<String> optionalTasks = const [],
   required String initiatedById,
 }) {
-  const onboardingSteps = <String>[
-    'IT account & email setup',
-    'Equipment provisioning (laptop, peripherals)',
-    'Day-1 orientation completed',
-    '30-day check-in completed',
-  ];
-  final steps = <WorkflowStepInput>[
-    for (var i = 0; i < onboardingSteps.length; i++)
+  final steps = <WorkflowStepInput>[];
+  void addDoc(String type, {required bool optional}) {
+    final label = _docLabel[type] ?? type;
+    steps.add(
       WorkflowStepInput(
-        stepIndex: i,
-        stepType: 'STATUS_UPDATE',
-        name: onboardingSteps[i],
+        stepIndex: steps.length,
+        stepType: 'DOCUMENT_GENERATION',
+        name: 'Generate $label',
+        description: optional
+            ? 'Optional — skip if this hire does not need it.'
+            : 'Render the $label PDF and mark this step complete.',
+        inputData: {
+          'template_id': _templateIdByDocType[type] ?? type.toLowerCase(),
+          'employee_document_id': docIdByType[type],
+          if (optional) 'optional': true,
+        },
+        generatedDocumentId: docIdByType[type],
       ),
-  ];
+    );
+  }
+
+  for (final type in kRequiredHireDocumentTypes) {
+    addDoc(type, optional: false);
+  }
+  for (final type in optionalDocumentTypes) {
+    addDoc(type, optional: true);
+  }
+  for (final task in optionalTasks) {
+    steps.add(
+      WorkflowStepInput(
+        stepIndex: steps.length,
+        stepType: 'STATUS_UPDATE',
+        name: task,
+        description: 'Optional — skip if this hire does not need it.',
+        inputData: const {'optional': true},
+      ),
+    );
+  }
   return WorkflowSeed(
     instance: WorkflowInstanceInput(
       companyId: companyId,
       employeeId: employeeId,
       workflowType: 'HIRING',
       title: 'Hiring — $employeeFullName',
-      context: {'applicant_id': applicantId},
+      context: {'applicant_id': ?applicantId},
       initiatedById: initiatedById,
     ),
     steps: steps,

@@ -20,6 +20,7 @@ import '../employees/profile/providers.dart'
         timelineProvider;
 import 'generate_url.dart';
 import 'remarks_dialog.dart';
+import 'seeders.dart' show isOptionalStep;
 
 class WorkflowDetailScreen extends ConsumerWidget {
   final String instanceId;
@@ -594,9 +595,19 @@ class _StepsTimeline extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          s.name,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        Wrap(
+                          spacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              s.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (isOptionalStep(s.inputData))
+                              const _OptionalTag(),
+                          ],
                         ),
                         if (s.description != null) ...[
                           const SizedBox(height: 4),
@@ -659,6 +670,28 @@ class _StepsTimeline extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Marks a step seeded as optional (`input_data.optional`), e.g. the extra
+/// onboarding items on a HIRING workflow. Tinted chip, no border.
+class _OptionalTag extends StatelessWidget {
+  const _OptionalTag();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        'Optional',
+        style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+      ),
     );
   }
 }

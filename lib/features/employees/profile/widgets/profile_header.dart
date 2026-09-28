@@ -13,6 +13,7 @@ import '../../../auth/profile_provider.dart';
 import '../../../workflows/seeders.dart';
 import '../providers.dart';
 import 'info_card.dart';
+import 'new_hire_workflow_action.dart';
 import 'penalty_workflow_action.dart';
 
 /// Back link + name/title block + action buttons + four info cards.
@@ -271,8 +272,8 @@ class ProfileHeader extends ConsumerWidget {
   /// Workflow launcher. Every workflow is a side effect of the HR action that
   /// justifies it — there is no "blank workflow" to create — so this routes to
   /// the action that seeds each type rather than inserting an empty instance.
-  /// Hiring is absent by design: that workflow is seeded by converting an
-  /// applicant, which happens before an employee record exists.
+  /// New Hire Onboarding is also seeded when an applicant is converted; this
+  /// entry covers employees added directly, without an applicant record.
   Future<void> _startWorkflow(
     BuildContext context,
     WidgetRef ref, {
@@ -287,6 +288,14 @@ class ProfileHeader extends ConsumerWidget {
       builder: (c) => SimpleDialog(
         title: const Text('Start Workflow'),
         children: [
+          if (isActive)
+            _WorkflowChoice(
+              title: 'New Hire Onboarding',
+              subtitle:
+                  'Employment contract and NDA, plus optional onboarding '
+                  'steps.',
+              onTap: () => Navigator.pop(c, 'new_hire'),
+            ),
           _WorkflowChoice(
             title: 'Penalty Repayment Agreement',
             subtitle: 'Record a penalty, then generate the agreement to sign.',
@@ -308,6 +317,12 @@ class ProfileHeader extends ConsumerWidget {
     );
     if (choice == null || !context.mounted) return;
     switch (choice) {
+      case 'new_hire':
+        await runNewHireWorkflow(
+          ref: ref,
+          context: context,
+          employee: employee,
+        );
       case 'penalty':
         await runPenaltyWorkflow(
           ref: ref,
