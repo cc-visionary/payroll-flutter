@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../data/models/applicant.dart';
 import '../../../data/repositories/job_listing_repository.dart';
+import '../delete_applicant_action.dart';
 
 class ApplicantCard extends ConsumerWidget {
   final Applicant applicant;
@@ -49,6 +50,16 @@ class ApplicantCard extends ConsumerWidget {
                       constraints: const BoxConstraints(),
                       onPressed: onMoveToListing,
                     ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    tooltip: 'Remove applicant',
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () =>
+                        confirmAndDeleteApplicant(context, ref, applicant),
+                  ),
                 ],
               ),
               if (jobTitle != null) ...[
