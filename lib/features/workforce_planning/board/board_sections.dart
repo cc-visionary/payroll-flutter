@@ -24,12 +24,26 @@ class PeopleLoadStrip extends StatelessWidget {
     ]..sort((a, b) => (b.load?.load ?? -1).compareTo(a.load?.load ?? -1));
     return Wrap(spacing: 8, runSpacing: 8, children: [
       for (final r in rows)
-        Chip(
-          avatar: r.load == null ? null : LoadStatusChip(status: r.load!.status),
-          label: Text(r.load == null
-              ? '${r.e.firstName} no role'
-              : '${r.e.firstName} ${(r.load!.load * 100).round()}%'),
-        ),
+        if (r.load == null)
+          Chip(label: Text('${r.e.firstName} no role'))
+        else
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Theme.of(context).dividerColor),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('${r.e.firstName} ${(r.load!.load * 100).round()}%'),
+                  const SizedBox(width: 6),
+                  LoadStatusChip(status: r.load!.status),
+                ],
+              ),
+            ),
+          ),
     ]);
   }
 }
