@@ -8,6 +8,7 @@ import '../../../../data/models/compensation_change.dart';
 import '../../../../data/models/employee.dart';
 import '../../../../data/models/role_scorecard.dart';
 import '../../../../data/repositories/compensation_change_repository.dart';
+import '../../../../data/repositories/role_rate_change_repository.dart';
 import '../../../../data/repositories/role_scorecard_repository.dart';
 import '../../../auth/profile_provider.dart';
 import '../effective_pay.dart';
@@ -126,6 +127,9 @@ class _RoleDetail extends ConsumerWidget {
       asOf: DateTime(now.year, now.month, now.day),
       scorecardBaseSalary: card.baseSalary,
       scorecardWageType: card.wageType,
+      roleRates:
+          ref.watch(roleRateChangesProvider(card.id)).asData?.value ??
+          const [],
     );
 
     return ListView(

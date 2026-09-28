@@ -6,9 +6,12 @@ import '../../../app/breakpoints.dart';
 import '../../../data/models/role_scorecard.dart';
 import '../../../data/repositories/department_repository.dart';
 import '../../../data/repositories/hiring_entity_repository.dart';
+import '../../../data/repositories/role_rate_change_repository.dart';
 import '../../../data/repositories/role_scorecard_repository.dart';
 import '../../documents/providers.dart' show roleScorecardByIdProvider;
+import '../../../core/money.dart';
 import '../../responsibility_cards/scorecard_base_salary.dart';
+import 'update_base_rate_dialog.dart';
 
 /// Guards a `DropdownButtonFormField`'s `initialValue` against an id that
 /// isn't among its current `items` — the widget asserts if `initialValue`
@@ -42,9 +45,10 @@ String? _persisted(String? id, Iterable<String>? ids) =>
 /// original responsibility-card editor (deleted once this workbench became
 /// the only place a role is authored) — the same labels, the same
 /// `_responsiveRow` two-column behaviour, the same validators — with two
-/// departures: base salary is rendered permanently read-only (this pane only
-/// ever edits an existing card), and every repeating row is keyed by its
-/// draft's `identityHashCode`, never by list index.
+/// departures: base salary is read-only here and changes only through the
+/// effective-dated "Update base rate" dialog (never a plain overwrite), and
+/// every repeating row is keyed by its draft's `identityHashCode`, never by
+/// list index.
 class RoleDetailsPane extends ConsumerStatefulWidget {
   const RoleDetailsPane({super.key, required this.card});
 
@@ -68,6 +72,11 @@ class _RoleDetailsPaneState extends ConsumerState<RoleDetailsPane> {
   String? _hiringEntityId;
   late DateTime _effectiveDate;
   late bool _isActive;
+
+  /// The role's stored base rate. Starts as the card's and follows any
+  /// "Update base rate" made from this pane, so a later Save cannot write the
+  /// stale figure back over it.
+  Decimal? _currentBaseSalary;
   bool _saving = false;
   String? _error;
 
@@ -80,6 +89,7 @@ class _RoleDetailsPaneState extends ConsumerState<RoleDetailsPane> {
     final card = widget.card;
     _jobTitle = TextEditingController(text: card.jobTitle);
     _mission = TextEditingController(text: card.missionStatement);
+    _currentBaseSalary = card.baseSalary;
     _baseSalary = TextEditingController(
       text: card.baseSalary?.toString() ?? '',
     );
@@ -173,7 +183,7 @@ class _RoleDetailsPaneState extends ConsumerState<RoleDetailsPane> {
         // is never what's persisted.
         baseSalary: resolveScorecardBaseSalaryOnSave(
           isEdit: true,
-          existingBaseSalary: widget.card.baseSalary,
+          existingBaseSalary: _currentBaseSalary,
           typedText: _baseSalary.text,
         ),
         wageType: _wageType,
@@ -432,23 +442,31 @@ class _RoleDetailsPaneState extends ConsumerState<RoleDetailsPane> {
                         .toList(),
                     onChanged: (v) => setState(() => _wageType = v!),
                   ),
-                  // Immutable on an existing card. Changing it would silently
-                  // reprice every employee on this role who has no
-                  // compensation_changes row — see
-                  // resolveScorecardBaseSalaryOnSave, which enforces this on
-                  // save too.
+                  // Never overwritten in place: that would reprice every
+                  // role-default employee backwards for the whole period.
+                  // Changes go through the effective-dated dialog below
+                  // (role_rate_changes); resolveScorecardBaseSalaryOnSave keeps
+                  // Save from writing this field.
                   TextFormField(
                     controller: _baseSalary,
                     enabled: false,
                     decoration: const InputDecoration(
                       labelText: 'Base salary',
                       helperText:
-                          'Set per employee under compensation, not on the '
-                          'role.',
+                          'Role default. Employees with their own pay keep it.',
                       border: OutlineInputBorder(),
                     ),
                   ),
                 ]),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: _updateBaseRate,
+                    icon: const Icon(Icons.trending_up),
+                    label: const Text('Update base rate'),
+                  ),
+                ),
+                _RateHistory(scorecardId: widget.card.id),
                 const SizedBox(height: 12),
                 _responsiveRow([
                   _field(_rangeMin, 'Range min'),
@@ -494,6 +512,29 @@ class _RoleDetailsPaneState extends ConsumerState<RoleDetailsPane> {
     );
   }
 
+  Future<void> _updateBaseRate() async {
+    final card = widget.card;
+    final newRate = await showUpdateBaseRateDialog(context, card);
+    if (newRate == null || !mounted) return;
+    // base_salary now holds the NEWEST rate, which may not be this one when a
+    // later-dated change already exists — re-read rather than assume.
+    final history = await ref
+        .read(roleRateChangeRepositoryProvider)
+        .listByScorecard(card.id);
+    final stored = history.isEmpty ? newRate : latestRoleRate(history);
+    if (!mounted) return;
+    setState(() {
+      _currentBaseSalary = stored;
+      _baseSalary.text = stored.toString();
+    });
+    ref.invalidate(roleRateChangesProvider(card.id));
+    ref.invalidate(roleScorecardByIdProvider(card.id));
+    ref.invalidate(roleScorecardListProvider);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Base rate updated to ${Money.fmtPhp(newRate)}.')),
+    );
+  }
+
   Widget _responsiveRow(List<Widget> children, {double gap = 12}) {
     if (isMobile(context)) {
       return Column(
@@ -530,6 +571,44 @@ class _RoleDetailsPaneState extends ConsumerState<RoleDetailsPane> {
         ? (v) => (v ?? '').trim().isEmpty ? 'Required' : null
         : null,
   );
+}
+
+/// The role's effective-dated rate history, newest first. Hidden when empty.
+class _RateHistory extends ConsumerWidget {
+  const _RateHistory({required this.scorecardId});
+  final String scorecardId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final history =
+        ref.watch(roleRateChangesProvider(scorecardId)).asData?.value ??
+        const [];
+    if (history.isEmpty) return const SizedBox.shrink();
+    final style = Theme.of(context).textTheme.bodySmall;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Rate history', style: style?.copyWith(
+            fontWeight: FontWeight.w600,
+          )),
+          const SizedBox(height: 4),
+          for (final c in history)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Text(
+                '${c.effectiveDate.toIso8601String().substring(0, 10)}  '
+                '${c.prevBaseSalary == null ? '—' : Money.fmtPhp(c.prevBaseSalary!)}'
+                ' → ${Money.fmtPhp(c.newBaseSalary)}'
+                '${c.reason.isEmpty ? '' : '  ·  ${c.reason}'}',
+                style: style,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _SkillDraft {

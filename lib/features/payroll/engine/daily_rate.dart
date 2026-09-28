@@ -1,7 +1,9 @@
 import 'package:decimal/decimal.dart';
 
 import '../../../data/models/compensation_change.dart';
+import '../../../data/models/role_rate_change.dart';
 import 'effective_compensation.dart';
+import 'role_rate.dart';
 
 Decimal _div(Decimal a, Decimal b) =>
     (a / b).toDecimal(scaleOnInfinitePrecision: 10);
@@ -52,8 +54,13 @@ Decimal? resolveDailyRateOverride({
 /// Regimes are compared by change IDENTITY, not by rate value: two different
 /// salaries can round to the same daily rate, and both sides get `_round3`-ed
 /// downstream, so a value comparison would be fragile in both directions.
-/// `dayEff == periodEndEff == null` (no compensation rows) yields `null`,
-/// which is what preserves byte-identical payslips for untouched employees.
+/// `dayEff == periodEndEff == null` (no compensation rows) yields `null`
+/// unless the ROLE's rate changed inside the period ([roleRates]), which is
+/// what preserves byte-identical payslips for untouched employees.
+///
+/// Wherever the scorecard is the fallback, it is resolved as of the day via
+/// [roleRateAsOf], so a mid-period role rate change (a wage order) pays the
+/// old rate before its effective date.
 Decimal? proratedDailyRateOverride({
   required List<CompensationChange> comp,
   required DateTime attendanceDate,
@@ -62,9 +69,27 @@ Decimal? proratedDailyRateOverride({
   required String scorecardWageType,
   required int workDaysPerMonth,
   required int hoursPerDay,
+  List<RoleRateChange> roleRates = const [],
 }) {
   final periodEndEff = effectiveCompensation(comp, periodEnd);
   final dayEff = effectiveCompensation(comp, attendanceDate);
+  final roleBaseOnDay =
+      roleRateAsOf(roleRates, attendanceDate, scorecardBaseSalary) ??
+      scorecardBaseSalary;
+  if (dayEff == null && periodEndEff == null) {
+    // Role-default employee: only a role rate change inside the period can
+    // make this day differ from the period-level rate.
+    final roleBaseAtEnd =
+        roleRateAsOf(roleRates, periodEnd, scorecardBaseSalary) ??
+        scorecardBaseSalary;
+    if (roleBaseOnDay == roleBaseAtEnd) return null;
+    return dailyRateFrom(
+      baseSalary: roleBaseOnDay,
+      wageType: scorecardWageType,
+      workDaysPerMonth: workDaysPerMonth,
+      hoursPerDay: hoursPerDay,
+    );
+  }
   if (dayEff?.id == periodEndEff?.id) return null;
 
   if (dayEff == null) {
@@ -84,7 +109,7 @@ Decimal? proratedDailyRateOverride({
     // the scorecard defensively if none is found.
     final earliest = _earliestQualifyingChange(comp);
     return dailyRateFrom(
-      baseSalary: earliest?.prevBaseSalary ?? scorecardBaseSalary,
+      baseSalary: earliest?.prevBaseSalary ?? roleBaseOnDay,
       wageType: earliest?.prevWageType ?? scorecardWageType,
       workDaysPerMonth: workDaysPerMonth,
       hoursPerDay: hoursPerDay,
@@ -98,7 +123,7 @@ Decimal? proratedDailyRateOverride({
   // raise applied by an earlier change in the history.
   return dailyRateFrom(
     baseSalary:
-        dayEff.newBaseSalary ?? dayEff.prevBaseSalary ?? scorecardBaseSalary,
+        dayEff.newBaseSalary ?? dayEff.prevBaseSalary ?? roleBaseOnDay,
     wageType: dayEff.newWageType ?? dayEff.prevWageType ?? scorecardWageType,
     workDaysPerMonth: workDaysPerMonth,
     hoursPerDay: hoursPerDay,

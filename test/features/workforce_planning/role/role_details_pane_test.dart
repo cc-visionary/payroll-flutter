@@ -104,7 +104,8 @@ void main() {
     expect(find.text('Upselling'), findsOneWidget);
   });
 
-  testWidgets('base salary is read-only on an existing card', (tester) async {
+  testWidgets('base salary is read-only; it changes only through the '
+      'effective-dated Update base rate action', (tester) async {
     await pump(tester);
     await tester.tap(find.text('Role details'));
     await tester.pumpAndSettle();
@@ -113,7 +114,8 @@ void main() {
       fieldsLabelled('Base salary').first,
     );
     expect(field.enabled, isFalse);
-    expect(find.textContaining('compensation'), findsOneWidget);
+    expect(find.textContaining('own pay keep it'), findsOneWidget);
+    expect(find.text('Update base rate'), findsOneWidget);
   });
 
   testWidgets('starts collapsed so the panes below are reachable', (
