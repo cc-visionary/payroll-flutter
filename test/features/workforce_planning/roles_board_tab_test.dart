@@ -106,6 +106,8 @@ void main() {
     expect(find.textContaining('Needs 1.1 people'), findsOneWidget);
     expect(find.textContaining('short 0.1'), findsOneWidget);
     expect(find.textContaining('checked by Ops Manager'), findsOneWidget);
+    // R5: role creation moved here from the retired Roles tab.
+    expect(find.widgetWithText(FilledButton, 'New role'), findsOneWidget);
   });
 
   testWidgets('drag a task to another role -> draft with before/after, Apply writes it', (tester) async {

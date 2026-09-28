@@ -2,26 +2,23 @@ import 'package:flutter/material.dart';
 
 import '../../app/breakpoints.dart';
 import '../../app/shell.dart';
-import 'tabs/balance_tab.dart';
+import 'tabs/all_tasks_tab.dart';
 import 'tabs/drivers_scenario_tab.dart';
-import 'tabs/role_view_tab.dart';
 import 'tabs/organization_tab.dart';
-import 'tabs/responsibilities_tab.dart';
-import 'tabs/unassigned_tab.dart';
+import 'tabs/roles_board_tab.dart';
 
 /// Workforce Planning hub. HR/Admin-only (route guard in app/router.dart also
 /// redirects).
 ///
-/// Five tabs, each answering a different question — no two overlap:
-///   Balance   — plan and rebalance PEOPLE (drag work between them)
-///   Roles     — cost and load per ROLE CARD (compare roles, whoever holds them)
-///   Structure — reporting shape with load (the org)
-///   Tasks     — the inventory and its costing (the data)
-///   Unassigned — work that reaches nobody: archive, assign, or draft a role
+/// Three tabs, each answering a different question — no two overlap:
+///   Roles        — who does what: every role, its people and its work, with
+///                  load; drag a task to another role to plan a move
+///   Organization — the reporting shape with load (the org)
+///   All tasks    — find any task: the searchable inventory and its costing
 ///
-/// Drivers & rates moved off the tab bar into a settings dialog: they are
+/// Every task belongs to exactly one role; a role's holders share its load.
+/// Drivers & rates live off the tab bar in a settings dialog: they are
 /// configuration read by the other tabs, not a view of the workforce.
-/// See docs/superpowers/specs/2026-07-19-workforce-capacity-planning-design.md.
 class WorkforcePlanningScreen extends StatelessWidget {
   const WorkforcePlanningScreen({super.key});
 
@@ -29,7 +26,7 @@ class WorkforcePlanningScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final mobile = isMobile(context);
     return DefaultTabController(
-      length: 5,
+      length: 3,
       child: Scaffold(
         drawer: mobile ? const AppDrawer() : null,
         appBar: AppBar(
@@ -69,21 +66,17 @@ class WorkforcePlanningScreen extends StatelessWidget {
           bottom: const TabBar(
             isScrollable: true,
             tabs: [
-              Tab(text: 'Balance'),
               Tab(text: 'Roles'),
               Tab(text: 'Organization'),
-              Tab(text: 'Responsibilities'),
-              Tab(text: 'Unassigned'),
+              Tab(text: 'All tasks'),
             ],
           ),
         ),
         body: const TabBarView(
           children: [
-            BalanceTab(),
-            RoleViewTab(),
+            RolesBoardTab(),
             OrganizationTab(),
-            ResponsibilitiesTab(),
-            UnassignedTab(),
+            AllTasksTab(),
           ],
         ),
       ),

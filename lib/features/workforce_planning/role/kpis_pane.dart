@@ -12,7 +12,6 @@ import '../../kpi_library/kpi_definition_form.dart';
 import '../../kpi_library/kpi_measurable.dart';
 import '../../kpi_library/kpi_reading.dart';
 import '../removal_lifecycle.dart';
-import '../tabs/role_view_tab.dart' show ownerComputedProvider;
 import '../wp_providers.dart';
 
 /// Fixed sample counts for the live preview only — never sent anywhere. They

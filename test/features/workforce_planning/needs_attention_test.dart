@@ -6,14 +6,7 @@ import 'package:payroll_flutter/data/models/workforce_planning.dart';
 import 'package:payroll_flutter/data/repositories/role_scorecard_repository.dart'
     show KpiAssignee;
 import 'package:payroll_flutter/features/workforce_planning/needs_attention.dart';
-
-WpPersonLoad _load(String id, {required double fixed, double cap = 160}) =>
-    WpPersonLoad(
-      employeeId: id,
-      companyId: 'c',
-      hoursFixed: fixed,
-      capacityHours: cap,
-    );
+import 'package:payroll_flutter/features/workforce_planning/role_load.dart';
 
 WpTask _t(
   String id, {
@@ -100,72 +93,70 @@ Employee _emp(String id, String name, String? cardId) => Employee(
 );
 
 List<AttentionItem> _run({
-  List<WpPersonLoad> loads = const [],
+  List<RoleLoad> roleLoads = const [],
   List<WpTask> tasks = const [],
   List<Employee> employees = const [],
   List<RoleScorecard> cards = const [],
   List<Kpi> kpis = const [],
   Map<String, List<KpiAssignee>> assigned = const {},
-  Map<String, List<WpTaskAssignment>> assignmentsByTask = const {},
-  Map<String, int> holderCountByRole = const {},
 }) => buildNeedsAttention(
-  loads: loads,
+  roleLoads: roleLoads,
   tasks: tasks,
   employees: employees,
   cards: cards,
   kpis: kpis,
   kpiAssignedByKpi: assigned,
-  assignmentsByTask: assignmentsByTask,
-  holderCountByRole: holderCountByRole,
 );
 
-WpTaskAssignment _a(String id, String taskId, double pct) => WpTaskAssignment(
-  id: id,
-  companyId: 'c',
-  taskId: taskId,
-  allocationPct: pct,
-);
-
-AttentionItem? _find(
-  List<AttentionItem> items,
-  AttentionTarget target,
-  AttentionSeverity sev,
-) {
-  final hits = items.where((i) => i.target == target && i.severity == sev);
-  return hits.isEmpty ? null : hits.first;
-}
+/// Role loads for [cards]/[employees] with no task hours.
+List<RoleLoad> _loads(List<RoleScorecard> cards, List<Employee> employees) =>
+    buildRoleLoads(
+      roles: cards,
+      employees: employees,
+      tasks: const [],
+      hoursByTaskId: const {},
+      capacityByEmployee: const {},
+      defaultCapacity: 160,
+    );
 
 void main() {
   test('no signals -> empty', () {
     expect(_run(), isEmpty);
   });
 
-  test('over-capacity person is a high People/balance item', () {
-    final items = _run(loads: [_load('a', fixed: 200), _load('b', fixed: 80)]);
-    final over = _find(items, AttentionTarget.balance, AttentionSeverity.high)!;
-    expect(over.category, AttentionCategory.people);
-    expect(over.count, 1);
-  });
-
-  test('a CRITICAL orphan is high; all orphans are a medium item', () {
-    final items = _run(
-      tasks: [
-        _t('o1', crit: 'CRITICAL'),
-        _t('o2'),
-      ], // both unowned, no card -> orphans
+  test('role-first signals', () {
+    final bh = _card('bh');
+    final k = _card('k');
+    final loads = buildRoleLoads(
+      roles: [bh, k],
+      employees: [_emp('ana', 'Ana', 'bh')],
+      tasks: const [
+        WpTask(id: 't1', companyId: 'c', name: 'a', roleScorecardId: 'bh'),
+        WpTask(id: 't2', companyId: 'c', name: 'b', roleScorecardId: 'k'),
+        WpTask(id: 't3', companyId: 'c', name: 'orphan'),
+        WpTask(id: 't4', companyId: 'c', name: 'legacy', externalRef: 'X'),
+        WpTask(id: 't5', companyId: 'c', name: 'flag', roleScorecardId: 'bh', allocationReviewNote: 'was: x'),
+      ],
+      hoursByTaskId: const {'t1': 200, 't2': 10},
+      capacityByEmployee: const {'ana': 160},
+      defaultCapacity: 160,
     );
-    final crit = _find(
-      items,
-      AttentionTarget.unassigned,
-      AttentionSeverity.high,
-    )!;
-    expect(crit.count, 1);
-    final all = _find(
-      items,
-      AttentionTarget.unassigned,
-      AttentionSeverity.medium,
-    )!;
-    expect(all.count, 2);
+    final items = buildNeedsAttention(
+      roleLoads: loads,
+      tasks: loads.expand((l) => l.tasks).toList() + const [
+        WpTask(id: 't3', companyId: 'c', name: 'orphan'),
+        WpTask(id: 't4', companyId: 'c', name: 'legacy', externalRef: 'X'),
+      ],
+      employees: [_emp('ana', 'Ana', 'bh')],
+      cards: [bh, k],
+      kpis: const [],
+      kpiAssignedByKpi: const {},
+    );
+    String? label(String contains) => items.map((i) => i.label).where((l) => l.contains(contains)).firstOrNull;
+    expect(label('over capacity'), '1 role over capacity');
+    expect(label('no role'), '1 task with no role', reason: 'legacy excluded');
+    expect(label('nobody holds'), '1 role nobody holds');
+    expect(label('check'), '1 task to check');
   });
 
   test('uncosted essential (not expectation) is a Process/tasks item', () {
@@ -180,39 +171,9 @@ void main() {
         ), // expectation, excluded
       ],
     );
-    // Match on the label, not (target, severity) alone: the "shares don't
-    // total 100%" item shares (process, tasks, medium) with this one, so
-    // picking `.first` off that pair would be insertion-order dependent.
     final proc = items.firstWhere((i) => i.label.contains('uncosted'));
     expect(proc.count, 1); // only u1
   });
-
-  test(
-    'shares that don\'t total 100% are a Process/tasks item; exact 100 is not',
-    () {
-      final short = _run(
-        tasks: [_t('s1', owner: 'x')],
-        assignmentsByTask: {
-          's1': [_a('a1', 's1', 40), _a('a2', 's1', 30)],
-        }, // totals 70
-      );
-      final proc = short
-          .where((i) => i.label.contains("don't total 100%"))
-          .toList();
-      expect(proc.length, 1);
-      expect(proc.single.count, 1);
-      expect(proc.single.severity, AttentionSeverity.medium);
-      expect(proc.single.target, AttentionTarget.tasks);
-
-      final exact = _run(
-        tasks: [_t('s2', owner: 'x')],
-        assignmentsByTask: {
-          's2': [_a('a3', 's2', 60), _a('a4', 's2', 40)],
-        }, // totals 100
-      );
-      expect(exact.where((i) => i.label.contains("don't total 100%")), isEmpty);
-    },
-  );
 
   test('KPI signals: measuring nobody, no measurement, no department', () {
     final items = _run(
@@ -335,8 +296,12 @@ void main() {
   });
 
   test('an unfilled role is flagged once, not once per missing holder', () {
+    final cards = [_card('rs1'), _card('rs2'), _card('rs3')];
     final items = _run(
-      holderCountByRole: const {'rs1': 0, 'rs2': 2, 'rs3': 0},
+      roleLoads: _loads(cards, [
+        _emp('e1', 'One', 'rs2'),
+        _emp('e2', 'Two', 'rs2'),
+      ]),
     );
     final item = items.singleWhere((i) => i.label.contains('nobody holds'));
     expect(item.count, 2); // rs1 and rs3 — rs2 has holders
@@ -345,13 +310,26 @@ void main() {
   });
 
   test('every role held -> the signal does not appear', () {
-    final items = _run(holderCountByRole: const {'rs1': 1, 'rs2': 3});
+    final items = _run(
+      roleLoads: _loads(
+        [_card('rs1'), _card('rs2')],
+        [_emp('e1', 'One', 'rs1'), _emp('e2', 'Two', 'rs2')],
+      ),
+    );
     expect(items.where((i) => i.label.contains('nobody holds')), isEmpty);
   });
 
   test('high-severity items rank before medium', () {
     final items = _run(
-      loads: [_load('a', fixed: 200)], // high
+      // One holder, 200h of work on 160h -> over capacity (high).
+      roleLoads: buildRoleLoads(
+        roles: [_card('rs1', dept: 'd1')],
+        employees: [_emp('a', 'A', 'rs1')],
+        tasks: [_t('h1', card: 'rs1')],
+        hoursByTaskId: const {'h1': 200},
+        capacityByEmployee: const {},
+        defaultCapacity: 160,
+      ),
       tasks: [_t('u1', owner: 'x')], // medium (uncosted essential)
     );
     expect(items.first.severity, AttentionSeverity.high);

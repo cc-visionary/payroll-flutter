@@ -94,38 +94,6 @@ class WorkforcePlanningRepository {
             .toList();
       });
 
-  /// Inserts a new assignment or updates an existing one's role/percentage.
-  /// A TARGET change is a delete + insert, not an update — the partial unique
-  /// indexes are on (task_id, target), so mutating the target in place could
-  /// collide with a sibling row.
-  Future<void> upsertAssignment(WpTaskAssignment a) async {
-    if (a.id.isEmpty) {
-      await _client.from('wp_task_assignments').insert(a.toUpsert(a.companyId));
-    } else {
-      await _client
-          .from('wp_task_assignments')
-          .update({
-            'assignment_role': a.assignmentRole,
-            'allocation_pct': a.allocationPct,
-          })
-          .eq('id', a.id);
-    }
-  }
-
-  Future<void> deleteAssignment(String id) async =>
-      _client.from('wp_task_assignments').delete().eq('id', id);
-
-  /// Bulk percentage write (the panel's simplifiers). One statement per row —
-  /// PostgREST has no multi-row-different-values update.
-  Future<void> setAllocations(Map<String, double> pctById) async {
-    for (final e in pctById.entries) {
-      await _client
-          .from('wp_task_assignments')
-          .update({'allocation_pct': e.value})
-          .eq('id', e.key);
-    }
-  }
-
   Future<List<WpPersonLoad>> personLoads() => fetchAllPages((from, to) async {
     final rows = await _client
         .from('wp_person_load')
@@ -234,13 +202,6 @@ Future<void> deleteTask(String id) async =>
     await _client
         .from('wp_tasks')
         .update({'status': archived ? 'ARCHIVED' : 'ACTIVE'})
-        .eq('id', taskId);
-  }
-
-  Future<void> reassignTaskOwner(String taskId, String? ownerEmployeeId) async {
-    await _client
-        .from('wp_tasks')
-        .update({'owner_employee_id': ownerEmployeeId})
         .eq('id', taskId);
   }
 

@@ -9,6 +9,7 @@ import '../../../data/repositories/role_scorecard_repository.dart';
 import '../../../data/repositories/workforce_planning_repository.dart';
 import '../board/board_sections.dart';
 import '../board/role_load_card.dart';
+import '../role/new_role_dialog.dart';
 import '../role_load.dart';
 import '../wp_providers.dart';
 import 'needs_attention_strip.dart';
@@ -141,6 +142,23 @@ class _RolesBoardTabState extends ConsumerState<RolesBoardTab> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // Creating a role lives on the board (it replaced the old Roles
+              // tab). No extra permission check: the hub is already
+              // HR/Admin-only via the /workforce-planning route guard.
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.icon(
+                  onPressed: () async {
+                    final id = await showNewRoleDialog(context, ref);
+                    if (id != null && context.mounted) {
+                      context.push('/workforce-planning/roles/$id');
+                    }
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('New role'),
+                ),
+              ),
+              const SizedBox(height: 12),
               PeopleLoadStrip(loads: plannedById.values.toList(), employees: d.employees),
               const SizedBox(height: 16),
               NoRoleSection(

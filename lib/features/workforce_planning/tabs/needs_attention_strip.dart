@@ -5,17 +5,16 @@ import 'package:go_router/go_router.dart';
 import '../../../app/status_colors.dart';
 import '../../../data/repositories/role_scorecard_repository.dart';
 import '../needs_attention.dart';
-import '../role_structure.dart' show holderCountByRole;
+import '../role_load.dart';
 import '../wp_providers.dart';
 import 'tab_intro.dart';
 
-/// Hub tabs live in the same DefaultTabController (Balance 0, Roles 1,
-/// Structure 2, Tasks 3, Unassigned 4). KPI library is a separate route.
+/// Hub tabs live in the same DefaultTabController (Roles 0, Organization 1,
+/// All tasks 2). KPI library is a separate route.
 void _go(BuildContext context, AttentionTarget target) {
   const tabIndex = {
-    AttentionTarget.roles: 1,
-    AttentionTarget.tasks: 3,
-    AttentionTarget.unassigned: 4,
+    AttentionTarget.roles: 0,
+    AttentionTarget.tasks: 2,
   };
   final idx = tabIndex[target];
   if (idx != null) {
@@ -32,9 +31,9 @@ String _categoryLabel(AttentionCategory c) => switch (c) {
   AttentionCategory.tools => 'Tools',
 };
 
-/// Derived gaps in the current plan, surfaced at the top of the Balance tab —
-/// over-capacity people, unowned or uncosted work, unstaffed critical roles,
-/// KPIs measuring nobody. Each row deep-links to the tab/route that fixes it.
+/// Derived gaps in the current plan, surfaced at the top of the Roles tab —
+/// over-capacity roles, tasks with no role or flagged for a check, uncosted
+/// work, unstaffed critical roles, KPIs measuring nobody. Each row deep-links to the tab/route that fixes it.
 ///
 /// Self-contained: watches its own providers and disappears entirely
 /// (`SizedBox.shrink()`) while loading or once there is nothing to flag, so
@@ -45,6 +44,9 @@ class NeedsAttentionStrip extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final loads = ref.watch(wpPersonLoadsProvider).asData?.value;
+    final computed = ref.watch(wpAllTaskComputedProvider).asData?.value;
+    final configAsync = ref.watch(wpConfigProvider);
+    final multiplier = ref.watch(wpGrowthMultiplierProvider);
     final tasks = ref.watch(wpTasksProvider).asData?.value;
     final employees = ref.watch(wpActiveEmployeesProvider).asData?.value;
     final cards = ref.watch(roleScorecardListProvider).asData?.value;
@@ -53,13 +55,10 @@ class NeedsAttentionStrip extends ConsumerWidget {
         .watch(kpiAssignedEmployeesProvider)
         .asData
         ?.value;
-    // Read defensively — this signal must never block first paint on the
-    // strip's other, already-required providers. Safe here because an empty
-    // assignment map yields ZERO misallocated responsibilities.
-    final assignmentsByTask =
-        ref.watch(wpAssignmentsByTaskProvider).asData?.value ?? const {};
 
     if (loads == null ||
+        computed == null ||
+        !configAsync.hasValue ||
         tasks == null ||
         employees == null ||
         cards == null ||
@@ -68,20 +67,28 @@ class NeedsAttentionStrip extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    // The same notion of "holds a role" the Organization tab uses — ACTIVE
-    // and not soft-deleted — so the chip's count matches what a manager sees
-    // after clicking through.
-    final holdersByRole = holderCountByRole(roles: cards, employees: employees);
+    // Built exactly as the Roles board builds its cards, so a chip's count
+    // matches what a manager sees after clicking through.
+    final roleLoads = buildRoleLoads(
+      roles: cards.where((c) => c.isActive).toList(),
+      employees: employees,
+      tasks: tasks,
+      hoursByTaskId: {
+        for (final c in computed) c.taskId: taskHours(c, multiplier),
+      },
+      capacityByEmployee: {
+        for (final l in loads) l.employeeId: l.capacityHours,
+      },
+      defaultCapacity: configAsync.value?.defaultCapacityHours ?? 160,
+    );
 
     final items = buildNeedsAttention(
-      loads: loads,
+      roleLoads: roleLoads,
       tasks: tasks,
       employees: employees,
       cards: cards,
       kpis: kpis,
       kpiAssignedByKpi: kpiAssignedByKpi,
-      assignmentsByTask: assignmentsByTask,
-      holderCountByRole: holdersByRole,
     );
     if (items.isEmpty) return const SizedBox.shrink();
 
@@ -125,24 +132,16 @@ class NeedsAttentionStrip extends ConsumerWidget {
                         for (final item in items.where(
                           (i) => i.category == category,
                         ))
-                          if (item.target == AttentionTarget.balance)
-                            StatusChip(
+                          InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: () => _go(context, item.target),
+                            child: StatusChip(
                               label: item.label,
                               tone: item.severity == AttentionSeverity.high
                                   ? StatusTone.danger
                                   : StatusTone.warning,
-                            )
-                          else
-                            InkWell(
-                              borderRadius: BorderRadius.circular(16),
-                              onTap: () => _go(context, item.target),
-                              child: StatusChip(
-                                label: item.label,
-                                tone: item.severity == AttentionSeverity.high
-                                    ? StatusTone.danger
-                                    : StatusTone.warning,
-                              ),
                             ),
+                          ),
                       ],
                     ),
                   ],

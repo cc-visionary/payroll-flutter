@@ -7,7 +7,6 @@ import '../../../data/models/workforce_planning.dart';
 import '../../../data/repositories/workforce_planning_repository.dart';
 import '../../auth/profile_provider.dart';
 import '../wp_providers.dart';
-import 'role_view_tab.dart' show ownerComputedProvider;
 import 'tab_intro.dart';
 
 /// HR-facing Drivers & Scenario editor: the growth-multiplier scenario

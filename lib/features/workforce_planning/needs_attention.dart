@@ -6,17 +6,16 @@ import '../../data/repositories/role_scorecard_repository.dart'
     show KpiAssignee;
 import '../kpi_library/kpi_measurable.dart' show isKpiDefined;
 import '../kpi_library/kpi_rows.dart' show kpiIsAssigned;
-import 'allocation.dart';
 import 'capacity_math.dart';
+import 'role_load.dart';
 import 'tasks_rows.dart' show isTaskNotCosted;
-import 'unassigned_workspace.dart' show orphanTasks;
 
 enum AttentionCategory { people, process, structure, tools }
 
 enum AttentionSeverity { high, medium }
 
 /// Where the fix lives — the strip maps this to a hub-tab switch or a route.
-enum AttentionTarget { balance, roles, tasks, unassigned, kpiLibrary }
+enum AttentionTarget { roles, tasks, kpiLibrary }
 
 /// One derived "needs attention" row: a gap the manager should close.
 class AttentionItem {
@@ -34,31 +33,19 @@ class AttentionItem {
   });
 }
 
-bool _cardHasActiveHolder(List<Employee> employees, String cardId) =>
-    employees.any(
-      (e) =>
-          e.employmentStatus == 'ACTIVE' &&
-          e.deletedAt == null &&
-          e.roleScorecardId == cardId,
-    );
-
 String _plural(int n, String one, String many) => '$n ${n == 1 ? one : many}';
 
-/// The ranked list of gaps computable on CURRENT data (pre-assignments).
+/// The ranked list of gaps computable on CURRENT data. People signals read
+/// [roleLoads] (one role per task, hours split across its holders).
 /// Grouped by category in the UI; ordered here high-severity first, then by
 /// descending count. Each signal appears only when its count > 0.
 List<AttentionItem> buildNeedsAttention({
-  required List<WpPersonLoad> loads,
+  required List<RoleLoad> roleLoads,
   required List<WpTask> tasks,
   required List<Employee> employees,
   required List<RoleScorecard> cards,
   required List<Kpi> kpis,
   required Map<String, List<KpiAssignee>> kpiAssignedByKpi,
-  Map<String, List<WpTaskAssignment>> assignmentsByTask = const {},
-  // Role card id -> how many people currently hold it. Empty (the default)
-  // yields zero for the "roles nobody holds" signal below rather than "not
-  // loaded" — an empty map here is the true zero state (no roles known yet).
-  Map<String, int> holderCountByRole = const {},
 }) {
   final items = <AttentionItem>[];
   void add(
@@ -80,35 +67,25 @@ List<AttentionItem> buildNeedsAttention({
       );
   }
 
-  // People
-  final over = loads
-      .where((p) => loadStatus(personLoad(p)) == LoadStatus.over)
+  // People — roles, not persons: every holder of a role shares its load.
+  final overRoles = roleLoads
+      .where((r) => r.holders.isNotEmpty && r.status == LoadStatus.over)
       .length;
   add(
     AttentionCategory.people,
     AttentionSeverity.high,
-    over,
-    '${_plural(over, 'person', 'people')} over capacity',
-    AttentionTarget.balance,
+    overRoles,
+    '${_plural(overRoles, 'role', 'roles')} over capacity',
+    AttentionTarget.roles,
   );
 
-  final orphans = orphanTasks(tasks: tasks, employees: employees);
-  final criticalOrphans = orphans
-      .where((t) => t.criticality == 'CRITICAL')
-      .length;
-  add(
-    AttentionCategory.people,
-    AttentionSeverity.high,
-    criticalOrphans,
-    '${_plural(criticalOrphans, 'critical responsibility', 'critical responsibilities')} nobody owns',
-    AttentionTarget.unassigned,
-  );
+  final noRole = noRoleTasks(tasks).length;
   add(
     AttentionCategory.people,
     AttentionSeverity.medium,
-    orphans.length,
-    '${_plural(orphans.length, 'responsibility', 'responsibilities')} unassigned',
-    AttentionTarget.unassigned,
+    noRole,
+    '${_plural(noRole, 'task', 'tasks')} with no role',
+    AttentionTarget.roles,
   );
 
   // A person's KPIs are their role's KPIs — pure inheritance, no
@@ -144,28 +121,13 @@ List<AttentionItem> buildNeedsAttention({
     AttentionTarget.tasks,
   );
 
-  final misallocated = tasks
-      .where(
-        (t) =>
-            t.status == 'ACTIVE' &&
-            !t.isExpectation &&
-            (assignmentsByTask[t.id] ?? const []).isNotEmpty &&
-            (allocationTotal(
-                          (assignmentsByTask[t.id] ?? const []).map(
-                            (a) => a.allocationPct,
-                          ),
-                        ) -
-                        100)
-                    .abs() >
-                0.05,
-      )
-      .length;
+  final flagged = flaggedTasks(tasks).length;
   add(
     AttentionCategory.process,
     AttentionSeverity.medium,
-    misallocated,
-    "${_plural(misallocated, 'responsibility', 'responsibilities')} whose shares don't total 100%",
-    AttentionTarget.tasks,
+    flagged,
+    '${_plural(flagged, 'task', 'tasks')} to check',
+    AttentionTarget.roles,
   );
 
   final activeKpis = kpis.where((k) => k.isActive).toList();
@@ -225,10 +187,13 @@ List<AttentionItem> buildNeedsAttention({
     final id = t.roleScorecardId;
     if (id != null && t.status == 'ACTIVE') (tasksByCard[id] ??= []).add(t);
   }
+  final heldByRole = {
+    for (final r in roleLoads) r.role.id: r.holders.isNotEmpty,
+  };
   final unstaffedCritical = activeCards
       .where(
         (c) =>
-            !_cardHasActiveHolder(employees, c.id) &&
+            !(heldByRole[c.id] ?? false) &&
             (tasksByCard[c.id] ?? const []).any(
               (t) => t.criticality == 'CRITICAL',
             ),
@@ -261,11 +226,10 @@ List<AttentionItem> buildNeedsAttention({
   );
 
   // A role nobody holds: real work with an owner on paper and none in
-  // practice. Build `holderCountByRole` with [holderCountByRole] in
-  // role_structure.dart so "holds" means the same thing here as on the
-  // Organization tab — ACTIVE and not soft-deleted. Each unfilled role
-  // counts once, not once per missing person.
-  final unfilledRoles = holderCountByRole.values.where((n) => n == 0).length;
+  // practice. Holders come from [roleLoads] (ACTIVE, not soft-deleted — the
+  // same notion the Organization tab uses). Each unfilled role counts once,
+  // not once per missing person.
+  final unfilledRoles = roleLoads.where((r) => r.holders.isEmpty).length;
   add(
     AttentionCategory.structure,
     AttentionSeverity.medium,

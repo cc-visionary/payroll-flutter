@@ -13,7 +13,6 @@ import '../../responsibility_cards/responsibility_rows.dart';
 import '../duplicate_check.dart';
 import '../duplicate_warning.dart';
 import '../removal_lifecycle.dart';
-import '../tabs/role_view_tab.dart' show ownerComputedProvider;
 import '../tabs/task_form_dialog.dart';
 import '../task_badges.dart';
 import '../tasks_rows.dart';
