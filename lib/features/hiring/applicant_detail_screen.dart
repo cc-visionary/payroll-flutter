@@ -9,6 +9,7 @@ import '../../data/repositories/role_scorecard_repository.dart';
 import '../../data/repositories/hiring_entity_repository.dart';
 import 'applicant_status.dart';
 import 'convert_action.dart';
+import 'delete_applicant_action.dart';
 import 'offer_letter_action.dart';
 import 'widgets/move_to_listing_dialog.dart';
 import 'widgets/reject_dialog.dart';
@@ -93,6 +94,14 @@ class _Body extends ConsumerWidget {
                 currentListingId: a.listingId,
               ),
             ),
+          ),
+          IconButton(
+            tooltip: 'Remove applicant',
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () async {
+              final removed = await confirmAndDeleteApplicant(context, ref, a);
+              if (removed && context.mounted) context.go('/hiring');
+            },
           ),
         ],
       ),

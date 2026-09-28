@@ -224,6 +224,16 @@ class ApplicantRepository {
     return inserted['id'] as String;
   }
 
+  /// Removes an applicant from the pipeline by stamping `deleted_at`. The row
+  /// is kept (soft delete) so audit history survives; every list/count query
+  /// already filters `deleted_at IS NULL`.
+  Future<void> softDelete(String id) async {
+    await _client
+        .from('applicants')
+        .update({'deleted_at': DateTime.now().toUtc().toIso8601String()})
+        .eq('id', id);
+  }
+
   /// Atomically stamp `converted_to_employee_id`, `converted_at = now()`,
   /// and `status = 'HIRED'` on the applicant. Called from the convert flow
   /// AFTER the new Employee row commits. Uses an update that constrains on
