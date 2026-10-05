@@ -16,6 +16,10 @@ import 'package:payroll_flutter/features/kpi_results/kpi_results_screen.dart';
 
 import '../../support/supabase_stub.dart';
 
+/// The screens open on the current month, so fixtures must use it too —
+/// a hard-coded month made these tests fail once that month passed.
+final _period = periodOf(DateTime.now());
+
 /// Stands in for `KpiSourceConfigRepository` so a test can hand `_recompute`
 /// (Task 7 Part D) fixed bindings/fetch responses, and -- for the
 /// degraded-load test -- an error `listBindings()` throws, without any of
@@ -126,7 +130,7 @@ KpiResult _r({
   id: 'res-$kpiId',
   companyId: 'c',
   kpiId: kpiId,
-  period: '2026-08',
+  period: _period,
   scope: KpiScope.company,
   value: value,
   targetSnapshot: target,
@@ -179,7 +183,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          kpiResultsForPeriodProvider('2026-08').overrideWith((ref) async => rows),
+          kpiResultsForPeriodProvider(_period).overrideWith((ref) async => rows),
         ],
         child: const MaterialApp(home: KpiResultsScreen()),
       ),
@@ -232,7 +236,7 @@ void main() {
       final reading = KpiReading(
         companyId: 'c',
         kpiId: 'k-1',
-        period: '2026-08',
+        period: _period,
         scope: KpiScope.company,
         numerator: 42,
         reportedVia: ReportedVia.app,
@@ -248,7 +252,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            kpiResultsForPeriodProvider('2026-08').overrideWith((ref) async => const []),
+            kpiResultsForPeriodProvider(_period).overrideWith((ref) async => const []),
             kpiLibraryProvider.overrideWith((ref) async => [kpi]),
             employeeListProvider(
               const EmployeeListQuery(),
@@ -307,7 +311,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            kpiResultsForPeriodProvider('2026-08').overrideWith((ref) async => const []),
+            kpiResultsForPeriodProvider(_period).overrideWith((ref) async => const []),
             kpiLibraryProvider.overrideWith((ref) async => [_configuredKpi()]),
             employeeListProvider(
               const EmployeeListQuery(),
@@ -372,7 +376,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            kpiResultsForPeriodProvider('2026-08').overrideWith((ref) async => const []),
+            kpiResultsForPeriodProvider(_period).overrideWith((ref) async => const []),
             kpiLibraryProvider.overrideWith((ref) async => [_configuredKpi()]),
             employeeListProvider(
               const EmployeeListQuery(),
@@ -430,7 +434,7 @@ void main() {
       final reading = KpiReading(
         companyId: 'c',
         kpiId: 'k-1',
-        period: '2026-08',
+        period: _period,
         scope: KpiScope.company,
         numerator: 42,
         reportedVia: ReportedVia.app,
@@ -457,7 +461,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            kpiResultsForPeriodProvider('2026-08').overrideWith((ref) async => const []),
+            kpiResultsForPeriodProvider(_period).overrideWith((ref) async => const []),
             kpiLibraryProvider.overrideWith((ref) async => [kpi]),
             employeeListProvider(
               const EmployeeListQuery(),
@@ -518,7 +522,7 @@ void main() {
       final reading = KpiReading(
         companyId: 'c',
         kpiId: 'k-1',
-        period: '2026-08',
+        period: _period,
         scope: KpiScope.company,
         numerator: 42,
         reportedVia: ReportedVia.app,
@@ -545,7 +549,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            kpiResultsForPeriodProvider('2026-08').overrideWith((ref) async => const []),
+            kpiResultsForPeriodProvider(_period).overrideWith((ref) async => const []),
             kpiLibraryProvider.overrideWith((ref) async => [kpi]),
             employeeListProvider(
               const EmployeeListQuery(),

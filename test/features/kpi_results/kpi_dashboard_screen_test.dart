@@ -8,6 +8,10 @@ import 'package:payroll_flutter/features/kpi_results/kpi_results_screen.dart';
 
 import '../../support/supabase_stub.dart';
 
+/// The screens open on the current month, so fixtures must use it too —
+/// a hard-coded month made these tests fail once that month passed.
+final _period = periodOf(DateTime.now());
+
 KpiResult _r({
   required String kpiId,
   required KpiStatus status,
@@ -17,7 +21,7 @@ KpiResult _r({
   id: 'res-$kpiId',
   companyId: 'c',
   kpiId: kpiId,
-  period: '2026-08',
+  period: _period,
   scope: KpiScope.company,
   value: value,
   targetSnapshot: target,
@@ -41,7 +45,7 @@ void main() {
       ProviderScope(
         overrides: [
           kpiResultsForPeriodProvider(
-            '2026-08',
+            _period,
           ).overrideWith((ref) async => rows),
         ],
         child: const MaterialApp(home: KpiDashboardScreen()),
